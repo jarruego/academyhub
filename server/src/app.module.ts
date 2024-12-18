@@ -5,6 +5,7 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './guards/auth/auth.guard';
 import { JwtModule } from '@nestjs/jwt';
+import { ApiModule } from './api/api.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { JwtModule } from '@nestjs/jwt';
     }),
     DatabaseModule,
     AuthModule,
+    ApiModule,
   ],
   providers: [
     {

@@ -19,7 +19,7 @@ export function compareHash(
   strangePassword: string
 ): boolean {
   return (
-    this.hashPassword(originalPassword) === this.hashPassword(strangePassword)
+    hash(originalPassword) === hash(strangePassword)
   );
 }
 
