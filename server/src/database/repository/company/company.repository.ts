@@ -20,17 +20,6 @@ export class CompanyRepository extends Repository {
         return result;
     }
 
-    async save(company: any) {
-        const result = await this.query()
-            .insert(companyTable)
-            .values(company)
-            .onConflictDoUpdate({
-                target: companyTable.id_company,
-                set: company
-            });
-        return result;
-    }
-
     async update(id: number, updateCompanyDTO: UpdateCompanyDTO) {
         const result = await this.query()
             .update(companyTable)

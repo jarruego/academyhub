@@ -11,8 +11,7 @@ export class CompanyService {
     return await this.companyRepository.findByCIF(cif);
   }
   async create(createCompanyDTO: CreateCompanyDTO) {
-    const company = this.companyRepository.create(createCompanyDTO);
-    return await this.companyRepository.save(company);
+    return await this.companyRepository.create(createCompanyDTO);
   }
 
   async update(id: number, updateCompanyDTO: UpdateCompanyDTO) {
