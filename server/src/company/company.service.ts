@@ -19,4 +19,7 @@ export class CompanyService {
     return await this.companyRepository.findOne(id);
   }
 
+  async findOne(id: number) {
+    return await this.companyRepository.findOne(id);
+  }
 }
