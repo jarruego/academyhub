@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { companyTable } from "src/database/schema/tables/company.table";
-import { eq } from "drizzle-orm";
+import { eq, like, ilike } from "drizzle-orm";
 import { CreateCompanyDTO } from "src/dto/company/create-company.dto";
 import { UpdateCompanyDTO } from "src/dto/company/update-company.dto";
 
@@ -31,5 +31,15 @@ export class CompanyRepository extends Repository {
     async findOne(id: number) {
         const rows = await this.query().select().from(companyTable).where(eq(companyTable.id_company, id));
         return rows?.[0];
+    }
+
+    async findAll(query: any) {
+        let queryBuilder = this.query().select().from(companyTable);
+        for (const key in query) {
+            if (query.hasOwnProperty(key)) {
+                queryBuilder = (queryBuilder as any).where(ilike(companyTable[key], `%${query[key]}%`));
+            }
+        }
+        return await queryBuilder;
     }
 }

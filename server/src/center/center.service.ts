@@ -15,6 +15,10 @@ export class CenterService {
     return await this.centerRepository.findById(id);
   }
 
+  async findAll(query: any) {
+    return await this.centerRepository.findAll(query);
+  }
+
   async create(createCenterDTO: CreateCenterDTO) {
     const company = await this.companyRepository.findOne(createCenterDTO.id_company);
     if (!company) {

@@ -22,4 +22,8 @@ export class CompanyService {
   async findOne(id: number) {
     return await this.companyRepository.findOne(id);
   }
+
+  async findAll(query: any) {
+    return await this.companyRepository.findAll(query);
+  }
 }

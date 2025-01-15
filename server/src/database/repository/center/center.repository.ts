@@ -1,8 +1,7 @@
-
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { centerTable } from "src/database/schema/tables/center.table";
-import { eq } from "drizzle-orm";
+import { eq, ilike } from "drizzle-orm"; 
 import { CreateCenterDTO } from "src/dto/center/create-center.dto";
 import { UpdateCenterDTO } from "src/dto/center/update-center.dto";
 
@@ -12,6 +11,16 @@ export class CenterRepository extends Repository {
     async findById(id: number, options?: QueryOptions) {
         const rows = await this.query(options).select().from(centerTable).where(eq(centerTable.id_center, id));
         return rows?.[0];
+    }
+
+    async findAll(query: any) {
+        let queryBuilder = this.query().select().from(centerTable);
+        for (const key in query) {
+            if (query.hasOwnProperty(key)) {
+                queryBuilder = (queryBuilder as any).where(ilike(centerTable[key], `%${query[key]}%`));
+            }
+        }
+        return await queryBuilder;
     }
 
     async create(createCenterDTO: CreateCenterDTO) {
