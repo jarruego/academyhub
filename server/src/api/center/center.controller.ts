@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
-import { CreateCenterDTO } from '../dto/center/create-center.dto';
-import { UpdateCenterDTO } from '../dto/center/update-center.dto';
+import { CreateCenterDTO } from '../../dto/center/create-center.dto';
+import { UpdateCenterDTO } from '../../dto/center/update-center.dto';
 import { CenterService } from './center.service';
 
 @Controller('center')

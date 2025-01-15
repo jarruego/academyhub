@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
-import { CreateCompanyDTO } from '../dto/company/create-company.dto';
-import { UpdateCompanyDTO } from '../dto/company/update-company.dto';
+import { CreateCompanyDTO } from '../../dto/company/create-company.dto';
+import { UpdateCompanyDTO } from '../../dto/company/update-company.dto';
 import { CompanyService } from './company.service';
 
 @Controller('company')
