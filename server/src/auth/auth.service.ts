@@ -3,7 +3,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { LoginDTO } from "src/dto/auth/login.dto";
 import { compareHashWithSalt } from "src/utils/crypto/password-hashing.util";
-import { UserService } from "./user/user.service";
+import { UserService } from "./auth_user/auth_user.service";
 
 @Injectable()
 export class AuthService {

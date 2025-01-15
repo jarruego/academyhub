@@ -1,7 +1,7 @@
 import { pgTable, serial, varchar } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 
-export const userTable = pgTable('users', {
+export const authUserTable = pgTable('auth_users', {
     id: serial().primaryKey(),
     name: varchar({length: 32}).notNull(),
     lastName: varchar({length: 64}),
