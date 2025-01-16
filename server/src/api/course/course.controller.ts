@@ -1,4 +1,3 @@
-
 import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
 import { CreateCourseDTO } from '../../dto/course/create-course.dto';
 import { UpdateCourseDTO } from '../../dto/course/update-course.dto';

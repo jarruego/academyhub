@@ -1,6 +1,5 @@
-
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsString, IsInt, IsDate, IsEnum, IsBoolean, IsDecimal } from "class-validator";
+import { IsNotEmpty, IsString, IsInt, IsDate, IsEnum, IsBoolean, IsDecimal, IsIn } from "class-validator";
 
 export class CreateCourseDTO {
   @ApiProperty()
@@ -40,8 +39,9 @@ export class CreateCourseDTO {
 
   @ApiProperty()
   @IsNotEmpty()
-  @IsEnum(['Online', 'Presential'])
-  modality: 'Online' | 'Presential';
+  @IsString()
+  @IsIn(['Online', 'Presential']) // Validación de valores permitidos
+  modality: string;
 
   @ApiProperty()
   @IsNotEmpty()

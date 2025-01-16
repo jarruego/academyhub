@@ -1,6 +1,5 @@
-
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsInt, IsDate, IsEnum, IsBoolean, IsDecimal, IsOptional } from "class-validator";
+import { IsString, IsInt, IsDate, IsBoolean, IsDecimal, IsOptional, IsIn } from "class-validator";
 
 export class UpdateCourseDTO {
   @ApiPropertyOptional()
@@ -40,8 +39,8 @@ export class UpdateCourseDTO {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEnum(['Online', 'Presential'])
-  modality: 'Online' | 'Presential';
+  @IsIn(['Online', 'Presential']) // Validación de valores permitidos
+  modality: string;
 
   @ApiPropertyOptional()
   @IsOptional()
