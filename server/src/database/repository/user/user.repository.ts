@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, ConflictException } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { userTable } from "src/database/schema/tables/user.table";
 import { eq, ilike } from "drizzle-orm";
@@ -13,24 +13,38 @@ export class UserRepository extends Repository {
   }
 
   async create(createUserDTO: CreateUserDTO) {
-    const result = await this.query()
-      .insert(userTable)
-      .values({
-        ...createUserDTO,
-        registration_date: new Date(createUserDTO.registration_date).toISOString()
-      });
-    return result;
+    try {
+      const result = await this.query()
+        .insert(userTable)
+        .values({
+          ...createUserDTO,
+          registration_date: new Date(createUserDTO.registration_date).toISOString()
+        });
+      return result;
+    } catch (error) {
+      if ((error as any).code === '23505') { // Código de error para clave duplicada en PostgreSQL
+        throw new ConflictException('Duplicate key value violates unique constraint');
+      }
+      throw error;
+    }
   }
 
   async update(id: number, updateUserDTO: UpdateUserDTO) {
-    const result = await this.query()
-      .update(userTable)
-      .set({
-        ...updateUserDTO,
-        registration_date: new Date(updateUserDTO.registration_date).toISOString()
-      })
-      .where(eq(userTable.id_user, id));
-    return result;
+    try {
+      const result = await this.query()
+        .update(userTable)
+        .set({
+          ...updateUserDTO,
+          registration_date: new Date(updateUserDTO.registration_date).toISOString()
+        })
+        .where(eq(userTable.id_user, id));
+      return result;
+    } catch (error) {
+      if ((error as any).code === '23505') { // Código de error para clave duplicada en PostgreSQL
+        throw new ConflictException('Duplicate key value violates unique constraint');
+      }
+      throw error;
+    }
   }
 
   async findAll(query: any) {
