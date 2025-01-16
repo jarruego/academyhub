@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1734542073933,
-      "tag": "0000_material_lilith",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1736849073125,
-      "tag": "0001_good_tiger_shark",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1736929392092,
-      "tag": "0002_funny_ted_forrester",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1736929565417,
-      "tag": "0003_redundant_charles_xavier",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1736930703492,
-      "tag": "0004_broken_jamie_braddock",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1737023853665,
-      "tag": "0005_fuzzy_raza",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1737024764219,
-      "tag": "0006_cheerful_pestilence",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1737025204604,
-      "tag": "0007_silky_cargill",
+      "when": 1737026821118,
+      "tag": "0000_concerned_cerise",
       "breakpoints": true
     }
   ]
