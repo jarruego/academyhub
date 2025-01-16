@@ -1,4 +1,3 @@
-
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { courseTable } from "src/database/schema/tables/course.table";
@@ -17,14 +16,24 @@ export class CourseRepository extends Repository {
   async create(createCourseDTO: CreateCourseDTO) {
     const result = await this.query()
       .insert(courseTable)
-      .values(createCourseDTO);
+      .values({
+        ...createCourseDTO,
+        start_date: createCourseDTO.start_date.toISOString(),
+        end_date: createCourseDTO.end_date.toISOString(),
+        price_per_hour: createCourseDTO.price_per_hour.toString(),
+      });
     return result;
   }
 
   async update(id: number, updateCourseDTO: UpdateCourseDTO) {
     const result = await this.query()
       .update(courseTable)
-      .set(updateCourseDTO)
+      .set({
+        ...updateCourseDTO,
+        start_date: updateCourseDTO.start_date.toISOString(),
+        end_date: updateCourseDTO.end_date.toISOString(),
+        price_per_hour: updateCourseDTO.price_per_hour.toString(),
+      })
       .where(eq(courseTable.id_course, id));
     return result;
   }
