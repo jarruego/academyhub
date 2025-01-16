@@ -18,8 +18,8 @@ export class CourseRepository extends Repository {
       .insert(courseTable)
       .values({
         ...createCourseDTO,
-        start_date: createCourseDTO.start_date.toISOString(),
-        end_date: createCourseDTO.end_date.toISOString(),
+        start_date: new Date(createCourseDTO.start_date).toISOString(),
+        end_date: new Date(createCourseDTO.end_date).toISOString(),
         price_per_hour: createCourseDTO.price_per_hour.toString(),
       });
     return result;
@@ -30,8 +30,8 @@ export class CourseRepository extends Repository {
       .update(courseTable)
       .set({
         ...updateCourseDTO,
-        start_date: updateCourseDTO.start_date.toISOString(),
-        end_date: updateCourseDTO.end_date.toISOString(),
+        start_date: new Date(updateCourseDTO.start_date).toISOString(),
+        end_date: new Date(updateCourseDTO.end_date).toISOString(),
         price_per_hour: updateCourseDTO.price_per_hour.toString(),
       })
       .where(eq(courseTable.id_course, id));

@@ -1,9 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsString, IsInt, IsDate, IsEnum, IsBoolean, IsDecimal, IsIn } from "class-validator";
+import { IsNotEmpty, IsString, IsInt, IsBoolean,  IsIn, IsNumber, IsOptional, IsDateString } from "class-validator";
 
 export class CreateCourseDTO {
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsInt()
   moodle_id: number;
 
@@ -13,7 +13,7 @@ export class CreateCourseDTO {
   course_name: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   category: string;
 
@@ -23,17 +23,17 @@ export class CreateCourseDTO {
   short_name: string;
 
   @ApiProperty()
-  @IsNotEmpty()
-  @IsDate()
+  @IsOptional()
+  @IsDateString()
   start_date: Date;
 
   @ApiProperty()
-  @IsNotEmpty()
-  @IsDate()
+  @IsOptional()
+  @IsDateString()
   end_date: Date;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   fundae_id: string;
 
@@ -44,13 +44,13 @@ export class CreateCourseDTO {
   modality: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsInt()
   hours: number;
 
   @ApiProperty()
-  @IsNotEmpty()
-  @IsDecimal()
+  @IsOptional()
+  @IsNumber()
   price_per_hour: number;
 
   @ApiProperty()

@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsInt, IsDate, IsBoolean, IsDecimal, IsOptional, IsIn } from "class-validator";
+import { IsString, IsInt, IsBoolean, IsOptional, IsIn, IsNumber, IsDateString } from "class-validator";
 
 export class UpdateCourseDTO {
   @ApiPropertyOptional()
@@ -24,12 +24,12 @@ export class UpdateCourseDTO {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsDate()
+  @IsDateString()
   start_date: Date;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsDate()
+  @IsDateString()
   end_date: Date;
 
   @ApiPropertyOptional()
@@ -49,7 +49,7 @@ export class UpdateCourseDTO {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsDecimal()
+  @IsNumber()
   price_per_hour: number;
 
   @ApiPropertyOptional()
