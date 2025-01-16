@@ -1,34 +1,34 @@
-
-import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsString, IsEmail } from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
+import { IsString, IsEmail, IsOptional, IsNumber } from "class-validator";
 
 export class UpdateCenterDTO {
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  center_name: string;
+  center_name?: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  employer_number: string;
+  employer_number?: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  id_company: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  id_company?: number;
 
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  contact_person: string;
+  contact_person?: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  contact_phone: string;
+  contact_phone?: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsEmail()
-  contact_email: string;
+  contact_email?: string;
 }
