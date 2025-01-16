@@ -1,0 +1,28 @@
+import { pgTable, serial, text, integer, boolean, date } from "drizzle-orm/pg-core";
+
+export const userTable = pgTable("users", {
+    id_user: serial("id_user").primaryKey(),
+    name: text("name").notNull(),
+    surname: text("surname").notNull(),
+    dni: text("dni").notNull(),
+    document_type: text("document_type").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone").notNull(),
+    moodle_username: text("moodle_username").notNull(),
+    moodle_password: text("moodle_password").notNull(),
+    moodle_id: integer("moodle_id").notNull(),
+    registration_date: date("registration_date").notNull(),
+    nss: text("nss").notNull(),
+    gender: text("gender").notNull(),
+    professional_category: text("professional_category").notNull(),
+    disability: boolean("disability").notNull(),
+    terrorism_victim: boolean("terrorism_victim").notNull(),
+    gender_violence_victim: boolean("gender_violence_victim").notNull(),
+    education_level: text("education_level").notNull(),
+    address: text("address").notNull(),
+    postal_code: text("postal_code").notNull(),
+    city: text("city").notNull(),
+    province: text("province").notNull(),
+    country: text("country").notNull(),
+    observations: text("observations").notNull(),
+});
