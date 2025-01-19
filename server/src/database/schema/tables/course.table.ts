@@ -1,5 +1,8 @@
-import { pgTable, serial, integer, text, date, boolean, decimal } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, date, boolean, decimal, pgEnum } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
+import { CourseModality } from "src/types/course/course-modality.enum";
+
+export const courseModality = pgEnum('course_modality', [CourseModality.ONLINE, CourseModality.PRESENTIAL]);
 
 export const courseTable = pgTable('courses', {
   id_course: serial().primaryKey(),
@@ -10,7 +13,7 @@ export const courseTable = pgTable('courses', {
   start_date: date().notNull(),
   end_date: date().notNull(),
   fundae_id: text().notNull(),
-  modality: text().notNull(), 
+  modality: courseModality().notNull(),
   hours: integer().notNull(),
   price_per_hour: decimal({ precision: 10, scale: 2 }).notNull(),
   active: boolean().notNull(),

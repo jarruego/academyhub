@@ -16,10 +16,7 @@ export class UserRepository extends Repository {
     try {
       const result = await this.query()
         .insert(userTable)
-        .values({
-          ...createUserDTO,
-          registration_date: new Date(createUserDTO.registration_date).toISOString()
-        });
+        .values(createUserDTO);
       return result;
     } catch (error) {
       if ((error as any).code === '23505') { // Código de error para clave duplicada en PostgreSQL
@@ -33,10 +30,7 @@ export class UserRepository extends Repository {
     try {
       const result = await this.query()
         .update(userTable)
-        .set({
-          ...updateUserDTO,
-          registration_date: new Date(updateUserDTO.registration_date).toISOString()
-        })
+        .set(updateUserDTO)
         .where(eq(userTable.id_user, id));
       return result;
     } catch (error) {

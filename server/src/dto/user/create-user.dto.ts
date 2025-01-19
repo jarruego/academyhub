@@ -19,7 +19,7 @@ export class CreateUserDTO {
   dni: string;
 
   @ApiProperty()
-  @IsOptional()
+  @IsNotEmpty()
   @IsIn(['NIF', 'NIE'])
   document_type: string;
 

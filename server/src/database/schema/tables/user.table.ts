@@ -1,3 +1,4 @@
+import { InferSelectModel } from "drizzle-orm";
 import { pgTable, serial, text, integer, boolean, date } from "drizzle-orm/pg-core";
 
 export const userTable = pgTable("users", {
@@ -8,10 +9,10 @@ export const userTable = pgTable("users", {
     document_type: text("document_type").notNull(),
     email: text("email").notNull(),
     phone: text("phone").notNull(),
-    moodle_username: text("moodle_username").notNull(),
-    moodle_password: text("moodle_password").notNull(),
-    moodle_id: integer("moodle_id").notNull().unique(),
-    registration_date: date("registration_date").notNull(),
+    moodle_username: text("moodle_username"),
+    moodle_password: text("moodle_password"),
+    moodle_id: integer("moodle_id").unique(),
+    registration_date: date({mode: 'date'}).notNull(),
     nss: text("nss").notNull(),
     gender: text("gender").notNull(),
     professional_category: text("professional_category").notNull(),
@@ -26,3 +27,5 @@ export const userTable = pgTable("users", {
     country: text("country").notNull(),
     observations: text("observations").notNull(),
 });
+
+export type UserSelectModel = InferSelectModel<typeof userTable>;

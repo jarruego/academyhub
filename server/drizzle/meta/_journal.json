@@ -5,29 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1737026821118,
-      "tag": "0000_concerned_cerise",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1737049126863,
-      "tag": "0001_wild_night_thrasher",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1737050901088,
-      "tag": "0002_flippant_richard_fisk",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1737051619347,
-      "tag": "0003_purple_madelyne_pryor",
+      "when": 1737310206042,
+      "tag": "0000_nostalgic_onslaught",
       "breakpoints": true
     }
   ]
