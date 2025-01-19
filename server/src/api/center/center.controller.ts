@@ -2,6 +2,7 @@ import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
 import { CreateCenterDTO } from '../../dto/center/create-center.dto';
 import { UpdateCenterDTO } from '../../dto/center/update-center.dto';
 import { CenterService } from './center.service';
+import { FilterCenterDTO } from 'src/dto/center/filter-center.dto';
 
 @Controller('center')
 export class CenterController {
@@ -25,7 +26,7 @@ export class CenterController {
   }
 
   @Get()
-  async findAll(@Query() query: any) {
-    return this.centerService.findAll(query);
+  async findAll(@Query() filter: FilterCenterDTO) {
+    return this.centerService.findAll(filter);
   }
 }

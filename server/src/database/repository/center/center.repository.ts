@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { centerTable } from "src/database/schema/tables/center.table";
-import { eq, ilike } from "drizzle-orm"; 
+import { CenterSelectModel, centerTable } from "src/database/schema/tables/center.table";
+import { eq, ilike, and, sql } from "drizzle-orm"; 
 import { CreateCenterDTO } from "src/dto/center/create-center.dto";
 import { UpdateCenterDTO } from "src/dto/center/update-center.dto";
 
@@ -13,14 +13,17 @@ export class CenterRepository extends Repository {
         return rows?.[0];
     }
 
-    async findAll(query: any) {
-        let queryBuilder = this.query().select().from(centerTable);
-        for (const key in query) {
-            if (query.hasOwnProperty(key)) {
-                queryBuilder = (queryBuilder as any).where(ilike(centerTable[key], `%${query[key]}%`));
-            }
-        }
-        return await queryBuilder;
+    async findAll(filter: Partial<CenterSelectModel>) {
+        const where = [];
+
+        if (filter.center_name) where.push(ilike(centerTable.center_name, `%${filter.center_name}%`));
+        if (filter.contact_email) where.push(eq(centerTable.contact_email, filter.contact_email));
+        if (filter.contact_person) where.push(ilike(centerTable.contact_person, `%${filter.contact_person}%`));
+        if (filter.contact_phone) where.push(eq(centerTable.contact_phone, filter.contact_phone));
+        if (filter.employer_number) where.push(eq(centerTable.employer_number, filter.employer_number));
+        if (filter.id_company) where.push(eq(centerTable.id_company, filter.id_company));
+
+        return await this.query().select().from(centerTable).where(and(...where));
     }
 
     async create(createCenterDTO: CreateCenterDTO) {

@@ -2,6 +2,7 @@
 import { pgTable, serial, varchar, integer } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { companyTable } from "./company.table";
+import { InferSelectModel } from "drizzle-orm";
 
 export const centerTable = pgTable('centers', {
     id_center: serial().primaryKey(),
@@ -13,3 +14,5 @@ export const centerTable = pgTable('centers', {
     contact_email: varchar({length: 128}).notNull(),
     ...TIMESTAMPS,
 });
+
+export type CenterSelectModel = InferSelectModel<typeof centerTable>;
