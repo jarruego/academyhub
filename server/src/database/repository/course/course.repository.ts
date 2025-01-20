@@ -4,6 +4,8 @@ import { CourseSelectModel, courseTable } from "src/database/schema/tables/cours
 import { eq, ilike, and } from "drizzle-orm";
 import { CreateCourseDTO } from "src/dto/course/create-course.dto";
 import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
+import { userCourseTable } from "src/database/schema/tables/user_course.table";
+import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 
 @Injectable()
 export class CourseRepository extends Repository {
@@ -41,5 +43,20 @@ export class CourseRepository extends Repository {
         if (filter.active) where.push(eq(courseTable.active, filter.active));
 
         return await this.query().select().from(courseTable).where(and(...where));
+  }
+
+  async addUserToCourse(createUserCourseDTO: CreateUserCourseDTO) {
+    const result = await this.query()
+      .insert(userCourseTable)
+      .values(createUserCourseDTO);
+    return result;
+  }
+
+  async findUsersInCourse(courseId: number) {
+    const rows = await this.query()
+      .select()
+      .from(userCourseTable)
+      .where(eq(userCourseTable.id_course, courseId));
+    return rows;
   }
 }
