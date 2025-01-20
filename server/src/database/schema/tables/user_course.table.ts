@@ -4,7 +4,7 @@ import { courseTable } from "./course.table";
 import { InferSelectModel } from "drizzle-orm";
 import { EnrollmentStatus } from "src/types/course/enrollment-status.enum";
 
-export const enrollmentStatus = pgEnum('enrollment-status', Object.values(EnrollmentStatus) as [string, ...string[]]);
+export const enrollmentStatus = pgEnum('enrollment_status', Object.values(EnrollmentStatus) as [string, ...string[]]);
 
 export const userCourseTable = pgTable("user_course", {
   id_user_course: serial("id_user_course").primaryKey(),

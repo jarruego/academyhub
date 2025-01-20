@@ -7,6 +7,8 @@ import { UpdateGroupDTO } from "src/dto/group/update-group.dto";
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { CreateUserGroupDTO } from "src/dto/user-group/create-user-group.dto";
 import { userTable } from "src/database/schema/tables/user.table";
+import { CourseRepository } from "../course/course.repository";
+import { EnrollmentStatus } from "src/types/course/enrollment-status.enum";
 
 @Injectable()
 export class GroupRepository extends Repository {
@@ -46,6 +48,22 @@ export class GroupRepository extends Repository {
     const result = await this.query()
       .insert(userGroupTable)
       .values(createUserGroupDTO);
+
+    // Obtener el id_course del grupo
+    const group = await this.findById(createUserGroupDTO.id_group);
+    const id_course = group.id_course;
+
+    // Asociar usuario al curso correspondiente
+    const courseRepository = new CourseRepository(this.dbService);
+    await courseRepository.addUserToCourse({
+      id_user: createUserGroupDTO.id_user,
+      id_course: id_course,
+      enrollment_date: new Date(),
+      status: EnrollmentStatus.ACTIVE,
+      completion_percentage: 0,
+      time_spent: 0
+    });
+
     return result;
   }
 

@@ -16,7 +16,7 @@ export class CreateUserCourseDTO {
   @ApiProperty()
   @IsDateString()
   @IsOptional()
-  enrollment_date: string;
+  enrollment_date: Date;
 
   @ApiProperty()
   @IsOptional()
