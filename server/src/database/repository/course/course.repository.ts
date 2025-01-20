@@ -4,8 +4,6 @@ import { CourseSelectModel, courseTable } from "src/database/schema/tables/cours
 import { eq, ilike, and } from "drizzle-orm";
 import { CreateCourseDTO } from "src/dto/course/create-course.dto";
 import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
-import { userCenterTable } from "src/database/schema/tables/user_center.table";
-import { CreateUserCenterDTO } from "src/dto/user-center/create-user-center.dto";
 
 @Injectable()
 export class CourseRepository extends Repository {
@@ -43,20 +41,5 @@ export class CourseRepository extends Repository {
         if (filter.active) where.push(eq(courseTable.active, filter.active));
 
         return await this.query().select().from(courseTable).where(and(...where));
-  }
-
-  async addUserToCenter(createUserCenterDTO: CreateUserCenterDTO) {
-    const result = await this.query()
-      .insert(userCenterTable)
-      .values(createUserCenterDTO);
-    return result;
-  }
-
-  async findUsersInCenter(centerId: number) {
-    const rows = await this.query()
-      .select()
-      .from(userCenterTable)
-      .where(eq(userCenterTable.id_center, centerId));
-    return rows;
   }
 }

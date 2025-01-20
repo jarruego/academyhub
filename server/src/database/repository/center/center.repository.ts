@@ -4,6 +4,8 @@ import { CenterSelectModel, centerTable } from "src/database/schema/tables/cente
 import { eq, ilike, and, sql } from "drizzle-orm"; 
 import { CreateCenterDTO } from "src/dto/center/create-center.dto";
 import { UpdateCenterDTO } from "src/dto/center/update-center.dto";
+import { userCenterTable } from "src/database/schema/tables/user_center.table";
+import { CreateUserCenterDTO } from "src/dto/user-center/create-user-center.dto";
 
 @Injectable()
 export class CenterRepository extends Repository {
@@ -39,5 +41,20 @@ export class CenterRepository extends Repository {
             .set(updateCenterDTO)
             .where(eq(centerTable.id_center, id));
         return result;
+    }
+
+    async addUserToCenter(createUserCenterDTO: CreateUserCenterDTO) {
+        const result = await this.query()
+            .insert(userCenterTable)
+            .values(createUserCenterDTO);
+        return result;
+    }
+
+    async findUsersInCenter(centerId: number) {
+        const rows = await this.query()
+            .select()
+            .from(userCenterTable)
+            .where(eq(userCenterTable.id_center, centerId));
+        return rows;
     }
 }

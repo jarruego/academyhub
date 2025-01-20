@@ -4,6 +4,7 @@ import { CompanyRepository } from "src/database/repository/company/company.repos
 import { CreateCenterDTO } from "src/dto/center/create-center.dto";
 import { FilterCenterDTO } from "src/dto/center/filter-center.dto";
 import { UpdateCenterDTO } from "src/dto/center/update-center.dto";
+import { CreateUserCenterDTO } from "src/dto/user-center/create-user-center.dto";
 
 @Injectable()
 export class CenterService {
@@ -35,5 +36,13 @@ export class CenterService {
     }
     await this.centerRepository.update(id, updateCenterDTO);
     return await this.centerRepository.findById(id);
+  }
+
+  async addUserToCenter(createUserCenterDTO: CreateUserCenterDTO) {
+    return await this.centerRepository.addUserToCenter(createUserCenterDTO);
+  }
+
+  async findUsersInCenter(centerId: number) {
+    return await this.centerRepository.findUsersInCenter(centerId);
   }
 }
