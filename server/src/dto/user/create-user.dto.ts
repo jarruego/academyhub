@@ -1,6 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { Type } from "class-transformer";
-import { IsNotEmpty, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsOptional, IsDate} from "class-validator";
+import { IsNotEmpty, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsOptional, IsDate, IsDateString} from "class-validator";
+import { DocumentType } from "src/types/user/document-type.enum";
+import { Gender } from "src/types/user/gender.enum";
+
 
 export class CreateUserDTO {
   @ApiProperty()
@@ -20,8 +22,8 @@ export class CreateUserDTO {
 
   @ApiProperty()
   @IsNotEmpty()
-  @IsIn(['NIF', 'NIE'])
-  document_type: string;
+  @IsIn(Object.values(DocumentType))
+  document_type?: DocumentType;
 
   @ApiProperty()
   @IsOptional()
@@ -50,8 +52,7 @@ export class CreateUserDTO {
 
   @ApiProperty()
   @IsOptional()
-  @IsDate()
-  @Type(() => Date)
+  @IsDateString()
   registration_date: Date;
 
   @ApiProperty()
@@ -61,8 +62,8 @@ export class CreateUserDTO {
 
   @ApiProperty()
   @IsOptional()
-  @IsIn(['Male', 'Female', 'Other'])
-  gender: string;
+  @IsIn(Object.values(Gender))
+  gender?: Gender;
 
   @ApiProperty()
   @IsOptional()

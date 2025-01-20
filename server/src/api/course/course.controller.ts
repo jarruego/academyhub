@@ -2,6 +2,7 @@ import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
 import { CreateCourseDTO } from '../../dto/course/create-course.dto';
 import { UpdateCourseDTO } from '../../dto/course/update-course.dto';
 import { CourseService } from './course.service';
+import { FilterCourseDTO } from 'src/dto/course/filter-course.dto';
 
 @Controller('course')
 export class CourseController {
@@ -25,8 +26,8 @@ export class CourseController {
   }
 
   @Get()
-  async findAll(@Query() query: any) {
-    return this.courseService.findAll(query);
+  async findAll(@Query() filter: FilterCourseDTO) {
+    return this.courseService.findAll(filter);
   }
 
   // ...existing code...

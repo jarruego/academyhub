@@ -1,4 +1,5 @@
 export enum CourseModality {
     ONLINE = 'Online',
-    PRESENTIAL = 'Presential'
+    PRESENTIAL = 'Presential',
+    MIXED = 'Mixed'
 }

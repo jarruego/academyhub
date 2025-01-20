@@ -1,7 +1,7 @@
-import { Injectable, ConflictException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { userTable } from "src/database/schema/tables/user.table";
-import { eq, ilike } from "drizzle-orm";
+import { UserSelectModel, userTable } from "src/database/schema/tables/user.table";
+import { eq, ilike, and } from "drizzle-orm";
 import { CreateUserDTO } from "src/dto/user/create-user.dto";
 import { UpdateUserDTO } from "src/dto/user/update-user.dto";
 
@@ -13,41 +13,32 @@ export class UserRepository extends Repository {
   }
 
   async create(createUserDTO: CreateUserDTO) {
-    try {
       const result = await this.query()
         .insert(userTable)
         .values(createUserDTO);
       return result;
-    } catch (error) {
-      if ((error as any).code === '23505') { // Código de error para clave duplicada en PostgreSQL
-        throw new ConflictException('Duplicate key value violates unique constraint');
-      }
-      throw error;
-    }
   }
 
   async update(id: number, updateUserDTO: UpdateUserDTO) {
-    try {
       const result = await this.query()
         .update(userTable)
         .set(updateUserDTO)
         .where(eq(userTable.id_user, id));
       return result;
-    } catch (error) {
-      if ((error as any).code === '23505') { // Código de error para clave duplicada en PostgreSQL
-        throw new ConflictException('Duplicate key value violates unique constraint');
-      }
-      throw error;
-    }
   }
 
-  async findAll(query: any) {
-    let queryBuilder = this.query().select().from(userTable);
-    for (const key in query) {
-      if (query.hasOwnProperty(key)) {
-        queryBuilder = (queryBuilder as any).where(ilike(userTable[key], `%${query[key]}%`));
-      }
-    }
-    return await queryBuilder;
-  }
+  async findAll(filter: Partial<UserSelectModel>) {
+        const where = [];
+
+        if (filter.name) where.push(ilike(userTable.name, `%${filter.name}%`));
+        if (filter.surname) where.push(ilike(userTable.surname, `%${filter.surname}%`));
+        if (filter.dni) where.push(ilike(userTable.dni, `%${filter.dni}%`));
+        if (filter.document_type) where.push(ilike(userTable.document_type, `%${filter.document_type}%`));
+        if (filter.email) where.push(ilike(userTable.email, `%${filter.email}%`));
+        if (filter.phone) where.push(ilike(userTable.phone, `%${filter.phone}%`));
+        if (filter.moodle_username) where.push(ilike(userTable.moodle_username, `%${filter.moodle_username}%`));
+        if (filter.nss) where.push(ilike(userTable.nss, `%${filter.nss}%`));
+        
+        return await this.query().select().from(userTable).where(and(...where));
+}
 }

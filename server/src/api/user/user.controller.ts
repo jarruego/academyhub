@@ -2,6 +2,7 @@ import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
 import { CreateUserDTO } from '../../dto/user/create-user.dto';
 import { UpdateUserDTO } from '../../dto/user/update-user.dto';
 import { UserService } from './user.service';
+import { FilterUserDTO } from 'src/dto/user/filter-user.dto';
 
 @Controller('user')
 export class UserController {
@@ -25,7 +26,7 @@ export class UserController {
   }
 
   @Get()
-  async findAll(@Query() query: any) {
-    return this.userService.findAll(query);
+  async findAll(@Query() filter: FilterUserDTO) {
+    return this.userService.findAll(filter);
   }
 }

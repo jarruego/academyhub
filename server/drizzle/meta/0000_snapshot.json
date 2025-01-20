@@ -1,5 +1,5 @@
 {
-  "id": "9147a171-4063-49df-b3eb-f5f08a51f054",
+  "id": "9411f607-bc3a-4a39-b1a0-19f4245227f7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -238,7 +238,7 @@
           "name": "moodle_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "course_name": {
           "name": "course_name",
@@ -250,7 +250,7 @@
           "name": "category",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "short_name": {
           "name": "short_name",
@@ -262,38 +262,38 @@
           "name": "start_date",
           "type": "date",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "end_date": {
           "name": "end_date",
           "type": "date",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "price_per_hour": {
+          "name": "price_per_hour",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
         },
         "fundae_id": {
           "name": "fundae_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "modality": {
           "name": "modality",
           "type": "course_modality",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "hours": {
           "name": "hours",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
-        },
-        "price_per_hour": {
-          "name": "price_per_hour",
-          "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "active": {
           "name": "active",
@@ -338,7 +338,7 @@
           "name": "moodle_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "group_name": {
           "name": "group_name",
@@ -356,19 +356,19 @@
           "name": "description",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "start_date": {
           "name": "start_date",
           "type": "date",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "end_date": {
           "name": "end_date",
           "type": "date",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "createdAt": {
           "name": "createdAt",
@@ -396,6 +396,88 @@
           ],
           "columnsTo": [
             "id_course"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_group": {
+      "name": "user_group",
+      "schema": "",
+      "columns": {
+        "id_user_group": {
+          "name": "id_user_group",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_user": {
+          "name": "id_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_group": {
+          "name": "id_group",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "join_date": {
+          "name": "join_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completion_percentage": {
+          "name": "completion_percentage",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_spent": {
+          "name": "time_spent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_access": {
+          "name": "last_access",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_group_id_user_users_id_user_fk": {
+          "name": "user_group_id_user_users_id_user_fk",
+          "tableFrom": "user_group",
+          "tableTo": "users",
+          "columnsFrom": [
+            "id_user"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_group_id_group_groups_id_group_fk": {
+          "name": "user_group_id_group_groups_id_group_fk",
+          "tableFrom": "user_group",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "id_group"
+          ],
+          "columnsTo": [
+            "id_group"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -437,9 +519,10 @@
         },
         "document_type": {
           "name": "document_type",
-          "type": "text",
+          "type": "document_type",
+          "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "email": {
           "name": "email",
@@ -485,9 +568,10 @@
         },
         "gender": {
           "name": "gender",
-          "type": "text",
+          "type": "gender",
+          "typeSchema": "public",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "professional_category": {
           "name": "professional_category",
@@ -587,6 +671,23 @@
       "values": [
         "Online",
         "Presential"
+      ]
+    },
+    "public.document_type": {
+      "name": "document_type",
+      "schema": "public",
+      "values": [
+        "DNI",
+        "NIE"
+      ]
+    },
+    "public.gender": {
+      "name": "gender",
+      "schema": "public",
+      "values": [
+        "Male",
+        "Female",
+        "Other"
       ]
     }
   },

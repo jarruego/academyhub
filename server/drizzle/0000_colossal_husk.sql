@@ -1,4 +1,6 @@
 CREATE TYPE "public"."course_modality" AS ENUM('Online', 'Presential');--> statement-breakpoint
+CREATE TYPE "public"."document_type" AS ENUM('DNI', 'NIE');--> statement-breakpoint
+CREATE TYPE "public"."gender" AS ENUM('Male', 'Female', 'Other');--> statement-breakpoint
 CREATE TABLE "auth_users" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" varchar(32) NOT NULL,
@@ -36,16 +38,16 @@ CREATE TABLE "companies" (
 --> statement-breakpoint
 CREATE TABLE "courses" (
 	"id_course" serial PRIMARY KEY NOT NULL,
-	"moodle_id" integer NOT NULL,
+	"moodle_id" integer,
 	"course_name" text NOT NULL,
-	"category" text NOT NULL,
+	"category" text,
 	"short_name" text NOT NULL,
-	"start_date" date NOT NULL,
-	"end_date" date NOT NULL,
-	"fundae_id" text NOT NULL,
-	"modality" "course_modality" NOT NULL,
-	"hours" integer NOT NULL,
-	"price_per_hour" numeric(10, 2) NOT NULL,
+	"start_date" date,
+	"end_date" date,
+	"price_per_hour" numeric(10, 2),
+	"fundae_id" text,
+	"modality" "course_modality",
+	"hours" integer,
 	"active" boolean NOT NULL,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
 	"updatedAt" timestamp DEFAULT now() NOT NULL
@@ -53,14 +55,24 @@ CREATE TABLE "courses" (
 --> statement-breakpoint
 CREATE TABLE "groups" (
 	"id_group" serial PRIMARY KEY NOT NULL,
-	"moodle_id" integer NOT NULL,
+	"moodle_id" integer,
 	"group_name" text NOT NULL,
 	"id_course" integer NOT NULL,
-	"description" text NOT NULL,
-	"start_date" date NOT NULL,
-	"end_date" date NOT NULL,
+	"description" text,
+	"start_date" date,
+	"end_date" date,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
 	"updatedAt" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "user_group" (
+	"id_user_group" serial PRIMARY KEY NOT NULL,
+	"id_user" integer NOT NULL,
+	"id_group" integer NOT NULL,
+	"join_date" date,
+	"completion_percentage" numeric(5, 2),
+	"time_spent" integer,
+	"last_access" timestamp
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
@@ -68,7 +80,7 @@ CREATE TABLE "users" (
 	"name" text NOT NULL,
 	"surname" text NOT NULL,
 	"dni" text NOT NULL,
-	"document_type" text NOT NULL,
+	"document_type" "document_type",
 	"email" text NOT NULL,
 	"phone" text NOT NULL,
 	"moodle_username" text,
@@ -76,7 +88,7 @@ CREATE TABLE "users" (
 	"moodle_id" integer,
 	"registration_date" date NOT NULL,
 	"nss" text NOT NULL,
-	"gender" text NOT NULL,
+	"gender" "gender",
 	"professional_category" text NOT NULL,
 	"disability" boolean NOT NULL,
 	"terrorism_victim" boolean NOT NULL,
@@ -93,4 +105,6 @@ CREATE TABLE "users" (
 );
 --> statement-breakpoint
 ALTER TABLE "centers" ADD CONSTRAINT "centers_id_company_companies_id_company_fk" FOREIGN KEY ("id_company") REFERENCES "public"."companies"("id_company") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "groups" ADD CONSTRAINT "groups_id_course_courses_id_course_fk" FOREIGN KEY ("id_course") REFERENCES "public"."courses"("id_course") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "groups" ADD CONSTRAINT "groups_id_course_courses_id_course_fk" FOREIGN KEY ("id_course") REFERENCES "public"."courses"("id_course") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_group" ADD CONSTRAINT "user_group_id_user_users_id_user_fk" FOREIGN KEY ("id_user") REFERENCES "public"."users"("id_user") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_group" ADD CONSTRAINT "user_group_id_group_groups_id_group_fk" FOREIGN KEY ("id_group") REFERENCES "public"."groups"("id_group") ON DELETE no action ON UPDATE no action;

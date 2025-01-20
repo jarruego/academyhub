@@ -2,6 +2,7 @@
 import { Injectable } from "@nestjs/common";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 import { CreateCourseDTO } from "src/dto/course/create-course.dto";
+import { FilterCourseDTO } from "src/dto/course/filter-course.dto";
 import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
 
 @Injectable()
@@ -21,7 +22,7 @@ export class CourseService {
     return await this.courseRepository.findById(id);
   }
 
-  async findAll(query: any) {
-    return await this.courseRepository.findAll(query);
+  async findAll(filter: FilterCourseDTO) {
+    return await this.courseRepository.findAll(filter);
   }
 }
