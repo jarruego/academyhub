@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 import { CreateCompanyDTO } from "src/dto/company/create-company.dto";
+import { FilterCompanyDTO } from "src/dto/company/filter-company.dto";
 import { UpdateCompanyDTO } from "src/dto/company/update-company.dto";
 
 @Injectable()
@@ -23,7 +24,7 @@ export class CompanyService {
     return await this.companyRepository.findOne(id);
   }
 
-  async findAll(query: any) {
-    return await this.companyRepository.findAll(query);
+  async findAll(filter: FilterCompanyDTO) {
+    return await this.companyRepository.findAll(filter);
   }
 }

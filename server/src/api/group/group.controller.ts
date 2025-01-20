@@ -3,6 +3,7 @@ import { CreateGroupDTO } from '../../dto/group/create-group.dto';
 import { UpdateGroupDTO } from '../../dto/group/update-group.dto';
 import { GroupService } from './group.service';
 import { CreateUserGroupDTO } from '../../dto/user-group/create-user-group.dto';
+import { FilterGroupDTO } from 'src/dto/group/filter-group.dto';
 
 @Controller('group')
 export class GroupController {
@@ -26,8 +27,8 @@ export class GroupController {
   }
 
   @Get()
-  async findAll(@Query() query: any) {
-    return this.groupService.findAll(query);
+  async findAll(@Query() filter: FilterGroupDTO ) {
+    return this.groupService.findAll(filter);
   }
 
   @Post(':id/users')

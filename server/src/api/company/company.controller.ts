@@ -2,6 +2,7 @@ import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
 import { CreateCompanyDTO } from '../../dto/company/create-company.dto';
 import { UpdateCompanyDTO } from '../../dto/company/update-company.dto';
 import { CompanyService } from './company.service';
+import { FilterCompanyDTO } from 'src/dto/company/filter-company.dto';
 
 @Controller('company')
 export class CompanyController {
@@ -25,8 +26,8 @@ export class CompanyController {
   }
 
   @Get()
-  async findAll(@Query() query: any) {
-    return this.companyService.findAll(query);
+  async findAll(@Query() filter: FilterCompanyDTO) {
+    return this.companyService.findAll(filter);
   }
 
   // ...existing code...
