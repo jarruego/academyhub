@@ -18,22 +18,14 @@ export class GroupRepository extends Repository {
   async create(createGroupDTO: CreateGroupDTO) {
     const result = await this.query()
       .insert(groupTable)
-      .values({
-        ...createGroupDTO,
-        start_date: new Date(createGroupDTO.start_date).toISOString(),
-        end_date: new Date(createGroupDTO.end_date).toISOString(),
-      });
+      .values(createGroupDTO);
     return result;
   }
 
   async update(id: number, updateGroupDTO: UpdateGroupDTO) {
     const result = await this.query()
       .update(groupTable)
-      .set({
-        ...updateGroupDTO,
-        start_date: new Date(updateGroupDTO.start_date).toISOString(),
-        end_date: new Date(updateGroupDTO.end_date).toISOString(),
-      })
+      .set(updateGroupDTO)
       .where(eq(groupTable.id_group, id));
     return result;
   }

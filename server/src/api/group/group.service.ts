@@ -3,6 +3,7 @@ import { GroupRepository } from "src/database/repository/group/group.repository"
 import { CreateGroupDTO } from "src/dto/group/create-group.dto";
 import { UpdateGroupDTO } from "src/dto/group/update-group.dto";
 import { CreateUserGroupDTO } from "src/dto/user-group/create-user-group.dto";
+import { FilterGroupDTO } from "src/dto/group/filter-group.dto";
 
 @Injectable()
 export class GroupService {
@@ -21,8 +22,8 @@ export class GroupService {
     return await this.groupRepository.findById(id);
   }
 
-  async findAll(query: any) {
-    return await this.groupRepository.findAll(query);
+  async findAll(filter: FilterGroupDTO) {
+    return await this.groupRepository.findAll(filter);
   }
 
   async addUserToGroup(createUserGroupDTO: CreateUserGroupDTO) {
