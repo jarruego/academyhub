@@ -15,6 +15,13 @@
       "when": 1737366213040,
       "tag": "0001_pale_malcolm_colcord",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1737367535158,
+      "tag": "0002_complex_moon_knight",
+      "breakpoints": true
     }
   ]
 }
