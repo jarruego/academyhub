@@ -10,7 +10,7 @@ export const userCourseTable = pgTable("user_course", {
   id_user_course: serial("id_user_course").primaryKey(),
   id_user: integer("id_user").notNull().references(() => userTable.id_user),
   id_course: integer("id_course").notNull().references(() => courseTable.id_course),
-  enrollment_date: date("enrollment_date"),
+  enrollment_date: date({mode: 'date'}),
   status: enrollmentStatus("status"),
   completion_percentage: decimal({ precision: 5, scale: 2 }),
   time_spent: integer("time_spent"),

@@ -7,8 +7,8 @@ export const userCenterTable = pgTable("user_center", {
   id_user_center: serial("id_user_center").primaryKey(),
   id_user: integer("id_user").notNull().references(() => userTable.id_user),
   id_center: integer("id_center").notNull().references(() => centerTable.id_center),
-  start_date: date("start_date").notNull(),
-  end_date: date("end_date"),
+  start_date: date({mode: 'date'}),
+  end_date: date({mode: 'date'}),
 });
 
 export type UserCenterSelectModel = InferSelectModel<typeof userCenterTable>;

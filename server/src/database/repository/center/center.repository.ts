@@ -6,6 +6,7 @@ import { CreateCenterDTO } from "src/dto/center/create-center.dto";
 import { UpdateCenterDTO } from "src/dto/center/update-center.dto";
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
 import { CreateUserCenterDTO } from "src/dto/user-center/create-user-center.dto";
+import { UpdateUserCenterDTO } from "src/dto/user-center/update-user-center.dto";
 
 @Injectable()
 export class CenterRepository extends Repository {
@@ -56,5 +57,13 @@ export class CenterRepository extends Repository {
             .from(userCenterTable)
             .where(eq(userCenterTable.id_center, centerId));
         return rows;
+    }
+
+    async updateUserInCenter(id: number, updateUserCenterDTO: UpdateUserCenterDTO) {
+        const result = await this.query()
+            .update(userCenterTable)
+            .set(updateUserCenterDTO)
+            .where(eq(userCenterTable.id_user_center, id));
+        return result;
     }
 }

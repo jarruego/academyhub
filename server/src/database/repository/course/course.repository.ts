@@ -6,6 +6,7 @@ import { CreateCourseDTO } from "src/dto/course/create-course.dto";
 import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
 import { userCourseTable } from "src/database/schema/tables/user_course.table";
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
+import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
 
 @Injectable()
 export class CourseRepository extends Repository {
@@ -58,5 +59,13 @@ export class CourseRepository extends Repository {
       .from(userCourseTable)
       .where(eq(userCourseTable.id_course, courseId));
     return rows;
+  }
+
+  async updateUserInCourse(id: number, updateUserCourseDTO: UpdateUserCourseDTO) {
+    const result = await this.query()
+      .update(userCourseTable)
+      .set(updateUserCourseDTO)
+      .where(eq(userCourseTable.id_user_course, id));
+    return result;
   }
 }

@@ -9,6 +9,7 @@ import { CreateUserGroupDTO } from "src/dto/user-group/create-user-group.dto";
 import { userTable } from "src/database/schema/tables/user.table";
 import { CourseRepository } from "../course/course.repository";
 import { EnrollmentStatus } from "src/types/course/enrollment-status.enum";
+import { UpdateUserGroupDTO } from "src/dto/user-group/update-user-group.dto";
 
 @Injectable()
 export class GroupRepository extends Repository {
@@ -74,5 +75,13 @@ export class GroupRepository extends Repository {
       .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
       .where(eq(userGroupTable.id_group, groupId));
     return rows;
+  }
+
+  async updateUserInGroup(id: number, updateUserGroupDTO: UpdateUserGroupDTO) {
+    const result = await this.query()
+      .update(userGroupTable)
+      .set(updateUserGroupDTO)
+      .where(eq(userGroupTable.id_user_group, id));
+    return result;
   }
 }
