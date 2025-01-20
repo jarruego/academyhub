@@ -1,9 +1,9 @@
-
 import { Injectable } from "@nestjs/common";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 import { CreateCourseDTO } from "src/dto/course/create-course.dto";
 import { FilterCourseDTO } from "src/dto/course/filter-course.dto";
 import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
+import { CreateUserCenterDTO } from "src/dto/user-center/create-user-center.dto";
 
 @Injectable()
 export class CourseService {
@@ -24,5 +24,13 @@ export class CourseService {
 
   async findAll(filter: FilterCourseDTO) {
     return await this.courseRepository.findAll(filter);
+  }
+
+  async addUserToCenter(createUserCenterDTO: CreateUserCenterDTO) {
+    return await this.courseRepository.addUserToCenter(createUserCenterDTO);
+  }
+
+  async findUsersInCenter(centerId: number) {
+    return await this.courseRepository.findUsersInCenter(centerId);
   }
 }

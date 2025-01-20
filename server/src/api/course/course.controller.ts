@@ -3,6 +3,7 @@ import { CreateCourseDTO } from '../../dto/course/create-course.dto';
 import { UpdateCourseDTO } from '../../dto/course/update-course.dto';
 import { CourseService } from './course.service';
 import { FilterCourseDTO } from 'src/dto/course/filter-course.dto';
+import { CreateUserCenterDTO } from "src/dto/user-center/create-user-center.dto";
 
 @Controller('course')
 export class CourseController {
@@ -30,5 +31,15 @@ export class CourseController {
     return this.courseService.findAll(filter);
   }
 
-  // ...existing code...
+  @Post(':id/centers')
+  async addUserToCenter(@Param('id') id: string, @Body() createUserCenterDTO: CreateUserCenterDTO) {
+    createUserCenterDTO.id_center = parseInt(id, 10);
+    return this.courseService.addUserToCenter(createUserCenterDTO);
+  }
+
+  @Get(':id/centers')
+  async findUsersInCenter(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.courseService.findUsersInCenter(numericId);
+  }
 }
