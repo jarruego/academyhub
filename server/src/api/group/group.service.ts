@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { GroupRepository } from "src/database/repository/group/group.repository";
 import { CreateGroupDTO } from "src/dto/group/create-group.dto";
 import { UpdateGroupDTO } from "src/dto/group/update-group.dto";
+import { CreateUserGroupDTO } from "src/dto/user-group/create-user-group.dto";
 
 @Injectable()
 export class GroupService {
@@ -22,5 +23,13 @@ export class GroupService {
 
   async findAll(query: any) {
     return await this.groupRepository.findAll(query);
+  }
+
+  async addUserToGroup(createUserGroupDTO: CreateUserGroupDTO) {
+    return await this.groupRepository.addUserToGroup(createUserGroupDTO);
+  }
+
+  async findUsersInGroup(groupId: number) {
+    return await this.groupRepository.findUsersInGroup(groupId);
   }
 }

@@ -1,6 +1,7 @@
 import { pgTable, serial, integer, text, date } from "drizzle-orm/pg-core";
 import { courseTable } from "./course.table";
 import { TIMESTAMPS } from "./timestamps";
+import { InferSelectModel } from "drizzle-orm";
 
 export const groupTable = pgTable("groups", {
   id_group: serial("id_group").primaryKey(),
@@ -12,3 +13,5 @@ export const groupTable = pgTable("groups", {
   end_date: date("end_date").notNull(),
     ...TIMESTAMPS,
 });
+
+export type GroupSelectModel = InferSelectModel<typeof groupTable>;
