@@ -79,6 +79,18 @@ export class MoodleService {
     private readonly MOODLE_URL = process.env.MOODLE_URL;
     private readonly MOODLE_TOKEN = process.env.MOODLE_TOKEN; 
 
+    /**
+     * Makes an HTTP request to the Moodle API with the specified function name and request options.
+     * 
+     * @template R - The expected response type.
+     * @template D - The type of the request data.
+     * @param {string} fn - The name of the Moodle web service function to call.
+     * @param {RequestOptions<D>} [options] - The request options including parameters and HTTP method.
+     * @param {D} [options.params] - The parameters to include in the request.
+     * @param {string} [options.method='get'] - The HTTP method to use for the request.
+     * @returns {Promise<R>} - A promise that resolves to the response data of type R.
+     * @throws {InternalServerErrorException} - Throws an internal server error exception if the request fails or Moodle returns an error.
+     */
     private async request<R = Object, D = Object>(fn: string, { params: paramsData, method = 'get' }: RequestOptions<D> = {}) {
         const params = {
                 ...paramsData,
