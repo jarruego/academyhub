@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsNotEmpty, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsOptional, IsDate, IsDateString} from "class-validator";
-import { DocumentType } from "src/types/user/document-type.enum";
-import { Gender } from "src/types/user/gender.enum";
+// import { DocumentType } from "src/types/user/document-type.enum";
+// import { Gender } from "src/types/user/gender.enum";
 
 
 export class CreateUserDTO {
@@ -15,9 +15,9 @@ export class CreateUserDTO {
   @IsString()
   surname: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
+  // @ApiProperty()
+  // @IsNotEmpty()
+  // @IsString()
   // dni: string;
 
   // @ApiProperty()
