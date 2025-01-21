@@ -39,12 +39,12 @@ export class UserRepository extends Repository {
 
         if (filter.name) where.push(ilike(userTable.name, `%{filter.name}%`));
         if (filter.surname) where.push(ilike(userTable.surname, `%{filter.surname}%`));
-        if (filter.dni) where.push(ilike(userTable.dni, `%{filter.dni}%`));
-        if (filter.document_type) where.push(ilike(userTable.document_type, `%{filter.document_type}%`));
         if (filter.email) where.push(ilike(userTable.email, `%{filter.email}%`));
-        if (filter.phone) where.push(ilike(userTable.phone, `%{filter.phone}%`));
         if (filter.moodle_username) where.push(ilike(userTable.moodle_username, `%{filter.moodle_username}%`));
-        if (filter.nss) where.push(ilike(userTable.nss, `%{filter.nss}%`));
+        //if (filter.dni) where.push(ilike(userTable.dni, `%{filter.dni}%`));
+        //if (filter.phone) where.push(ilike(userTable.phone, `%{filter.phone}%`));
+        //if (filter.nss) where.push(ilike(userTable.nss, `%{filter.nss}%`));
+        //if (filter.document_type) where.push(ilike(userTable.document_type, `%{filter.document_type}%`));
         
         return await this.query().select().from(userTable).where(and(...where));
 }

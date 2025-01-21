@@ -3,7 +3,8 @@ import { centerTable } from "./schema/tables/center.table";
 import { authUserTable } from "./schema/tables/auth_user.table";
 import { courseModality, courseTable } from "./schema/tables/course.table";
 import { groupTable } from "./schema/tables/group.table";
-import { documentType, gender, userTable } from "./schema/tables/user.table";
+import { userTable } from "./schema/tables/user.table";
+// import { documentType, gender } from "./schema/tables/user.table";
 import { userGroupTable } from "./schema/tables/user_group.table";
 import { userCenterTable } from "./schema/tables/user_center.table";
 import { enrollmentStatus, userCourseTable } from "./schema/tables/user_course.table";
@@ -20,6 +21,6 @@ export const user_course = userCourseTable
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
-export const genderSchema = gender
-export const document_type = documentType;
+// export const genderSchema = gender
+// export const document_type = documentType;
 export const enrollment_status = enrollmentStatus;

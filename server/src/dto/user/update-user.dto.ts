@@ -18,12 +18,12 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  dni: string;
+  // dni: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsIn(Object.values(DocumentType))
-  document_type?: DocumentType;
+  // document_type?: DocumentType;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -33,7 +33,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  phone: string;
+  // phone: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -43,7 +43,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  moodle_password: string;
+  // moodle_password: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -53,7 +53,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
-  registration_date: Date;
+  // registration_date: Date;
 
   @ApiPropertyOptional()
   @IsOptional()

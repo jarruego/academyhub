@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString } from "class-validator";
-import { DocumentType } from "src/types/user/document-type.enum";
-import { Gender } from "src/types/user/gender.enum";
+//import { DocumentType } from "src/types/user/document-type.enum";
+//import { Gender } from "src/types/user/gender.enum";
 
 export class FilterUserDTO {
   @IsOptional()
@@ -11,21 +11,21 @@ export class FilterUserDTO {
   @IsString()
   surname?: string;
 
-  @IsOptional()
-  @IsString()
-  dni?: string;
+  // @IsOptional()
+  // @IsString()
+  // dni?: string;
 
-  @IsOptional()
-  @IsIn(Object.values(DocumentType))
-  document_type?: DocumentType;
+  // @IsOptional()
+  // @IsIn(Object.values(DocumentType))
+  // document_type?: DocumentType;
 
   @IsOptional()
   @IsEmail()
   email?: string;
 
-  @IsOptional()
-  @IsString()
-  phone?: string;
+  // @IsOptional()
+  // @IsString()
+  // phone?: string;
 
   @IsOptional()
   @IsString()
@@ -35,59 +35,59 @@ export class FilterUserDTO {
   @IsInt()
   moodle_id?: number;
 
-  @IsOptional()
-  @IsDateString()
-  registration_date?: Date;
+  // @IsOptional()
+  // @IsDateString()
+  // registration_date?: Date;
 
-  @IsOptional()
-  @IsString()
-  nss?: string;
+  // @IsOptional()
+  // @IsString()
+  // nss?: string;
 
-  @IsOptional()
-  @IsIn(Object.values(Gender))
-  gender?: Gender;
+  // @IsOptional()
+  // @IsIn(Object.values(Gender))
+  // gender?: Gender;
 
-  @IsOptional()
-  @IsString()
-  professional_category?: string;
+  // @IsOptional()
+  // @IsString()
+  // professional_category?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  disability?: boolean;
+  // @IsOptional()
+  // @IsBoolean()
+  // disability?: boolean;
 
-  @IsOptional()
-  @IsBoolean()
-  terrorism_victim?: boolean;
+  // @IsOptional()
+  // @IsBoolean()
+  // terrorism_victim?: boolean;
 
-  @IsOptional()
-  @IsBoolean()
-  gender_violence_victim?: boolean;
+  // @IsOptional()
+  // @IsBoolean()
+  // gender_violence_victim?: boolean;
 
-  @IsOptional()
-  @IsString()
-  education_level?: string;
+  // @IsOptional()
+  // @IsString()
+  // education_level?: string;
 
-  @IsOptional()
-  @IsString()
-  address?: string;
+  // @IsOptional()
+  // @IsString()
+  // address?: string;
 
-  @IsOptional()
-  @IsString()
-  postal_code?: string;
+  // @IsOptional()
+  // @IsString()
+  // postal_code?: string;
 
-  @IsOptional()
-  @IsString()
-  city?: string;
+  // @IsOptional()
+  // @IsString()
+  // city?: string;
 
-  @IsOptional()
-  @IsString()
-  province?: string;
+  // @IsOptional()
+  // @IsString()
+  // province?: string;
 
-  @IsOptional()
-  @IsString()
-  country?: string;
+  // @IsOptional()
+  // @IsString()
+  // country?: string;
 
-  @IsOptional()
-  @IsString()
-  observations?: string;
+  // @IsOptional()
+  // @IsString()
+  // observations?: string;
 }
