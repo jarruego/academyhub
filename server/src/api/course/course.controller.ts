@@ -1,9 +1,10 @@
-import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete } from '@nestjs/common';
 import { CreateCourseDTO } from '../../dto/course/create-course.dto';
 import { UpdateCourseDTO } from '../../dto/course/update-course.dto';
 import { CourseService } from './course.service';
 import { FilterCourseDTO } from 'src/dto/course/filter-course.dto';
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
+import { UpdateUserCourseDTO } from 'src/dto/user-course/update-user-course.dto';
 
 @Controller('course')
 export class CourseController {
@@ -41,5 +42,25 @@ export class CourseController {
   async findUsersInCourse(@Param('id') id: string) {
     const numericId = parseInt(id, 10);
     return this.courseService.findUsersInCourse(numericId);
+  }
+
+  @Put(':id/users/:userId')
+  async updateUserInCourse(@Param('id') id: string, @Param('userId') userId: string, @Body() updateUserCourseDTO: UpdateUserCourseDTO) {
+    const numericCourseId = parseInt(id, 10);
+    const numericUserId = parseInt(userId, 10);
+    return this.courseService.updateUserInCourse(numericCourseId, numericUserId, updateUserCourseDTO);
+  }
+
+  @Delete(':id')
+  async deleteById(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.courseService.deleteById(numericId);
+  }
+
+  @Delete(':id/users/:userId')
+  async deleteUserFromCourse(@Param('id') id: string, @Param('userId') userId: string) {
+    const numericCourseId = parseInt(id, 10);
+    const numericUserId = parseInt(userId, 10);
+    return this.courseService.deleteUserFromCourse(numericCourseId, numericUserId);
   }
 }

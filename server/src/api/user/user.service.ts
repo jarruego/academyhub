@@ -24,4 +24,8 @@ export class UserService {
   async findAll(filter: FilterUserDTO) {
     return await this.userRepository.findAll(filter);
   }
+
+  async delete(id: number) {
+    return await this.userRepository.delete(id);
+  }
 }

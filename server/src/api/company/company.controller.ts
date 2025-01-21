@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete } from '@nestjs/common';
 import { CreateCompanyDTO } from '../../dto/company/create-company.dto';
 import { UpdateCompanyDTO } from '../../dto/company/update-company.dto';
 import { CompanyService } from './company.service';
@@ -28,6 +28,12 @@ export class CompanyController {
   @Get()
   async findAll(@Query() filter: FilterCompanyDTO) {
     return this.companyService.findAll(filter);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.companyService.delete(numericId);
   }
 
   // ...existing code...

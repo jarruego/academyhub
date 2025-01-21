@@ -27,4 +27,8 @@ export class CompanyService {
   async findAll(filter: FilterCompanyDTO) {
     return await this.companyRepository.findAll(filter);
   }
+
+  async delete(id: number) {
+    return await this.companyRepository.delete(id);
+  }
 }

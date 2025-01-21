@@ -44,6 +44,13 @@ export class CenterRepository extends Repository {
         return result;
     }
 
+    async deleteById(id: number) {
+        const result = await this.query()
+            .delete(centerTable)
+            .where(eq(centerTable.id_center, id));
+        return result;
+    }
+
     async addUserToCenter(createUserCenterDTO: CreateUserCenterDTO) {
         const result = await this.query()
             .insert(userCenterTable)
@@ -59,11 +66,18 @@ export class CenterRepository extends Repository {
         return rows;
     }
 
-    async updateUserInCenter(id: number, updateUserCenterDTO: UpdateUserCenterDTO) {
+    async updateUserInCenter(id_center: number, id_user: number, updateUserCenterDTO: UpdateUserCenterDTO) {
         const result = await this.query()
             .update(userCenterTable)
             .set(updateUserCenterDTO)
-            .where(eq(userCenterTable.id_user_center, id));
+            .where(and(eq(userCenterTable.id_center, id_center), eq(userCenterTable.id_user, id_user)));
+        return result;
+    }
+
+    async deleteUserFromCenter(id_center: number, id_user: number) {
+        const result = await this.query()
+            .delete(userCenterTable)
+            .where(and(eq(userCenterTable.id_center, id_center), eq(userCenterTable.id_user, id_user)));
         return result;
     }
 }

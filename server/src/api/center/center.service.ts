@@ -5,6 +5,7 @@ import { CreateCenterDTO } from "src/dto/center/create-center.dto";
 import { FilterCenterDTO } from "src/dto/center/filter-center.dto";
 import { UpdateCenterDTO } from "src/dto/center/update-center.dto";
 import { CreateUserCenterDTO } from "src/dto/user-center/create-user-center.dto";
+import { UpdateUserCenterDTO } from "src/dto/user-center/update-user-center.dto";
 
 @Injectable()
 export class CenterService {
@@ -38,11 +39,27 @@ export class CenterService {
     return await this.centerRepository.findById(id);
   }
 
+  async deleteById(id: number) {
+    const center = await this.centerRepository.findById(id);
+    if (!center) {
+      throw new NotFoundException(`Center with ID ${id} not found`);
+    }
+    return await this.centerRepository.deleteById(id);
+  }
+
   async addUserToCenter(createUserCenterDTO: CreateUserCenterDTO) {
     return await this.centerRepository.addUserToCenter(createUserCenterDTO);
   }
 
   async findUsersInCenter(centerId: number) {
     return await this.centerRepository.findUsersInCenter(centerId);
+  }
+
+  async updateUserInCenter(id_center: number, id_user: number, updateUserCenterDTO: UpdateUserCenterDTO) {
+    return await this.centerRepository.updateUserInCenter(id_center, id_user, updateUserCenterDTO);
+  }
+
+  async deleteUserFromCenter(id_center: number, id_user: number) {
+    return await this.centerRepository.deleteUserFromCenter(id_center, id_user);
   }
 }

@@ -50,11 +50,11 @@ export class GroupRepository extends Repository {
       .insert(userGroupTable)
       .values(createUserGroupDTO);
 
-    // Obtener el id_course del grupo
+    // Get the id_course of the group
     const group = await this.findById(createUserGroupDTO.id_group);
     const id_course = group.id_course;
 
-    // Asociar usuario al curso correspondiente
+    // Associate user with the corresponding course
     const courseRepository = new CourseRepository(this.dbService);
     await courseRepository.addUserToCourse({
       id_user: createUserGroupDTO.id_user,
@@ -77,11 +77,37 @@ export class GroupRepository extends Repository {
     return rows;
   }
 
-  async updateUserInGroup(id: number, updateUserGroupDTO: UpdateUserGroupDTO) {
+  async updateUserInGroup(id_group: number, id_user: number, updateUserGroupDTO: UpdateUserGroupDTO) {
     const result = await this.query()
       .update(userGroupTable)
       .set(updateUserGroupDTO)
-      .where(eq(userGroupTable.id_user_group, id));
+      .where(and(eq(userGroupTable.id_group, id_group), eq(userGroupTable.id_user, id_user)));
+    return result;
+  }
+
+  async deleteUserFromGroup(id_group: number, id_user: number) {
+    const result = await this.query()
+      .delete(userGroupTable)
+      .where(and(eq(userGroupTable.id_group, id_group), eq(userGroupTable.id_user, id_user)));
+      // Check if the user is enrolled in other groups of the same course
+      const group = await this.findById(id_group);
+      const otherGroups = await this.query()
+        .select()
+        .from(userGroupTable)
+        .where(and(eq(userGroupTable.id_user, id_user), eq(groupTable.id_course, group.id_course), eq(userGroupTable.id_group, groupTable.id_group)));
+
+      // If the user is not enrolled in any other groups of the same course, remove them from the course
+      if (otherGroups.length === 0) {
+        const courseRepository = new CourseRepository(this.dbService);
+        await courseRepository.deleteUserFromCourse(id_user, group.id_course);
+      }
+    return result;
+  }
+
+  async deleteById(id: number) {
+    const result = await this.query()
+      .delete(groupTable)
+      .where(eq(groupTable.id_group, id));
     return result;
   }
 }

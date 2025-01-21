@@ -45,4 +45,11 @@ export class CompanyRepository extends Repository {
         
 
     }
+
+    async delete(id: number) {
+        const result = await this.query()
+            .delete(companyTable)
+            .where(eq(companyTable.id_company, id));
+        return result;
+    }
 }

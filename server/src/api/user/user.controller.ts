@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, Param, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete } from '@nestjs/common';
 import { CreateUserDTO } from '../../dto/user/create-user.dto';
 import { UpdateUserDTO } from '../../dto/user/update-user.dto';
 import { UserService } from './user.service';
@@ -28,5 +28,11 @@ export class UserController {
   @Get()
   async findAll(@Query() filter: FilterUserDTO) {
     return this.userService.findAll(filter);
+  }
+
+  @Delete(':id')
+  async delete(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.userService.delete(numericId);
   }
 }

@@ -61,11 +61,25 @@ export class CourseRepository extends Repository {
     return rows;
   }
 
-  async updateUserInCourse(id: number, updateUserCourseDTO: UpdateUserCourseDTO) {
+  async updateUserInCourse(id_course: number, id_user: number, updateUserCourseDTO: UpdateUserCourseDTO) {
     const result = await this.query()
       .update(userCourseTable)
       .set(updateUserCourseDTO)
-      .where(eq(userCourseTable.id_user_course, id));
+      .where(and(eq(userCourseTable.id_course, id_course), eq(userCourseTable.id_user, id_user)));
+    return result;
+  }
+
+  async deleteById(id: number) {
+    const result = await this.query()
+      .delete(courseTable)
+      .where(eq(courseTable.id_course, id));
+    return result;
+  }
+
+  async deleteUserFromCourse(id_course: number, id_user: number) {
+    const result = await this.query()
+      .delete(userCourseTable)
+      .where(and(eq(userCourseTable.id_course, id_course), eq(userCourseTable.id_user, id_user)));
     return result;
   }
 }
