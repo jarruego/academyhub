@@ -7,7 +7,7 @@ import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
 import { userCourseTable } from "src/database/schema/tables/user_course.table";
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
-import { userCourseRoleTable } from "src/database/schema/tables/user_course_role.table";
+import { userCourseMoodleRoleTable } from "src/database/schema/tables/user_course_moodle_role.table";
 import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
 
 @Injectable()
@@ -87,18 +87,18 @@ export class CourseRepository extends Repository {
 
   async addUserRoleToCourse(createUserCourseRoleDTO: CreateUserCourseRoleDTO) {
     const result = await this.query()
-      .insert(userCourseRoleTable)
+      .insert(userCourseMoodleRoleTable)
       .values(createUserCourseRoleDTO);
     return result;
   }
 
   async updateUserRolesInCourse(id_course: number, id_user: number, roles: CreateUserCourseRoleDTO[]) {
     await this.query()
-      .delete(userCourseRoleTable)
-      .where(and(eq(userCourseRoleTable.id_course, id_course), eq(userCourseRoleTable.id_user, id_user)));
+      .delete(userCourseMoodleRoleTable)
+      .where(and(eq(userCourseMoodleRoleTable.id_course, id_course), eq(userCourseMoodleRoleTable.id_user, id_user)));
 
     const result = await this.query()
-      .insert(userCourseRoleTable)
+      .insert(userCourseMoodleRoleTable)
       .values(roles);
     return result;
   }
