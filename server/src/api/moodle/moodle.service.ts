@@ -6,7 +6,7 @@ type RequestOptions<D> = {
     method?: 'get' | 'post';
 }
 
-type MoodleUser = {
+export type MoodleUser = {
     id: number,
     username: string,
     firstname: string,
@@ -167,6 +167,16 @@ export class MoodleService {
         const data = await this.request<Array<MoodleUser>>('core_enrol_get_enrolled_users', {
             params: {
                 courseid: courseId
+            }
+        });
+
+        return data;
+    }
+
+    async getCourseUserProfiles(courseId: number, userId: number) {
+        const data = await this.request<Array<MoodleUser>>('core_user_get_course_user_profiles', {
+            params: {
+                userlist: [{ courseid: courseId, userid: userId }]
             }
         });
 

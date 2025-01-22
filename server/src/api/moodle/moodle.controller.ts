@@ -40,4 +40,12 @@ export class MoodleController {
     async getEnrolledUsers(@Param('id', ParseIntPipe) id: number) {
         return this.moodleService.getEnrolledUsers(id);
     }
+
+    @Get('courses/:courseId/users/:userId/profiles')
+    async getCourseUserProfiles(
+        @Param('courseId', ParseIntPipe) courseId: number,
+        @Param('userId', ParseIntPipe) userId: number
+    ) {
+        return this.moodleService.getCourseUserProfiles(courseId, userId);
+    }
 }

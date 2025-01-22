@@ -5,6 +5,7 @@ import { CourseService } from './course.service';
 import { FilterCourseDTO } from 'src/dto/course/filter-course.dto';
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 import { UpdateUserCourseDTO } from 'src/dto/user-course/update-user-course.dto';
+import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
 
 @Controller('course')
 export class CourseController {
@@ -49,6 +50,21 @@ export class CourseController {
     const numericCourseId = parseInt(id, 10);
     const numericUserId = parseInt(userId, 10);
     return this.courseService.updateUserInCourse(numericCourseId, numericUserId, updateUserCourseDTO);
+  }
+
+  @Post(':id/users/:userId/roles')
+  async addUserRoleToCourse(@Param('id') id: string, @Param('userId') userId: string, @Body() createUserCourseRoleDTO: CreateUserCourseRoleDTO) {
+    createUserCourseRoleDTO.id_course = parseInt(id, 10);
+    createUserCourseRoleDTO.id_user = parseInt(userId, 10);
+    return this.courseService.addUserRoleToCourse(createUserCourseRoleDTO);
+  }
+
+
+  @Put(':id/users/:userId/roles')
+  async updateUserRolesInCourse(@Param('id') id: string, @Param('userId') userId: string, @Body() roles: CreateUserCourseRoleDTO[]) {
+    const numericCourseId = parseInt(id, 10);
+    const numericUserId = parseInt(userId, 10);
+    return this.courseService.updateUserRolesInCourse(numericCourseId, numericUserId, roles);
   }
 
   @Delete(':id')

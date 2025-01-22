@@ -5,6 +5,7 @@ import { FilterCourseDTO } from "src/dto/course/filter-course.dto";
 import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
+import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
 
 @Injectable()
 export class CourseService {
@@ -45,5 +46,13 @@ export class CourseService {
 
   async deleteUserFromCourse(id_course: number, id_user: number) {
     return await this.courseRepository.deleteUserFromCourse(id_course, id_user);
+  }
+
+  async addUserRoleToCourse(createUserCourseRoleDTO: CreateUserCourseRoleDTO) {
+    return await this.courseRepository.addUserRoleToCourse(createUserCourseRoleDTO);
+  }
+
+  async updateUserRolesInCourse(id_course: number, id_user: number, roles: CreateUserCourseRoleDTO[]) {
+    return await this.courseRepository.updateUserRolesInCourse(id_course, id_user, roles);
   }
 }

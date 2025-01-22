@@ -47,5 +47,12 @@ export class UserRepository extends Repository {
         //if (filter.document_type) where.push(ilike(userTable.document_type, `%{filter.document_type}%`));
         
         return await this.query().select().from(userTable).where(and(...where));
-}
+  }
+
+  async bulkCreate(createUserDTOs: CreateUserDTO[]) {
+    const result = await this.query()
+      .insert(userTable)
+      .values(createUserDTOs);
+    return result;
+  }
 }

@@ -3,10 +3,14 @@ import { CreateUserDTO } from '../../dto/user/create-user.dto';
 import { UpdateUserDTO } from '../../dto/user/update-user.dto';
 import { UserService } from './user.service';
 import { FilterUserDTO } from 'src/dto/user/filter-user.dto';
+import { MoodleService } from 'src/api/moodle/moodle.service';
 
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly moodleService: MoodleService
+  ) {}
 
   @Post()
   async create(@Body() createUserDTO: CreateUserDTO) {
@@ -34,5 +38,11 @@ export class UserController {
   async delete(@Param('id') id: string) {
     const numericId = parseInt(id, 10);
     return this.userService.delete(numericId);
+  }
+
+  @Post('import-moodle-users')
+  async importMoodleUsers() {
+    const moodleUsers = await this.moodleService.getAllUsers();
+    return this.userService.importMoodleUsers(moodleUsers);
   }
 }
