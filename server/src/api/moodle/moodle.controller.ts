@@ -15,7 +15,7 @@ export class MoodleController {
         return this.moodleService.getUserById(id);
     }
 
-    @Get('courses')
+      @Get('courses')
     async getAllCourses() {
         return this.moodleService.getAllCourses();
     }

@@ -3,11 +3,14 @@ import { UserRepository } from "src/database/repository/user/user.repository";
 import { CreateUserDTO } from "src/dto/user/create-user.dto";
 import { FilterUserDTO } from "src/dto/user/filter-user.dto";
 import { UpdateUserDTO } from "src/dto/user/update-user.dto";
-import { MoodleUser } from "src/types/moodle/user";
+import { MoodleService } from "../moodle/moodle.service";
 
 @Injectable()
 export class UserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly MoodleService: MoodleService
+  ) {}
 
   async findById(id: number) {
     return await this.userRepository.findById(id);
@@ -30,14 +33,28 @@ export class UserService {
     return await this.userRepository.delete(id);
   }
 
-  async importMoodleUsers(moodleUsers: MoodleUser[]) {
-    const createUserDTOs = moodleUsers.map(user => ({
-      name: user.firstname,
-      surname: user.lastname,
-      email: user.email,
-      moodle_username: user.username,
-      moodle_id: user.id,
-    }));
-    return await this.userRepository.bulkCreate(createUserDTOs);
+  async importMoodleUsers() {
+    const moodleUsers = await this.MoodleService.getAllUsers();
+    for (const moodleUser of moodleUsers) {
+      const existingUser = await this.userRepository.findByMoodleId(moodleUser.id);
+      if (existingUser) {
+        await this.update(existingUser.id_user, {
+          name: moodleUser.firstname,
+          surname: moodleUser.lastname,
+          email: moodleUser.email,
+          moodle_username: moodleUser.username,
+          moodle_id: moodleUser.id,
+        });
+      } else {
+        await this.create({
+          name: moodleUser.firstname,
+          surname: moodleUser.lastname,
+          email: moodleUser.email,
+          moodle_username: moodleUser.username,
+          moodle_id: moodleUser.id,
+        });
+      }
+    }
+    return { message: 'Usuarios importados y actualizados correctamente' }; 
   }
 }

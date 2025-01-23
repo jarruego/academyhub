@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsString, IsInt, IsBoolean, IsOptional, IsIn, IsDateString, IsNumberString } from "class-validator";
-import { CourseModality } from "src/types/course/course-modality.enum";
+// import { CourseModality } from "src/types/course/course-modality.enum";
 
 export class UpdateCourseDTO {
   @ApiPropertyOptional()
@@ -33,28 +33,28 @@ export class UpdateCourseDTO {
   @IsDateString()
   end_date: Date;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  fundae_id: string;
+  // @ApiPropertyOptional()
+  // @IsOptional()
+  // @IsString()
+  // fundae_id: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
-  modality: CourseModality;
+  // @ApiPropertyOptional()
+  // @IsOptional()
+  // @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
+  // modality: CourseModality;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsInt()
-  hours: number;
+  // @ApiPropertyOptional()
+  // @IsOptional()
+  // @IsInt()
+  // hours: number;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsNumberString()
-  price_per_hour: string;
+  // @ApiPropertyOptional()
+  // @IsOptional()
+  // @IsNumberString()
+  // price_per_hour: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  active: boolean;
+  // @ApiPropertyOptional()
+  // @IsOptional()
+  // @IsBoolean()
+  // active: boolean;
 }

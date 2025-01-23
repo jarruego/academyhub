@@ -6,10 +6,15 @@ import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
 import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
+import { MoodleService } from "../moodle/moodle.service";
+import { CourseModality } from "src/types/course/course-modality.enum";
 
 @Injectable()
 export class CourseService {
-  constructor(private readonly courseRepository: CourseRepository) {}
+  constructor(
+    private readonly courseRepository: CourseRepository,
+    private readonly MoodleService: MoodleService
+  ) {}
 
   async findById(id: number) {
     return await this.courseRepository.findById(id);
@@ -54,5 +59,32 @@ export class CourseService {
 
   async updateUserRolesInCourse(id_course: number, id_user: number, roles: CreateUserCourseRoleDTO[]) {
     return await this.courseRepository.updateUserRolesInCourse(id_course, id_user, roles);
+  }
+
+  async importMoodleCourses() {
+    const moodleCourses = await this.MoodleService.getAllCourses();
+    for (const moodleCourse of moodleCourses) {
+      const existingCourse = await this.courseRepository.findByMoodleId(moodleCourse.id);
+      if (existingCourse) {
+        await this.update(existingCourse.id_course, {
+          course_name: moodleCourse.fullname,
+          short_name: moodleCourse.shortname,
+          moodle_id: moodleCourse.id,
+          start_date: new Date(moodleCourse.startdate * 1000),
+          end_date: new Date(moodleCourse.enddate * 1000),
+          category: ""
+        });
+      } else {
+        await this.create({
+          course_name: moodleCourse.fullname,
+          short_name: moodleCourse.shortname,
+          moodle_id: moodleCourse.id,
+          start_date: new Date(moodleCourse.startdate * 1000),
+          end_date: new Date(moodleCourse.enddate * 1000),
+          category: ""
+        });
+      }
+    }
+    return { message: 'Cursos importados y actualizados correctamente' };
   }
 }

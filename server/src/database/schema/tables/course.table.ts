@@ -13,11 +13,11 @@ export const courseTable = pgTable('courses', {
   short_name: text().notNull(),
   start_date: date({mode: 'date'}),
   end_date: date({mode: 'date'}),
-  price_per_hour: decimal({ precision: 10, scale: 2 }),
-  fundae_id: text(),
-  modality: courseModality(),
-  hours: integer(),
-  active: boolean().notNull(),
+  // price_per_hour: decimal({ precision: 10, scale: 2 }),
+  // fundae_id: text(),
+  // modality: courseModality(),
+  // hours: integer(),
+  // active: boolean().notNull(),
   ...TIMESTAMPS,
 });
 export type CourseSelectModel = InferSelectModel<typeof courseTable>;

@@ -42,7 +42,6 @@ export class UserController {
 
   @Post('import-moodle-users')
   async importMoodleUsers() {
-    const moodleUsers = await this.moodleService.getAllUsers();
-    return this.userService.importMoodleUsers(moodleUsers);
+    return this.userService.importMoodleUsers();
   }
 }

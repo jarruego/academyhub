@@ -79,4 +79,9 @@ export class CourseController {
     const numericUserId = parseInt(userId, 10);
     return this.courseService.deleteUserFromCourse(numericCourseId, numericUserId);
   }
+
+  @Post('import-moodle-courses')
+  async importMoodleCourses() {
+    return this.courseService.importMoodleCourses();
+  }
 }

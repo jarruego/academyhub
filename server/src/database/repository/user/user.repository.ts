@@ -49,10 +49,8 @@ export class UserRepository extends Repository {
         return await this.query().select().from(userTable).where(and(...where));
   }
 
-  async bulkCreate(createUserDTOs: CreateUserDTO[]) {
-    const result = await this.query()
-      .insert(userTable)
-      .values(createUserDTOs);
-    return result;
+  async findByMoodleId(moodleId: number) {
+    const rows = await this.query().select().from(userTable).where(eq(userTable.moodle_id, moodleId));
+    return rows?.[0];
   }
 }
