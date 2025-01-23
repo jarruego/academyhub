@@ -1,78 +1,15 @@
 import { Injectable, HttpException, HttpStatus, InternalServerErrorException, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { MoodleCourse } from 'src/types/moodle/course';
+import { MoodleGroup } from 'src/types/moodle/group';
+import { MoodleUser } from 'src/types/moodle/user';
 
 type RequestOptions<D> = {
     params?: D;
     method?: 'get' | 'post';
 }
 
-export type MoodleUser = {
-    id: number,
-    username: string,
-    firstname: string,
-    lastname: string,
-    fullname: string,
-    email: string,
-    department: string,
-    firstaccess: number,
-    lastaccess: number,
-    auth: string,
-    suspended: boolean,
-    confirmed: boolean,
-    lang: string,
-    theme: string,
-    timezone: string,
-    mailformat: number,
-    description: string,
-    descriptionformat: number,
-    city: string,
-    country: string,
-    profileimageurlsmall: string,
-    profileimageurl: string
-};
 
-type MoodleCourse = {
-    id: number,
-    fullname: string,
-    shortname: string,
-    categoryid: number,
-    summary: string,
-    summaryformat: number,
-    format: string,
-    showgrades: boolean,
-    newsitems: number,
-    startdate: number,
-    enddate: number,
-    maxbytes: number,
-    showreports: boolean,
-    visible: boolean,
-    groupmode: number,
-    groupmodeforce: boolean,
-    defaultgroupingid: number,
-    enablecompletion: boolean,
-    completionnotify: boolean,
-    lang: string,
-    theme: string,
-    marker: number,
-    legacyfiles: number,
-    calendar_type: string,
-    timecreated: number,
-    timemodified: number,
-    requested: boolean,
-    cacherev: number
-};
-
-type MoodleGroup = {
-    id: number,
-    courseid: number,
-    name: string,
-    description: string,
-    descriptionformat: number,
-    enrolmentkey: string,
-    idnumber: string,
-    timecreated: number,
-    timemodified: number
-};
 
 @Injectable()
 export class MoodleService {
