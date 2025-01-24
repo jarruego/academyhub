@@ -9,6 +9,7 @@ import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto"
 import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
 import { userCourseMoodleRoleTable } from "src/database/schema/tables/user_course_moodle_role.table";
 import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
+import { MoodleCourse } from "src/types/moodle/course";
 
 @Injectable()
 export class CourseRepository extends Repository {
@@ -106,5 +107,28 @@ export class CourseRepository extends Repository {
   async findByMoodleId(moodleId: number) {
     const rows = await this.query().select().from(courseTable).where(eq(courseTable.moodle_id, moodleId));
     return rows?.[0];
+  }
+
+  async upsertMoodleCourse(moodleCourse: MoodleCourse) {
+    const existingCourse = await this.findByMoodleId(moodleCourse.id);
+    if (existingCourse) {
+      await this.update(existingCourse.id_course, {
+        course_name: moodleCourse.fullname,
+        short_name: moodleCourse.shortname,
+        moodle_id: moodleCourse.id,
+        start_date: new Date(moodleCourse.startdate * 1000),
+        end_date: new Date(moodleCourse.enddate * 1000),
+        category: ""
+      });
+    } else {
+      await this.create({
+        course_name: moodleCourse.fullname,
+        short_name: moodleCourse.shortname,
+        moodle_id: moodleCourse.id,
+        start_date: new Date(moodleCourse.startdate * 1000),
+        end_date: new Date(moodleCourse.enddate * 1000),
+        category: ""
+      });
+    }
   }
 }
