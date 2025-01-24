@@ -23,15 +23,15 @@ export class UpdateGroupDTO {
   @IsString()
   description: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  start_date: Date;
+  // @ApiPropertyOptional()
+  // @IsOptional()
+  // @IsDate()
+  // @Type(() => Date)
+  // start_date: Date;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  end_date: Date;
+  // @ApiPropertyOptional()
+  // @IsOptional()
+  // @IsDate()
+  // @Type(() => Date)
+  // end_date: Date;
 }

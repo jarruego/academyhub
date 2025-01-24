@@ -120,8 +120,9 @@ export class CourseRepository extends Repository {
         end_date: new Date(moodleCourse.enddate * 1000),
         category: ""
       });
+      return existingCourse;
     } else {
-      await this.create({
+      const newCourse = await this.create({
         course_name: moodleCourse.fullname,
         short_name: moodleCourse.shortname,
         moodle_id: moodleCourse.id,
@@ -129,6 +130,7 @@ export class CourseRepository extends Repository {
         end_date: new Date(moodleCourse.enddate * 1000),
         category: ""
       });
+      return newCourse;
     }
   }
 }

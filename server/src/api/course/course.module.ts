@@ -4,9 +4,10 @@ import { CourseService } from './course.service';
 import { CourseController } from './course.controller';
 import { CourseRepository } from 'src/database/repository/course/course.repository';
 import { MoodleService } from '../moodle/moodle.service';
+import { GroupRepository } from 'src/database/repository/group/group.repository';
 
 @Module({
-  providers: [CourseService, CourseRepository, MoodleService],
+  providers: [CourseService, CourseRepository, GroupRepository, MoodleService],
   controllers: [CourseController],
   exports: [CourseService, CourseRepository], 
 })
