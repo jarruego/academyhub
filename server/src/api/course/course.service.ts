@@ -8,6 +8,7 @@ import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto"
 import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
 import { MoodleService } from "../moodle/moodle.service";
 import { GroupRepository } from "src/database/repository/group/group.repository";
+import { UserRepository } from "src/database/repository/user/user.repository";
 // import { CourseModality } from "src/types/course/course-modality.enum";
 
 @Injectable()
@@ -15,7 +16,8 @@ export class CourseService {
   constructor(
     private readonly courseRepository: CourseRepository,
     private readonly groupRepository: GroupRepository,
-    private readonly MoodleService: MoodleService
+    private readonly MoodleService: MoodleService,
+    private readonly userRepository: UserRepository
   ) {}
 
   async findById(id: number) {
@@ -73,9 +75,15 @@ export class CourseService {
         const moodleGroups = await this.MoodleService.getCourseGroups(moodleCourse.id);
         for (const moodleGroup of moodleGroups) {
           await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course);
+
+          // Obtener usuarios asociados al grupo
+          const moodleUsers = await this.MoodleService.getGroupUsers(moodleGroup.id);
+          for (const moodleUser of moodleUsers) {
+            await this.userRepository.upsertMoodleUser(moodleUser, moodleGroup.id);
+          }
         }
       }
     }
-    return { message: 'Cursos y grupos importados y actualizados correctamente' };
+    return { message: 'Cursos, grupos y usuarios importados y actualizados correctamente' };
   }
 }

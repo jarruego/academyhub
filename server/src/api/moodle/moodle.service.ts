@@ -90,14 +90,36 @@ export class MoodleService {
         return data;
     }
 
+    /**
+     * Recupera los usuarios que pertenecen a un grupo específico.
+     *
+     * @param groupId - El ID del grupo cuyos usuarios se van a recuperar.
+     * @returns Una promesa que se resuelve con un array de objetos de usuario que pertenecen al grupo especificado.
+     *
+     * @remarks
+     * Este método hace una solicitud a la API 'core_group_get_group_members' para obtener los IDs de los miembros
+     * del grupo especificado. Luego, obtiene los detalles de cada usuario por su ID utilizando el método `getUserById`.
+     *
+     * @example
+     * ```typescript
+     * const users = await moodleService.getGroupUsers(123);
+     * console.log(users);
+     * ```
+     */
     async getGroupUsers(groupId: number) {
-        const data = await this.request<{users: Array<MoodleUser>}>('core_group_get_group_members', {
+        const data = await this.request<Array<{ groupid: number, userids: number[] }>>('core_group_get_group_members', {
             params: {
                 groupids: [groupId]
             }
         });
 
-        return data.users;
+        const userIds = data.find(group => group.groupid === groupId)?.userids || [];
+        const users = [];
+        for (const userId of userIds) {
+            const user = await this.getUserById(userId);
+            users.push(user);
+        }
+        return users;
     }
 
     async getEnrolledUsers(courseId: number) {

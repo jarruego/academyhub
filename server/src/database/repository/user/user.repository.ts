@@ -4,6 +4,7 @@ import { UserSelectModel, userTable } from "src/database/schema/tables/user.tabl
 import { eq, ilike, and } from "drizzle-orm";
 import { CreateUserDTO } from "src/dto/user/create-user.dto";
 import { UpdateUserDTO } from "src/dto/user/update-user.dto";
+import { MoodleUser } from "src/types/moodle/user";
 
 @Injectable()
 export class UserRepository extends Repository {
@@ -52,5 +53,26 @@ export class UserRepository extends Repository {
   async findByMoodleId(moodleId: number) {
     const rows = await this.query().select().from(userTable).where(eq(userTable.moodle_id, moodleId));
     return rows?.[0];
+  }
+
+  async upsertMoodleUser(moodleUser: MoodleUser, id_group: number) {
+    const existingUser = await this.findByMoodleId(moodleUser.id);
+    if (existingUser) {
+      await this.update(existingUser.id_user, {
+        name: moodleUser.firstname,
+        surname: moodleUser.lastname,
+        email: moodleUser.email,
+        moodle_username: moodleUser.username,
+        moodle_id: moodleUser.id
+      });
+    } else {
+      await this.create({
+        name: moodleUser.firstname,
+        surname: moodleUser.lastname,
+        email: moodleUser.email,
+        moodle_username: moodleUser.username,
+        moodle_id: moodleUser.id
+      });
+    }
   }
 }
