@@ -23,6 +23,10 @@ export class AuthService {
       // TODO: rol
     };
 
-    return { token: await this.jwtService.signAsync(payload) };
+    const {password: _, ...userWithoutPassword} = user;
+
+    return { token: await this.jwtService.signAsync(payload, {
+      secret: process.env.JWT_SECRET,
+    }), user: userWithoutPassword };
   }
 }

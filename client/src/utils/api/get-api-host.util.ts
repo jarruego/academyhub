@@ -1,0 +1,1 @@
+export const getApiHost = () => 'http://localhost:3000';
