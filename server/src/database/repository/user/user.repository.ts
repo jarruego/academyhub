@@ -16,16 +16,16 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(createUserDTO: CreateUserDTO): Promise<{ insertId: number }> {
-    const result = await this.query()
+  async create(createUserDTO: CreateUserDTO, options?: QueryOptions): Promise<{ insertId: number }> {
+    const result = await this.query(options)
       .insert(userTable)
       .values(createUserDTO)
       .returning({ insertId: userTable.id_user });
     return result[0];
   }
 
-  async update(id: number, updateUserDTO: UpdateUserDTO) {
-      const result = await this.query()
+  async update(id: number, updateUserDTO: UpdateUserDTO, options?: QueryOptions) {
+      const result = await this.query(options)
         .update(userTable)
         .set(updateUserDTO)
         .where(eq(userTable.id_user, id));
@@ -54,12 +54,12 @@ export class UserRepository extends Repository {
         return await this.query().select().from(userTable).where(and(...where));
   }
 
-  async findByMoodleId(moodleId: number) {
+  async findByMoodleId(moodleId: number, options?: QueryOptions) {
     const rows = await this.query().select().from(userTable).where(eq(userTable.moodle_id, moodleId));
     return rows?.[0];
   }
 
-  async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number) {
+  async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number,  options?: QueryOptions) {
     const existingUser = await this.findByMoodleId(moodleUser.id);
     let userId: number;
 
@@ -70,7 +70,7 @@ export class UserRepository extends Repository {
         email: moodleUser.email,
         moodle_username: moodleUser.username,
         moodle_id: moodleUser.id
-      });
+      }, options);
       userId = existingUser.id_user;
     } else {
       const result = await this.create({
@@ -79,19 +79,19 @@ export class UserRepository extends Repository {
         email: moodleUser.email,
         moodle_username: moodleUser.username,
         moodle_id: moodleUser.id
-      });
+      }, options);
       userId = result.insertId;
     }
 
     // Actualizar la tabla user_group
-    await this.query()
+    await this.query(options)
       .insert(userGroupTable)
       .values({ id_user: userId, id_group: id_group })
       .onConflictDoNothing();
   }
 
-  async upsertMoodleUserByCourse(moodleUser: MoodleUser, id_course: number) {
-    const existingUser = await this.findByMoodleId(moodleUser.id);
+  async upsertMoodleUserByCourse(moodleUser: MoodleUser, id_course: number, options?: QueryOptions) {
+    const existingUser = await this.findByMoodleId(moodleUser.id, options);
     let userId: number;
 
     if (existingUser) {
@@ -101,7 +101,7 @@ export class UserRepository extends Repository {
         email: moodleUser.email,
         moodle_username: moodleUser.username,
         moodle_id: moodleUser.id
-      });
+      }, options);
       userId = existingUser.id_user;
     } else {
       const result = await this.create({
@@ -110,19 +110,20 @@ export class UserRepository extends Repository {
         email: moodleUser.email,
         moodle_username: moodleUser.username,
         moodle_id: moodleUser.id
-      });
+      }, options);
       userId = result.insertId;
     }
 
     // Actualizar la tabla user_course
-    await this.query()
+    await this.query(options)
       .insert(userCourseTable)
       .values({ id_user: userId, id_course: id_course })
       .onConflictDoNothing();
 
+    // TODO: optimize
     // Actualizar la tabla user_course_moodle_role
     for (const role of moodleUser.roles) {
-      await this.query()
+      await this.query(options)
         .insert(userCourseMoodleRoleTable)
         .values({
           id_user: userId,

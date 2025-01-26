@@ -24,15 +24,15 @@ export class GroupRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(createGroupDTO: CreateGroupDTO) {
-    const result = await this.query()
+  async create(createGroupDTO: CreateGroupDTO,  options?: QueryOptions) {
+    const result = await this.query(options)
       .insert(groupTable)
       .values(createGroupDTO);
     return result;
   }
 
-  async update(id: number, updateGroupDTO: UpdateGroupDTO) {
-    const result = await this.query()
+  async update(id: number, updateGroupDTO: UpdateGroupDTO,  options?: QueryOptions) {
+    const result = await this.query(options)
       .update(groupTable)
       .set(updateGroupDTO)
       .where(eq(groupTable.id_group, id));
@@ -117,7 +117,7 @@ export class GroupRepository extends Repository {
     return result;
   }
 
-  async upsertMoodleGroup(moodleGroup: MoodleGroup, id_course: number) {
+  async upsertMoodleGroup(moodleGroup: MoodleGroup, id_course: number,  options?: QueryOptions) {
     const existingGroup = await this.findByMoodleId(moodleGroup.id);
     if (existingGroup) {
       await this.update(existingGroup.id_group, {
@@ -125,14 +125,14 @@ export class GroupRepository extends Repository {
         moodle_id: moodleGroup.id,
         id_course: existingGroup.id_course,
         description: existingGroup.description
-      });
+      }, options);
     } else {
       await this.create({
         group_name: moodleGroup.name,
         moodle_id: moodleGroup.id,
         id_course: id_course,
         description: moodleGroup.description || ''
-      });
+      }, options);
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 import { CreateCourseDTO } from "src/dto/course/create-course.dto";
 import { FilterCourseDTO } from "src/dto/course/filter-course.dto";
@@ -9,6 +9,8 @@ import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-co
 import { MoodleService } from "../moodle/moodle.service";
 import { GroupRepository } from "src/database/repository/group/group.repository";
 import { UserRepository } from "src/database/repository/user/user.repository";
+import { DatabaseService } from "src/database/database.service";
+import { DATABASE_PROVIDER } from "src/database/database.module";
 // import { CourseModality } from "src/types/course/course-modality.enum";
 
 @Injectable()
@@ -17,7 +19,8 @@ export class CourseService {
     private readonly courseRepository: CourseRepository,
     private readonly groupRepository: GroupRepository,
     private readonly MoodleService: MoodleService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
   ) {}
 
   async findById(id: number) {
@@ -66,30 +69,32 @@ export class CourseService {
   }
 
   async importMoodleCourses() {
-    const moodleCourses = await this.MoodleService.getAllCourses();
-    for (const moodleCourse of moodleCourses) {
-      const course = await this.courseRepository.upsertMoodleCourse(moodleCourse);
+    return await this.databaseService.db.transaction(async transaction => {
+      const moodleCourses = await this.MoodleService.getAllCourses();
+          for (const moodleCourse of moodleCourses) {
+            const course = await this.courseRepository.upsertMoodleCourse(moodleCourse, {transaction});
 
-      if ('id_course' in course) {
-        // Obtener usuarios matriculados en el curso
-        const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
-        for (const enrolledUser of enrolledUsers) {
-          await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course);
-        }
+            if ('id_course' in course) {
+              // Obtener usuarios matriculados en el curso
+              const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
+              for (const enrolledUser of enrolledUsers) {
+                await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, {transaction});
+              }
 
-        // Obtener grupos asociados al curso
-        const moodleGroups = await this.MoodleService.getCourseGroups(moodleCourse.id);
-        for (const moodleGroup of moodleGroups) {
-          await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course);
+              // Obtener grupos asociados al curso
+              const moodleGroups = await this.MoodleService.getCourseGroups(moodleCourse.id);
+              for (const moodleGroup of moodleGroups) {
+                await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, {transaction});
 
-          // Obtener usuarios asociados al grupo
-          const moodleUsers = await this.MoodleService.getGroupUsers(moodleGroup.id);
-          for (const moodleUser of moodleUsers) {
-            await this.userRepository.upsertMoodleUserByGroup(moodleUser, moodleGroup.id);
+                // Obtener usuarios asociados al grupo
+                const moodleUsers = await this.MoodleService.getGroupUsers(moodleGroup.id);
+                for (const moodleUser of moodleUsers) {
+                  await this.userRepository.upsertMoodleUserByGroup(moodleUser, moodleGroup.id, {transaction});
+                }
+              }
+            }
           }
-        }
-      }
-    }
-    return { message: 'Cursos, grupos y usuarios importados y actualizados correctamente' };
+        return { message: 'Cursos, grupos y usuarios importados y actualizados correctamente' };
+    });
   }
 }

@@ -19,14 +19,14 @@ export class CourseRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(createCourseDTO: CreateCourseDTO) {
+  async create(createCourseDTO: CreateCourseDTO, options?: QueryOptions) {
     const result = await this.query()
       .insert(courseTable)
       .values(createCourseDTO);
     return result;
   }
 
-  async update(id: number, updateCourseDTO: UpdateCourseDTO) {
+  async update(id: number, updateCourseDTO: UpdateCourseDTO, options?: QueryOptions) {
     const result = await this.query()
       .update(courseTable)
       .set(updateCourseDTO)
@@ -104,32 +104,26 @@ export class CourseRepository extends Repository {
     return result;
   }
 
-  async findByMoodleId(moodleId: number) {
-    const rows = await this.query().select().from(courseTable).where(eq(courseTable.moodle_id, moodleId));
+  async findByMoodleId(moodleId: number, options?: QueryOptions) {
+    const rows = await this.query(options).select().from(courseTable).where(eq(courseTable.moodle_id, moodleId));
     return rows?.[0];
   }
 
-  async upsertMoodleCourse(moodleCourse: MoodleCourse) {
-    const existingCourse = await this.findByMoodleId(moodleCourse.id);
+  async upsertMoodleCourse(moodleCourse: MoodleCourse, options?: QueryOptions) {
+    const existingCourse = await this.findByMoodleId(moodleCourse.id, options);
+    const data = {
+        course_name: moodleCourse.fullname,
+        short_name: moodleCourse.shortname,
+        moodle_id: moodleCourse.id,
+        start_date: new Date(moodleCourse.startdate * 1000),
+        end_date: new Date(moodleCourse.enddate * 1000),
+        category: ""
+      };
     if (existingCourse) {
-      await this.update(existingCourse.id_course, {
-        course_name: moodleCourse.fullname,
-        short_name: moodleCourse.shortname,
-        moodle_id: moodleCourse.id,
-        start_date: new Date(moodleCourse.startdate * 1000),
-        end_date: new Date(moodleCourse.enddate * 1000),
-        category: ""
-      });
-      return existingCourse;
+      await this.update(existingCourse.id_course, data, options);
+      return await this.findByMoodleId(moodleCourse.id, options); // TODO: optimize
     } else {
-      const newCourse = await this.create({
-        course_name: moodleCourse.fullname,
-        short_name: moodleCourse.shortname,
-        moodle_id: moodleCourse.id,
-        start_date: new Date(moodleCourse.startdate * 1000),
-        end_date: new Date(moodleCourse.enddate * 1000),
-        category: ""
-      });
+      const newCourse = await this.create(data, options);
       return newCourse;
     }
   }
