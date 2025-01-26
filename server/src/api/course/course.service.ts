@@ -71,6 +71,12 @@ export class CourseService {
       const course = await this.courseRepository.upsertMoodleCourse(moodleCourse);
 
       if ('id_course' in course) {
+        // Obtener usuarios matriculados en el curso
+        const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
+        for (const enrolledUser of enrolledUsers) {
+          await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course);
+        }
+
         // Obtener grupos asociados al curso
         const moodleGroups = await this.MoodleService.getCourseGroups(moodleCourse.id);
         for (const moodleGroup of moodleGroups) {
@@ -79,7 +85,7 @@ export class CourseService {
           // Obtener usuarios asociados al grupo
           const moodleUsers = await this.MoodleService.getGroupUsers(moodleGroup.id);
           for (const moodleUser of moodleUsers) {
-            await this.userRepository.upsertMoodleUser(moodleUser, moodleGroup.id);
+            await this.userRepository.upsertMoodleUserByGroup(moodleUser, moodleGroup.id);
           }
         }
       }

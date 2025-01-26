@@ -11,9 +11,9 @@ export const userGroupTable = pgTable("user_group", {
   time_spent: integer("time_spent"),
   last_access: timestamp("last_access"),
 }, (table) => {
-  return [{
-    pk: primaryKey({ columns: [table.id_user, table.id_group] })
-  }];
+  return {
+    pk: primaryKey(table.id_user, table.id_group)
+  };
 });
 
 export type UserGroupSelectModel = InferSelectModel<typeof userGroupTable>;

@@ -1,6 +1,6 @@
 {
-  "id": "1135d870-7ca0-4e1e-bc6a-d50995e80880",
-  "prevId": "9411f607-bc3a-4a39-b1a0-19f4245227f7",
+  "id": "c5052db3-1cbe-4a6e-82d5-540d6cd6c43f",
+  "prevId": "34f4cf1a-a6d2-439e-923f-3a8f0bdde7fa",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -270,37 +270,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "price_per_hour": {
-          "name": "price_per_hour",
-          "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fundae_id": {
-          "name": "fundae_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "modality": {
-          "name": "modality",
-          "type": "course_modality",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "hours": {
-          "name": "hours",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "active": {
-          "name": "active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
         "createdAt": {
           "name": "createdAt",
           "type": "timestamp",
@@ -358,18 +327,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "start_date": {
-          "name": "start_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "end_date": {
-          "name": "end_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": false
-        },
         "createdAt": {
           "name": "createdAt",
           "type": "timestamp",
@@ -402,6 +359,237 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "groups_moodle_id_unique": {
+          "name": "groups_moodle_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "moodle_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_center": {
+      "name": "user_center",
+      "schema": "",
+      "columns": {
+        "id_user": {
+          "name": "id_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_center": {
+          "name": "id_center",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_center_id_user_users_id_user_fk": {
+          "name": "user_center_id_user_users_id_user_fk",
+          "tableFrom": "user_center",
+          "tableTo": "users",
+          "columnsFrom": [
+            "id_user"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_center_id_center_centers_id_center_fk": {
+          "name": "user_center_id_center_centers_id_center_fk",
+          "tableFrom": "user_center",
+          "tableTo": "centers",
+          "columnsFrom": [
+            "id_center"
+          ],
+          "columnsTo": [
+            "id_center"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_center_id_user_id_center_pk": {
+          "name": "user_center_id_user_id_center_pk",
+          "columns": [
+            "id_user",
+            "id_center"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_course": {
+      "name": "user_course",
+      "schema": "",
+      "columns": {
+        "id_user": {
+          "name": "id_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_course": {
+          "name": "id_course",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enrollment_date": {
+          "name": "enrollment_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completion_percentage": {
+          "name": "completion_percentage",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_spent": {
+          "name": "time_spent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_course_id_user_users_id_user_fk": {
+          "name": "user_course_id_user_users_id_user_fk",
+          "tableFrom": "user_course",
+          "tableTo": "users",
+          "columnsFrom": [
+            "id_user"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_course_id_course_courses_id_course_fk": {
+          "name": "user_course_id_course_courses_id_course_fk",
+          "tableFrom": "user_course",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "id_course"
+          ],
+          "columnsTo": [
+            "id_course"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_course_id_user_id_course_pk": {
+          "name": "user_course_id_user_id_course_pk",
+          "columns": [
+            "id_user",
+            "id_course"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_course_moodle_role": {
+      "name": "user_course_moodle_role",
+      "schema": "",
+      "columns": {
+        "id_user": {
+          "name": "id_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_course": {
+          "name": "id_course",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_role": {
+          "name": "id_role",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role_shortname": {
+          "name": "role_shortname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_course_moodle_role_id_user_users_id_user_fk": {
+          "name": "user_course_moodle_role_id_user_users_id_user_fk",
+          "tableFrom": "user_course_moodle_role",
+          "tableTo": "users",
+          "columnsFrom": [
+            "id_user"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_course_moodle_role_id_course_courses_id_course_fk": {
+          "name": "user_course_moodle_role_id_course_courses_id_course_fk",
+          "tableFrom": "user_course_moodle_role",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "id_course"
+          ],
+          "columnsTo": [
+            "id_course"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_course_moodle_role_id_user_id_course_id_role_pk": {
+          "name": "user_course_moodle_role_id_user_id_course_id_role_pk",
+          "columns": [
+            "id_user",
+            "id_course",
+            "id_role"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -411,12 +599,6 @@
       "name": "user_group",
       "schema": "",
       "columns": {
-        "id_user_group": {
-          "name": "id_user_group",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
         "id_user": {
           "name": "id_user",
           "type": "integer",
@@ -483,7 +665,15 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "user_group_id_user_id_group_pk": {
+          "name": "user_group_id_user_id_group_pk",
+          "columns": [
+            "id_user",
+            "id_group"
+          ]
+        }
+      },
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
@@ -511,27 +701,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "dni": {
-          "name": "dni",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_type": {
-          "name": "document_type",
-          "type": "document_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
         "email": {
           "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "phone": {
-          "name": "phone",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -553,104 +724,12 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
-        },
-        "registration_date": {
-          "name": "registration_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "nss": {
-          "name": "nss",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gender": {
-          "name": "gender",
-          "type": "gender",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "professional_category": {
-          "name": "professional_category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "disability": {
-          "name": "disability",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "terrorism_victim": {
-          "name": "terrorism_victim",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "gender_violence_victim": {
-          "name": "gender_violence_victim",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "education_level": {
-          "name": "education_level",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "postal_code": {
-          "name": "postal_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "city": {
-          "name": "city",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "province": {
-          "name": "province",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "country": {
-          "name": "country",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "observations": {
-          "name": "observations",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "users_dni_unique": {
-          "name": "users_dni_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "dni"
-          ]
-        },
         "users_moodle_id_unique": {
           "name": "users_moodle_id_unique",
           "nullsNotDistinct": false,
@@ -664,34 +743,7 @@
       "isRLSEnabled": false
     }
   },
-  "enums": {
-    "public.course_modality": {
-      "name": "course_modality",
-      "schema": "public",
-      "values": [
-        "Online",
-        "Presential",
-        "Mixed"
-      ]
-    },
-    "public.document_type": {
-      "name": "document_type",
-      "schema": "public",
-      "values": [
-        "DNI",
-        "NIE"
-      ]
-    },
-    "public.gender": {
-      "name": "gender",
-      "schema": "public",
-      "values": [
-        "Male",
-        "Female",
-        "Other"
-      ]
-    }
-  },
+  "enums": {},
   "schemas": {},
   "sequences": {},
   "roles": {},

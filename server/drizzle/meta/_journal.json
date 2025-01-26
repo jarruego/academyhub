@@ -5,78 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1737397686836,
-      "tag": "0000_colossal_husk",
+      "when": 1737905936294,
+      "tag": "0000_normal_corsair",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1737397730721,
-      "tag": "0001_cooing_jigsaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1737402966632,
-      "tag": "0002_square_morg",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1737413360742,
-      "tag": "0003_dry_rafael_vega",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1737415240404,
-      "tag": "0004_watery_cloak",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1737449999500,
-      "tag": "0005_little_next_avengers",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1737539619069,
-      "tag": "0006_nasty_killraven",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1737539823174,
-      "tag": "0007_regular_the_order",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1737572820285,
-      "tag": "0008_safe_ultron",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1737656586899,
-      "tag": "0009_thankful_ares",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1737723618075,
-      "tag": "0010_romantic_quicksilver",
+      "when": 1737906401207,
+      "tag": "0001_dizzy_karma",
       "breakpoints": true
     }
   ]

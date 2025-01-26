@@ -1,1 +1,0 @@
-ALTER TABLE "user_center" ALTER COLUMN "start_date" DROP NOT NULL;

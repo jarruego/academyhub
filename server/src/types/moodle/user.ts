@@ -20,5 +20,11 @@ export type MoodleUser = {
     city: string,
     country: string,
     profileimageurlsmall: string,
-    profileimageurl: string
+    profileimageurl: string,
+    roles: Array<{
+        roleid: number,
+        name: string,
+        shortname: string,
+        sortorder: number
+    }>
 };

@@ -9,9 +9,9 @@ export const userCenterTable = pgTable("user_center", {
   start_date: date({mode: 'date'}),
   end_date: date({mode: 'date'}),
 }, (table) => {
-  return [{
-    pk: primaryKey({ columns: [table.id_user, table.id_center] })
-  }];
+  return {
+    pk: primaryKey(table.id_user, table.id_center)
+  };
 });
 
 export type UserCenterSelectModel = InferSelectModel<typeof userCenterTable>;

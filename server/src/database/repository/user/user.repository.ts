@@ -5,6 +5,9 @@ import { eq, ilike, and } from "drizzle-orm";
 import { CreateUserDTO } from "src/dto/user/create-user.dto";
 import { UpdateUserDTO } from "src/dto/user/update-user.dto";
 import { MoodleUser } from "src/types/moodle/user";
+import { userGroupTable } from "src/database/schema/tables/user_group.table";
+import { userCourseTable } from "src/database/schema/tables/user_course.table";
+import { userCourseMoodleRoleTable } from "src/database/schema/tables/user_course_moodle_role.table";
 
 @Injectable()
 export class UserRepository extends Repository {
@@ -13,11 +16,12 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(createUserDTO: CreateUserDTO) {
-      const result = await this.query()
-        .insert(userTable)
-        .values(createUserDTO);
-      return result;
+  async create(createUserDTO: CreateUserDTO): Promise<{ insertId: number }> {
+    const result = await this.query()
+      .insert(userTable)
+      .values(createUserDTO)
+      .returning({ insertId: userTable.id_user });
+    return result[0];
   }
 
   async update(id: number, updateUserDTO: UpdateUserDTO) {
@@ -55,8 +59,10 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async upsertMoodleUser(moodleUser: MoodleUser, id_group: number) {
+  async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number) {
     const existingUser = await this.findByMoodleId(moodleUser.id);
+    let userId: number;
+
     if (existingUser) {
       await this.update(existingUser.id_user, {
         name: moodleUser.firstname,
@@ -65,14 +71,66 @@ export class UserRepository extends Repository {
         moodle_username: moodleUser.username,
         moodle_id: moodleUser.id
       });
+      userId = existingUser.id_user;
     } else {
-      await this.create({
+      const result = await this.create({
         name: moodleUser.firstname,
         surname: moodleUser.lastname,
         email: moodleUser.email,
         moodle_username: moodleUser.username,
         moodle_id: moodleUser.id
       });
+      userId = result.insertId;
+    }
+
+    // Actualizar la tabla user_group
+    await this.query()
+      .insert(userGroupTable)
+      .values({ id_user: userId, id_group: id_group })
+      .onConflictDoNothing();
+  }
+
+  async upsertMoodleUserByCourse(moodleUser: MoodleUser, id_course: number) {
+    const existingUser = await this.findByMoodleId(moodleUser.id);
+    let userId: number;
+
+    if (existingUser) {
+      await this.update(existingUser.id_user, {
+        name: moodleUser.firstname,
+        surname: moodleUser.lastname,
+        email: moodleUser.email,
+        moodle_username: moodleUser.username,
+        moodle_id: moodleUser.id
+      });
+      userId = existingUser.id_user;
+    } else {
+      const result = await this.create({
+        name: moodleUser.firstname,
+        surname: moodleUser.lastname,
+        email: moodleUser.email,
+        moodle_username: moodleUser.username,
+        moodle_id: moodleUser.id
+      });
+      userId = result.insertId;
+    }
+
+    // Actualizar la tabla user_course
+    await this.query()
+      .insert(userCourseTable)
+      .values({ id_user: userId, id_course: id_course })
+      .onConflictDoNothing();
+
+    // Actualizar la tabla user_course_moodle_role
+    for (const role of moodleUser.roles) {
+      await this.query()
+        .insert(userCourseMoodleRoleTable)
+        .values({
+          id_user: userId,
+          id_course: id_course,
+          id_role: role.roleid,
+          role_shortname: role.shortname
+        })
+        .onConflictDoNothing();
     }
   }
 }

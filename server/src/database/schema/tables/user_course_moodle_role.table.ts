@@ -9,9 +9,9 @@ export const userCourseMoodleRoleTable = pgTable("user_course_moodle_role", {
   id_role: integer("id_role").notNull(),
   role_shortname: text("role_shortname").notNull(),
 }, (table) => {
-  return [{
-    pk: primaryKey({ columns: [table.id_user, table.id_course, table.id_role] })
-  }];
+  return {
+    pk: primaryKey(table.id_user, table.id_course, table.id_role)
+  };
 });
 
 export type UserCourseRoleSelectModel = InferSelectModel<typeof userCourseMoodleRoleTable>;
