@@ -1,0 +1,1 @@
+ALTER TABLE "user_course" DROP CONSTRAINT "user_course_id_user_id_course_pk";

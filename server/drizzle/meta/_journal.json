@@ -15,6 +15,20 @@
       "when": 1737906401207,
       "tag": "0001_dizzy_karma",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1737911151920,
+      "tag": "0002_mute_marrow",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1737911353637,
+      "tag": "0003_icy_harpoon",
+      "breakpoints": true
     }
   ]
 }

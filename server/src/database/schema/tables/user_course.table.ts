@@ -15,7 +15,7 @@ export const userCourseTable = pgTable("user_course", {
   time_spent: integer("time_spent"),
 }, (table) => {
   return {
-    pk: primaryKey(table.id_user, table.id_course)
+    pk: primaryKey({columns: [table.id_user, table.id_course]})
   };
 });
 
