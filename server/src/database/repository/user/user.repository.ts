@@ -61,25 +61,21 @@ export class UserRepository extends Repository {
 
   async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number,  options?: QueryOptions) {
     const existingUser = await this.findByMoodleId(moodleUser.id);
+    const data = {
+      name: moodleUser.firstname,
+      surname: moodleUser.lastname,
+      email: moodleUser.email,
+      moodle_username: moodleUser.username,
+      moodle_id: moodleUser.id
+    };
+
     let userId: number;
 
     if (existingUser) {
-      await this.update(existingUser.id_user, {
-        name: moodleUser.firstname,
-        surname: moodleUser.lastname,
-        email: moodleUser.email,
-        moodle_username: moodleUser.username,
-        moodle_id: moodleUser.id
-      }, options);
+      await this.update(existingUser.id_user, data, options);
       userId = existingUser.id_user;
     } else {
-      const result = await this.create({
-        name: moodleUser.firstname,
-        surname: moodleUser.lastname,
-        email: moodleUser.email,
-        moodle_username: moodleUser.username,
-        moodle_id: moodleUser.id
-      }, options);
+      const result = await this.create( data, options);
       userId = result.insertId;
     }
 
@@ -92,25 +88,20 @@ export class UserRepository extends Repository {
 
   async upsertMoodleUserByCourse(moodleUser: MoodleUser, id_course: number, options?: QueryOptions) {
     const existingUser = await this.findByMoodleId(moodleUser.id, options);
+    const data = {
+      name: moodleUser.firstname,
+      surname: moodleUser.lastname,
+      email: moodleUser.email,
+      moodle_username: moodleUser.username,
+      moodle_id: moodleUser.id
+    };
     let userId: number;
 
     if (existingUser) {
-      await this.update(existingUser.id_user, {
-        name: moodleUser.firstname,
-        surname: moodleUser.lastname,
-        email: moodleUser.email,
-        moodle_username: moodleUser.username,
-        moodle_id: moodleUser.id
-      }, options);
+      await this.update(existingUser.id_user, data, options);
       userId = existingUser.id_user;
     } else {
-      const result = await this.create({
-        name: moodleUser.firstname,
-        surname: moodleUser.lastname,
-        email: moodleUser.email,
-        moodle_username: moodleUser.username,
-        moodle_id: moodleUser.id
-      }, options);
+      const result = await this.create(data, options);
       userId = result.insertId;
     }
 
@@ -133,5 +124,6 @@ export class UserRepository extends Repository {
         })
         .onConflictDoNothing();
     }
+    return await this.findById(userId); // TODO: is necesary?
   }
 }

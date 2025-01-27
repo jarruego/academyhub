@@ -110,7 +110,6 @@ export class CourseRepository extends Repository {
   }
 
   async upsertMoodleCourse(moodleCourse: MoodleCourse, options?: QueryOptions) {
-    const existingCourse = await this.findByMoodleId(moodleCourse.id, options);
     const data = {
         course_name: moodleCourse.fullname,
         short_name: moodleCourse.shortname,
@@ -119,6 +118,7 @@ export class CourseRepository extends Repository {
         end_date: new Date(moodleCourse.enddate * 1000),
         category: ""
       };
+    const existingCourse = await this.findByMoodleId(moodleCourse.id, options);
     if (existingCourse) {
       await this.update(existingCourse.id_course, data, options);
       return await this.findByMoodleId(moodleCourse.id, options); // TODO: optimize

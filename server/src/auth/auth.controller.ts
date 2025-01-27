@@ -3,6 +3,7 @@ import { Throttle } from "@nestjs/throttler";
 import { Public } from "src/guards/auth/public.guard";
 import { AuthService } from "./auth.service";
 import { LoginDTO } from "src/dto/auth/login.dto";
+import { CreateUserDTO } from "src/dto/auth/create-user.dto";
 
 @Controller("auth")
 export class AuthController {
@@ -17,4 +18,11 @@ export class AuthController {
   login(@Body() loginDto: LoginDTO) {
     return this.authService.signIn(loginDto);
   }
+
+  // @Public()
+  // @HttpCode(HttpStatus.CREATED)
+  // @Post("signup")
+  // async signup(@Body() createUserDto: CreateUserDTO) {
+  //   return this.authService.signUp(createUserDto);
+  // }
 }

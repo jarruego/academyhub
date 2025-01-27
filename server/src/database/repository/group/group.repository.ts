@@ -118,21 +118,19 @@ export class GroupRepository extends Repository {
   }
 
   async upsertMoodleGroup(moodleGroup: MoodleGroup, id_course: number,  options?: QueryOptions) {
+    const data = {
+      group_name: moodleGroup.name,
+      moodle_id: moodleGroup.id,
+      id_course: id_course,
+      description: moodleGroup.description || ''
+    };
     const existingGroup = await this.findByMoodleId(moodleGroup.id);
     if (existingGroup) {
-      await this.update(existingGroup.id_group, {
-        group_name: moodleGroup.name,
-        moodle_id: moodleGroup.id,
-        id_course: existingGroup.id_course,
-        description: existingGroup.description
-      }, options);
+      await this.update(existingGroup.id_group, data, options);
+      return await this.findByMoodleId(moodleGroup.id); // TODO: optimize
     } else {
-      await this.create({
-        group_name: moodleGroup.name,
-        moodle_id: moodleGroup.id,
-        id_course: id_course,
-        description: moodleGroup.description || ''
-      }, options);
+      const newGroup = await this.create(data, options);
+      return newGroup;
     }
   }
 }
