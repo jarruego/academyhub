@@ -11,7 +11,10 @@ export default function UsersRoute() {
   };
 
   const filteredUsers = usersData?.filter(user => 
-    user.name.toLowerCase().includes(searchText.toLowerCase())
+    user.name.toLowerCase().includes(searchText.toLowerCase()) ||
+    user.surname.toLowerCase().includes(searchText.toLowerCase()) ||
+    user.moodle_username.toLowerCase().includes(searchText.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchText.toLowerCase())
   );
 
   return <div>
@@ -28,8 +31,24 @@ export default function UsersRoute() {
       dataIndex: 'id_user',
     },
     {
+      title: 'MOODLE ID',
+      dataIndex: 'moodle_id',
+    },
+    {
       title: 'Name',
       dataIndex: 'name',
+    },
+    {
+      title: 'Apellidos',
+      dataIndex: 'surname',
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+    },
+    {
+      title: 'MOODLE USERNAME',
+      dataIndex: 'moodle_username',
     },
     {
       title: "Actions",

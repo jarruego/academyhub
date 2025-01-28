@@ -11,14 +11,18 @@ export default function AuthProvider({children}: Readonly<Props>) {
 
     const setAuth = (authInfo: AuthContextInfo | null) => {
         if (authInfo) writeUserInfo(authInfo);
-        else removeUserInfo();
-        
+        else removeUserInfo();        
         setAuthState(authInfo);
     }
 
+    const logout = () => {
+        removeUserInfo();
+        setAuthState(null);
+    };
+
     if (!authInfo) return <AuthPage setInfo={setAuth}/>;
 
-    return <AUTH_CONTEXT.Provider value={{setAuth, authInfo}}>{children}</AUTH_CONTEXT.Provider>
+    return <AUTH_CONTEXT.Provider value={{setAuth, authInfo, logout}}>{children}</AUTH_CONTEXT.Provider>
 }
 
 const readUserInfo = () => {

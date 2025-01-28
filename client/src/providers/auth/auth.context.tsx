@@ -5,7 +5,7 @@ export interface AuthContextInfo {
     user: object; // TODO: type
 }
 
-export const AUTH_CONTEXT = createContext<{setAuth: (info: AuthContextInfo | null) => void, authInfo: AuthContextInfo}>(null!);
+export const AUTH_CONTEXT = createContext<{setAuth: (info: AuthContextInfo | null) => void, authInfo: AuthContextInfo, logout: () => void}>(null!);
 
 export const useAuthInfo = () => {
     const context = useContext(AUTH_CONTEXT);
