@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import HomeRoute from './routes/home.route';
 import UsersRoute from './routes/users.route';
 import CoursesRoute from './routes/courses.route';
+import CourseDetailRoute from './routes/course-detail.route';
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 
@@ -35,6 +36,7 @@ export default function AppRouter() {
               <Route path="/" element={<HomeRoute />} />
               <Route path="/users" element={<UsersRoute />} />
               <Route path="/courses" element={<CoursesRoute />} />
+              <Route path="/courses/:id_course" element={<CourseDetailRoute />} />
             </Routes>
           </Content>
         </Layout>

@@ -18,32 +18,32 @@ export class FilterCourseDTO {
   @IsString()
   short_name?: string;
 
-  @IsOptional()
-  @IsDateString()
-  start_date?: Date;
+  // @IsOptional()
+  // @IsDateString()
+  // start_date?: Date;
 
-  @IsOptional()
-  @IsDateString()
-  end_date?: Date;
+  // @IsOptional()
+  // @IsDateString()
+  // end_date?: Date;
 
-  @IsOptional()
-  @IsString()
-  fundae_id?: string;
+  // @IsOptional()
+  // @IsString()
+  // fundae_id?: string;
 
-  @IsOptional()
-  @IsString()
-  @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
-  modality?: CourseModality;
+  // @IsOptional()
+  // @IsString()
+  // @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
+  // modality?: CourseModality;
 
-  @IsOptional()
-  @IsInt()
-  hours?: number;
+  // @IsOptional()
+  // @IsInt()
+  // hours?: number;
 
-  @IsOptional()
-  @IsBoolean()
-  active?: boolean;
+  // @IsOptional()
+  // @IsBoolean()
+  // active?: boolean;
 
-  @IsOptional()
-  @IsNumberString()
-  price_per_hour?: string;
+  // @IsOptional()
+  // @IsNumberString()
+  // price_per_hour?: string;
 }

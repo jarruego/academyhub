@@ -23,15 +23,15 @@ export class CreateCourseDTO {
   @IsString()
   short_name: string;
 
-  @ApiProperty()
-  @IsOptional()
-  @IsDateString()
-  start_date: Date;
+  // @ApiProperty()
+  // @IsOptional()
+  // @IsDateString()
+  // start_date: Date;
 
-  @ApiProperty()
-  @IsOptional()
-  @IsDateString()
-  end_date: Date;
+  // @ApiProperty()
+  // @IsOptional()
+  // @IsDateString()
+  // end_date: Date;
 
   // @ApiProperty()
   // @IsOptional()

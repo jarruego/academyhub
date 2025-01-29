@@ -133,4 +133,9 @@ export class GroupRepository extends Repository {
       return newGroup;
     }
   }
+
+  async findGroupsByCourseId(courseId: number, options?: QueryOptions) {
+    const rows = await this.query(options).select().from(groupTable).where(eq(groupTable.id_course, courseId));
+    return rows;
+  }
 }

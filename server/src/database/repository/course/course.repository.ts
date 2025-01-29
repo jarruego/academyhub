@@ -10,6 +10,7 @@ import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto"
 import { userCourseMoodleRoleTable } from "src/database/schema/tables/user_course_moodle_role.table";
 import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
 import { MoodleCourse } from "src/types/moodle/course";
+import { groupTable } from "src/database/schema/tables/group.table";
 
 @Injectable()
 export class CourseRepository extends Repository {
@@ -38,10 +39,10 @@ export class CourseRepository extends Repository {
         const where = [];
 
         if (filter.course_name) where.push(ilike(courseTable.course_name, `%${filter.course_name}%`));
-        if (filter.start_date) where.push(eq(courseTable.start_date, filter.start_date));
-        if (filter.end_date) where.push(eq(courseTable.end_date, filter.end_date));
         if (filter.short_name) where.push(ilike(courseTable.short_name, `%${filter.short_name}%`));
         if (filter.category) where.push(ilike(courseTable.category, `%${filter.category}%`));
+        // if (filter.start_date) where.push(eq(courseTable.start_date, filter.start_date));
+        // if (filter.end_date) where.push(eq(courseTable.end_date, filter.end_date));
         // if (filter.price_per_hour) where.push(eq(courseTable.price_per_hour, filter.price_per_hour));
         // if (filter.modality) where.push(ilike(courseTable.modality, `%${filter.modality}%`));
         // if (filter.active) where.push(eq(courseTable.active, filter.active));
@@ -114,8 +115,6 @@ export class CourseRepository extends Repository {
         course_name: moodleCourse.fullname,
         short_name: moodleCourse.shortname,
         moodle_id: moodleCourse.id,
-        start_date: new Date(moodleCourse.startdate * 1000),
-        end_date: new Date(moodleCourse.enddate * 1000),
         category: ""
       };
     const existingCourse = await this.findByMoodleId(moodleCourse.id, options);

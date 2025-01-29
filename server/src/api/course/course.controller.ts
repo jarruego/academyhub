@@ -59,12 +59,17 @@ export class CourseController {
     return this.courseService.addUserRoleToCourse(createUserCourseRoleDTO);
   }
 
-
   @Put(':id/users/:userId/roles')
   async updateUserRolesInCourse(@Param('id') id: string, @Param('userId') userId: string, @Body() roles: CreateUserCourseRoleDTO[]) {
     const numericCourseId = parseInt(id, 10);
     const numericUserId = parseInt(userId, 10);
     return this.courseService.updateUserRolesInCourse(numericCourseId, numericUserId, roles);
+  }
+
+  @Get(':id/groups')
+  async findGroupsInCourse(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.courseService.findGroupsInCourse(numericId);
   }
 
   @Delete(':id')

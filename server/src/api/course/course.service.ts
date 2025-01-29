@@ -97,4 +97,8 @@ export class CourseService {
         return { message: 'Cursos, grupos y usuarios importados y actualizados correctamente' };
     });
   }
+
+  async findGroupsInCourse(courseId: number) {
+    return await this.groupRepository.findGroupsByCourseId(courseId);
+  }
 }
