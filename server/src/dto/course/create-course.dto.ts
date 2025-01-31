@@ -1,7 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsNotEmpty, IsString, IsInt, IsBoolean,  IsIn, IsOptional, IsDateString, IsNumberString, IsDate } from "class-validator";
-// import { CourseModality } from "src/types/course/course-modality.enum";
+import { CourseModality } from "src/types/course/course-modality.enum";
 
 export class CreateCourseDTO {
   @ApiProperty()
@@ -41,11 +41,11 @@ export class CreateCourseDTO {
   // @IsString()
   // fundae_id: string;
 
-  // @ApiProperty()
-  // @IsNotEmpty()
-  // @IsString()
-  // @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
-  // modality: CourseModality;
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
+  modality: CourseModality;
 
   // @ApiProperty()
   // @IsOptional()

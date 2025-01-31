@@ -21,6 +21,7 @@ export class UserRepository extends Repository {
       .insert(userTable)
       .values(createUserDTO)
       .returning({ insertId: userTable.id_user });
+      console.log(result[0].insertId, 'user')
     return result[0];
   }
 
@@ -55,12 +56,12 @@ export class UserRepository extends Repository {
   }
 
   async findByMoodleId(moodleId: number, options?: QueryOptions) {
-    const rows = await this.query().select().from(userTable).where(eq(userTable.moodle_id, moodleId));
+    const rows = await this.query(options).select().from(userTable).where(eq(userTable.moodle_id, moodleId));
     return rows?.[0];
   }
 
   async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number,  options?: QueryOptions) {
-    const existingUser = await this.findByMoodleId(moodleUser.id);
+    const existingUser = await this.findByMoodleId(moodleUser.id, options);
     const data = {
       name: moodleUser.firstname,
       surname: moodleUser.lastname,
@@ -75,15 +76,17 @@ export class UserRepository extends Repository {
       await this.update(existingUser.id_user, data, options);
       userId = existingUser.id_user;
     } else {
-      const result = await this.create( data, options);
+      const result = await this.create(data, options);
       userId = result.insertId;
     }
 
     // Actualizar la tabla user_group
-    await this.query(options)
+    const userGroupRows = await this.query(options).select().from(userGroupTable).where(and(eq(userGroupTable.id_user, userId), eq(userGroupTable.id_group, id_group)))
+    if(userGroupRows.length <= 0) {
+      await this.query(options)
       .insert(userGroupTable)
-      .values({ id_user: userId, id_group: id_group })
-      .onConflictDoNothing();
+      .values({ id_user: userId, id_group: id_group });
+    }
   }
 
   async upsertMoodleUserByCourse(moodleUser: MoodleUser, id_course: number, options?: QueryOptions) {

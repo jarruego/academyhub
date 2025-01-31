@@ -10,7 +10,7 @@ import { userCourseTable } from "./schema/tables/user_course.table";
 import { userCourseMoodleRoleTable } from "./schema/tables/user_course_moodle_role.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 // import { documentType, gender } from "./schema/tables/user.table";
-// import { courseModality } from "./schema/tables/course.table";
+import { courseModality } from "./schema/tables/course.table";
 
 export const auth_users = authUserTable;
 export const companies = companyTable;
@@ -24,7 +24,7 @@ export const user_course = userCourseTable;
 export const user_course_role = userCourseMoodleRoleTable;
 
 // Enum Data Types
-// export const courseModailitySchema = courseModality;
+export const courseModailitySchema = courseModality;
 // export const genderSchema = gender
 // export const document_type = documentType;
 // export const enrollment_status = enrollmentStatus;

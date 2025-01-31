@@ -17,8 +17,8 @@ export const useCourseQuery = (id_course: string) => {
 
         return {
             ...data,
-            start_date: dayjs(data.start_date),
-            end_date: dayjs(data.end_date)
+            start_date: data.start_date ? dayjs(data.start_date) : undefined,
+            end_date: data.end_date ? dayjs(data.end_date) : undefined,
         }
         },
     });

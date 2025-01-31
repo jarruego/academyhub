@@ -88,6 +88,6 @@ export class CourseController {
 
   @Post('import-moodle-courses')
   async importMoodleCourses() {
-    return this.courseService.importMoodleCourses();
+    return await this.courseService.importMoodleCourses();
   }
 }

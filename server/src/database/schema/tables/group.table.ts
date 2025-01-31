@@ -15,3 +15,4 @@ export const groupTable = pgTable("groups", {
 });
 
 export type GroupSelectModel = InferSelectModel<typeof groupTable>;
+export type GroupUpdateModel = Omit<GroupSelectModel, 'id_group' | 'createdAt' | 'updatedAt'>

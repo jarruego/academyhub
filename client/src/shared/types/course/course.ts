@@ -8,4 +8,11 @@ export type Course = {
     short_name: string;
     start_date: Dayjs;
     end_date: Dayjs;
+    modality: CourseModality;
+}
+
+export enum CourseModality {
+    ONLINE = 'Online',
+    PRESENTIAL = 'Presential',
+    MIXED = 'Mixed'
 }

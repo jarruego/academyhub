@@ -1,3 +1,4 @@
+CREATE TYPE "public"."course_modality" AS ENUM('Online', 'Presential', 'Mixed');--> statement-breakpoint
 CREATE TABLE "auth_users" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" varchar(32) NOT NULL,
@@ -39,8 +40,9 @@ CREATE TABLE "courses" (
 	"course_name" text NOT NULL,
 	"category" text,
 	"short_name" text NOT NULL,
-	"start_date" date,
-	"end_date" date,
+	"start_date" timestamp with time zone,
+	"end_date" timestamp with time zone,
+	"modality" "course_modality",
 	"createdAt" timestamp DEFAULT now() NOT NULL,
 	"updatedAt" timestamp DEFAULT now() NOT NULL
 );
@@ -60,7 +62,8 @@ CREATE TABLE "user_center" (
 	"id_user" integer NOT NULL,
 	"id_center" integer NOT NULL,
 	"start_date" date,
-	"end_date" date
+	"end_date" date,
+	CONSTRAINT "user_center_id_user_id_center_pk" PRIMARY KEY("id_user","id_center")
 );
 --> statement-breakpoint
 CREATE TABLE "user_course" (
@@ -68,14 +71,16 @@ CREATE TABLE "user_course" (
 	"id_course" integer NOT NULL,
 	"enrollment_date" date,
 	"completion_percentage" numeric(5, 2),
-	"time_spent" integer
+	"time_spent" integer,
+	CONSTRAINT "user_course_id_user_id_course_pk" PRIMARY KEY("id_user","id_course")
 );
 --> statement-breakpoint
 CREATE TABLE "user_course_moodle_role" (
 	"id_user" integer NOT NULL,
 	"id_course" integer NOT NULL,
 	"id_role" integer NOT NULL,
-	"role_shortname" text NOT NULL
+	"role_shortname" text NOT NULL,
+	CONSTRAINT "user_course_moodle_role_id_user_id_course_id_role_pk" PRIMARY KEY("id_user","id_course","id_role")
 );
 --> statement-breakpoint
 CREATE TABLE "user_group" (
@@ -84,17 +89,19 @@ CREATE TABLE "user_group" (
 	"join_date" date,
 	"completion_percentage" numeric(5, 2),
 	"time_spent" integer,
-	"last_access" timestamp
+	"last_access" timestamp,
+	CONSTRAINT "user_group_id_user_id_group_pk" PRIMARY KEY("id_user","id_group")
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
 	"id_user" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"surname" text NOT NULL,
-	"email" text NOT NULL,
+	"email" text,
 	"moodle_username" text,
 	"moodle_password" text,
 	"moodle_id" integer,
+	CONSTRAINT "users_moodle_username_unique" UNIQUE("moodle_username"),
 	CONSTRAINT "users_moodle_id_unique" UNIQUE("moodle_id")
 );
 --> statement-breakpoint

@@ -11,6 +11,9 @@ import { GroupRepository } from "src/database/repository/group/group.repository"
 import { UserRepository } from "src/database/repository/user/user.repository";
 import { DatabaseService } from "src/database/database.service";
 import { DATABASE_PROVIDER } from "src/database/database.module";
+import { QueryOptions } from "src/database/repository/repository";
+import { MoodleCourse } from "src/types/moodle/course";
+import { CourseModality } from "src/types/course/course-modality.enum";
 // import { CourseModality } from "src/types/course/course-modality.enum";
 
 @Injectable()
@@ -68,32 +71,54 @@ export class CourseService {
     return await this.courseRepository.updateUserRolesInCourse(id_course, id_user, roles);
   }
 
+  async upsertMoodleCourse(moodleCourse: MoodleCourse, options?: QueryOptions) {
+    const data = {
+        course_name: moodleCourse.fullname,
+        short_name: moodleCourse.shortname,
+        moodle_id: moodleCourse.id,
+        start_date: new Date(moodleCourse.startdate),
+        end_date: new Date(moodleCourse.enddate),
+        category: "",
+
+        // Fixed for moodle
+        modality: CourseModality.ONLINE,
+      };
+    const existingCourse = await this.courseRepository.findByMoodleId(moodleCourse.id, options);
+    if (existingCourse) {
+      await this.courseRepository.update(existingCourse.id_course, data, options);
+      return await this.courseRepository.findByMoodleId(moodleCourse.id, options); // TODO: optimize
+    } else {
+      const [{id}] = await this.courseRepository.create(data, options);
+      return await this.courseRepository.findById(id, options);
+    }
+  }
+
   async importMoodleCourses() {
     return await this.databaseService.db.transaction(async transaction => {
       const moodleCourses = await this.MoodleService.getAllCourses();
           for (const moodleCourse of moodleCourses) {
-            const course = await this.courseRepository.upsertMoodleCourse(moodleCourse, {transaction});
+            const course = await this.upsertMoodleCourse(moodleCourse, {transaction});
 
-            if ('id_course' in course) {
-              // Obtener usuarios matriculados en el curso
-              const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
-              for (const enrolledUser of enrolledUsers) {
-                await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, {transaction});
-              }
+            // Obtener usuarios matriculados en el curso
+            const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
+            for (const enrolledUser of enrolledUsers) {
+              await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, {transaction});
+            }
 
-              // Obtener grupos asociados al curso
-              const moodleGroups = await this.MoodleService.getCourseGroups(moodleCourse.id);
-              for (const moodleGroup of moodleGroups) {
-                await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, {transaction});
+            // Obtener grupos asociados al curso
+            const moodleGroups = await this.MoodleService.getCourseGroups(moodleCourse.id);
+            for (const moodleGroup of moodleGroups) {
+              const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, {transaction});
 
-                // Obtener usuarios asociados al grupo
-                const moodleUsers = await this.MoodleService.getGroupUsers(moodleGroup.id);
-                for (const moodleUser of moodleUsers) {
-                  await this.userRepository.upsertMoodleUserByGroup(moodleUser, moodleGroup.id, {transaction});
-                }
+              // Obtener usuarios asociados al grupo
+              const moodleUsers = await this.MoodleService.getGroupUsers(moodleGroup.id);
+              for (const moodleUser of moodleUsers) {
+                await this.userRepository.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, {transaction});
               }
             }
+            
           }
+
         return { message: 'Cursos, grupos y usuarios importados y actualizados correctamente' };
     });
   }

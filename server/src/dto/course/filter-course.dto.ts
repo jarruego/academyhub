@@ -33,10 +33,10 @@ export class FilterCourseDTO {
   // @IsString()
   // fundae_id?: string;
 
-  // @IsOptional()
-  // @IsString()
-  // @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
-  // modality?: CourseModality;
+  @IsOptional()
+  @IsString()
+  @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
+  modality?: CourseModality;
 
   // @IsOptional()
   // @IsInt()

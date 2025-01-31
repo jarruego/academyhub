@@ -11,6 +11,7 @@ import { userCourseMoodleRoleTable } from "src/database/schema/tables/user_cours
 import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
 import { MoodleCourse } from "src/types/moodle/course";
 import { groupTable } from "src/database/schema/tables/group.table";
+import { CourseModality } from "src/types/course/course-modality.enum";
 
 @Injectable()
 export class CourseRepository extends Repository {
@@ -21,9 +22,9 @@ export class CourseRepository extends Repository {
   }
 
   async create(createCourseDTO: CourseInsertModel, options?: QueryOptions) {
-    const result = await this.query()
+    const result = await this.query(options)
       .insert(courseTable)
-      .values(createCourseDTO);
+      .values(createCourseDTO).returning({id: courseTable.id_course});
     return result;
   }
 
@@ -44,7 +45,7 @@ export class CourseRepository extends Repository {
         if (filter.start_date) where.push(eq(courseTable.start_date, filter.start_date));
         if (filter.end_date) where.push(eq(courseTable.end_date, filter.end_date));
         // if (filter.price_per_hour) where.push(eq(courseTable.price_per_hour, filter.price_per_hour));
-        // if (filter.modality) where.push(ilike(courseTable.modality, `%${filter.modality}%`));
+        if (filter.modality) where.push(ilike(courseTable.modality, `%${filter.modality}%`));
         // if (filter.active) where.push(eq(courseTable.active, filter.active));
 
         return await this.query().select().from(courseTable).where(and(...where));
@@ -108,24 +109,5 @@ export class CourseRepository extends Repository {
   async findByMoodleId(moodleId: number, options?: QueryOptions) {
     const rows = await this.query(options).select().from(courseTable).where(eq(courseTable.moodle_id, moodleId));
     return rows?.[0];
-  }
-
-  async upsertMoodleCourse(moodleCourse: MoodleCourse, options?: QueryOptions) {
-    const data = {
-        course_name: moodleCourse.fullname,
-        short_name: moodleCourse.shortname,
-        moodle_id: moodleCourse.id,
-        start_date: new Date(moodleCourse.startdate),
-        end_date: new Date(moodleCourse.enddate),
-        category: ""
-      };
-    const existingCourse = await this.findByMoodleId(moodleCourse.id, options);
-    if (existingCourse) {
-      await this.update(existingCourse.id_course, data, options);
-      return await this.findByMoodleId(moodleCourse.id, options); // TODO: optimize
-    } else {
-      const newCourse = await this.create(data, options);
-      return newCourse;
-    }
   }
 }

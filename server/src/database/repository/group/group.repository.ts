@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { GroupSelectModel, groupTable } from "src/database/schema/tables/group.table";
+import { GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { eq, ilike, and } from "drizzle-orm";
 import { CreateGroupDTO } from "src/dto/group/create-group.dto";
 import { UpdateGroupDTO } from "src/dto/group/update-group.dto";
@@ -27,11 +27,11 @@ export class GroupRepository extends Repository {
   async create(createGroupDTO: CreateGroupDTO,  options?: QueryOptions) {
     const result = await this.query(options)
       .insert(groupTable)
-      .values(createGroupDTO);
+      .values(createGroupDTO).returning({id: groupTable.id_group});
     return result;
   }
 
-  async update(id: number, updateGroupDTO: UpdateGroupDTO,  options?: QueryOptions) {
+  async update(id: number, updateGroupDTO: GroupUpdateModel,  options?: QueryOptions) {
     const result = await this.query(options)
       .update(groupTable)
       .set(updateGroupDTO)
@@ -124,13 +124,13 @@ export class GroupRepository extends Repository {
       id_course: id_course,
       description: moodleGroup.description || ''
     };
-    const existingGroup = await this.findByMoodleId(moodleGroup.id);
+    const existingGroup = await this.findByMoodleId(moodleGroup.id, options);
     if (existingGroup) {
       await this.update(existingGroup.id_group, data, options);
-      return await this.findByMoodleId(moodleGroup.id); // TODO: optimize
+      return await this.findByMoodleId(moodleGroup.id, options); // TODO: optimize
     } else {
       const newGroup = await this.create(data, options);
-      return newGroup;
+      return await this.findById(newGroup[0].id, options);
     }
   }
 
