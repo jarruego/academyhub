@@ -38,17 +38,17 @@ export class CreateUserDTO {
   @ApiProperty()
   @IsOptional()
   @IsString()
-  moodle_username: string;
+  moodle_username?: string;
 
-  // @ApiProperty()
-  // @IsOptional()
-  // @IsString()
-  // moodle_password: string;
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  moodle_password?: string;
 
   @ApiProperty()
   @IsOptional()
   @IsInt()
-  moodle_id: number;
+  moodle_id?: number;
 
   // @ApiProperty()
   // @IsOptional()

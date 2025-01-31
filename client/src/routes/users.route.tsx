@@ -1,10 +1,12 @@
 import { Button, Table, Input } from "antd";
 import { useState } from "react";
 import { useUsersQuery } from "../hooks/api/users/use-users.query";
+import { useNavigate } from 'react-router-dom';
 
 export default function UsersRoute() {
   const { data: usersData, isLoading: isUsersLoading, isFetching: isUsersRefetching, refetch: refetchUsers } = useUsersQuery();
   const [searchText, setSearchText] = useState("");
+  const navigate = useNavigate();
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
@@ -24,6 +26,7 @@ export default function UsersRoute() {
       value={searchText}
       onChange={handleSearch}
     />
+    <Button onClick={() => navigate('/users/create')} style={{ marginBottom: 16 }}>Añadir Usuario</Button>
     <Button onClick={() => refetchUsers()} loading={isUsersRefetching}>Refrescar</Button>
     <Table rowKey="id_user" columns={[
     {
