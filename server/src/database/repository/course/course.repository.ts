@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { CourseSelectModel, courseTable } from "src/database/schema/tables/course.table";
+import { CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { eq, ilike, and } from "drizzle-orm";
 import { CreateCourseDTO } from "src/dto/course/create-course.dto";
 import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
@@ -20,14 +20,14 @@ export class CourseRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(createCourseDTO: CreateCourseDTO, options?: QueryOptions) {
+  async create(createCourseDTO: CourseInsertModel, options?: QueryOptions) {
     const result = await this.query()
       .insert(courseTable)
       .values(createCourseDTO);
     return result;
   }
 
-  async update(id: number, updateCourseDTO: UpdateCourseDTO, options?: QueryOptions) {
+  async update(id: number, updateCourseDTO: CourseUpdateModel, options?: QueryOptions) {
     const result = await this.query()
       .update(courseTable)
       .set(updateCourseDTO)
@@ -41,8 +41,8 @@ export class CourseRepository extends Repository {
         if (filter.course_name) where.push(ilike(courseTable.course_name, `%${filter.course_name}%`));
         if (filter.short_name) where.push(ilike(courseTable.short_name, `%${filter.short_name}%`));
         if (filter.category) where.push(ilike(courseTable.category, `%${filter.category}%`));
-        // if (filter.start_date) where.push(eq(courseTable.start_date, filter.start_date));
-        // if (filter.end_date) where.push(eq(courseTable.end_date, filter.end_date));
+        if (filter.start_date) where.push(eq(courseTable.start_date, filter.start_date));
+        if (filter.end_date) where.push(eq(courseTable.end_date, filter.end_date));
         // if (filter.price_per_hour) where.push(eq(courseTable.price_per_hour, filter.price_per_hour));
         // if (filter.modality) where.push(ilike(courseTable.modality, `%${filter.modality}%`));
         // if (filter.active) where.push(eq(courseTable.active, filter.active));
@@ -115,6 +115,8 @@ export class CourseRepository extends Repository {
         course_name: moodleCourse.fullname,
         short_name: moodleCourse.shortname,
         moodle_id: moodleCourse.id,
+        start_date: new Date(moodleCourse.startdate),
+        end_date: new Date(moodleCourse.enddate),
         category: ""
       };
     const existingCourse = await this.findByMoodleId(moodleCourse.id, options);

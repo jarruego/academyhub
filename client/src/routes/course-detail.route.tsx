@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useCourseQuery } from "../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../hooks/api/courses/use-update-course.mutation";
-import { Button, Form, Input, Table } from "antd";
+import { Button, DatePicker, Form, Input, Table } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
@@ -48,6 +48,9 @@ export default function CourseDetailRoute() {
         </Form.Item>
         <Form.Item label="Nombre corto" name="short_name">
           <Controller name="short_name" control={control} render={({ field }) => <Input {...field} />} />
+        </Form.Item>
+        <Form.Item label="Fecha Inicio" name="start_date">
+          <Controller name="start_date" control={control} render={({ field }) => <DatePicker {...field} />} />
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit">Guardar</Button>

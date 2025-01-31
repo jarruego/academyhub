@@ -28,7 +28,7 @@ export class CreateUserDTO {
   @ApiProperty()
   @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   // @ApiProperty()
   // @IsOptional()

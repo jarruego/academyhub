@@ -18,10 +18,10 @@ export class UserService {
 
   async create(createUserDTO: CreateUserDTO) {
     return await this.userRepository.create({
-      ...createUserDTO,
-      moodle_id: createUserDTO.moodle_id || null,
-      moodle_username: createUserDTO.moodle_username || null,
-      moodle_password: createUserDTO.moodle_password || null,
+       ...createUserDTO,
+      // moodle_id: createUserDTO.moodle_id || null,
+      // moodle_username: createUserDTO.moodle_username || null,
+      // moodle_password: createUserDTO.moodle_password || null,
     });
   }
 

@@ -1,4 +1,5 @@
-import { IsOptional, IsString, IsInt, IsBoolean, IsDateString, IsIn, IsNumber, isNumberString, IsNumberString } from "class-validator";
+import { Type } from "class-transformer";
+import { IsOptional, IsString, IsInt, IsBoolean, IsDateString, IsIn, IsNumber, isNumberString, IsNumberString, IsDate } from "class-validator";
 import { CourseModality } from "src/types/course/course-modality.enum";
 
 export class FilterCourseDTO {
@@ -18,13 +19,15 @@ export class FilterCourseDTO {
   @IsString()
   short_name?: string;
 
-  // @IsOptional()
-  // @IsDateString()
-  // start_date?: Date;
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  start_date?: Date;
 
-  // @IsOptional()
-  // @IsDateString()
-  // end_date?: Date;
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  end_date?: Date;
 
   // @IsOptional()
   // @IsString()

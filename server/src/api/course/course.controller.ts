@@ -19,6 +19,7 @@ export class CourseController {
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateCourseDTO: UpdateCourseDTO) {
     const numericId = parseInt(id, 10);
+    console.log({updateCourseDTO})
     return this.courseService.update(numericId, updateCourseDTO);
   }
 

@@ -1,7 +1,7 @@
-import { pgTable, serial, integer, text, date, boolean, decimal, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, date, boolean, decimal, pgEnum, timestamp } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 // import { CourseModality } from "src/types/course/course-modality.enum";
-import { InferSelectModel } from "drizzle-orm";
+import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // export const courseModality = pgEnum('course_modality', Object.values(CourseModality) as [string, ...string[]]);
 
@@ -11,8 +11,8 @@ export const courseTable = pgTable('courses', {
   course_name: text().notNull(),
   category: text(),
   short_name: text().notNull(),
-  // start_date: date({mode: 'date'}),
-  // end_date: date({mode: 'date'}),
+  start_date: timestamp({withTimezone: true}),
+  end_date: timestamp({withTimezone: true}),
   // price_per_hour: decimal({ precision: 10, scale: 2 }),
   // fundae_id: text(),
   // modality: courseModality(),
@@ -21,3 +21,5 @@ export const courseTable = pgTable('courses', {
   ...TIMESTAMPS,
 });
 export type CourseSelectModel = InferSelectModel<typeof courseTable>;
+export type CourseInsertModel = Omit<CourseSelectModel, 'id_course' | 'createdAt' | 'updatedAt'>;
+export type CourseUpdateModel = Partial<CourseInsertModel>;
