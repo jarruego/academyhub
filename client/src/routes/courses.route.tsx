@@ -7,6 +7,7 @@ export default function CoursesRoute() {
   const navigate = useNavigate();
 
   return <div>
+    <Button type="primary" onClick={() => navigate('/add-course')}>Añadir Curso</Button>
     <Button onClick={() => refetchCourses()} loading={isCoursesRefetching}>Refrescar</Button>
     <Table rowKey="id_course" columns={[
     {
