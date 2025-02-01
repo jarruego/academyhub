@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsInt, IsDateString, IsDecimal, IsNotEmpty, IsEnum, IsOptional, IsIn } from 'class-validator';
-import { EnrollmentStatus } from 'src/types/course/enrollment-status.enum';
+import { EnrollmentStatus } from 'src/types/user-course/enrollment-status.enum';
 
 export class CreateUserCourseDTO {
   @ApiProperty()

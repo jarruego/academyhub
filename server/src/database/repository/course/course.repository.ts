@@ -2,16 +2,11 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { eq, ilike, and } from "drizzle-orm";
-import { CreateCourseDTO } from "src/dto/course/create-course.dto";
-import { UpdateCourseDTO } from "src/dto/course/update-course.dto";
 import { userCourseTable } from "src/database/schema/tables/user_course.table";
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
 import { userCourseMoodleRoleTable } from "src/database/schema/tables/user_course_moodle_role.table";
 import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
-import { MoodleCourse } from "src/types/moodle/course";
-import { groupTable } from "src/database/schema/tables/group.table";
-import { CourseModality } from "src/types/course/course-modality.enum";
 
 @Injectable()
 export class CourseRepository extends Repository {
@@ -45,7 +40,7 @@ export class CourseRepository extends Repository {
         if (filter.start_date) where.push(eq(courseTable.start_date, filter.start_date));
         if (filter.end_date) where.push(eq(courseTable.end_date, filter.end_date));
         // if (filter.price_per_hour) where.push(eq(courseTable.price_per_hour, filter.price_per_hour));
-        if (filter.modality) where.push(ilike(courseTable.modality, `%${filter.modality}%`));
+        if (filter.modality) where.push(eq(courseTable.modality, filter.modality));
         // if (filter.active) where.push(eq(courseTable.active, filter.active));
 
         return await this.query().select().from(courseTable).where(and(...where));

@@ -2,11 +2,12 @@ import { useParams } from "react-router-dom";
 import { useCourseQuery } from "../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table } from "antd";
+import { Button, DatePicker, Form, Input, Table, Select } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
 import { Course } from "../shared/types/course/course";
+import { CourseModality } from "../shared/types/course/course-modality.enum";
 
 export default function CourseDetailRoute() {
   const { id_course } = useParams();
@@ -49,9 +50,29 @@ export default function CourseDetailRoute() {
         <Form.Item label="Nombre corto" name="short_name">
           <Controller name="short_name" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
+        <div style={{ display: 'flex', gap: '16px' }}>
         <Form.Item label="Fecha Inicio" name="start_date">
           <Controller name="start_date" control={control} render={({ field }) => <DatePicker {...field} />} />
         </Form.Item>
+        <Form.Item label="Fecha Fin" name="end_date">
+          <Controller name="end_date" control={control} render={({ field }) => <DatePicker {...field} />} />
+        </Form.Item>
+        <Form.Item label="Modalidad" name="modality">
+          <Controller
+            name="modality"
+            control={control}
+            render={({ field }) => (
+              <Select {...field}>
+                {Object.values(CourseModality).map((modality) => (
+                  <Select.Option key={modality} value={modality}>
+                    {modality}
+                  </Select.Option>
+                ))}
+              </Select>
+            )}
+          />          
+        </Form.Item>
+        </div>
         <Form.Item>
           <Button type="primary" htmlType="submit">Guardar</Button>
         </Form.Item>

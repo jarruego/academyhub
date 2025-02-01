@@ -8,7 +8,7 @@ import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { CreateUserGroupDTO } from "src/dto/user-group/create-user-group.dto";
 import { userTable } from "src/database/schema/tables/user.table";
 import { CourseRepository } from "../course/course.repository";
-import { EnrollmentStatus } from "src/types/course/enrollment-status.enum";
+import { EnrollmentStatus } from "src/types/user-course/enrollment-status.enum";
 import { UpdateUserGroupDTO } from "src/dto/user-group/update-user-group.dto";
 import { MoodleGroup } from "src/types/moodle/group";
 

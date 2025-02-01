@@ -1,4 +1,5 @@
 import { Dayjs } from "dayjs";
+import { CourseModality } from "./course-modality.enum";
 
 export type Course = {
     id_course: number;
@@ -9,10 +10,4 @@ export type Course = {
     start_date: Dayjs;
     end_date: Dayjs;
     modality: CourseModality;
-}
-
-export enum CourseModality {
-    ONLINE = 'Online',
-    PRESENTIAL = 'Presential',
-    MIXED = 'Mixed'
 }
