@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsString, IsInt, IsBoolean, IsOptional, IsIn, IsDateString, IsNumberString, IsDate } from "class-validator";
+import { IsString, IsInt, IsBoolean, IsOptional, IsIn, IsDateString, IsNumberString, IsDate, IsNotEmpty } from "class-validator";
 import { CourseModality } from "src/types/course/course-modality.enum";
 
 export class UpdateCourseDTO {
@@ -10,7 +10,7 @@ export class UpdateCourseDTO {
   moodle_id: number;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   course_name: string;
 
@@ -20,7 +20,7 @@ export class UpdateCourseDTO {
   category: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
   short_name: string;
 

@@ -2,20 +2,24 @@ import { useParams } from "react-router-dom";
 import { useCourseQuery } from "../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table, Select } from "antd";
+import { Button, DatePicker, Form, Input, Table, Select, message } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
 import { Course } from "../shared/types/course/course";
 import { CourseModality } from "../shared/types/course/course-modality.enum";
+import { useDeleteCourseMutation } from "../hooks/api/courses/use-delete-course.mutation";
+import { useNavigate } from "react-router-dom";
 
 export default function CourseDetailRoute() {
+  const navigate = useNavigate();
   const { id_course } = useParams();
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
   const { data: groupsData, isLoading: isGroupsLoading } = useGroupsQuery(id_course || "");
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const { data: usersData, isLoading: isUsersLoading } = useUsersByGroupQuery(selectedGroupId);
+  const { mutateAsync: deleteCourse } = useDeleteCourseMutation(id_course || "");
 
   const { handleSubmit, control, reset } = useForm<Course>();
 
@@ -37,6 +41,15 @@ export default function CourseDetailRoute() {
   const submit: SubmitHandler<Course> = async (info) => {
     await updateCourse(info);
   }
+
+  const handleDelete = async () => {
+    try {
+      await deleteCourse();
+      navigate('/courses');
+    } catch {
+      message.error('No se pudo eliminar el curso. Recuerde que debe de estar vacío');
+    }
+  };
 
   return (
     <div>
@@ -105,6 +118,9 @@ export default function CourseDetailRoute() {
           loading={isUsersLoading}
         />
       </div>
+      <Button type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }}>
+        Eliminar Curso
+      </Button>
     </div>
   );
 }

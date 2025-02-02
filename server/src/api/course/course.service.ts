@@ -14,7 +14,6 @@ import { DATABASE_PROVIDER } from "src/database/database.module";
 import { QueryOptions } from "src/database/repository/repository";
 import { MoodleCourse } from "src/types/moodle/course";
 import { CourseModality } from "src/types/course/course-modality.enum";
-// import { CourseModality } from "src/types/course/course-modality.enum";
 
 @Injectable()
 export class CourseService {

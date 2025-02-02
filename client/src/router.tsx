@@ -4,7 +4,8 @@ import UsersRoute from './routes/users.route';
 import CoursesRoute from './routes/courses.route';
 import CourseDetailRoute from './routes/course-detail.route';
 import CreateUserRoute from './routes/create-user.route';
-import AddCourseRoute from './routes/add-course.route';
+import CreateCourseRoute from './routes/create-course.route';
+import UserDetailRoute from './routes/user-detail.route';
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 
@@ -37,10 +38,11 @@ export default function AppRouter() {
             <Routes>
               <Route path="/" element={<HomeRoute />} />
               <Route path="/users" element={<UsersRoute />} />
+              <Route path="/users/:id_user" element={<UserDetailRoute />} />
               <Route path="/courses" element={<CoursesRoute />} />
               <Route path="/courses/:id_course" element={<CourseDetailRoute />} />
               <Route path="/users/create" element={<CreateUserRoute />} />
-              <Route path="/add-course" element={<AddCourseRoute />} />
+              <Route path="/add-course" element={<CreateCourseRoute />} />
             </Routes>
           </Content>
         </Layout>

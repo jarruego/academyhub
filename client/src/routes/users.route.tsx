@@ -55,7 +55,7 @@ export default function UsersRoute() {
     },
     {
       title: "Actions",
-      render: () => <Button>Ver</Button>
+      render: (_, record) => <Button onClick={() => navigate(`/users/${record.id_user}`)}>Ver</Button>
     }
   ]} dataSource={filteredUsers} loading={isUsersLoading}/>
   </div>
