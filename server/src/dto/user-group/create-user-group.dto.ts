@@ -11,6 +11,11 @@ export class CreateUserGroupDTO {
   @IsNotEmpty()
   id_group: number;
 
+  @ApiProperty()
+  @IsInt()
+  @IsOptional()
+  id_center: number;
+
   @IsDateString()
   @IsOptional()
   join_date: string;

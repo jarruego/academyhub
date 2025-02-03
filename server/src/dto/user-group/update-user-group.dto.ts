@@ -1,16 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsDateString, IsDecimal, IsOptional } from 'class-validator';
+import { IsInt, IsDateString, IsDecimal, IsOptional, IsNotEmpty } from 'class-validator';
 
 export class UpdateUserGroupDTO {
   @ApiProperty()
   @IsInt()
-  @IsOptional()
-  id_user?: number;
+  @IsNotEmpty()
+  id_user: number;
+
+  @ApiProperty()
+  @IsInt()
+  @IsNotEmpty()
+  id_group: number;
 
   @ApiProperty()
   @IsInt()
   @IsOptional()
-  id_group?: number;
+  id_center?: number;
 
   @ApiProperty()
   @IsDateString()

@@ -3,7 +3,6 @@ import { QueryOptions, Repository } from "../repository";
 import { GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { eq, ilike, and } from "drizzle-orm";
 import { CreateGroupDTO } from "src/dto/group/create-group.dto";
-import { UpdateGroupDTO } from "src/dto/group/update-group.dto";
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { CreateUserGroupDTO } from "src/dto/user-group/create-user-group.dto";
 import { userTable } from "src/database/schema/tables/user.table";

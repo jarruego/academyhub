@@ -21,7 +21,6 @@ export class UserRepository extends Repository {
       .insert(userTable)
       .values(createUserDTO)
       .returning({ insertId: userTable.id_user });
-      console.log(result[0].insertId, 'user')
     return result[0];
   }
 
@@ -60,7 +59,7 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number,  options?: QueryOptions) {
+  async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number, options?: QueryOptions) {
     const existingUser = await this.findByMoodleId(moodleUser.id, options);
     const data = {
       name: moodleUser.firstname,
