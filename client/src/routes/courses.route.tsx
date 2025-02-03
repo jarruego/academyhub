@@ -1,14 +1,15 @@
 import { Button, Table } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCoursesQuery } from "../hooks/api/courses/use-courses.query";
+import { PlusOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar los iconos
 
 export default function CoursesRoute() {
   const { data: coursesData, isLoading: isCoursesLoading, isFetching: isCoursesRefetching, refetch: refetchCourses } = useCoursesQuery();
   const navigate = useNavigate();
 
   return <div>
-    <Button type="primary" onClick={() => navigate('/add-course')}>Añadir Curso</Button>
-    <Button onClick={() => refetchCourses()} loading={isCoursesRefetching}>Refrescar</Button>
+    <Button type="primary" onClick={() => navigate('/add-course')} icon={<PlusOutlined />}>Añadir Curso</Button>
+    <Button onClick={() => refetchCourses()} loading={isCoursesRefetching} icon={<ReloadOutlined />}>Refrescar</Button>
     <Table 
       rowKey="id_course" 
       columns={[

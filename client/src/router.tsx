@@ -12,6 +12,7 @@ import CompaniesRoute from './routes/companies.route';
 import CreateCompanyRoute from './routes/create-company.route';
 import CompanyDetailRoute from './routes/company-detail.route';
 import CreateCenterRoute from './routes/create-center.route';
+import EditCenterRoute from './routes/center-detail.route'; 
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 
@@ -54,7 +55,8 @@ export default function AppRouter() {
               <Route path="/groups/:id_group/edit" element={<EditGroupRoute />} />
               <Route path="/companies" element={<CompaniesRoute />} />
               <Route path="/companies/:id_company" element={<CompanyDetailRoute />} />
-              <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} /> {/* Agregar esta línea */}
+              <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} /> 
+              <Route path="/centers/:id_center/edit" element={<EditCenterRoute />} /> 
               <Route path="/add-company" element={<CreateCompanyRoute />} />
             </Routes>
           </Content>

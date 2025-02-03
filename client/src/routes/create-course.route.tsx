@@ -4,6 +4,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Course } from "../shared/types/course/course";
 import { CourseModality } from "../shared/types/course/course-modality.enum";
 import { useNavigate } from "react-router-dom";
+import { SaveOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar el icono
 
 export default function CreateCourseRoute() {
   const { mutateAsync: createCourse } = useCreateCourseMutation();
@@ -52,7 +53,10 @@ export default function CreateCourseRoute() {
         </Form.Item>
         </div>
         <Form.Item>
-          <Button type="primary" htmlType="submit">Guardar</Button>
+          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} style={{ marginLeft: '16px' }}>
+            Refrescar
+          </Button>
         </Form.Item>
       </Form>
     </div>

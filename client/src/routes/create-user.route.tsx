@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCreateUserMutation } from "../hooks/api/users/use-create-user.mutation";
 import { User } from "../shared/types/user/user";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
+import { SaveOutlined } from "@ant-design/icons"; // Importar el icono
 
 export default function CreateUserRoute() {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export default function CreateUserRoute() {
         <Controller name="moodle_password" control={control} render={({ field }) => <Input.Password {...field} />} />
       </Form.Item>
       <Form.Item>
-        <Button type="primary" htmlType="submit">
+        <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
           Crear Usuario
         </Button>
       </Form.Item>

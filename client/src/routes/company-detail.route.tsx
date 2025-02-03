@@ -7,7 +7,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
 import { Company } from "../shared/types/company/company";
 import { useCentersQuery } from "../hooks/api/centers/use-centers.query";
-import { PlusOutlined } from "@ant-design/icons"; // Agregar esta línea
+import { PlusOutlined, DeleteOutlined, SaveOutlined } from "@ant-design/icons"; 
 
 export default function CompanyDetailRoute() {
   const navigate = useNavigate();
@@ -43,7 +43,7 @@ export default function CompanyDetailRoute() {
   };
 
   const handleAddCenter = () => {
-    navigate(`/companies/${id_company}/add-center`); // Agregar esta línea
+    navigate(`/companies/${id_company}/add-center`); 
   };
 
   return (
@@ -61,9 +61,9 @@ export default function CompanyDetailRoute() {
         <Form.Item label="CIF" name="cif">
           <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
-        <Button type="primary" htmlType="submit">Guardar</Button>
+        <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
       </Form>
-      <Button type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }}>
+      <Button type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
         Eliminar Empresa
       </Button>
       <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter} style={{ marginTop: '16px' }}>
@@ -81,6 +81,10 @@ export default function CompanyDetailRoute() {
         ]}
         dataSource={centersData}
         loading={isCentersLoading}
+        onRow={(record) => ({
+          onDoubleClick: () => navigate(`/centers/${record.id_center}/edit`),
+          style: { cursor: 'pointer' }
+        })}
       />
     </div>
   );

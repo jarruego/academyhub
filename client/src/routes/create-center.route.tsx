@@ -3,6 +3,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message } from "antd";
 import { useCreateCenterMutation } from "../hooks/api/centers/use-create-center.mutation";
 import { Center } from "../shared/types/center/center";
+import { SaveOutlined, ReloadOutlined } from "@ant-design/icons"; 
 
 export default function CreateCenterRoute() {
   const { id_company } = useParams();
@@ -42,7 +43,12 @@ export default function CreateCenterRoute() {
           <Controller name="contact_email" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
         <Form.Item>
-          <Button type="primary" htmlType="submit">Crear Centro</Button>
+          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
+            Crear Centro
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} style={{ marginLeft: '16px' }}>
+            Refrescar
+          </Button>
         </Form.Item>
       </Form>
     </div>

@@ -3,6 +3,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message } from "antd";
 import { useCreateGroupMutation } from "../hooks/api/groups/use-create-group.mutation";
 import { Group } from "../shared/types/group/group";
+import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
 
 export default function CreateGroupRoute() {
   const { id_course } = useParams();
@@ -33,7 +34,12 @@ export default function CreateGroupRoute() {
           <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
         <Form.Item>
-          <Button type="primary" htmlType="submit">Crear Grupo</Button>
+          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
+            Crear Grupo
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} style={{ marginLeft: '16px' }}>
+            Refrescar
+          </Button>
         </Form.Item>
       </Form>
     </div>

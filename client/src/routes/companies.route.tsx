@@ -1,14 +1,15 @@
 import { Button, Table } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCompaniesQuery } from "../hooks/api/companies/use-companies.query";
+import { PlusOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar los iconos
 
 export default function CompaniesRoute() {
   const { data: companiesData, isLoading: isCompaniesLoading, isFetching: isCompaniesRefetching, refetch: refetchCompanies } = useCompaniesQuery();
   const navigate = useNavigate();
 
   return <div>
-    <Button type="primary" onClick={() => navigate('/add-company')}>Añadir Empresa</Button>
-    <Button onClick={() => refetchCompanies()} loading={isCompaniesRefetching}>Refrescar</Button>
+    <Button type="primary" onClick={() => navigate('/add-company')} icon={<PlusOutlined />}>Añadir Empresa</Button>
+    <Button onClick={() => refetchCompanies()} loading={isCompaniesRefetching} icon={<ReloadOutlined />}>Refrescar</Button>
     <Table 
       rowKey="id_company" 
       columns={[

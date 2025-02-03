@@ -2,6 +2,7 @@ import { Button, Table, Input } from "antd";
 import { useState } from "react";
 import { useUsersQuery } from "../hooks/api/users/use-users.query";
 import { useNavigate } from 'react-router-dom';
+import { PlusOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar los iconos
 
 export default function UsersRoute() {
   const { data: usersData, isLoading: isUsersLoading, isFetching: isUsersRefetching, refetch: refetchUsers } = useUsersQuery();
@@ -26,8 +27,8 @@ export default function UsersRoute() {
       value={searchText}
       onChange={handleSearch}
     />
-    <Button onClick={() => navigate('/users/create')} style={{ marginBottom: 16 }}>Añadir Usuario</Button>
-    <Button onClick={() => refetchUsers()} loading={isUsersRefetching}>Refrescar</Button>
+    <Button onClick={() => navigate('/users/create')} type="primary" icon={<PlusOutlined />}>Añadir Usuario</Button>
+    <Button onClick={() => refetchUsers()} loading={isUsersRefetching} icon={<ReloadOutlined />}>Refrescar</Button>
     <Table 
       rowKey="id_user" 
       columns={[

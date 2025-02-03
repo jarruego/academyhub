@@ -8,6 +8,7 @@ import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.quer
 import { useDeleteUserFromGroupMutation } from "../hooks/api/groups/use-delete-user-from-group.mutation";
 import { Group } from "../shared/types/group/group";
 import { useEffect, useState } from "react";
+import { DeleteOutlined, SaveOutlined } from "@ant-design/icons"; // Importar los iconos
 
 export default function EditGroupRoute() {
   const { id_group } = useParams();
@@ -82,8 +83,8 @@ export default function EditGroupRoute() {
           <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
         <Form.Item>
-          <Button type="primary" htmlType="submit">Guardar</Button>
-          <Button type="primary" danger onClick={handleDelete} style={{ marginLeft: '16px' }}>Eliminar Grupo</Button>
+          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+          <Button type="primary" danger onClick={handleDelete} style={{ marginLeft: '16px' }} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
         </Form.Item>
       </Form>
       <Table
@@ -98,7 +99,7 @@ export default function EditGroupRoute() {
         loading={isUsersLoading}
         rowSelection={rowSelection}
       />
-      <Button type="primary" danger onClick={handleDeleteUsers} style={{ marginTop: '16px' }}>
+      <Button type="primary" danger onClick={handleDeleteUsers} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
         Eliminar Usuarios Seleccionados
       </Button>
     </div>
