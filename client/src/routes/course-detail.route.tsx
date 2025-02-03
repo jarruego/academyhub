@@ -51,6 +51,10 @@ export default function CourseDetailRoute() {
     }
   };
 
+  const handleAddGroup = () => {
+    navigate(`/courses/${id_course}/add-group`);
+  };
+
   return (
     <div>
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
@@ -103,21 +107,25 @@ export default function CourseDetailRoute() {
           loading={isGroupsLoading}
           onRow={(record) => ({
             onClick: () => setSelectedGroupId(record.id_group),
+            onDoubleClick: () => navigate(`/groups/${record.id_group}/edit`),
           })}
         />
         <Table
           rowKey="id_user"
           columns={[
-            { title: 'ID', dataIndex: ['users', 'id_user'] },
-            { title: 'Nombre', dataIndex: ['users', 'name'] },
-            { title: 'Apellidos', dataIndex: ['users', 'surname'] },
-            { title: 'Email', dataIndex: ['users', 'email'] },
-            { title: 'MOODLE USERNAME', dataIndex: ['users', 'moodle_username'] },
+            { title: 'ID', dataIndex: ['id_user'] },
+            { title: 'Nombre', dataIndex: ['name'] },
+            { title: 'Apellidos', dataIndex: ['surname'] },
+            { title: 'Email', dataIndex: ['email'] },
+            { title: 'MOODLE USERNAME', dataIndex: ['moodle_username'] },
           ]}
           dataSource={usersData}
           loading={isUsersLoading}
         />
       </div>
+      <Button type="primary" onClick={handleAddGroup} style={{ marginTop: '16px' }}>
+        Añadir Grupo
+      </Button>
       <Button type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }}>
         Eliminar Curso
       </Button>

@@ -6,6 +6,8 @@ import CourseDetailRoute from './routes/course-detail.route';
 import CreateUserRoute from './routes/create-user.route';
 import CreateCourseRoute from './routes/create-course.route';
 import UserDetailRoute from './routes/user-detail.route';
+import CreateGroupRoute from './routes/create-group.route';
+import EditGroupRoute from './routes/group-detail.route';
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 
@@ -41,8 +43,10 @@ export default function AppRouter() {
               <Route path="/users/:id_user" element={<UserDetailRoute />} />
               <Route path="/courses" element={<CoursesRoute />} />
               <Route path="/courses/:id_course" element={<CourseDetailRoute />} />
+              <Route path="/courses/:id_course/add-group" element={<CreateGroupRoute />} />
               <Route path="/users/create" element={<CreateUserRoute />} />
               <Route path="/add-course" element={<CreateCourseRoute />} />
+              <Route path="/groups/:id_group/edit" element={<EditGroupRoute />} />
             </Routes>
           </Content>
         </Layout>

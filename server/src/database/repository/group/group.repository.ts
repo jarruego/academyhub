@@ -75,7 +75,18 @@ export class GroupRepository extends Repository {
 
   async findUsersInGroup(groupId: number) {
     const rows = await this.query()
-      .select()
+      .select({
+        id_user: userTable.id_user,
+        username: userTable.moodle_username,
+        email: userTable.email,
+        name: userTable.name,
+        surname: userTable.surname,
+        moodle_id: userTable.moodle_id,
+        id_group: userGroupTable.id_group,
+        completion_percentage: userGroupTable.completion_percentage,
+        id_center: userGroupTable.id_center,
+        time_spent: userGroupTable.time_spent,
+      })
       .from(userGroupTable)
       .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
       .where(eq(userGroupTable.id_group, groupId));
@@ -94,18 +105,20 @@ export class GroupRepository extends Repository {
     const result = await this.query()
       .delete(userGroupTable)
       .where(and(eq(userGroupTable.id_group, id_group), eq(userGroupTable.id_user, id_user)));
-      // Check if the user is enrolled in other groups of the same course
-      const group = await this.findById(id_group);
-      const otherGroups = await this.query()
-        .select()
-        .from(userGroupTable)
-        .where(and(eq(userGroupTable.id_user, id_user), eq(groupTable.id_course, group.id_course), eq(userGroupTable.id_group, groupTable.id_group)));
+      
+    // Check if the user is enrolled in other groups of the same course
+    const group = await this.findById(id_group);
+    const otherGroups = await this.query()
+      .select()
+      .from(userGroupTable)
+      .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
+      .where(and(eq(userGroupTable.id_user, id_user), eq(groupTable.id_course, group.id_course)));
 
-      // If the user is not enrolled in any other groups of the same course, remove them from the course
-      if (otherGroups.length === 0) {
-        const courseRepository = new CourseRepository(this.dbService);
-        await courseRepository.deleteUserFromCourse(id_user, group.id_course);
-      }
+    // If the user is not enrolled in any other groups of the same course, remove them from the course
+    if (otherGroups.length === 0) {
+      const courseRepository = new CourseRepository(this.dbService);
+      await courseRepository.deleteUserFromCourse(id_user, group.id_course);
+    }
     return result;
   }
 
