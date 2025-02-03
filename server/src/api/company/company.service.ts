@@ -3,10 +3,14 @@ import { CompanyRepository } from "src/database/repository/company/company.repos
 import { CreateCompanyDTO } from "src/dto/company/create-company.dto";
 import { FilterCompanyDTO } from "src/dto/company/filter-company.dto";
 import { UpdateCompanyDTO } from "src/dto/company/update-company.dto";
+import { CenterRepository } from "src/database/repository/center/center.repository";
 
 @Injectable()
 export class CompanyService {
-  constructor(private readonly companyRepository: CompanyRepository) {}
+  constructor(
+    private readonly companyRepository: CompanyRepository,
+    private readonly centerRepository: CenterRepository
+  ) {}
 
   async findByCIF(cif: string) {
     return await this.companyRepository.findByCIF(cif);
@@ -30,5 +34,9 @@ export class CompanyService {
 
   async delete(id: number) {
     return await this.companyRepository.delete(id);
+  }
+
+  async findCentersByCompanyId(companyId: number) {
+    return await this.centerRepository.findByCompanyId(companyId);
   }
 }

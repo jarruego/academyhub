@@ -80,4 +80,9 @@ export class CenterRepository extends Repository {
             .where(and(eq(userCenterTable.id_center, id_center), eq(userCenterTable.id_user, id_user)));
         return result;
     }
+
+    async findByCompanyId(companyId: number) {
+        const rows = await this.query().select().from(centerTable).where(eq(centerTable.id_company, companyId));
+        return rows;
+    }
 }

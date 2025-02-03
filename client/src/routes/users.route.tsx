@@ -28,35 +28,40 @@ export default function UsersRoute() {
     />
     <Button onClick={() => navigate('/users/create')} style={{ marginBottom: 16 }}>Añadir Usuario</Button>
     <Button onClick={() => refetchUsers()} loading={isUsersRefetching}>Refrescar</Button>
-    <Table rowKey="id_user" columns={[
-    {
-      title: 'ID',
-      dataIndex: 'id_user',
-    },
-    {
-      title: 'MOODLE ID',
-      dataIndex: 'moodle_id',
-    },
-    {
-      title: 'Name',
-      dataIndex: 'name',
-    },
-    {
-      title: 'Apellidos',
-      dataIndex: 'surname',
-    },
-    {
-      title: 'Email',
-      dataIndex: 'email',
-    },
-    {
-      title: 'MOODLE USERNAME',
-      dataIndex: 'moodle_username',
-    },
-    {
-      title: "Actions",
-      render: (_, record) => <Button onClick={() => navigate(`/users/${record.id_user}`)}>Ver</Button>
-    }
-  ]} dataSource={filteredUsers} loading={isUsersLoading}/>
+    <Table 
+      rowKey="id_user" 
+      columns={[
+        {
+          title: 'ID',
+          dataIndex: 'id_user',
+        },
+        {
+          title: 'MOODLE ID',
+          dataIndex: 'moodle_id',
+        },
+        {
+          title: 'Name',
+          dataIndex: 'name',
+        },
+        {
+          title: 'Apellidos',
+          dataIndex: 'surname',
+        },
+        {
+          title: 'Email',
+          dataIndex: 'email',
+        },
+        {
+          title: 'MOODLE USERNAME',
+          dataIndex: 'moodle_username',
+        }
+      ]} 
+      dataSource={filteredUsers} 
+      loading={isUsersLoading}
+      onRow={(record) => ({
+        onDoubleClick: () => navigate(`/users/${record.id_user}`),
+        style: { cursor: 'pointer' }
+      })}
+    />
   </div>
 }

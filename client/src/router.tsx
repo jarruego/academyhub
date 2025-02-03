@@ -8,6 +8,10 @@ import CreateCourseRoute from './routes/create-course.route';
 import UserDetailRoute from './routes/user-detail.route';
 import CreateGroupRoute from './routes/create-group.route';
 import EditGroupRoute from './routes/group-detail.route';
+import CompaniesRoute from './routes/companies.route';
+import CreateCompanyRoute from './routes/create-company.route';
+import CompanyDetailRoute from './routes/company-detail.route';
+import CreateCenterRoute from './routes/create-center.route';
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 
@@ -17,6 +21,7 @@ const menuItems = [
   { key: '1', label: <Link to="/">Home</Link> },
   { key: '2', label: <Link to="/users">Usuarios</Link> },
   { key: '3', label: <Link to="/courses">Cursos</Link> },
+  { key: '4', label: <Link to="/companies">Empresas</Link> },
 ];
 
 const Sidebar = () => {
@@ -47,6 +52,10 @@ export default function AppRouter() {
               <Route path="/users/create" element={<CreateUserRoute />} />
               <Route path="/add-course" element={<CreateCourseRoute />} />
               <Route path="/groups/:id_group/edit" element={<EditGroupRoute />} />
+              <Route path="/companies" element={<CompaniesRoute />} />
+              <Route path="/companies/:id_company" element={<CompanyDetailRoute />} />
+              <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} /> {/* Agregar esta línea */}
+              <Route path="/add-company" element={<CreateCompanyRoute />} />
             </Routes>
           </Content>
         </Layout>

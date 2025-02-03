@@ -25,6 +25,12 @@ export class CompanyController {
     return this.companyService.findOne(numericId);
   }
 
+  @Get(':id/centers')
+  async findCentersByCompanyId(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.companyService.findCentersByCompanyId(numericId);
+  }
+
   @Get()
   async findAll(@Query() filter: FilterCompanyDTO) {
     return this.companyService.findAll(filter);

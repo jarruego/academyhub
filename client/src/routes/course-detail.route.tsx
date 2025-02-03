@@ -3,6 +3,7 @@ import { useCourseQuery } from "../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../hooks/api/courses/use-update-course.mutation";
 import { Button, DatePicker, Form, Input, Table, Select, message } from "antd";
+import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
@@ -68,31 +69,32 @@ export default function CourseDetailRoute() {
           <Controller name="short_name" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
         <div style={{ display: 'flex', gap: '16px' }}>
-        <Form.Item label="Fecha Inicio" name="start_date">
-          <Controller name="start_date" control={control} render={({ field }) => <DatePicker {...field} />} />
-        </Form.Item>
-        <Form.Item label="Fecha Fin" name="end_date">
-          <Controller name="end_date" control={control} render={({ field }) => <DatePicker {...field} />} />
-        </Form.Item>
-        <Form.Item label="Modalidad" name="modality">
-          <Controller
-            name="modality"
-            control={control}
-            render={({ field }) => (
-              <Select {...field}>
-                {Object.values(CourseModality).map((modality) => (
-                  <Select.Option key={modality} value={modality}>
-                    {modality}
-                  </Select.Option>
-                ))}
-              </Select>
-            )}
-          />          
-        </Form.Item>
+          <Form.Item label="Fecha Inicio" name="start_date">
+            <Controller name="start_date" control={control} render={({ field }) => <DatePicker {...field} />} />
+          </Form.Item>
+          <Form.Item label="Fecha Fin" name="end_date">
+            <Controller name="end_date" control={control} render={({ field }) => <DatePicker {...field} />} />
+          </Form.Item>
+          <Form.Item label="Modalidad" name="modality">
+            <Controller
+              name="modality"
+              control={control}
+              render={({ field }) => (
+                <Select {...field}>
+                  {Object.values(CourseModality).map((modality) => (
+                    <Select.Option key={modality} value={modality}>
+                      {modality}
+                    </Select.Option>
+                  ))}
+                </Select>
+              )}
+            />
+          </Form.Item>
         </div>
-        <Form.Item>
-          <Button type="primary" htmlType="submit">Guardar</Button>
-        </Form.Item>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Button type="primary" icon={<SaveOutlined />} htmlType="submit">Guardar</Button>
+            <Button type="primary" icon={<TeamOutlined />} onClick={handleAddGroup}>Añadir Grupo</Button>
+        </div>
       </Form>
       <div style={{ display: 'flex', gap: '16px' }}>
         <Table
@@ -108,6 +110,7 @@ export default function CourseDetailRoute() {
           onRow={(record) => ({
             onClick: () => setSelectedGroupId(record.id_group),
             onDoubleClick: () => navigate(`/groups/${record.id_group}/edit`),
+            style: { cursor: 'pointer' }
           })}
         />
         <Table
@@ -123,10 +126,7 @@ export default function CourseDetailRoute() {
           loading={isUsersLoading}
         />
       </div>
-      <Button type="primary" onClick={handleAddGroup} style={{ marginTop: '16px' }}>
-        Añadir Grupo
-      </Button>
-      <Button type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }}>
+      <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }}>
         Eliminar Curso
       </Button>
     </div>
