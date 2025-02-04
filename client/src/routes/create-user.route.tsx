@@ -4,13 +4,17 @@ import { useCreateUserMutation } from "../hooks/api/users/use-create-user.mutati
 import { User } from "../shared/types/user/user";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { SaveOutlined } from "@ant-design/icons"; // Importar el icono
+import { useEffect } from "react";
 
 export default function CreateUserRoute() {
   const navigate = useNavigate();
   const { mutateAsync: createUser } = useCreateUserMutation();
   const { handleSubmit, control } = useForm<Omit<User, 'id_user'>>();
 
- 
+  useEffect(() => {
+    document.title = "Crear Usuario";
+  }, []);
+
   const submit: SubmitHandler<Omit<User, 'id_user'>> = async (values) => {
     try {
       await createUser(values);      

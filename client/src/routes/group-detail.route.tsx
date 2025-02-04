@@ -27,6 +27,10 @@ export default function EditGroupRoute() {
     }
   }, [groupData, reset]);
 
+  useEffect(() => {
+    document.title = `Detalles del Grupo ${id_group}`;
+  }, [id_group]);
+
   if (isGroupLoading) return <div>Cargando...</div>;
 
   const submit: SubmitHandler<Group> = async (data) => {

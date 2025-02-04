@@ -22,6 +22,10 @@ export default function UserDetailRoute() {
     }
   }, [userData, reset]);
 
+  useEffect(() => {
+    document.title = `Detalles del Usuario ${id_user}`;
+  }, [id_user]);
+
   if (!userData) return <div>Usuario no encontrado</div>;
   if (isUserLoading) return <div>Cargando...</div>;
 

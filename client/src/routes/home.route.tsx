@@ -1,6 +1,11 @@
 import { Button } from "antd";
 import { useReimportMoodleMutation } from "../hooks/api/moodle/use-reimport-moodle.mutation";
+import { useEffect } from "react";
+
 export default function HomeRoute() {
+  useEffect(() => {
+    document.title = "Dashboard";
+  }, []);
 
   return (
     <div>

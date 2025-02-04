@@ -1,5 +1,5 @@
 import { Button, Table, Input } from "antd";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUsersQuery } from "../hooks/api/users/use-users.query";
 import { useNavigate } from 'react-router-dom';
 import { PlusOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar los iconos
@@ -8,6 +8,10 @@ export default function UsersRoute() {
   const { data: usersData, isLoading: isUsersLoading, isFetching: isUsersRefetching, refetch: refetchUsers } = useUsersQuery();
   const [searchText, setSearchText] = useState("");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "Usuarios";
+  }, []);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
