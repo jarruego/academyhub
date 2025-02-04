@@ -3,7 +3,7 @@ import { useAuthenticatedAxios } from "../../../utils/api/use-authenticated-axio
 import { getApiHost } from "../../../utils/api/get-api-host.util";
 import { Course } from "../../../shared/types/course/course";
 
-export const useGetCoursesQuery = () => {
+export const useCoursesQuery = () => {
     const request = useAuthenticatedAxios<Course[]>();
 
     return useQuery({

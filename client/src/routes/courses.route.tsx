@@ -1,11 +1,11 @@
 import { Button, Table } from "antd";
 import { useNavigate } from "react-router-dom";
-import { useGetCoursesQuery } from "../hooks/api/courses/use-get-courses.query";
+import { useCoursesQuery } from "../hooks/api/courses/use-courses.query";
 import { PlusOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar los iconos
 import { useEffect } from "react";
 
 export default function CoursesRoute() {
-  const { data: coursesData, isLoading: isCoursesLoading, isFetching: isCoursesRefetching, refetch: refetchCourses } = useGetCoursesQuery();
+  const { data: coursesData, isLoading: isCoursesLoading, isFetching: isCoursesRefetching, refetch: refetchCourses } = useCoursesQuery();
   const navigate = useNavigate();
 
   useEffect(() => {
