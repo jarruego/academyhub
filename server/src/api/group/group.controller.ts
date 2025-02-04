@@ -32,9 +32,11 @@ export class GroupController {
     return this.groupService.findAll(filter);
   }
 
-  @Post(':id/users')
-  async addUserToGroup(@Param('id') id: string, @Body() createUserGroupDTO: CreateUserGroupDTO) {
+  @Post(':id/users/:userId')
+  async addUserToGroup(@Param('id') id: string, @Param('userId') userId: string, @Body() createUserGroupDTO: CreateUserGroupDTO) {
     createUserGroupDTO.id_group = parseInt(id, 10);
+    createUserGroupDTO.id_user = parseInt(userId, 10);
+    console.log('addUserToGroup - createUserGroupDTO:', createUserGroupDTO);
     return this.groupService.addUserToGroup(createUserGroupDTO);
   }
 

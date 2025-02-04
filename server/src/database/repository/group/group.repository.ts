@@ -51,12 +51,14 @@ export class GroupRepository extends Repository {
   }
 
   async addUserToGroup(createUserGroupDTO: CreateUserGroupDTO) {
+    console.log('GroupRepository - addUserToGroup - createUserGroupDTO:', createUserGroupDTO);
     const result = await this.query()
       .insert(userGroupTable)
       .values(createUserGroupDTO);
 
     // Get the id_course of the group
     const group = await this.findById(createUserGroupDTO.id_group);
+    console.log('GroupRepository - addUserToGroup - group:', group);
     const id_course = group.id_course;
 
     // Associate user with the corresponding course

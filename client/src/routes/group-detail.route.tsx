@@ -8,7 +8,7 @@ import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.quer
 import { useDeleteUserFromGroupMutation } from "../hooks/api/groups/use-delete-user-from-group.mutation";
 import { Group } from "../shared/types/group/group";
 import { useEffect, useState } from "react";
-import { DeleteOutlined, SaveOutlined } from "@ant-design/icons"; // Importar los iconos
+import { DeleteOutlined, SaveOutlined, PlusOutlined } from "@ant-design/icons"; // Importar los iconos
 
 export default function EditGroupRoute() {
   const { id_group } = useParams();
@@ -63,6 +63,10 @@ export default function EditGroupRoute() {
     }
   };
 
+  const handleAddUserToGroup = () => {
+    navigate(`/groups/${id_group}/add-user`);
+  };
+
   const rowSelection = {
     selectedRowKeys: selectedUserIds,
     onChange: (selectedRowKeys: React.Key[]) => {
@@ -87,6 +91,7 @@ export default function EditGroupRoute() {
           <Button type="primary" danger onClick={handleDelete} style={{ marginLeft: '16px' }} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
         </Form.Item>
       </Form>
+      <h2>Usuarios Grupo</h2>
       <Table
         rowKey="id_user"
         columns={[
@@ -99,6 +104,9 @@ export default function EditGroupRoute() {
         loading={isUsersLoading}
         rowSelection={rowSelection}
       />
+      <Button type="primary" icon={<PlusOutlined />} onClick={handleAddUserToGroup} style={{ marginTop: '16px' }}>
+        Añadir Usuarios al Grupo
+      </Button>
       <Button type="primary" danger onClick={handleDeleteUsers} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
         Eliminar Usuarios Seleccionados
       </Button>

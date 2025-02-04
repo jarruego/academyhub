@@ -3,7 +3,7 @@ import { useAuthenticatedAxios } from "../../../utils/api/use-authenticated-axio
 import { getApiHost } from "../../../utils/api/get-api-host.util";
 import { User } from "../../../shared/types/user/user";
 
-export const useReimportUsersMutation = () => {
+export const useReimportMoodleMutation = () => {
     const request = useAuthenticatedAxios<User[]>();
 
     const queryClient = useQueryClient();

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsDateString, IsDecimal, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsDateString, IsDecimal } from 'class-validator';
 
 export class CreateUserGroupDTO {
   @ApiProperty()
@@ -7,6 +7,7 @@ export class CreateUserGroupDTO {
   @IsNotEmpty()
   id_user: number;
 
+  @ApiProperty()
   @IsInt()
   @IsNotEmpty()
   id_group: number;

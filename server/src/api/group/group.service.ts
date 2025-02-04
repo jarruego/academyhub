@@ -28,6 +28,7 @@ export class GroupService {
   }
 
   async addUserToGroup(createUserGroupDTO: CreateUserGroupDTO) {
+    console.log('GroupService - addUserToGroup - createUserGroupDTO:', createUserGroupDTO);
     return await this.groupRepository.addUserToGroup(createUserGroupDTO);
   }
 

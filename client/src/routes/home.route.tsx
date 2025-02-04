@@ -1,18 +1,18 @@
 import { Button } from "antd";
-import { useReimportUsersMutation } from "../hooks/api/users/use-reimport-users.mutation";
+import { useReimportMoodleMutation } from "../hooks/api/moodle/use-reimport-moodle.mutation";
 export default function HomeRoute() {
 
   return (
     <div>
-      <div>Home!</div>
+      <h1>Dashboard</h1>
       <ToolList/>
     </div>
   )
 }
 
 const ToolList = () => {
-  const { mutateAsync: reimport, isPending: isReimporting } = useReimportUsersMutation();
+  const { mutateAsync: reimport, isPending: isReimporting } = useReimportMoodleMutation();
   return <div>
-    <Button onClick={() => reimport()} loading={isReimporting}>Reimportar</Button>
+    <Button onClick={() => reimport()} loading={isReimporting}>Reimportar Datos de la Moodle</Button>
   </div>
 }
