@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useCourseQuery } from "../hooks/api/courses/use-course.query";
+import { useGetCourseQuery } from "../hooks/api/courses/use-get-course.query";
 import { useGroupsQuery } from "../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../hooks/api/courses/use-update-course.mutation";
 import { Button, DatePicker, Form, Input, Table, Select, message } from "antd";
@@ -16,7 +16,7 @@ import { USERS_TABLE_COLUMNS } from "../constants/tables/users-table-columns.con
 export default function CourseDetailRoute() {
   const navigate = useNavigate();
   const { id_course } = useParams();
-  const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
+  const { data: courseData, isLoading: isCourseLoading } = useGetCourseQuery(id_course || "");
   const { data: groupsData, isLoading: isGroupsLoading } = useGroupsQuery(id_course || "");
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
@@ -36,6 +36,10 @@ export default function CourseDetailRoute() {
       setSelectedGroupId(groupsData[0].id_group);
     }
   }, [groupsData]);
+
+  useEffect(() => {
+    document.title = `Detalle del Curso ${id_course}`;
+  }, [id_course]);
 
   if (!courseData) return <div>Curso no encontrado</div>;
   if (isCourseLoading || isGroupsLoading) return <div>Cargando...</div>;

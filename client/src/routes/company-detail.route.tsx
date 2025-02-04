@@ -25,6 +25,10 @@ export default function CompanyDetailRoute() {
     }
   }, [companyData, reset]);
 
+  useEffect(() => {
+    document.title = `Detalle de la Empresa ${id_company}`;
+  }, [id_company]);
+
   if (!companyData) return <div>Empresa no encontrada</div>;
   if (isCompanyLoading) return <div>Cargando...</div>;
 

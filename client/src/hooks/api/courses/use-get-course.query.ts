@@ -4,7 +4,7 @@ import { getApiHost } from "../../../utils/api/get-api-host.util";
 import { Course } from "../../../shared/types/course/course";
 import dayjs from "dayjs";
 
-export const useCourseQuery = (id_course: string) => {
+export const useGetCourseQuery = (id_course: string) => {
     const request = useAuthenticatedAxios<Course>();
 
     return useQuery({

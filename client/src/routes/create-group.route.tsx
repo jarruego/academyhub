@@ -4,12 +4,21 @@ import { Button, Form, Input, message } from "antd";
 import { useCreateGroupMutation } from "../hooks/api/groups/use-create-group.mutation";
 import { Group } from "../shared/types/group/group";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
+import { useEffect } from "react";
+import { useGetCourseQuery } from "../hooks/api/courses/use-get-course.query";
 
 export default function CreateGroupRoute() {
   const { id_course } = useParams();
   const navigate = useNavigate();
   const { mutateAsync: createGroup } = useCreateGroupMutation();
   const { handleSubmit, control } = useForm<Omit<Group, 'id_group'>>();
+  const { data: course } = useGetCourseQuery(id_course || "");
+
+  useEffect(() => {
+    if (course) {
+      document.title = `${course.course_name} - Crear Grupo`;
+    }
+  }, [course]);
 
   const submit: SubmitHandler<Omit<Group, 'id_group'>> = async (data) => {
     try {

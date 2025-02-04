@@ -17,6 +17,10 @@ export default function EditCenterRoute() {
   const { handleSubmit, control, reset } = useForm<Center>();
 
   useEffect(() => {
+    document.title = `Detalle del Centro ${id_center}`;
+  }, [id_center]);
+
+  useEffect(() => {
     if (centerData) {
       reset(centerData);
     }

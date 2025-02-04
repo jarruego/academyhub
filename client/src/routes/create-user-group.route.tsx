@@ -3,7 +3,7 @@ import { Button, message, Table } from "antd";
 import { useUsersQuery } from "../hooks/api/users/use-users.query";
 import { useAddUserToGroupMutation } from "../hooks/api/groups/use-add-user-to-group.mutation";
 import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PlusOutlined } from "@ant-design/icons"; 
 
 export default function CreateUserGroupRoute() {
@@ -13,6 +13,10 @@ export default function CreateUserGroupRoute() {
   const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
   const { data: groupUsersData, isLoading: isGroupUsersLoading } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    document.title = "Añadir Usuarios al Grupo";
+  }, []);
 
   const handleSaveUsers = async () => {
     if (!id_group || selectedUserIds.length === 0) return;

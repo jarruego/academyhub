@@ -5,11 +5,16 @@ import { Course } from "../shared/types/course/course";
 import { CourseModality } from "../shared/types/course/course-modality.enum";
 import { useNavigate } from "react-router-dom";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar el icono
+import { useEffect } from "react";
 
 export default function CreateCourseRoute() {
   const { mutateAsync: createCourse } = useCreateCourseMutation();
   const { handleSubmit, control } = useForm<Course>();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "Crear Curso";
+  }, []);
 
   const submit: SubmitHandler<Course> = async (info) => {
     try {

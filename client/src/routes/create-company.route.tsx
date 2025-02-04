@@ -3,12 +3,17 @@ import { Button, Form, Input, message } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Company } from "../shared/types/company/company";
 import { useNavigate } from "react-router-dom";
-import { SaveOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar el icono
+import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
+import { useEffect } from "react";
 
 export default function CreateCompanyRoute() {
   const { mutateAsync: createCompany } = useCreateCompanyMutation();
   const { handleSubmit, control } = useForm<Company>();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = "Crear Empresa";
+  }, []);
 
   const submit: SubmitHandler<Company> = async (info) => {
     try {
