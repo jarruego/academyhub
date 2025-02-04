@@ -5,14 +5,14 @@ import { useCreateGroupMutation } from "../hooks/api/groups/use-create-group.mut
 import { Group } from "../shared/types/group/group";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
-import { useGetCourseQuery } from "../hooks/api/courses/use-get-course.query";
+import { useCourseQuery } from "../hooks/api/courses/use-course.query";
 
 export default function CreateGroupRoute() {
   const { id_course } = useParams();
   const navigate = useNavigate();
   const { mutateAsync: createGroup } = useCreateGroupMutation();
   const { handleSubmit, control } = useForm<Omit<Group, 'id_group'>>();
-  const { data: course } = useGetCourseQuery(id_course || "");
+  const { data: course } = useCourseQuery(id_course || "");
 
   useEffect(() => {
     if (course) {
