@@ -11,6 +11,7 @@ import { Course } from "../shared/types/course/course";
 import { CourseModality } from "../shared/types/course/course-modality.enum";
 import { useDeleteCourseMutation } from "../hooks/api/courses/use-delete-course.mutation";
 import { useNavigate } from "react-router-dom";
+import { USERS_TABLE_COLUMNS } from "../constants/tables/users-table-columns.constant";
 
 export default function CourseDetailRoute() {
   const navigate = useNavigate();
@@ -116,11 +117,10 @@ export default function CourseDetailRoute() {
         <Table
           rowKey="id_user"
           columns={[
-            { title: 'ID', dataIndex: ['id_user'] },
-            { title: 'Nombre', dataIndex: ['name'] },
-            { title: 'Apellidos', dataIndex: ['surname'] },
-            { title: 'Email', dataIndex: ['email'] },
-            { title: 'MOODLE USERNAME', dataIndex: ['moodle_username'] },
+            ...USERS_TABLE_COLUMNS,
+            {
+              title: 'Extra'
+            },
           ]}
           dataSource={usersData}
           loading={isUsersLoading}

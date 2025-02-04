@@ -32,14 +32,14 @@ export class UserRepository extends Repository {
       return result;
   }
 
-  async delete(id: number) {
-    const result = await this.query()
+  async delete(id: number, options?: QueryOptions) {
+    const result = await this.query(options)
       .delete(userTable)
       .where(eq(userTable.id_user, id));
     return result;
   }
 
-  async findAll(filter: Partial<UserSelectModel>) {
+  async findAll(filter: Partial<UserSelectModel>, options?: QueryOptions) {
         const where = [];
 
         if (filter.name) where.push(ilike(userTable.name, `%{filter.name}%`));
@@ -51,7 +51,7 @@ export class UserRepository extends Repository {
         //if (filter.nss) where.push(ilike(userTable.nss, `%{filter.nss}%`));
         //if (filter.document_type) where.push(ilike(userTable.document_type, `%{filter.document_type}%`));
         
-        return await this.query().select().from(userTable).where(and(...where));
+        return await this.query(options).select().from(userTable).where(and(...where));
   }
 
   async findByMoodleId(moodleId: number, options?: QueryOptions) {

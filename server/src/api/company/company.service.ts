@@ -4,6 +4,7 @@ import { CreateCompanyDTO } from "src/dto/company/create-company.dto";
 import { FilterCompanyDTO } from "src/dto/company/filter-company.dto";
 import { UpdateCompanyDTO } from "src/dto/company/update-company.dto";
 import { CenterRepository } from "src/database/repository/center/center.repository";
+import { QueryOptions } from "src/database/repository/repository";
 
 @Injectable()
 export class CompanyService {
@@ -12,31 +13,32 @@ export class CompanyService {
     private readonly centerRepository: CenterRepository
   ) {}
 
-  async findByCIF(cif: string) {
-    return await this.companyRepository.findByCIF(cif);
-  }
-  async create(createCompanyDTO: CreateCompanyDTO) {
-    return await this.companyRepository.create(createCompanyDTO);
+  async findByCIF(cif: string, options?: QueryOptions) {
+    return await this.companyRepository.findByCIF(cif, options);
   }
 
-  async update(id: number, updateCompanyDTO: UpdateCompanyDTO) {
-    await this.companyRepository.update(id, updateCompanyDTO);
-    return await this.companyRepository.findOne(id);
+  async create(createCompanyDTO: CreateCompanyDTO, options?: QueryOptions) {
+    return await this.companyRepository.create(createCompanyDTO, options);
   }
 
-  async findOne(id: number) {
-    return await this.companyRepository.findOne(id);
+  async update(id: number, updateCompanyDTO: UpdateCompanyDTO, options?: QueryOptions) {
+    await this.companyRepository.update(id, updateCompanyDTO, options);
+    return await this.companyRepository.findOne(id, options);
   }
 
-  async findAll(filter: FilterCompanyDTO) {
-    return await this.companyRepository.findAll(filter);
+  async findOne(id: number, options?: QueryOptions) {
+    return await this.companyRepository.findOne(id, options);
   }
 
-  async delete(id: number) {
-    return await this.companyRepository.delete(id);
+  async findAll(filter: FilterCompanyDTO, options?: QueryOptions) {
+    return await this.companyRepository.findAll(filter, options);
   }
 
-  async findCentersByCompanyId(companyId: number) {
-    return await this.centerRepository.findByCompanyId(companyId);
+  async delete(id: number, options?: QueryOptions) {
+    return await this.companyRepository.delete(id, options);
+  }
+
+  async findCentersByCompanyId(companyId: number, options?: QueryOptions) {
+    return await this.centerRepository.findByCompanyId(companyId, options);
   }
 }

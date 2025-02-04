@@ -24,14 +24,14 @@ export class CourseRepository extends Repository {
   }
 
   async update(id: number, updateCourseDTO: CourseUpdateModel, options?: QueryOptions) {
-    const result = await this.query()
+    const result = await this.query(options)
       .update(courseTable)
       .set(updateCourseDTO)
       .where(eq(courseTable.id_course, id));
     return result;
   }
 
-  async findAll(filter: Partial<CourseSelectModel>) {
+  async findAll(filter: Partial<CourseSelectModel>, options?: QueryOptions) {
         const where = [];
 
         if (filter.course_name) where.push(ilike(courseTable.course_name, `%${filter.course_name}%`));
@@ -43,59 +43,59 @@ export class CourseRepository extends Repository {
         if (filter.modality) where.push(eq(courseTable.modality, filter.modality));
         // if (filter.active) where.push(eq(courseTable.active, filter.active));
 
-        return await this.query().select().from(courseTable).where(and(...where));
+        return await this.query(options).select().from(courseTable).where(and(...where));
   }
 
-  async addUserToCourse(createUserCourseDTO: CreateUserCourseDTO) {
-    const result = await this.query()
+  async addUserToCourse(createUserCourseDTO: CreateUserCourseDTO, options?: QueryOptions) {
+    const result = await this.query(options)
       .insert(userCourseTable)
       .values(createUserCourseDTO);
     return result;
   }
 
-  async findUsersInCourse(courseId: number) {
-    const rows = await this.query()
+  async findUsersInCourse(courseId: number, options?: QueryOptions) {
+    const rows = await this.query(options)
       .select()
       .from(userCourseTable)
       .where(eq(userCourseTable.id_course, courseId));
     return rows;
   }
 
-  async updateUserInCourse(id_course: number, id_user: number, updateUserCourseDTO: UpdateUserCourseDTO) {
-    const result = await this.query()
+  async updateUserInCourse(id_course: number, id_user: number, updateUserCourseDTO: UpdateUserCourseDTO, options?: QueryOptions) {
+    const result = await this.query(options)
       .update(userCourseTable)
       .set(updateUserCourseDTO)
       .where(and(eq(userCourseTable.id_course, id_course), eq(userCourseTable.id_user, id_user)));
     return result;
   }
 
-  async deleteById(id: number) {
-    const result = await this.query()
+  async deleteById(id: number, options?: QueryOptions) {
+    const result = await this.query(options)
       .delete(courseTable)
       .where(eq(courseTable.id_course, id));
     return result;
   }
 
-  async deleteUserFromCourse(id_course: number, id_user: number) {
-    const result = await this.query()
+  async deleteUserFromCourse(id_course: number, id_user: number, options?: QueryOptions) {
+    const result = await this.query(options)
       .delete(userCourseTable)
       .where(and(eq(userCourseTable.id_course, id_course), eq(userCourseTable.id_user, id_user)));
     return result;
   }
 
-  async addUserRoleToCourse(createUserCourseRoleDTO: CreateUserCourseRoleDTO) {
-    const result = await this.query()
+  async addUserRoleToCourse(createUserCourseRoleDTO: CreateUserCourseRoleDTO, options?: QueryOptions) {
+    const result = await this.query(options)
       .insert(userCourseMoodleRoleTable)
       .values(createUserCourseRoleDTO);
     return result;
   }
 
-  async updateUserRolesInCourse(id_course: number, id_user: number, roles: CreateUserCourseRoleDTO[]) {
-    await this.query()
+  async updateUserRolesInCourse(id_course: number, id_user: number, roles: CreateUserCourseRoleDTO[], options?: QueryOptions) {
+    await this.query(options)
       .delete(userCourseMoodleRoleTable)
       .where(and(eq(userCourseMoodleRoleTable.id_course, id_course), eq(userCourseMoodleRoleTable.id_user, id_user)));
 
-    const result = await this.query()
+    const result = await this.query(options)
       .insert(userCourseMoodleRoleTable)
       .values(roles);
     return result;

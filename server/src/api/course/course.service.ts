@@ -25,49 +25,49 @@ export class CourseService {
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
   ) {}
 
-  async findById(id: number) {
-    return await this.courseRepository.findById(id);
+  async findById(id: number, options?: QueryOptions) {
+    return await this.courseRepository.findById(id, options);
   }
 
-  async create(createCourseDTO: CreateCourseDTO) {
-    return await this.courseRepository.create(createCourseDTO);
+  async create(createCourseDTO: CreateCourseDTO, options?: QueryOptions) {
+    return await this.courseRepository.create(createCourseDTO, options);
   }
 
-  async update(id: number, updateCourseDTO: UpdateCourseDTO) {
-    await this.courseRepository.update(id, updateCourseDTO);
-    return await this.courseRepository.findById(id);
+  async update(id: number, updateCourseDTO: UpdateCourseDTO, options?: QueryOptions) {
+    await this.courseRepository.update(id, updateCourseDTO, options);
+    return await this.courseRepository.findById(id, options);
   }
 
-  async findAll(filter: FilterCourseDTO) {
-    return await this.courseRepository.findAll(filter);
+  async findAll(filter: FilterCourseDTO, options?: QueryOptions) {
+    return await this.courseRepository.findAll(filter, options);
   }
 
-  async addUserToCourse(createUserCourseDTO: CreateUserCourseDTO) {
-    return await this.courseRepository.addUserToCourse(createUserCourseDTO);
+  async addUserToCourse(createUserCourseDTO: CreateUserCourseDTO, options?: QueryOptions) {
+    return await this.courseRepository.addUserToCourse(createUserCourseDTO, options);
   }
 
-  async findUsersInCourse(courseId: number) {
-    return await this.courseRepository.findUsersInCourse(courseId);
+  async findUsersInCourse(courseId: number, options?: QueryOptions) {
+    return await this.courseRepository.findUsersInCourse(courseId, options);
   }
 
-  async deleteById(id: number) {
-    return await this.courseRepository.deleteById(id);
+  async deleteById(id: number, options?: QueryOptions) {
+    return await this.courseRepository.deleteById(id, options);
   }
 
-  async updateUserInCourse(id_course: number, id_user: number, updateUserCourseDTO: UpdateUserCourseDTO) {
-    return await this.courseRepository.updateUserInCourse(id_course, id_user, updateUserCourseDTO);
+  async updateUserInCourse(id_course: number, id_user: number, updateUserCourseDTO: UpdateUserCourseDTO, options?: QueryOptions) {
+    return await this.courseRepository.updateUserInCourse(id_course, id_user, updateUserCourseDTO, options);
   }
 
-  async deleteUserFromCourse(id_course: number, id_user: number) {
-    return await this.courseRepository.deleteUserFromCourse(id_course, id_user);
+  async deleteUserFromCourse(id_course: number, id_user: number, options?: QueryOptions) {
+    return await this.courseRepository.deleteUserFromCourse(id_course, id_user, options);
   }
 
-  async addUserRoleToCourse(createUserCourseRoleDTO: CreateUserCourseRoleDTO) {
-    return await this.courseRepository.addUserRoleToCourse(createUserCourseRoleDTO);
+  async addUserRoleToCourse(createUserCourseRoleDTO: CreateUserCourseRoleDTO, options?: QueryOptions) {
+    return await this.courseRepository.addUserRoleToCourse(createUserCourseRoleDTO, options);
   }
 
-  async updateUserRolesInCourse(id_course: number, id_user: number, roles: CreateUserCourseRoleDTO[]) {
-    return await this.courseRepository.updateUserRolesInCourse(id_course, id_user, roles);
+  async updateUserRolesInCourse(id_course: number, id_user: number, roles: CreateUserCourseRoleDTO[], options?: QueryOptions) {
+    return await this.courseRepository.updateUserRolesInCourse(id_course, id_user, roles, options);
   }
 
   async upsertMoodleCourse(moodleCourse: MoodleCourse, options?: QueryOptions) {
@@ -122,7 +122,7 @@ export class CourseService {
     });
   }
 
-  async findGroupsInCourse(courseId: number) {
-    return await this.groupRepository.findGroupsByCourseId(courseId);
+  async findGroupsInCourse(courseId: number, options?: QueryOptions) {
+    return await this.groupRepository.findGroupsByCourseId(courseId, options);
   }
 }

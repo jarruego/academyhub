@@ -21,9 +21,9 @@ const { Sider, Content } = Layout;
 
 const menuItems = [
   { key: '1', label: <Link to="/">Home</Link> },
-  { key: '2', label: <Link to="/users">Usuarios</Link> },
-  { key: '3', label: <Link to="/courses">Cursos</Link> },
-  { key: '4', label: <Link to="/companies">Empresas</Link> },
+  { key: '2', label: <Link to="/users" target={window.location.pathname === '/users' ? '_self' : '_blank'}>Usuarios</Link> },
+  { key: '3', label: <Link to="/courses" target={window.location.pathname === '/courses' ? '_self' : '_blank'}>Cursos</Link> },
+  { key: '4', label: <Link to="/companies" target={window.location.pathname === '/companies' ? '_self' : '_blank'}>Empresas</Link> },
 ];
 
 const Sidebar = () => {

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe } from '@nestjs/common';
 import { CreateGroupDTO } from '../../dto/group/create-group.dto';
 import { UpdateGroupDTO } from '../../dto/group/update-group.dto';
 import { GroupService } from './group.service';
@@ -33,23 +33,18 @@ export class GroupController {
   }
 
   @Post(':id/users/:userId')
-  async addUserToGroup(@Param('id') id: string, @Param('userId') userId: string, @Body() createUserGroupDTO: CreateUserGroupDTO) {
-    createUserGroupDTO.id_group = parseInt(id, 10);
-    createUserGroupDTO.id_user = parseInt(userId, 10);
-    console.log('addUserToGroup - createUserGroupDTO:', createUserGroupDTO);
-    return this.groupService.addUserToGroup(createUserGroupDTO);
+  async addUserToGroup(@Param('id', new ParseIntPipe()) id: number, @Param('userId', new ParseIntPipe()) userId: number) {
+    return this.groupService.addUserToGroup(id, userId);;
   }
 
   @Get(':id/users')
-  async findUsersInGroup(@Param('id') id: string) {
-    const numericId = parseInt(id, 10);
-    return this.groupService.findUsersInGroup(numericId);
+  async findUsersInGroup(@Param('id', new ParseIntPipe()) id: number) {
+    return this.groupService.findUsersInGroup(id);
   }
 
   @Delete(':id')
-  async deleteById(@Param('id') id: string) {
-    const numericId = parseInt(id, 10);
-    return this.groupService.deleteById(numericId);
+  async deleteById(@Param('id', new ParseIntPipe()) id: number) {
+    return this.groupService.deleteById(id);
   }
 
   @Delete(':id/users/:userId')
