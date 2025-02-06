@@ -128,6 +128,10 @@ export default function CourseDetailRoute() {
           ]}
           dataSource={usersData}
           loading={isUsersLoading}
+          onRow={(record) => ({
+            onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
+            style: { cursor: 'pointer' }
+          })}
         />
       </div>
       <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }}>

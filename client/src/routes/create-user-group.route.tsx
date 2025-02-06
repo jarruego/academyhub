@@ -65,6 +65,10 @@ export default function CreateUserGroupRoute() {
         dataSource={filteredUsersData}
         loading={isUsersLoading}
         rowSelection={rowSelection}
+        onRow={(record) => ({
+          onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
+          style: { cursor: 'pointer' }
+        })}
       />
       <Button type="primary" icon={<PlusOutlined />} onClick={handleSaveUsers}>
         Añadir Usuarios al Grupo
@@ -80,6 +84,10 @@ export default function CreateUserGroupRoute() {
         ]}
         dataSource={groupUsersData}
         loading={isGroupUsersLoading}
+        onRow={(record) => ({
+          onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
+          style: { cursor: 'pointer' }
+        })}
       />
     </div>
   );

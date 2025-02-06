@@ -1,4 +1,3 @@
-
 import { pgTable, serial, varchar, integer } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { companyTable } from "./company.table";
@@ -15,4 +14,6 @@ export const centerTable = pgTable('centers', {
     ...TIMESTAMPS,
 });
 
-export type CenterSelectModel = InferSelectModel<typeof centerTable>;
+export type CenterSelectModel = InferSelectModel<typeof centerTable> & {
+  company_name?: string;
+};

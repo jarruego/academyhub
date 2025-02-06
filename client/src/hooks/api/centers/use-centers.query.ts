@@ -3,14 +3,14 @@ import { useAuthenticatedAxios } from "../../../utils/api/use-authenticated-axio
 import { getApiHost } from "../../../utils/api/get-api-host.util";
 import { Center } from "../../../shared/types/center/center";
 
-export const useCentersQuery = (id_company: string) => {
+export const useCentersQuery = (id_company?: string) => {
     const request = useAuthenticatedAxios<Center[]>();
 
     return useQuery({
-        queryKey: ['centers', id_company],
+        queryKey: id_company ? ['centers', id_company] : ['centers', 'all'],
         queryFn: async () => (await request({
             method: 'GET',
-            url: `${getApiHost()}/company/${id_company}/centers`
+            url: id_company ? `${getApiHost()}/company/${id_company}/centers` : `${getApiHost()}/center`
         })).data,
     });
 };

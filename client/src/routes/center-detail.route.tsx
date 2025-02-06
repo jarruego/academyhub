@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom"; 
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message } from "antd";
 import { useCenterQuery } from "../hooks/api/centers/use-center.query";
@@ -6,11 +6,12 @@ import { useUpdateCenterMutation } from "../hooks/api/centers/use-update-center.
 import { useDeleteCenterMutation } from "../hooks/api/centers/use-delete-center.mutation";
 import { Center } from "../shared/types/center/center";
 import { useEffect } from "react";
-import { DeleteOutlined, SaveOutlined } from "@ant-design/icons"; // Importar los iconos
+import { DeleteOutlined, SaveOutlined } from "@ant-design/icons"; 
 
 export default function EditCenterRoute() {
   const { id_center } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); 
   const { data: centerData, isLoading: isCenterLoading } = useCenterQuery(id_center || "");
   const { mutateAsync: updateCenter } = useUpdateCenterMutation(id_center || "");
   const { mutateAsync: deleteCenter } = useDeleteCenterMutation(id_center || "");
@@ -32,7 +33,7 @@ export default function EditCenterRoute() {
     try {
       await updateCenter(data);
       message.success('Centro actualizado exitosamente');
-      navigate(`/companies/${centerData?.id_company}`);
+      navigate(location.state?.from || `/companies/${centerData?.id_company}`);
     } catch {
       message.error('No se pudo actualizar el centro');
     }
@@ -42,7 +43,7 @@ export default function EditCenterRoute() {
     try {
       await deleteCenter();
       message.success('Centro eliminado exitosamente');
-      navigate(`/companies/${centerData?.id_company}`);
+      navigate(location.state?.from || `/companies/${centerData?.id_company}`);
     } catch {
       message.error('No se pudo eliminar el centro');
     }

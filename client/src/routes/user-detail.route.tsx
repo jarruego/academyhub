@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useUserQuery } from "../hooks/api/users/use-user.query";
 import { useUpdateUserMutation } from "../hooks/api/users/use-update-user.mutation";
 import { useDeleteUserMutation } from "../hooks/api/users/use-delete-user.mutation";
@@ -9,6 +9,7 @@ import { User } from "../shared/types/user/user";
 
 export default function UserDetailRoute() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id_user } = useParams();
   const { data: userData, isLoading: isUserLoading } = useUserQuery(id_user || "");
   const { mutateAsync: updateUser } = useUpdateUserMutation(id_user || "");
@@ -32,7 +33,7 @@ export default function UserDetailRoute() {
   const submit: SubmitHandler<User> = async (info) => {
     try {
       await updateUser(info);
-      navigate('/users');
+      navigate(location.state?.from || '/users');
     } catch {
       message.error('No se pudo guardar el usuario.');
     }

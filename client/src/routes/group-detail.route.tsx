@@ -107,6 +107,10 @@ export default function EditGroupRoute() {
         dataSource={usersData}
         loading={isUsersLoading}
         rowSelection={rowSelection}
+        onRow={(record) => ({
+          onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
+          style: { cursor: 'pointer' }
+        })}
       />
       <Button type="primary" icon={<PlusOutlined />} onClick={handleAddUserToGroup} style={{ marginTop: '16px' }}>
         Añadir Usuarios al Grupo

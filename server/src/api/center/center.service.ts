@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { CenterRepository } from "src/database/repository/center/center.repository";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 import { QueryOptions } from "src/database/repository/repository";
+import { CenterSelectModel } from "src/database/schema/tables/center.table";
 import { CreateCenterDTO } from "src/dto/center/create-center.dto";
 import { FilterCenterDTO } from "src/dto/center/filter-center.dto";
 import { UpdateCenterDTO } from "src/dto/center/update-center.dto";
@@ -20,7 +21,12 @@ export class CenterService {
   }
 
   async findAll(filter: FilterCenterDTO, options?: QueryOptions) {
-    return await this.centerRepository.findAll(filter, options);
+    const centers = await this.centerRepository.findAll(filter, options) as Array<CenterSelectModel>;
+    for (const center of centers) {
+      const company = await this.companyRepository.findOne(center.id_company, options);
+      center.company_name = company?.company_name;
+    }
+    return centers;
   }
 
   async create(createCenterDTO: CreateCenterDTO, options?: QueryOptions) {
