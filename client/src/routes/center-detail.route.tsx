@@ -1,4 +1,4 @@
-import { useParams, useNavigate, useLocation } from "react-router-dom"; 
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message } from "antd";
 import { useCenterQuery } from "../hooks/api/centers/use-center.query";
@@ -6,12 +6,12 @@ import { useUpdateCenterMutation } from "../hooks/api/centers/use-update-center.
 import { useDeleteCenterMutation } from "../hooks/api/centers/use-delete-center.mutation";
 import { Center } from "../shared/types/center/center";
 import { useEffect } from "react";
-import { DeleteOutlined, SaveOutlined } from "@ant-design/icons"; 
+import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 
 export default function EditCenterRoute() {
   const { id_center } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); 
+  const location = useLocation();
   const { data: centerData, isLoading: isCenterLoading } = useCenterQuery(id_center || "");
   const { mutateAsync: updateCenter } = useUpdateCenterMutation(id_center || "");
   const { mutateAsync: deleteCenter } = useDeleteCenterMutation(id_center || "");
@@ -70,8 +70,11 @@ export default function EditCenterRoute() {
         <Form.Item label="Email de contacto" name="contact_email">
           <Controller name="contact_email" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
-        <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
-        <Button type="primary" danger onClick={handleDelete} style={{ marginLeft: '16px' }} icon={<DeleteOutlined />}>Eliminar Centro</Button>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+          <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Centro</Button>
+        </div>
       </Form>
     </div>
   );

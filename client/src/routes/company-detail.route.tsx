@@ -7,7 +7,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
 import { Company } from "../shared/types/company/company";
 import { useCentersQuery } from "../hooks/api/centers/use-centers.query";
-import { PlusOutlined, DeleteOutlined, SaveOutlined } from "@ant-design/icons"; 
+import { PlusOutlined, DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 
 export default function CompanyDetailRoute() {
   const navigate = useNavigate();
@@ -47,7 +47,7 @@ export default function CompanyDetailRoute() {
   };
 
   const handleAddCenter = () => {
-    navigate(`/companies/${id_company}/add-center`); 
+    navigate(`/companies/${id_company}/add-center`);
   };
 
   return (
@@ -65,7 +65,10 @@ export default function CompanyDetailRoute() {
         <Form.Item label="CIF" name="cif">
           <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
-        <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+        </div>
       </Form>
       <Button type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
         Eliminar Empresa

@@ -96,20 +96,19 @@ export default function CourseDetailRoute() {
             />
           </Form.Item>
         </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <Button type="primary" icon={<SaveOutlined />} htmlType="submit">Guardar</Button>
-            <Button type="primary" icon={<TeamOutlined />} onClick={handleAddGroup}>Añadir Grupo</Button>
-        </div>
       </Form>
-      <div style={{ display: 'flex', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          
         <Table
+          title={() => <h3>Grupos del Curso</h3>}
           rowKey="id_group"
           columns={[
             { title: 'ID', dataIndex: 'id_group' },
             { title: 'MOODLE ID', dataIndex: 'moodle_id' },
             { title: 'Nombre del grupo', dataIndex: 'group_name' },
             { title: 'Descripción', dataIndex: 'description' },
-          ]}
+          ]}          
+          footer={() => <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>Añadir Grupo al Curso</Button>}
           dataSource={groupsData}
           loading={isGroupsLoading}
           onRow={(record) => ({
@@ -119,6 +118,7 @@ export default function CourseDetailRoute() {
           })}
         />
         <Table
+          title={() => <h3>Usuarios del Grupo</h3>}
           rowKey="id_user"
           columns={[
             ...USERS_TABLE_COLUMNS,
@@ -134,9 +134,11 @@ export default function CourseDetailRoute() {
           })}
         />
       </div>
-      <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }}>
-        Eliminar Curso
-      </Button>
+      <div style={{ display: 'flex', gap: '16px' }}>
+        <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+        <Button type="primary" icon={<SaveOutlined />} htmlType="submit">Guardar</Button>
+        <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
+      </div>
     </div>
   );
 }

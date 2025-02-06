@@ -90,10 +90,11 @@ export default function EditGroupRoute() {
         <Form.Item label="Descripción" name="description">
           <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
-        <Form.Item>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
-          <Button type="primary" danger onClick={handleDelete} style={{ marginLeft: '16px' }} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
-        </Form.Item>
+          <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
+        </div>
       </Form>
       <h2>Usuarios Grupo</h2>
       <Table
@@ -108,6 +109,15 @@ export default function EditGroupRoute() {
         loading={isUsersLoading}
         rowSelection={rowSelection}
         onRow={(record) => ({
+          onClick: () => {
+            setSelectedUserIds((prevSelected) => {
+              if (prevSelected.includes(record.id_user)) {
+                return prevSelected.filter((id) => id !== record.id_user);
+              } else {
+                return [...prevSelected, record.id_user];
+              }
+            });
+          },
           onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
           style: { cursor: 'pointer' }
         })}
