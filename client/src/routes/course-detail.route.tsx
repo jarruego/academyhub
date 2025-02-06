@@ -22,6 +22,7 @@ export default function CourseDetailRoute() {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const { data: usersData, isLoading: isUsersLoading } = useUsersByGroupQuery(selectedGroupId);
   const { mutateAsync: deleteCourse } = useDeleteCourseMutation(id_course || "");
+  const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
 
   const { handleSubmit, control, reset } = useForm<Course>();
 
@@ -59,6 +60,11 @@ export default function CourseDetailRoute() {
 
   const handleAddGroup = () => {
     navigate(`/courses/${id_course}/add-group`);
+  };
+
+  const handleRowClick = (record: { id_group: number }) => {
+    setSelectedGroupId(record.id_group);
+    setSelectedRowKeys([record.id_group]);
   };
 
   return (
@@ -111,8 +117,14 @@ export default function CourseDetailRoute() {
           footer={() => <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>Añadir Grupo al Curso</Button>}
           dataSource={groupsData}
           loading={isGroupsLoading}
+          rowSelection={{
+            type: 'radio',
+            selectedRowKeys,
+            onChange: (selectedRowKeys) => setSelectedRowKeys(selectedRowKeys as number[]),
+            renderCell: () => null, // Ocultar el radiobutton
+          }}
           onRow={(record) => ({
-            onClick: () => setSelectedGroupId(record.id_group),
+            onClick: () => handleRowClick(record),
             onDoubleClick: () => navigate(`/groups/${record.id_group}/edit`),
             style: { cursor: 'pointer' }
           })}
