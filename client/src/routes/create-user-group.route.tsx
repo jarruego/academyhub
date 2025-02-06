@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { Button, message, Table } from "antd";
+import { Button, message, Table, Input } from "antd";
 import { useUsersQuery } from "../hooks/api/users/use-users.query";
 import { useAddUserToGroupMutation } from "../hooks/api/groups/use-add-user-to-group.mutation";
 import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
@@ -13,6 +13,7 @@ export default function CreateUserGroupRoute() {
   const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
   const { data: groupUsersData, isLoading: isGroupUsersLoading } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
     document.title = "Añadir Usuarios al Grupo";
@@ -23,7 +24,7 @@ export default function CreateUserGroupRoute() {
     try {
       await Promise.all(selectedUserIds.map(id_user => addUserToGroup({ id_group: parseInt(id_group, 10), id_user })));
       message.success('Usuarios añadidos exitosamente');
-      navigate(`/courses/${id_group}`);
+      navigate(`/groups/${id_group}/add-user`);
     } catch {
       message.error('No se pudo añadir a los usuarios');
     }
@@ -36,9 +37,23 @@ export default function CreateUserGroupRoute() {
     },
   };
 
+  const filteredUsersData = usersData
+    ?.filter(user => !groupUsersData?.some(groupUser => groupUser.id_user === user.id_user))
+    .filter(user => 
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.surname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
   return (
     <div>
       <h2>Usuarios BD</h2>
+      <Input
+        placeholder="Buscar usuarios"
+        value={searchTerm}
+        onChange={e => setSearchTerm(e.target.value)}
+        style={{ marginBottom: 16 }}
+      />
       <Table
         rowKey="id_user"
         columns={[
@@ -47,7 +62,7 @@ export default function CreateUserGroupRoute() {
           { title: 'Apellidos', dataIndex: 'surname' },
           { title: 'Email', dataIndex: 'email' },
         ]}
-        dataSource={usersData}
+        dataSource={filteredUsersData}
         loading={isUsersLoading}
         rowSelection={rowSelection}
       />
