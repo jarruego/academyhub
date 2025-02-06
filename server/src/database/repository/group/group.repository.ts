@@ -1,24 +1,15 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { eq, ilike, and } from "drizzle-orm";
 import { CreateGroupDTO } from "src/dto/group/create-group.dto";
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
-// import { CreateUserGroupDTO } from "src/dto/user-group/create-user-group.dto";
 import { userTable } from "src/database/schema/tables/user.table";
-import { CourseRepository } from "../course/course.repository";
-// import { EnrollmentStatus } from "src/types/user-course/enrollment-status.enum";
 import { UpdateUserGroupDTO } from "src/dto/user-group/update-user-group.dto";
 import { MoodleGroup } from "src/types/moodle/group";
-import { DATABASE_PROVIDER } from "src/database/database.module";
-import { DatabaseService } from "src/database/database.service";
 
 @Injectable()
 export class GroupRepository extends Repository {
-
-  constructor(private readonly courseRepository: CourseRepository, @Inject(DATABASE_PROVIDER) dbService: DatabaseService) {
-    super(dbService);
-  }
 
   async findById(id: number, options?: QueryOptions) {
     const rows = await this.query(options).select().from(groupTable).where(eq(groupTable.id_group, id));
@@ -58,28 +49,12 @@ export class GroupRepository extends Repository {
   }
 
   async addUserToGroup(id_group: number, id_user: number, options?: QueryOptions) {
-    const result = await this.query(options)
+    return await this.query(options)
       .insert(userGroupTable)
       .values({
         id_user,
         id_group
       });
-
-    // // Get the id_course of the group
-    // const group = await this.findById(id_group);
-    // const id_course = group.id_course;
-
-    // // Associate user with the corresponding course
-    // await this.courseRepository.addUserToCourse({
-    //   id_user: id_user,
-    //   id_course: id_course,
-    //   enrollment_date: new Date(),
-    //   status: EnrollmentStatus.ACTIVE,
-    //   completion_percentage: 0,
-    //   time_spent: 0
-    // });
-
-    return result;
   }
 
   async findUsersInGroup(groupId: number, options?: QueryOptions) {
@@ -114,21 +89,17 @@ export class GroupRepository extends Repository {
     const result = await this.query(options)
       .delete(userGroupTable)
       .where(and(eq(userGroupTable.id_group, id_group), eq(userGroupTable.id_user, id_user)));
+    return result;
+  }
 
-    // Check if the user is enrolled in other groups of the same course
+  async isUserEnrolledInOtherGroups(id_group: number, id_user: number, options?: QueryOptions) {
     const group = await this.findById(id_group);
     const otherGroups = await this.query(options)
       .select()
       .from(userGroupTable)
       .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
       .where(and(eq(userGroupTable.id_user, id_user), eq(groupTable.id_course, group.id_course)));
-
-    // If the user is not enrolled in any other groups of the same course, remove them from the course
-    if (otherGroups.length === 0) {
-      const courseRepository = new CourseRepository(this.dbService);
-      await courseRepository.deleteUserFromCourse(id_user, group.id_course, options);
-    }
-    return result;
+    return otherGroups.length > 0;
   }
 
   async deleteById(id: number, options?: QueryOptions) {
