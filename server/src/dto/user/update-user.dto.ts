@@ -3,17 +3,21 @@ import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, Is
 // import { DocumentType } from "src/types/user/document-type.enum";
 // import { Gender } from "src/types/user/gender.enum";
 
-
 export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsNotEmpty()
   @IsString()
-  name: string;
+  name?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  surname: string;
+  first_surname?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  second_surname?: string;
 
   // @ApiPropertyOptional()
   // @IsOptional()
@@ -28,7 +32,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   // @ApiPropertyOptional()
   // @IsOptional()
@@ -38,7 +42,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  moodle_username: string;
+  moodle_username?: string;
 
   // @ApiPropertyOptional()
   // @IsOptional()
@@ -48,7 +52,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsInt()
-  moodle_id: number;
+  moodle_id?: number;
 
   // @ApiPropertyOptional()
   // @IsOptional()

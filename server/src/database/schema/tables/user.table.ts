@@ -10,7 +10,8 @@ import { pgTable, serial, text, integer, boolean, date, pgEnum } from "drizzle-o
 export const userTable = pgTable("users", {
     id_user: serial("id_user").primaryKey(),
     name: text("name").notNull(),
-    surname: text("surname").notNull(),
+    first_surname: text("first_surname"),
+    second_surname: text("second_surname"),
     email: text("email"),
     moodle_username: text("moodle_username").unique(),
     moodle_password: text("moodle_password"),

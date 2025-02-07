@@ -43,7 +43,8 @@ export class UserRepository extends Repository {
         const where = [];
 
         if (filter.name) where.push(ilike(userTable.name, `%{filter.name}%`));
-        if (filter.surname) where.push(ilike(userTable.surname, `%{filter.surname}%`));
+        if (filter.first_surname) where.push(ilike(userTable.first_surname, `%{filter.first_surname}%`));
+        if (filter.second_surname) where.push(ilike(userTable.second_surname, `%{filter.second_surname}%`));
         if (filter.email) where.push(ilike(userTable.email, `%{filter.email}%`));
         if (filter.moodle_username) where.push(ilike(userTable.moodle_username, `%{filter.moodle_username}%`));
         //if (filter.dni) where.push(ilike(userTable.dni, `%{filter.dni}%`));
@@ -63,7 +64,7 @@ export class UserRepository extends Repository {
     const existingUser = await this.findByMoodleId(moodleUser.id, options);
     const data = {
       name: moodleUser.firstname,
-      surname: moodleUser.lastname,
+      first_surname: moodleUser.lastname,
       email: moodleUser.email,
       moodle_username: moodleUser.username,
       moodle_id: moodleUser.id
@@ -92,7 +93,7 @@ export class UserRepository extends Repository {
     const existingUser = await this.findByMoodleId(moodleUser.id, options);
     const data = {
       name: moodleUser.firstname,
-      surname: moodleUser.lastname,
+      first_surname: moodleUser.lastname,
       email: moodleUser.email,
       moodle_username: moodleUser.username,
       moodle_id: moodleUser.id

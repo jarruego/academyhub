@@ -13,8 +13,12 @@ export class CreateUserDTO {
   @ApiProperty()
   @IsOptional()
   @IsString()
-  surname: string;
+  first_surname?: string;
 
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  second_surname?: string;
   // @ApiProperty()
   // @IsNotEmpty()
   // @IsString()

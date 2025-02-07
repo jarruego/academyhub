@@ -41,7 +41,7 @@ export default function CreateUserGroupRoute() {
     ?.filter(user => !groupUsersData?.some(groupUser => groupUser.id_user === user.id_user))
     .filter(user => 
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.surname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.first_surname.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
 

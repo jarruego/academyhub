@@ -9,7 +9,11 @@ export class FilterUserDTO {
 
   @IsOptional()
   @IsString()
-  surname?: string;
+  first_surname?: string;
+
+  @IsOptional()
+  @IsString()
+  second_surname?: string;
 
   // @IsOptional()
   // @IsString()
