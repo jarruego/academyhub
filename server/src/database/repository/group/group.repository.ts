@@ -64,7 +64,7 @@ export class GroupRepository extends Repository {
         username: userTable.moodle_username,
         email: userTable.email,
         name: userTable.name,
-        surname: userTable.surname,
+        first_surname: userTable.first_surname,
         moodle_id: userTable.moodle_id,
         id_group: userGroupTable.id_group,
         completion_percentage: userGroupTable.completion_percentage,

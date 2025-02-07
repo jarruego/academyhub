@@ -30,7 +30,7 @@ export default function CreateUserRoute() {
         <Controller name="name" control={control} render={({ field }) => <Input {...field} />} />
       </Form.Item>
       <Form.Item name="surname" label="Apellidos" required={true}>
-        <Controller name="surname" control={control} render={({ field }) => <Input {...field} />} />
+        <Controller name="first_surname" control={control} render={({ field }) => <Input {...field} />} />
       </Form.Item>
       <Form.Item name="email" label="Email">
         <Controller name="email" control={control} render={({ field }) => <Input {...field}  />} />

@@ -19,7 +19,7 @@ export default function UsersRoute() {
 
   const filteredUsers = usersData?.filter(user => 
     user.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    user.surname.toLowerCase().includes(searchText.toLowerCase()) ||
+    user.first_surname.toLowerCase().includes(searchText.toLowerCase()) ||
     user.moodle_username.toLowerCase().includes(searchText.toLowerCase()) ||
     user.email.toLowerCase().includes(searchText.toLowerCase())
   );
@@ -35,30 +35,37 @@ export default function UsersRoute() {
     <Button onClick={() => refetchUsers()} loading={isUsersRefetching} icon={<ReloadOutlined />}>Refrescar</Button>
     <Table 
       rowKey="id_user" 
+      sortDirections={['ascend', 'descend']}
       columns={[
         {
           title: 'ID',
           dataIndex: 'id_user',
+          sorter: (a, b) => a.id_user - b.id_user,
         },
         {
           title: 'MOODLE ID',
           dataIndex: 'moodle_id',
+          sorter: (a, b) => a.moodle_id - b.moodle_id,
         },
         {
           title: 'Name',
           dataIndex: 'name',
+          sorter: (a, b) => a.name.localeCompare(b.name),
         },
         {
           title: 'Apellidos',
-          dataIndex: 'surname',
+          dataIndex: 'first_surname',
+          sorter: (a, b) => a.first_surname.localeCompare(b.first_surname),
         },
         {
           title: 'Email',
           dataIndex: 'email',
+          sorter: (a, b) => a.email.localeCompare(b.email),
         },
         {
           title: 'MOODLE USERNAME',
           dataIndex: 'moodle_username',
+          sorter: (a, b) => a.moodle_username.localeCompare(b.moodle_username),
         }
       ]} 
       dataSource={filteredUsers} 

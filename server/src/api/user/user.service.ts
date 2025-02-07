@@ -46,7 +46,7 @@ export class UserService {
       if (existingUser) {
         await this.update(existingUser.id_user, {
           name: moodleUser.firstname,
-          surname: moodleUser.lastname,
+          first_surname: moodleUser.lastname,
           email: moodleUser.email,
           moodle_username: moodleUser.username,
           moodle_id: moodleUser.id,
@@ -54,7 +54,7 @@ export class UserService {
       } else {
         await this.create({
           name: moodleUser.firstname,
-          surname: moodleUser.lastname,
+          first_surname: moodleUser.lastname,
           email: moodleUser.email,
           moodle_username: moodleUser.username,
           moodle_id: moodleUser.id,
