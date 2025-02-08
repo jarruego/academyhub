@@ -66,6 +66,12 @@ export default function UserDetailRoute() {
         <Form.Item label="Moodle Username" name="moodle_username">
           <Controller name="moodle_username" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
+        <Form.Item label="DNI" name="dni">
+          <Controller name="dni" control={control} render={({ field }) => <Input {...field} />} />
+        </Form.Item>
+        <Form.Item label="Teléfono" name="phone">
+          <Controller name="phone" control={control} render={({ field }) => <Input {...field} />} />
+        </Form.Item>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
           <Button type="primary" htmlType="submit">Guardar</Button>

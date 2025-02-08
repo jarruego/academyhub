@@ -6,4 +6,6 @@ export type User = {
     moodle_username: string;
     moodle_password: string;
     moodle_id: number;
+    dni: string;
+    phone: string;
 }
