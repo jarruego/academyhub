@@ -15,9 +15,9 @@ export class FilterUserDTO {
   @IsString()
   second_surname?: string;
 
-  // @IsOptional()
-  // @IsString()
-  // dni?: string;
+  @IsOptional()
+  @IsString()
+  dni?: string;
 
   // @IsOptional()
   // @IsIn(Object.values(DocumentType))
@@ -27,9 +27,9 @@ export class FilterUserDTO {
   @IsEmail()
   email?: string;
 
-  // @IsOptional()
-  // @IsString()
-  // phone?: string;
+  @IsOptional()
+  @IsString()
+  phone?: string;
 
   @IsOptional()
   @IsString()

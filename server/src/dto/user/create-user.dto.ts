@@ -11,18 +11,19 @@ export class CreateUserDTO {
   name: string;
 
   @ApiProperty()
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  first_surname?: string;
+  first_surname: string;
 
   @ApiProperty()
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  second_surname?: string;
-  // @ApiProperty()
-  // @IsNotEmpty()
-  // @IsString()
-  // dni: string;
+  second_surname: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  dni: string;
 
   // @ApiProperty()
   // @IsNotEmpty()
@@ -30,29 +31,29 @@ export class CreateUserDTO {
   // document_type?: DocumentType;
 
   @ApiProperty()
-  @IsOptional()
+  @IsNotEmpty()
   @IsEmail()
-  email?: string;
-
-  // @ApiProperty()
-  // @IsOptional()
-  // @IsString()
-  // phone: string;
+  email: string;
 
   @ApiProperty()
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  moodle_username?: string;
+  phone: string;
 
   @ApiProperty()
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  moodle_password?: string;
+  moodle_username: string;
 
   @ApiProperty()
-  @IsOptional()
+  @IsNotEmpty()
+  @IsString()
+  moodle_password: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
   @IsInt()
-  moodle_id?: number;
+  moodle_id: number;
 
   // @ApiProperty()
   // @IsOptional()

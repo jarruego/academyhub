@@ -130,4 +130,12 @@ export class GroupRepository extends Repository {
     const rows = await this.query(options).select().from(groupTable).where(eq(groupTable.id_course, courseId));
     return rows;
   }
+
+  async findUserByGroup(id_user: number, id_group: number, options?: QueryOptions) {
+    const rows = await this.query(options)
+      .select()
+      .from(userGroupTable)
+      .where(and(eq(userGroupTable.id_user, id_user), eq(userGroupTable.id_group, id_group)));
+    return rows;
+  }
 }

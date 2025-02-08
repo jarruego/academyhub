@@ -18,12 +18,7 @@ export class UserService {
   }
 
   async create(createUserDTO: CreateUserDTO, options?: QueryOptions) {
-    return await this.userRepository.create({
-       ...createUserDTO,
-      // moodle_id: createUserDTO.moodle_id || null,
-      // moodle_username: createUserDTO.moodle_username || null,
-      // moodle_password: createUserDTO.moodle_password || null,
-    }, options);
+    return await this.userRepository.create(createUserDTO, options);
   }
 
   async update(id: number, updateUserDTO: UpdateUserDTO, options?: QueryOptions) {
@@ -50,6 +45,9 @@ export class UserService {
           email: moodleUser.email,
           moodle_username: moodleUser.username,
           moodle_id: moodleUser.id,
+          phone: null,
+          dni: null,
+
         }, options);
       } else {
         await this.create({
@@ -58,6 +56,10 @@ export class UserService {
           email: moodleUser.email,
           moodle_username: moodleUser.username,
           moodle_id: moodleUser.id,
+          phone: null,
+          dni: null,
+          moodle_password: null,
+          second_surname: null,          
         }, options);
       }
     }

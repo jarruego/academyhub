@@ -19,10 +19,10 @@ export class UpdateUserDTO {
   @IsString()
   second_surname?: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // dni: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  dni: string;
 
   // @ApiPropertyOptional()
   // @IsOptional()
@@ -34,10 +34,10 @@ export class UpdateUserDTO {
   @IsEmail()
   email?: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // phone: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  phone: string;
 
   @ApiPropertyOptional()
   @IsOptional()

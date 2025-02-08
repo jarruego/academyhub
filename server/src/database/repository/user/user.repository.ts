@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { UserSelectModel, userTable } from "src/database/schema/tables/user.table";
+import { UserInsertModel, UserSelectModel, userTable, UserUpdateModel } from "src/database/schema/tables/user.table";
 import { eq, ilike, and } from "drizzle-orm";
 import { CreateUserDTO } from "src/dto/user/create-user.dto";
 import { UpdateUserDTO } from "src/dto/user/update-user.dto";
@@ -16,7 +16,7 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(createUserDTO: CreateUserDTO, options?: QueryOptions): Promise<{ insertId: number }> {
+  async create(createUserDTO: UserInsertModel, options?: QueryOptions): Promise<{ insertId: number }> {
     const result = await this.query(options)
       .insert(userTable)
       .values(createUserDTO)
@@ -24,7 +24,7 @@ export class UserRepository extends Repository {
     return result[0];
   }
 
-  async update(id: number, updateUserDTO: UpdateUserDTO, options?: QueryOptions) {
+  async update(id: number, updateUserDTO: UserUpdateModel, options?: QueryOptions) {
       const result = await this.query(options)
         .update(userTable)
         .set(updateUserDTO)
@@ -47,8 +47,8 @@ export class UserRepository extends Repository {
         if (filter.second_surname) where.push(ilike(userTable.second_surname, `%{filter.second_surname}%`));
         if (filter.email) where.push(ilike(userTable.email, `%{filter.email}%`));
         if (filter.moodle_username) where.push(ilike(userTable.moodle_username, `%{filter.moodle_username}%`));
-        //if (filter.dni) where.push(ilike(userTable.dni, `%{filter.dni}%`));
-        //if (filter.phone) where.push(ilike(userTable.phone, `%{filter.phone}%`));
+        if (filter.dni) where.push(ilike(userTable.dni, `%{filter.dni}%`));
+        if (filter.phone) where.push(ilike(userTable.phone, `%{filter.phone}%`));
         //if (filter.nss) where.push(ilike(userTable.nss, `%{filter.nss}%`));
         //if (filter.document_type) where.push(ilike(userTable.document_type, `%{filter.document_type}%`));
         
@@ -67,7 +67,12 @@ export class UserRepository extends Repository {
       first_surname: moodleUser.lastname,
       email: moodleUser.email,
       moodle_username: moodleUser.username,
-      moodle_id: moodleUser.id
+      moodle_id: moodleUser.id,
+      //TODO: mejorar?
+      phone: null,
+      dni: null,
+      second_surname: "",
+      moodle_password: "" 
     };
 
     let userId: number;
@@ -96,7 +101,12 @@ export class UserRepository extends Repository {
       first_surname: moodleUser.lastname,
       email: moodleUser.email,
       moodle_username: moodleUser.username,
-      moodle_id: moodleUser.id
+      moodle_id: moodleUser.id,
+      //TODO: mejorar?
+      phone: null,
+      dni: null,
+      second_surname: "",
+      moodle_password: "" 
     };
     let userId: number;
 

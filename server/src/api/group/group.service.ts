@@ -90,4 +90,8 @@ export class GroupService {
   async updateUserInGroup(id_group: number, id_user: number, updateUserGroupDTO: UpdateUserGroupDTO, options?: QueryOptions) {
     return await this.groupRepository.updateUserInGroup(id_group, id_user, updateUserGroupDTO);
   }
+
+  async findUserByGroup(id_user: number, id_group: number, options?: QueryOptions) {
+    return await this.groupRepository.findUserByGroup(id_user, id_group, options);
+  }
 }
