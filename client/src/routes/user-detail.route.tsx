@@ -57,7 +57,7 @@ export default function UserDetailRoute() {
         <Form.Item label="Nombre" name="name">
           <Controller name="name" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
-        <Form.Item label="Apellidos" name="surname">
+        <Form.Item label="Apellidos" name="first_surname">
           <Controller name="first_surname" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
         <Form.Item label="Email" name="email">
