@@ -1,11 +1,15 @@
-import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString } from "class-validator";
+import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty } from "class-validator";
 //import { DocumentType } from "src/types/user/document-type.enum";
 //import { Gender } from "src/types/user/gender.enum";
 
 export class FilterUserDTO {
-  @IsOptional()
+  @IsNotEmpty()
+  @IsInt()
+  id_user: number;
+
+  @IsNotEmpty()
   @IsString()
-  name?: string;
+  name: string;
 
   @IsOptional()
   @IsString()
@@ -34,6 +38,10 @@ export class FilterUserDTO {
   @IsOptional()
   @IsString()
   moodle_username?: string;
+
+  @IsOptional()
+  @IsString()
+  moodle_password?: string;
 
   @IsOptional()
   @IsInt()

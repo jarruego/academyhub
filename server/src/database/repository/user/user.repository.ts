@@ -2,10 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { UserInsertModel, UserSelectModel, userTable, UserUpdateModel } from "src/database/schema/tables/user.table";
 import { eq, ilike, and } from "drizzle-orm";
-import { CreateUserDTO } from "src/dto/user/create-user.dto";
-import { UpdateUserDTO } from "src/dto/user/update-user.dto";
 import { MoodleUser } from "src/types/moodle/user";
-import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { userCourseTable } from "src/database/schema/tables/user_course.table";
 import { userCourseMoodleRoleTable } from "src/database/schema/tables/user_course_moodle_role.table";
 
@@ -16,10 +13,10 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(createUserDTO: UserInsertModel, options?: QueryOptions): Promise<{ insertId: number }> {
+  async create(userInsertModel: UserInsertModel, options?: QueryOptions): Promise<{ insertId: number }> {
     const result = await this.query(options)
       .insert(userTable)
-      .values(createUserDTO)
+      .values(userInsertModel)
       .returning({ insertId: userTable.id_user });
     return result[0];
   }

@@ -131,7 +131,7 @@ export class GroupRepository extends Repository {
     return rows;
   }
 
-  async findUserByGroup(id_user: number, id_group: number, options?: QueryOptions) {
+  async findUserInGroup(id_user: number, id_group: number, options?: QueryOptions) {
     const rows = await this.query(options)
       .select()
       .from(userGroupTable)
