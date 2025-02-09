@@ -14,6 +14,7 @@ import { DATABASE_PROVIDER } from "src/database/database.module";
 import { QueryOptions } from "src/database/repository/repository";
 import { MoodleCourse } from "src/types/moodle/course";
 import { CourseModality } from "src/types/course/course-modality.enum";
+import { UserService } from "../user/user.service";
 
 @Injectable()
 export class CourseService {
@@ -22,6 +23,7 @@ export class CourseService {
     private readonly groupRepository: GroupRepository,
     private readonly MoodleService: MoodleService,
     private readonly userRepository: UserRepository,
+    private readonly userService: UserService,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
   ) {}
 
@@ -112,7 +114,7 @@ export class CourseService {
               // Obtener usuarios asociados al grupo
               const moodleUsers = await this.MoodleService.getGroupUsers(moodleGroup.id);
               for (const moodleUser of moodleUsers) {
-                await this.userRepository.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, {transaction});
+                await this.userService.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, {transaction});
               }
             }
             

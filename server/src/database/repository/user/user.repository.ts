@@ -60,40 +60,6 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number, options?: QueryOptions) {
-    const existingUser = await this.findByMoodleId(moodleUser.id, options);
-    const data = {
-      name: moodleUser.firstname,
-      first_surname: moodleUser.lastname,
-      email: moodleUser.email,
-      moodle_username: moodleUser.username,
-      moodle_id: moodleUser.id,
-      //TODO: mejorar?
-      phone: null,
-      dni: null,
-      second_surname: "",
-      moodle_password: "" 
-    };
-
-    let userId: number;
-
-    if (existingUser) {
-      await this.update(existingUser.id_user, data, options);
-      userId = existingUser.id_user;
-    } else {
-      const result = await this.create(data, options);
-      userId = result.insertId;
-    }
-
-    // Actualizar la tabla user_group
-    const userGroupRows = await this.query(options).select().from(userGroupTable).where(and(eq(userGroupTable.id_user, userId), eq(userGroupTable.id_group, id_group)))
-    if(userGroupRows.length <= 0) {
-      await this.query(options)
-      .insert(userGroupTable)
-      .values({ id_user: userId, id_group: id_group });
-    }
-  }
-
   async upsertMoodleUserByCourse(moodleUser: MoodleUser, id_course: number, options?: QueryOptions) {
     const existingUser = await this.findByMoodleId(moodleUser.id, options);
     const data = {
@@ -102,12 +68,12 @@ export class UserRepository extends Repository {
       email: moodleUser.email,
       moodle_username: moodleUser.username,
       moodle_id: moodleUser.id,
-      //TODO: mejorar?
-      phone: null,
-      dni: null,
-      second_surname: "",
-      moodle_password: "" 
-    };
+      // //TODO: mejorar?
+      // phone: null,
+      // dni: null,
+      // second_surname: "",
+      // moodle_password: "" 
+    } as UserInsertModel;
     let userId: number;
 
     if (existingUser) {

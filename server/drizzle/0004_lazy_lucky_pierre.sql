@@ -1,2 +1,0 @@
-ALTER TABLE "user_group" ADD COLUMN "id_center" integer;--> statement-breakpoint
-ALTER TABLE "user_group" ADD CONSTRAINT "user_group_id_center_centers_id_center_fk" FOREIGN KEY ("id_center") REFERENCES "public"."centers"("id_center") ON DELETE no action ON UPDATE no action;

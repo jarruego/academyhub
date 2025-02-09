@@ -34,7 +34,7 @@ export class GroupController {
 
   @Post(':id/users/:userId')
   async addUserToGroup(@Param('id', new ParseIntPipe()) id: number, @Param('userId', new ParseIntPipe()) userId: number) {
-    return this.groupService.addUserToGroup(id, userId);;
+    return this.groupService.addUserToGroup(id, userId);
   }
 
   @Get(':id/users')

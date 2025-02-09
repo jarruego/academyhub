@@ -1,1 +1,0 @@
-ALTER TABLE "user_group" ALTER COLUMN "id_center" DROP NOT NULL;

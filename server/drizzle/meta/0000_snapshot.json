@@ -1,5 +1,5 @@
 {
-  "id": "2d388aa7-722b-4ee6-9f34-6864287899c4",
+  "id": "95b070ff-988d-450f-84fe-13a490ce500b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -102,7 +102,7 @@
           "name": "employer_number",
           "type": "varchar(128)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "id_company": {
           "name": "id_company",
@@ -114,19 +114,19 @@
           "name": "contact_person",
           "type": "varchar(64)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "contact_phone": {
           "name": "contact_phone",
           "type": "varchar(32)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "contact_email": {
           "name": "contact_email",
           "type": "varchar(128)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "createdAt": {
           "name": "createdAt",
@@ -275,7 +275,7 @@
           "type": "course_modality",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "createdAt": {
           "name": "createdAt",
@@ -618,6 +618,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "id_center": {
+          "name": "id_center",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "join_date": {
           "name": "join_date",
           "type": "date",
@@ -670,6 +676,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "user_group_id_center_centers_id_center_fk": {
+          "name": "user_group_id_center_centers_id_center_fk",
+          "tableFrom": "user_group",
+          "tableTo": "centers",
+          "columnsFrom": [
+            "id_center"
+          ],
+          "columnsTo": [
+            "id_center"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
@@ -702,11 +721,17 @@
           "primaryKey": false,
           "notNull": true
         },
-        "surname": {
-          "name": "surname",
+        "first_surname": {
+          "name": "first_surname",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "second_surname": {
+          "name": "second_surname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "email": {
           "name": "email",
@@ -731,6 +756,18 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "dni": {
+          "name": "dni",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -750,6 +787,13 @@
           "columns": [
             "moodle_id"
           ]
+        },
+        "users_dni_unique": {
+          "name": "users_dni_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "dni"
+          ]
         }
       },
       "policies": {},
@@ -763,8 +807,8 @@
       "schema": "public",
       "values": [
         "Online",
-        "Presential",
-        "Mixed"
+        "Presencial",
+        "Mixta"
       ]
     }
   },

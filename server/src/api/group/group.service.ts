@@ -18,24 +18,24 @@ export class GroupService {
   ) { }
 
   async findById(id: number, options?: QueryOptions) {
-    return await this.groupRepository.findById(id);
+    return await this.groupRepository.findById(id, options);
   }
 
   async create(createGroupDTO: CreateGroupDTO, options?: QueryOptions) {
-    return await this.groupRepository.create(createGroupDTO);
+    return await this.groupRepository.create(createGroupDTO, options);
   }
 
   async update(id: number, updateGroupDTO: UpdateGroupDTO, options?: QueryOptions) {
     await this.groupRepository.update(id, updateGroupDTO);
-    return await this.groupRepository.findById(id);
+    return await this.groupRepository.findById(id, options);
   }
 
   async findAll(filter: FilterGroupDTO, options?: QueryOptions) {
-    return await this.groupRepository.findAll(filter);
+    return await this.groupRepository.findAll(filter, options);
   }
 
   async addUserToGroup(id_group: number, id_user: number, options?: QueryOptions) {
-    return await this.databaseService.db.transaction(async transaction => {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       const result = await this.groupRepository.addUserToGroup(id_group, id_user, {transaction});
 
       // Get the id_course of the group
