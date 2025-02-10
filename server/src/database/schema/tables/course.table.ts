@@ -18,8 +18,8 @@ export const courseTable = pgTable('courses', {
   modality: courseModality().notNull(),
   // hours: integer(),
   // active: boolean().notNull(),
-  //...TIMESTAMPS,
+  ...TIMESTAMPS,
 });
 export type CourseSelectModel = Partial<InferSelectModel<typeof courseTable>>;
-export type CourseInsertModel = Omit<InferSelectModel<typeof courseTable>, 'id_course'>;
+export type CourseInsertModel = Omit<InferSelectModel<typeof courseTable>, 'id_course' | 'createdAt' | 'updatedAt'>;
 export type CourseUpdateModel = Partial<InferSelectModel<typeof courseTable>>;

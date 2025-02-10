@@ -1,5 +1,6 @@
 import { InferSelectModel } from "drizzle-orm";
 import { pgTable, serial, text, integer, boolean, date, pgEnum } from "drizzle-orm/pg-core";
+import { TIMESTAMPS } from "./timestamps";
 //import { Gender } from "src/types/user/gender.enum";
 //import { DocumentType } from "src/types/user/document-type.enum";
 
@@ -33,8 +34,9 @@ export const userTable = pgTable("users", {
     //province: text("province"),
     //country: text("country"),
     //observations: text("observations"),
+    ...TIMESTAMPS
 });
 
 export type UserSelectModel = Partial<InferSelectModel<typeof userTable>>; 
-export type UserInsertModel = Omit<InferSelectModel<typeof userTable>, 'id_user'>;
+export type UserInsertModel = Omit<InferSelectModel<typeof userTable>, 'id_user' | 'createdAt' | 'updatedAt'>;
 export type UserUpdateModel = Partial<InferSelectModel<typeof userTable>>;
