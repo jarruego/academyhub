@@ -3,9 +3,9 @@ import { IsString, IsEmail, IsOptional, IsNumber, IsNotEmpty } from "class-valid
 
 export class UpdateCenterDTO {
   @ApiPropertyOptional()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  center_name: string;
+  center_name?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -13,9 +13,9 @@ export class UpdateCenterDTO {
   employer_number?: string;
 
   @ApiPropertyOptional()
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  id_company: number;
+  id_company?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

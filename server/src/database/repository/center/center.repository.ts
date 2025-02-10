@@ -1,11 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { CenterSelectModel, centerTable } from "src/database/schema/tables/center.table";
+import { CenterInsertModel, CenterSelectModel, centerTable, CenterUpdateModel } from "src/database/schema/tables/center.table";
 import { eq, ilike, and, sql } from "drizzle-orm"; 
-import { CreateCenterDTO } from "src/dto/center/create-center.dto";
-import { UpdateCenterDTO } from "src/dto/center/update-center.dto";
-import { userCenterTable } from "src/database/schema/tables/user_center.table";
-import { CreateUserCenterDTO } from "src/dto/user-center/create-user-center.dto";
+import { UserCenterInsertModel, userCenterTable } from "src/database/schema/tables/user_center.table";
 import { UpdateUserCenterDTO } from "src/dto/user-center/update-user-center.dto";
 
 @Injectable()
@@ -29,17 +26,17 @@ export class CenterRepository extends Repository {
         return await this.query(options).select().from(centerTable).where(and(...where));
     }
 
-    async create(createCenterDTO: CreateCenterDTO, options?: QueryOptions) {
+    async create(centerInsertModel: CenterInsertModel, options?: QueryOptions) {
         const result = await this.query(options)
             .insert(centerTable)
-            .values(createCenterDTO);
+            .values(centerInsertModel);
         return result;
     }
 
-    async update(id: number, updateCenterDTO: UpdateCenterDTO, options?: QueryOptions) {
+    async update(id: number, centerUpdateModel: CenterUpdateModel, options?: QueryOptions) {
         const result = await this.query(options)
             .update(centerTable)
-            .set(updateCenterDTO)
+            .set(centerUpdateModel)
             .where(eq(centerTable.id_center, id));
         return result;
     }
@@ -51,10 +48,10 @@ export class CenterRepository extends Repository {
         return result;
     }
 
-    async addUserToCenter(createUserCenterDTO: CreateUserCenterDTO, options?: QueryOptions) {
+    async addUserToCenter(userCenterInsertModel: UserCenterInsertModel, options?: QueryOptions) {
         const result = await this.query(options)
             .insert(userCenterTable)
-            .values(createUserCenterDTO);
+            .values(userCenterInsertModel);
         return result;
     }
 

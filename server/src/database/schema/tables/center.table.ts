@@ -11,9 +11,11 @@ export const centerTable = pgTable('centers', {
     contact_person: varchar({length: 64}),
     contact_phone: varchar({length: 32}),
     contact_email: varchar({length: 128}),
-    ...TIMESTAMPS,
+    // ...TIMESTAMPS,
 });
 
-export type CenterSelectModel = InferSelectModel<typeof centerTable> & {
+export type CenterSelectModel = Partial<InferSelectModel<typeof centerTable> & {
   company_name?: string;
-};
+}>;
+export type CenterInsertModel = Omit<InferSelectModel<typeof centerTable>, 'id_center'>;
+export type CenterUpdateModel = Partial<InferSelectModel<typeof centerTable>>;

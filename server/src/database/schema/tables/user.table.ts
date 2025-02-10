@@ -35,6 +35,6 @@ export const userTable = pgTable("users", {
     //observations: text("observations"),
 });
 
-export type UserSelectModel = Partial<InferSelectModel<typeof userTable>>; //TODO: mejorar
+export type UserSelectModel = Partial<InferSelectModel<typeof userTable>>; 
 export type UserInsertModel = Omit<InferSelectModel<typeof userTable>, 'id_user'>;
-export type UserUpdateModel = Partial<UserInsertModel>;
+export type UserUpdateModel = Partial<InferSelectModel<typeof userTable>>;

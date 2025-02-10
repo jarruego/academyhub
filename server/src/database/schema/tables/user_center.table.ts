@@ -14,4 +14,7 @@ export const userCenterTable = pgTable("user_center", {
   };
 });
 
-export type UserCenterSelectModel = InferSelectModel<typeof userCenterTable>;
+export type UserCenterSelectModel = Partial<InferSelectModel<typeof userCenterTable>>;
+export type UserCenterInsertModel = InferSelectModel<typeof userCenterTable>;
+export type UserCenterUpdateModel = Partial<InferSelectModel<typeof userCenterTable>>;
+

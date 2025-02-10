@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsDateString, IsNotEmpty, IsOptional } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsDateString, IsNotEmpty, IsOptional, IsDate } from 'class-validator';
 
 export class CreateUserCenterDTO {
   @ApiProperty()
@@ -13,12 +14,14 @@ export class CreateUserCenterDTO {
   id_center: number;
 
   @ApiProperty()
-  @IsDateString()
   @IsNotEmpty()
-  start_date: string;
+  @IsDate()
+  @Type(() => Date)
+  start_date: Date;
 
   @ApiProperty()
-  @IsDateString()
   @IsOptional()
-  end_date: string;
+  @IsDate()
+  @Type(() => Date)
+  end_date: Date;
 }
