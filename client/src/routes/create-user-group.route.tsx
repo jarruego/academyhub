@@ -3,16 +3,19 @@ import { Button, message, Table, Input } from "antd";
 import { useUsersQuery } from "../hooks/api/users/use-users.query";
 import { useAddUserToGroupMutation } from "../hooks/api/groups/use-add-user-to-group.mutation";
 import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
+import { useDeleteUserFromGroupMutation } from "../hooks/api/groups/use-delete-user-from-group.mutation";
 import { useState, useEffect } from "react";
-import { PlusOutlined } from "@ant-design/icons"; 
+import { PlusOutlined, DeleteOutlined } from "@ant-design/icons"; 
 
 export default function CreateUserGroupRoute() {
   const { id_group } = useParams();
   const navigate = useNavigate();
   const { data: usersData, isLoading: isUsersLoading } = useUsersQuery();
   const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
-  const { data: groupUsersData, isLoading: isGroupUsersLoading } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
+  const { data: groupUsersData, isLoading: isGroupUsersLoading, refetch: refetchUsers } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
+  const { mutateAsync: deleteUserFromGroup } = useDeleteUserFromGroupMutation();
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [selectedGroupUserIds, setSelectedGroupUserIds] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   useEffect(() => {
@@ -30,10 +33,29 @@ export default function CreateUserGroupRoute() {
     }
   };
 
+  const handleDeleteUsers = async () => {
+    if (!id_group || selectedGroupUserIds.length === 0) return;
+    try {
+      await Promise.all(selectedGroupUserIds.map(id_user => deleteUserFromGroup({ id_group: parseInt(id_group, 10), id_user })));
+      message.success('Usuarios eliminados exitosamente');
+      setSelectedGroupUserIds([]);
+      await refetchUsers(); // Refrescar los datos de los usuarios
+    } catch {
+      message.error('No se pudo eliminar a los usuarios');
+    }
+  };
+
   const rowSelection = {
     selectedRowKeys: selectedUserIds,
     onChange: (selectedRowKeys: React.Key[]) => {
       setSelectedUserIds(selectedRowKeys as number[]);
+    },
+  };
+
+  const groupUserRowSelection = {
+    selectedRowKeys: selectedGroupUserIds,
+    onChange: (selectedRowKeys: React.Key[]) => {
+      setSelectedGroupUserIds(selectedRowKeys as number[]);
     },
   };
 
@@ -54,6 +76,9 @@ export default function CreateUserGroupRoute() {
         onChange={e => setSearchTerm(e.target.value)}
         style={{ marginBottom: 16 }}
       />
+      <Button type="primary" icon={<PlusOutlined />} onClick={handleSaveUsers}>
+        Añadir al Grupo
+      </Button>
       <Table
         rowKey="id_user"
         columns={[
@@ -70,10 +95,10 @@ export default function CreateUserGroupRoute() {
           style: { cursor: 'pointer' }
         })}
       />
-      <Button type="primary" icon={<PlusOutlined />} onClick={handleSaveUsers}>
-        Añadir Usuarios al Grupo
-      </Button>
       <h2>Usuarios Grupo</h2>
+      <Button type="primary" danger onClick={handleDeleteUsers} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
+        Eliminar del Grupo
+      </Button>
       <Table
         rowKey="id_user"
         columns={[
@@ -84,11 +109,15 @@ export default function CreateUserGroupRoute() {
         ]}
         dataSource={groupUsersData}
         loading={isGroupUsersLoading}
+        rowSelection={groupUserRowSelection}
         onRow={(record) => ({
           onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
           style: { cursor: 'pointer' }
         })}
       />
+      <Button type="default" onClick={() => navigate(-1)} style={{ marginTop: '16px' }}>
+        Cancelar
+      </Button>
     </div>
   );
 }

@@ -19,9 +19,7 @@ CREATE TABLE "centers" (
 	"id_company" integer NOT NULL,
 	"contact_person" varchar(64),
 	"contact_phone" varchar(32),
-	"contact_email" varchar(128),
-	"createdAt" timestamp DEFAULT now() NOT NULL,
-	"updatedAt" timestamp DEFAULT now() NOT NULL
+	"contact_email" varchar(128)
 );
 --> statement-breakpoint
 CREATE TABLE "companies" (
@@ -29,8 +27,6 @@ CREATE TABLE "companies" (
 	"company_name" varchar(128) NOT NULL,
 	"corporate_name" varchar(256) NOT NULL,
 	"cif" varchar(12) NOT NULL,
-	"createdAt" timestamp DEFAULT now() NOT NULL,
-	"updatedAt" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "companies_cif_unique" UNIQUE("cif")
 );
 --> statement-breakpoint
@@ -105,6 +101,8 @@ CREATE TABLE "users" (
 	"moodle_id" integer,
 	"dni" text,
 	"phone" text,
+	"createdAt" timestamp DEFAULT now() NOT NULL,
+	"updatedAt" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "users_moodle_username_unique" UNIQUE("moodle_username"),
 	CONSTRAINT "users_moodle_id_unique" UNIQUE("moodle_id"),
 	CONSTRAINT "users_dni_unique" UNIQUE("dni")
