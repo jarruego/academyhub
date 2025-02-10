@@ -103,7 +103,7 @@ export class CourseService {
             // Obtener usuarios matriculados en el curso
             const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
             for (const enrolledUser of enrolledUsers) {
-              await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, {transaction});
+               await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, {transaction});
             }
 
             // Obtener grupos asociados al curso

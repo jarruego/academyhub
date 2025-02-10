@@ -3,11 +3,11 @@ import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, Is
 //import { Gender } from "src/types/user/gender.enum";
 
 export class FilterUserDTO {
-  @IsNotEmpty()
+  @IsOptional()
   @IsInt()
   id_user: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   name: string;
 

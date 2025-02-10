@@ -65,15 +65,11 @@ export class UserRepository extends Repository {
       email: moodleUser.email,
       moodle_username: moodleUser.username,
       moodle_id: moodleUser.id,
-      // //TODO: mejorar?
-      // phone: null,
-      // dni: null,
-      // second_surname: "",
-      // moodle_password: "" 
     } as UserInsertModel;
     let userId: number;
 
     if (existingUser) {
+      //TODO: as UserUpdateModel
       await this.update(existingUser.id_user, data, options);
       userId = existingUser.id_user;
     } else {
