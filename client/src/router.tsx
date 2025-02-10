@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import HomeRoute from './routes/home.route';
 import UsersRoute from './routes/users.route';
 import CoursesRoute from './routes/courses.route';
@@ -22,22 +22,20 @@ const { Sider, Content } = Layout;
 
 const menuItems = [
   { key: '/', label: <Link to="/">Home</Link> },
-  { key: '/users', label: <Link to="/users" target={window.location.pathname === '/users' ? '_self' : '_blank'}>Usuarios</Link> },
-  { key: '/courses', label: <Link to="/courses" target={window.location.pathname === '/courses' ? '_self' : '_blank'}>Cursos</Link> },
-  { key: '/companies', label: <Link to="/companies" target={window.location.pathname === '/companies' ? '_self' : '_blank'}>Empresas</Link> },
-  { key: '/centers', label: <Link to="/centers" target={window.location.pathname === '/centers' ? '_self' : '_blank'}>Centros</Link> }, 
+  { key: '/users', label: <Link to="/users">Usuarios</Link> },
+  { key: '/courses', label: <Link to="/courses">Cursos</Link> },
+  { key: '/companies', label: <Link to="/companies">Empresas</Link> },
+  { key: '/centers', label: <Link to="/centers">Centros</Link> }, 
 ];
 
 const Sidebar = () => {
   const { logout } = useAuthInfo();
-  const location = useLocation();
 
   return (
     <Sider>
       <Menu
         theme="dark"
         mode="inline"
-        selectedKeys={[location.pathname]}
         items={menuItems}
       />
       <Button onClick={logout} style={{ margin: '16px' }}>Cerrar sesión</Button>
