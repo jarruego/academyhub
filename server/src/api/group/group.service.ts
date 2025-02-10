@@ -60,8 +60,8 @@ export class GroupService {
           id_user: id_user,
           id_course: id_course,
           enrollment_date: new Date(),
-          status: EnrollmentStatus.ACTIVE,
-          completion_percentage: 0,
+          //status: EnrollmentStatus.ACTIVE,
+          completion_percentage: "0",
           time_spent: 0
         }, { transaction });
       }

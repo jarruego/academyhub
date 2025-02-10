@@ -7,7 +7,9 @@ export const companyTable = pgTable('companies', {
     company_name: varchar({length: 128}).notNull(),
     corporate_name: varchar({length: 256}).notNull(),
     cif: varchar({length: 12}).notNull().unique(),
-    ...TIMESTAMPS,
+    //...TIMESTAMPS,
 });
 
-export type CompanySelectModel = InferSelectModel<typeof companyTable>;
+export type CompanySelectModel = Partial<InferSelectModel<typeof companyTable>>;
+export type CompanyInsertModel = Omit<InferSelectModel<typeof companyTable>, 'id_company'>;
+export type CompanyUpdateModel = Partial<InferSelectModel<typeof companyTable>>;

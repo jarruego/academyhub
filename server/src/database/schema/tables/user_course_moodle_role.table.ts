@@ -14,4 +14,6 @@ export const userCourseMoodleRoleTable = pgTable("user_course_moodle_role", {
   };
 });
 
-export type UserCourseRoleSelectModel = InferSelectModel<typeof userCourseMoodleRoleTable>;
+// export type UserCourseRoleSelectModel = Partial<InferSelectModel<typeof userCourseMoodleRoleTable>>;
+export type UserCourseRoleInsertModel = InferSelectModel<typeof userCourseMoodleRoleTable>;
+// export type UserCourseRoleUpdateModel = Partial<InferSelectModel<typeof userCourseMoodleRoleTable>>;

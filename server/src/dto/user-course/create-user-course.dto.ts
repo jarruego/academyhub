@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsDateString, IsDecimal, IsNotEmpty, IsEnum, IsOptional, IsIn } from 'class-validator';
-import { EnrollmentStatus } from 'src/types/user-course/enrollment-status.enum';
+import { Type } from 'class-transformer';
+import { IsInt, IsDecimal, IsNotEmpty, IsEnum, IsOptional, IsIn, IsDate } from 'class-validator';
+// import { EnrollmentStatus } from 'src/types/user-course/enrollment-status.enum';
 
 export class CreateUserCourseDTO {
   @ApiProperty()
@@ -14,19 +15,20 @@ export class CreateUserCourseDTO {
   id_course: number;
 
   @ApiProperty()
-  @IsDateString()
   @IsOptional()
+  @IsDate()
+  @Type(() => Date)
   enrollment_date: Date;
 
-  @ApiProperty()
-  @IsOptional()
-  @IsIn(Object.values(EnrollmentStatus))
-  status: EnrollmentStatus;
+  // @ApiProperty()
+  // @IsOptional()
+  // @IsIn(Object.values(EnrollmentStatus))
+  // status: EnrollmentStatus;
 
   @ApiProperty()
   @IsDecimal()
   @IsOptional()
-  completion_percentage: number;
+  completion_percentage: string; //TODO: Cambiar a decimal
 
   @ApiProperty()
   @IsInt()

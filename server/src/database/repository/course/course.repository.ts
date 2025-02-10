@@ -5,8 +5,7 @@ import { eq, ilike, and } from "drizzle-orm";
 import { userCourseTable } from "src/database/schema/tables/user_course.table";
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
-import { userCourseMoodleRoleTable } from "src/database/schema/tables/user_course_moodle_role.table";
-import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
+import { userCourseMoodleRoleTable, UserCourseRoleInsertModel } from "src/database/schema/tables/user_course_moodle_role.table";
 
 @Injectable()
 export class CourseRepository extends Repository {
@@ -16,10 +15,10 @@ export class CourseRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(createCourseDTO: CourseInsertModel, options?: QueryOptions) {
+  async create(courseInsertModel: CourseInsertModel, options?: QueryOptions) {
     const result = await this.query(options)
       .insert(courseTable)
-      .values(createCourseDTO).returning({id: courseTable.id_course});
+      .values(courseInsertModel).returning({id: courseTable.id_course});
     return result;
   }
 
@@ -83,14 +82,15 @@ export class CourseRepository extends Repository {
     return result;
   }
 
-  async addUserRoleToCourse(createUserCourseRoleDTO: CreateUserCourseRoleDTO, options?: QueryOptions) {
+  async addUserRoleToCourse(userCourseRoleInsertModel: UserCourseRoleInsertModel, options?: QueryOptions) {
     const result = await this.query(options)
       .insert(userCourseMoodleRoleTable)
-      .values(createUserCourseRoleDTO);
+      .values(userCourseRoleInsertModel);
     return result;
   }
 
-  async updateUserRolesInCourse(id_course: number, id_user: number, roles: CreateUserCourseRoleDTO[], options?: QueryOptions) {
+  //TODO: mejorar, se usa ¿UserCourseRoleInsertModel? para roles
+  async updateUserRolesInCourse(id_course: number, id_user: number, roles: UserCourseRoleInsertModel[], options?: QueryOptions) {
     await this.query(options)
       .delete(userCourseMoodleRoleTable)
       .where(and(eq(userCourseMoodleRoleTable.id_course, id_course), eq(userCourseMoodleRoleTable.id_user, id_user)));
