@@ -14,5 +14,6 @@ export const groupTable = pgTable("groups", {
     ...TIMESTAMPS,
 });
 
-export type GroupSelectModel = InferSelectModel<typeof groupTable>;
-export type GroupUpdateModel = Omit<GroupSelectModel, 'id_group' | 'createdAt' | 'updatedAt'>
+export type GroupSelectModel = Partial<InferSelectModel<typeof groupTable>>;
+export type GroupInsertModel = Omit<InferSelectModel<typeof groupTable>, 'id_group' | 'createdAt' | 'updatedAt'>
+export type GroupUpdateModel = Partial<InferSelectModel<typeof groupTable>>;

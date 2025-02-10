@@ -18,4 +18,6 @@ export const userGroupTable = pgTable("user_group", {
   };
 });
 
-export type UserGroupSelectModel = InferSelectModel<typeof userGroupTable>;
+export type UserGroupSelectModel = Partial<InferSelectModel<typeof userGroupTable>>;
+export type UserGroupInsertModel = InferSelectModel<typeof userGroupTable>;
+export type UserGroupUpdateModel = Partial<Omit<InferSelectModel<typeof userGroupTable>, 'id_user' | 'id_group'>> & Pick<InferSelectModel<typeof userGroupTable>, 'id_user' | 'id_group'>;

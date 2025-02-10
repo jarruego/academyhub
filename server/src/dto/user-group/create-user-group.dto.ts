@@ -23,7 +23,7 @@ export class CreateUserGroupDTO {
 
   @IsDecimal()
   @IsOptional()
-  completion_percentage: number;
+  completion_percentage: string; //TODO: Change to number
 
   @IsInt()
   @IsOptional()

@@ -1,14 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { GroupRepository } from "src/database/repository/group/group.repository";
-import { CreateGroupDTO } from "src/dto/group/create-group.dto";
-import { UpdateGroupDTO } from "src/dto/group/update-group.dto";
-import { FilterGroupDTO } from "src/dto/group/filter-group.dto";
-import { UpdateUserGroupDTO } from "src/dto/user-group/update-user-group.dto";
 import { QueryOptions } from "src/database/repository/repository";
 import { CourseRepository } from "src/database/repository/course/course.repository";
-import { EnrollmentStatus } from "src/types/user-course/enrollment-status.enum";
+// import { EnrollmentStatus } from "src/types/user-course/enrollment-status.enum";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
+import { GroupInsertModel, GroupSelectModel, GroupUpdateModel } from "src/database/schema/tables/group.table";
+import { UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
 
 @Injectable()
 export class GroupService {
@@ -23,20 +21,20 @@ export class GroupService {
     });
   }
 
-  async create(createGroupDTO: CreateGroupDTO, options?: QueryOptions) {
+  async create(groupInsertModel: GroupInsertModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.groupRepository.create(createGroupDTO, { transaction });
+      return await this.groupRepository.create(groupInsertModel, { transaction });
     });
   }
 
-  async update(id: number, updateGroupDTO: UpdateGroupDTO, options?: QueryOptions) {
+  async update(id: number, groupUpdateModel: GroupUpdateModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      await this.groupRepository.update(id, updateGroupDTO, { transaction });
+      await this.groupRepository.update(id, groupUpdateModel, { transaction });
       return await this.groupRepository.findById(id, { transaction });
     });
   }
 
-  async findAll(filter: FilterGroupDTO, options?: QueryOptions) {
+  async findAll(filter: GroupSelectModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.groupRepository.findAll(filter, { transaction });
     });
@@ -99,9 +97,9 @@ export class GroupService {
     });
   }
 
-  async updateUserInGroup(id_group: number, id_user: number, updateUserGroupDTO: UpdateUserGroupDTO, options?: QueryOptions) {
+  async updateUserInGroup(id_group: number, id_user: number, userGroupUpdateModel: UserGroupUpdateModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.groupRepository.updateUserInGroup(id_group, id_user, updateUserGroupDTO, { transaction });
+      return await this.groupRepository.updateUserInGroup(id_group, id_user, userGroupUpdateModel, { transaction });
     });
   }
 
