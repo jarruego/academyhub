@@ -11,12 +11,12 @@ export class CreateUserDTO {
   name: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   first_surname: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   second_surname: string;
 
@@ -36,22 +36,22 @@ export class CreateUserDTO {
   email: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   phone: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   moodle_username: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   moodle_password: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsInt()
   moodle_id: number;
 

@@ -71,6 +71,10 @@ export default function EditGroupRoute() {
     navigate(`/groups/${id_group}/add-user`);
   };
 
+  const handleImportUsers = () => {
+    navigate(`/groups/${id_group}/import-users`);
+  };
+
   const rowSelection = {
     selectedRowKeys: selectedUserIds,
     onChange: (selectedRowKeys: React.Key[]) => {
@@ -127,6 +131,9 @@ export default function EditGroupRoute() {
       </Button>
       <Button type="primary" danger onClick={handleDeleteUsers} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
         Eliminar Usuarios Seleccionados
+      </Button>
+      <Button type="primary" onClick={handleImportUsers} style={{ marginTop: '16px' }}>
+        Importar Usuarios
       </Button>
     </div>
   );
