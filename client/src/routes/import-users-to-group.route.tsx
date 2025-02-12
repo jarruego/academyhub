@@ -5,17 +5,19 @@ import * as XLSX from "xlsx";
 import { useState } from "react";
 // import { useAddUserToGroupMutation } from "../hooks/api/groups/use-add-user-to-group.mutation";
 import { UserImportTemplate } from "../shared/types/user/user-import-template";
-import { useCreateUserMutation } from "../hooks/api/users/use-create-user.mutation";
+// import { useCreateUserMutation } from "../hooks/api/users/use-create-user.mutation";
 import { User } from "../shared/types/user/user";
 import { generateEasyPassword } from "../utils/helpers";
+import { useBulkCreateAndAddToGroupMutation } from "../hooks/api/users/use-bulk-create-and-add-to-group.mutation";
 
 export default function ImportUsersToGroupRoute() {
   const { id_group } = useParams();
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserImportTemplate[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
-//   const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
-  const { mutateAsync: createUser } = useCreateUserMutation();
+  // const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
+  // const { mutateAsync: createUser } = useCreateUserMutation();
+  const { mutateAsync: bulkCreateAndAddToGroup } = useBulkCreateAndAddToGroupMutation();
 
   const handleUpload = (file: File) => {
     const reader = new FileReader();
@@ -38,28 +40,27 @@ export default function ImportUsersToGroupRoute() {
   
   const handleImportUsers = async () => {
     try {
-      await Promise.all(
-        selectedUserIds.map((userId) => {
-          const user = users.find((user) => user.DNI === userId);
-          if (user) {
-            const newUser = {
-              dni: user.DNI,
-              name: user.NOMBRE,
-              first_surname: user.AP1,
-              second_surname: user.AP2,
-              email: user.email,
-              phone: user.movil.toString(),
-              moodle_username: user.DNI.toLowerCase(),
-              moodle_password: generateEasyPassword(),
-            } as Omit<User, 'id_user'>;
-            console.log('Creating user:', newUser); 
-            return createUser(newUser);
-          }
-          return Promise.resolve();
-        })
-      );
-      message.success("Usuarios importados exitosamente");
-      //TODO: Añadir al grupo ¿hacerlo todo en una transacción o nuevo endpoint?
+      const usersToCreate = selectedUserIds.map((userId) => {
+        const user = users.find((user) => user.DNI === userId);
+        if (user) {
+          return {
+            dni: user.DNI,
+            name: user.NOMBRE,
+            first_surname: user.AP1,
+            second_surname: user.AP2,
+            email: user.email,
+            phone: user.movil.toString(),
+            moodle_username: user.DNI.toLowerCase(),
+            moodle_password: generateEasyPassword(),
+          } as Omit<User, 'id_user'>;
+        }
+        return null;
+      }).filter(user => user !== null);
+      if (id_group) {
+        await bulkCreateAndAddToGroup({ users: usersToCreate, id_group: parseInt(id_group, 10) });
+      } else {
+        message.error("ID de grupo no válido");
+      }
       navigate(`/groups/${id_group}/edit`);
     } catch (error) {
       message.error(`No se pudo importar a los usuarios: ${(error as Error).message}`);

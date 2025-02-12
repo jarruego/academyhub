@@ -107,4 +107,27 @@ export class UserService {
     });
 
   }
+
+  async bulkCreateAndAddToGroup(users: UserInsertModel[], id_group: number, options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const createdUsers = [];
+      for (const user of users) {
+        const existingUser = await this.userRepository.findByMoodleId(user.moodle_id, { transaction });
+        let userId: number;
+        if (existingUser) {
+          await this.userRepository.update(existingUser.id_user, user, { transaction });
+          userId = existingUser.id_user;
+        } else {
+          const result = await this.userRepository.create(user, { transaction });
+          userId = result.insertId;
+        }
+        createdUsers.push(userId);
+        const userGroupRows = await this.groupRepository.findUserInGroup(userId, id_group, { transaction });
+        if (userGroupRows.length <= 0) {
+          await this.groupService.addUserToGroup(id_group, userId, { transaction });
+        }
+      }
+      return createdUsers;
+    });
+  }
 }

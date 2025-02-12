@@ -44,4 +44,10 @@ export class UserController {
   async importMoodleUsers() {
     return this.userService.importMoodleUsers();
   }
+
+  @Post('bulk-create-and-add-to-group/:id_group')
+  async bulkCreateAndAddToGroup(@Param('id_group') id_group: string, @Body() users: CreateUserDTO[]) {
+    const numericGroupId = parseInt(id_group, 10);
+    return this.userService.bulkCreateAndAddToGroup(users, numericGroupId);
+  }
 }
