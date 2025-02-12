@@ -62,10 +62,9 @@ export default function ImportUsersToGroupRoute() {
               first_surname: user.AP1,
               second_surname: user.AP2,
               email: user.email,
-              phone: user.movil.toString(), // Asegurar que phone sea un string
+              phone: user.movil.toString(),
               moodle_username: user.DNI.toLowerCase(),
               moodle_password: generatePassword(),
-              moodle_id: null, // Permitir que sea null
             } as Omit<User, 'id_user'>;
             console.log('Creating user:', newUser); 
             return createUser(newUser);

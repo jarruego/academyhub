@@ -31,7 +31,7 @@ export class CreateUserDTO {
   // document_type?: DocumentType;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsEmail()
   email: string;
 

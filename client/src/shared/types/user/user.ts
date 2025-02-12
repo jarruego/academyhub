@@ -6,7 +6,7 @@ export type User = {
     email: string;
     moodle_username: string;
     moodle_password: string;
-    moodle_id: number | null; // Permitir que sea null
+    moodle_id?: number; 
     dni: string;
     phone: string;
 }
