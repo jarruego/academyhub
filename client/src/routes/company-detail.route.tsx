@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useCompanyQuery } from "../hooks/api/companies/use-company.query";
 import { useUpdateCompanyMutation } from "../hooks/api/companies/use-update-company.mutation";
 import { useDeleteCompanyMutation } from "../hooks/api/companies/use-delete-company.mutation";
-import { Button, Form, Input, message, Table } from "antd";
+import { Button, Form, Input, message, Table, Tabs } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
 import { Company } from "../shared/types/company/company";
@@ -51,48 +51,50 @@ export default function CompanyDetailRoute() {
   };
 
   return (
-    <div>
-      <Form layout="vertical" onFinish={handleSubmit(submit)}>
-        <Form.Item label="ID" name="id_company">
-          <Controller name="id_company" control={control} render={({ field }) => <Input {...field} disabled />} />
-        </Form.Item>
-        <Form.Item label="Nombre de la empresa" name="company_name">
-          <Controller name="company_name" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Razón Social" name="corporate_name">
-          <Controller name="corporate_name" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="CIF" name="cif">
-          <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
-        </div>
-      </Form>
-      <Button type="primary" danger onClick={handleDelete} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
-        Eliminar Empresa
-      </Button>
-      <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter} style={{ marginTop: '16px' }}>
-        Añadir Centro
-      </Button>
-      <Table
-        rowKey="id_center"
-        columns={[
-          { title: 'ID', dataIndex: 'id_center' },
-          { title: 'Nombre del centro', dataIndex: 'center_name' },
-          { title: 'Número de empleados', dataIndex: 'employer_number' },
-          { title: 'Persona de contacto', dataIndex: 'contact_person' },
-          { title: 'Teléfono de contacto', dataIndex: 'contact_phone' },
-          { title: 'Email de contacto', dataIndex: 'contact_email' },
-        ]}
-        dataSource={centersData}
-        loading={isCentersLoading}
-        onRow={(record) => ({
-          onDoubleClick: () => navigate(`/centers/${record.id_center}/edit`),
-          style: { cursor: 'pointer' }
-        })}
-      />
-    </div>
+    <Tabs defaultActiveKey="1">
+      <Tabs.TabPane tab="Datos de Empresa" key="1">
+        <Form layout="vertical" onFinish={handleSubmit(submit)}>
+          <Form.Item label="ID" name="id_company">
+            <Controller name="id_company" control={control} render={({ field }) => <Input {...field} disabled />} />
+          </Form.Item>
+          <Form.Item label="Nombre de la empresa" name="company_name">
+            <Controller name="company_name" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+          <Form.Item label="Razón Social" name="corporate_name">
+            <Controller name="corporate_name" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+          <Form.Item label="CIF" name="cif">
+            <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+            <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Empresa</Button>
+          </div>
+        </Form>
+      </Tabs.TabPane>
+      <Tabs.TabPane tab="Centros" key="2">
+        <Table
+          rowKey="id_center"
+          columns={[
+            { title: 'ID', dataIndex: 'id_center' },
+            { title: 'Nombre del centro', dataIndex: 'center_name' },
+            { title: 'Número de empleados', dataIndex: 'employer_number' },
+            { title: 'Persona de contacto', dataIndex: 'contact_person' },
+            { title: 'Teléfono de contacto', dataIndex: 'contact_phone' },
+            { title: 'Email de contacto', dataIndex: 'contact_email' },
+          ]}
+          dataSource={centersData}
+          loading={isCentersLoading}
+          onRow={(record) => ({
+            onDoubleClick: () => navigate(`/centers/${record.id_center}/edit`),
+            style: { cursor: 'pointer' }
+          })}
+        />
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter}>
+          Añadir Centro
+        </Button>
+      </Tabs.TabPane>
+    </Tabs>
   );
 }

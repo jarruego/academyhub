@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message, Table } from "antd";
+import { Button, Form, Input, message, Table, Tabs } from "antd";
 import { useGroupQuery } from "../hooks/api/groups/use-group.query";
 import { useUpdateGroupMutation } from "../hooks/api/groups/use-update-group.mutation";
 import { useDeleteGroupMutation } from "../hooks/api/groups/use-delete-group.mutation";
@@ -84,57 +84,65 @@ export default function EditGroupRoute() {
 
   return (
     <div>
-      <Form layout="vertical" onFinish={handleSubmit(submit)}>
-        <Form.Item label="ID del grupo" name="id_group">
-          <Controller name="id_group" control={control} render={({ field }) => <Input {...field} disabled />} />
-        </Form.Item>
-        <Form.Item label="Nombre del grupo" name="group_name">
-          <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Descripción" name="description">
-          <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
-          <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
-        </div>
-      </Form>
-      <h2>Usuarios Grupo</h2>
-      <Table
-        rowKey="id_user"
-        columns={[
-          { title: 'ID', dataIndex: ['id_user'] },
-          { title: 'Nombre', dataIndex: ['name'] },
-          { title: 'Apellidos', dataIndex: ['surname'] },
-          { title: 'Email', dataIndex: ['email'] },
-        ]}
-        dataSource={usersData}
-        loading={isUsersLoading}
-        rowSelection={rowSelection}
-        onRow={(record) => ({
-          onClick: () => {
-            setSelectedUserIds((prevSelected) => {
-              if (prevSelected.includes(record.id_user)) {
-                return prevSelected.filter((id) => id !== record.id_user);
-              } else {
-                return [...prevSelected, record.id_user];
-              }
-            });
-          },
-          onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
-          style: { cursor: 'pointer' }
-        })}
-      />
-      <Button type="primary" icon={<PlusOutlined />} onClick={handleAddUserToGroup} style={{ marginTop: '16px' }}>
-        Añadir Usuarios al Grupo
-      </Button>
-      <Button type="primary" danger onClick={handleDeleteUsers} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
-        Eliminar Usuarios Seleccionados
-      </Button>
-      <Button type="primary" onClick={handleImportUsers} style={{ marginTop: '16px' }}>
-        Importar Usuarios
-      </Button>
+      <Tabs defaultActiveKey="1">
+        <Tabs.TabPane tab="Datos del Grupo" key="1">
+          <Form layout="vertical" onFinish={handleSubmit(submit)}>
+            <Form.Item label="ID del grupo" name="id_group">
+              <Controller name="id_group" control={control} render={({ field }) => <Input {...field} disabled />} />
+            </Form.Item>
+            <Form.Item label="Nombre del grupo" name="group_name">
+              <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
+            </Form.Item>
+            <Form.Item label="Descripción" name="description">
+              <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
+            </Form.Item>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+              <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+              <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
+            </div>
+          </Form>
+        </Tabs.TabPane>
+        <Tabs.TabPane tab="Usuarios del Grupo" key="2">
+          <h2>Usuarios Grupo</h2>
+          <Table
+            rowKey="id_user"
+            columns={[
+              { title: 'ID', dataIndex: ['id_user'] },
+              { title: 'Nombre', dataIndex: ['name'] },
+              { title: 'Apellidos', dataIndex: ['surname'] },
+              { title: 'Email', dataIndex: ['email'] },
+            ]}
+            dataSource={usersData}
+            loading={isUsersLoading}
+            rowSelection={rowSelection}
+            onRow={(record) => ({
+              onClick: () => {
+                setSelectedUserIds((prevSelected) => {
+                  if (prevSelected.includes(record.id_user)) {
+                    return prevSelected.filter((id) => id !== record.id_user);
+                  } else {
+                    return [...prevSelected, record.id_user];
+                  }
+                });
+              },
+              onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
+              style: { cursor: 'pointer' }
+            })}
+          />
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddUserToGroup} >
+              Añadir Usuarios al Grupo
+            </Button>
+            <Button type="primary" danger onClick={handleDeleteUsers} icon={<DeleteOutlined />}>
+              Eliminar Usuarios Seleccionados
+            </Button>
+            <Button type="primary" onClick={handleImportUsers}>
+              Importar Usuarios
+            </Button>
+          </div>
+        </Tabs.TabPane>
+      </Tabs>
     </div>
   );
 }

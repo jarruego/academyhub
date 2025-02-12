@@ -3,7 +3,7 @@ import { Button, Form, Input, message } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Company } from "../shared/types/company/company";
 import { useNavigate } from "react-router-dom";
-import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
+import { SaveOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
 
 export default function CreateCompanyRoute() {
@@ -36,14 +36,14 @@ export default function CreateCompanyRoute() {
         <Form.Item label="CIF" name="cif" required={true}>
           <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
-        <Form.Item>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Button onClick={() => navigate(-1)}>
+            Cancelar
+          </Button>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
             Guardar
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} style={{ marginLeft: '16px' }}>
-            Refrescar
-          </Button>
-        </Form.Item>
+        </div>
       </Form>
     </div>
   );

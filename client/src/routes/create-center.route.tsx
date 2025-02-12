@@ -3,7 +3,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message } from "antd";
 import { useCreateCenterMutation } from "../hooks/api/centers/use-create-center.mutation";
 import { Center } from "../shared/types/center/center";
-import { SaveOutlined, ReloadOutlined } from "@ant-design/icons"; 
+import { SaveOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
 
 export default function CreateCenterRoute() {
@@ -47,14 +47,14 @@ export default function CreateCenterRoute() {
         <Form.Item label="Email de contacto" name="contact_email">
           <Controller name="contact_email" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
-        <Form.Item>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Button onClick={() => navigate(-1)}>
+            Cancelar
+          </Button>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
-            Crear Centro
+            Guardar
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} style={{ marginLeft: '16px' }}>
-            Refrescar
-          </Button>
-        </Form.Item>
+        </div>
       </Form>
     </div>
   );
