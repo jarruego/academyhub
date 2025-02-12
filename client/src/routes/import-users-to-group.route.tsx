@@ -7,6 +7,7 @@ import { useState } from "react";
 import { UserImportTemplate } from "../shared/types/user/user-import-template";
 import { useCreateUserMutation } from "../hooks/api/users/use-create-user.mutation";
 import { User } from "../shared/types/user/user";
+import { generateEasyPassword } from "../utils/helpers";
 
 export default function ImportUsersToGroupRoute() {
   const { id_group } = useParams();
@@ -15,21 +16,6 @@ export default function ImportUsersToGroupRoute() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 //   const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
   const { mutateAsync: createUser } = useCreateUserMutation();
-
-  //TODO: pasarlo a utils
-  const generatePassword = () => {
-    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
-    const numbers = '0123456789';
-    let password = '';
-    for (let i = 0; i < 5; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    password += '_';
-    for (let i = 0; i < 4; i++) {
-      password += numbers.charAt(Math.floor(Math.random() * numbers.length));
-    }
-    return password;
-  };
 
   const handleUpload = (file: File) => {
     const reader = new FileReader();
@@ -64,7 +50,7 @@ export default function ImportUsersToGroupRoute() {
               email: user.email,
               phone: user.movil.toString(),
               moodle_username: user.DNI.toLowerCase(),
-              moodle_password: generatePassword(),
+              moodle_password: generateEasyPassword(),
             } as Omit<User, 'id_user'>;
             console.log('Creating user:', newUser); 
             return createUser(newUser);
