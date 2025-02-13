@@ -45,7 +45,7 @@ export default function UsersRoute() {
         {
           title: 'MOODLE ID',
           dataIndex: 'moodle_id',
-          sorter: (a, b) => a.moodle_id - b.moodle_id,
+          sorter: (a, b) => (a.moodle_id ?? 0) - (b.moodle_id ?? 0),
         },
         {
           title: 'Name',

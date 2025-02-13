@@ -6,4 +6,5 @@ export type UserImportTemplate = {
   DNI: string;
   email: string;
   movil: string;
+  existsInDB?: boolean;
 };
