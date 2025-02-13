@@ -81,18 +81,21 @@ export class GroupService {
   }
 
   async deleteUserFromGroup(id_group: number, id_user: number, options?: QueryOptions) {
+    console.log('Deleting user from group:', id_user, id_group);
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
 
       // Check if the user is enrolled in other groups of the same course
       const isEnrolledInOtherGroups = await this.groupRepository.isUserEnrolledInOtherGroups(id_group, id_user, { transaction });
+      console.log('Enrolled in other groups?:', isEnrolledInOtherGroups);
 
       // If the user is not enrolled in any other groups of the same course, remove them from the course
       if (!isEnrolledInOtherGroups) {
         const group = await this.groupRepository.findById(id_group, { transaction });
-        await this.courseRepository.deleteUserFromCourse(id_user, group.id_course, { transaction });
+        await this.courseRepository.deleteUserFromCourse(group.id_course, id_user, { transaction });
       }      
       // Delete the user from the group
       const result = await this.groupRepository.deleteUserFromGroup(id_group, id_user, { transaction });
+      console.log('User removed from group');
 
       return result;
     });

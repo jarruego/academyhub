@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
-import { eq, ilike, and } from "drizzle-orm";
+import { eq, ilike, and, not } from "drizzle-orm";
 import { CreateGroupDTO } from "src/dto/group/create-group.dto";
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { userTable } from "src/database/schema/tables/user.table";
@@ -94,11 +94,17 @@ export class GroupRepository extends Repository {
 
   async isUserEnrolledInOtherGroups(id_group: number, id_user: number, options?: QueryOptions) {
     const group = await this.findById(id_group);
-    const otherGroups = await this.query(options)
+    const query = this.query(options)
       .select()
       .from(userGroupTable)
       .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
-      .where(and(eq(userGroupTable.id_user, id_user), eq(groupTable.id_course, group.id_course)));
+      .where(and(
+        eq(userGroupTable.id_user, id_user),
+        eq(groupTable.id_course, group.id_course),
+        // Exclude the current group
+        not(eq(userGroupTable.id_group, id_group))
+      ));    
+    const otherGroups = await query;
     return otherGroups.length > 0;
   }
 

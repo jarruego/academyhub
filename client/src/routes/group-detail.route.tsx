@@ -61,7 +61,7 @@ export default function EditGroupRoute() {
       await Promise.all(selectedUserIds.map(id_user => deleteUserFromGroup({ id_group: parseInt(id_group, 10), id_user })));
       message.success('Usuarios eliminados exitosamente');
       setSelectedUserIds([]);
-      await refetchUsers(); // Refrescar los datos de los usuarios
+      await refetchUsers();
     } catch {
       message.error('No se pudo eliminar a los usuarios');
     }
