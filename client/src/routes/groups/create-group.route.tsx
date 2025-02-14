@@ -1,11 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message } from "antd";
-import { useCreateGroupMutation } from "../hooks/api/groups/use-create-group.mutation";
-import { Group } from "../shared/types/group/group";
+import { useCreateGroupMutation } from "../../hooks/api/groups/use-create-group.mutation";
+import { Group } from "../../shared/types/group/group";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
-import { useCourseQuery } from "../hooks/api/courses/use-course.query";
+import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 
 export default function CreateGroupRoute() {
   const { id_course } = useParams();

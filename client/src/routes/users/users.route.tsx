@@ -1,6 +1,6 @@
 import { Button, Table, Input } from "antd";
 import { useState, useEffect } from "react";
-import { useUsersQuery } from "../hooks/api/users/use-users.query";
+import { useUsersQuery } from "../../hooks/api/users/use-users.query";
 import { useNavigate } from 'react-router-dom';
 import { PlusOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar los iconos
 

@@ -1,12 +1,12 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message, Table, Tabs } from "antd";
-import { useGroupQuery } from "../hooks/api/groups/use-group.query";
-import { useUpdateGroupMutation } from "../hooks/api/groups/use-update-group.mutation";
-import { useDeleteGroupMutation } from "../hooks/api/groups/use-delete-group.mutation";
-import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
-import { useDeleteUserFromGroupMutation } from "../hooks/api/groups/use-delete-user-from-group.mutation";
-import { Group } from "../shared/types/group/group";
+import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
+import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
+import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
+import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
+import { useDeleteUserFromGroupMutation } from "../../hooks/api/groups/use-delete-user-from-group.mutation";
+import { Group } from "../../shared/types/group/group";
 import { useEffect, useState } from "react";
 import { DeleteOutlined, SaveOutlined, PlusOutlined } from "@ant-design/icons"; // Importar los iconos
 

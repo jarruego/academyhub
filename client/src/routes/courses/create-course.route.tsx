@@ -1,8 +1,8 @@
-import { useCreateCourseMutation } from "../hooks/api/courses/use-create-course.mutation";
+import { useCreateCourseMutation } from "../../hooks/api/courses/use-create-course.mutation";
 import { Button, DatePicker, Form, Input, Select, message } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Course } from "../shared/types/course/course";
-import { CourseModality } from "../shared/types/course/course-modality.enum";
+import { Course } from "../../shared/types/course/course";
+import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { useNavigate } from "react-router-dom";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar el icono
 import { useEffect } from "react";

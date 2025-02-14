@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message } from "antd";
-import { useCreateCenterMutation } from "../hooks/api/centers/use-create-center.mutation";
-import { Center } from "../shared/types/center/center";
+import { useCreateCenterMutation } from "../../hooks/api/centers/use-create-center.mutation";
+import { Center } from "../../shared/types/center/center";
 import { SaveOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
 

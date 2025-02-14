@@ -1,6 +1,6 @@
 import { Button, Table } from "antd";
 import { useNavigate } from "react-router-dom";
-import { useCoursesQuery } from "../hooks/api/courses/use-courses.query";
+import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { PlusOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar los iconos
 import { useEffect } from "react";
 

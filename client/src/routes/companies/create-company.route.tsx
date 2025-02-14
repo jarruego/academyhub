@@ -1,7 +1,7 @@
-import { useCreateCompanyMutation } from "../hooks/api/companies/use-create-company.mutation";
+import { useCreateCompanyMutation } from "../../hooks/api/companies/use-create-company.mutation";
 import { Button, Form, Input, message } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Company } from "../shared/types/company/company";
+import { Company } from "../../shared/types/company/company";
 import { useNavigate } from "react-router-dom";
 import { SaveOutlined } from "@ant-design/icons";
 import { useEffect } from "react";

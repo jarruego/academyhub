@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Table } from "antd";
-import { useCentersQuery } from "../hooks/api/centers/use-centers.query";
+import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { useEffect } from "react";
 
 export default function CentersRoute() {
