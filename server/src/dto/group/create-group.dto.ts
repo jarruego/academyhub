@@ -1,9 +1,9 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsNotEmpty, IsString, IsInt, IsDate, IsOptional } from "class-validator";
 
 export class CreateGroupDTO {
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsInt()
   moodle_id: number;
@@ -18,18 +18,18 @@ export class CreateGroupDTO {
   @IsInt()
   id_course: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   description: string;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsDate()
   // @Type(() => Date)
   // start_date: Date;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsDate()
   // @Type(() => Date)

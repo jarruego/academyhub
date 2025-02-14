@@ -1,10 +1,10 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsNotEmpty, IsString, IsInt, IsBoolean,  IsIn, IsOptional, IsDateString, IsNumberString, IsDate } from "class-validator";
 import { CourseModality } from "src/types/course/course-modality.enum";
 
 export class CreateCourseDTO {
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsInt()
   moodle_id: number;
@@ -14,7 +14,7 @@ export class CreateCourseDTO {
   @IsString()
   course_name: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   category: string;
@@ -24,19 +24,19 @@ export class CreateCourseDTO {
   @IsString()
   short_name: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   start_date: Date;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDate()
   @Type(() => Date)
   end_date: Date;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // fundae_id: string;
@@ -47,12 +47,12 @@ export class CreateCourseDTO {
   @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
   modality: CourseModality;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsInt()
   // hours: number;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsNumberString()
   // price_per_hour: string;
