@@ -24,15 +24,15 @@ export default function AuthPage({ setInfo }: Readonly<Props>) {
 
     return <div style={{ maxWidth: 400, margin: "auto", padding: "2rem", border: "1px solid #f0f0f0", borderRadius: "8px", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)" }}>
             <Typography.Title level={2} style={{ textAlign: "center" }}>Login</Typography.Title>
-            <Form layout="vertical" onFinish={handleSubmit(submit)}>
+            <Form layout="vertical">
                 <Form.Item label="Username" name="username">
-                    <Controller name="username" control={control} render={({field}) => <Input value={field.value} onChange={field.onChange}/>}/>
+                    <Controller name="username" control={control} render={({field}) => <Input placeholder="Username" value={field.value} onChange={field.onChange}/>}/>
                 </Form.Item>
                 <Form.Item label="Password" name="password">
-                    <Controller name="password" control={control} render={({field}) => <Input.Password value={field.value} onChange={field.onChange}/>}/>
+                    <Controller name="password" control={control} render={({field}) => <Input.Password placeholder="Password" value={field.value} onChange={field.onChange}/>}/>
                 </Form.Item>
                 <Form.Item>
-                    <Button loading={isPending} type="primary" htmlType="submit" block>Submit</Button>
+                    <Button onClick={handleSubmit(submit)} loading={isPending} type="primary" htmlType="submit" block>Submit</Button>
                 </Form.Item>
             </Form>
             {error && <Alert type="error" showIcon message={error.status === 401 ? 'No autorizado' : 'Error desconocido'}/>}
