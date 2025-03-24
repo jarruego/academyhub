@@ -3,11 +3,11 @@ import { Button, Upload, message, Table } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import * as XLSX from "xlsx";
 import { useState, useEffect } from "react";
-import { UserImportTemplate } from "../shared/types/user/user-import-template";
-import { User } from "../shared/types/user/user";
-import { generateEasyPassword } from "../utils/helpers";
-import { useBulkCreateAndAddToGroupMutation } from "../hooks/api/users/use-bulk-create-and-add-to-group.mutation";
-import { useUsersQuery } from "../hooks/api/users/use-users.query";
+import { UserImportTemplate } from "../../shared/types/user/user-import-template";
+import { User } from "../../shared/types/user/user";
+import { generateEasyPassword } from "../../utils/helpers";
+import { useBulkCreateAndAddToGroupMutation } from "../../hooks/api/users/use-bulk-create-and-add-to-group.mutation";
+import { useUsersQuery } from "../../hooks/api/users/use-users.query";
 
 export default function ImportUsersToGroupRoute() {
   const { id_group } = useParams();

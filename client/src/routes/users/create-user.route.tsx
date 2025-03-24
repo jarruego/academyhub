@@ -1,7 +1,7 @@
 import { Button, Form, Input, message } from "antd";
 import { useNavigate } from "react-router-dom";
-import { useCreateUserMutation } from "../hooks/api/users/use-create-user.mutation";
-import { User } from "../shared/types/user/user";
+import { useCreateUserMutation } from "../../hooks/api/users/use-create-user.mutation";
+import { User } from "../../shared/types/user/user";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { SaveOutlined } from "@ant-design/icons"; // Importar el icono
 import { useEffect } from "react";

@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Button, message, Table, Input } from "antd";
-import { useUsersQuery } from "../hooks/api/users/use-users.query";
-import { useAddUserToGroupMutation } from "../hooks/api/groups/use-add-user-to-group.mutation";
-import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
-import { useDeleteUserFromGroupMutation } from "../hooks/api/groups/use-delete-user-from-group.mutation";
+import { useUsersQuery } from "../../hooks/api/users/use-users.query";
+import { useAddUserToGroupMutation } from "../../hooks/api/groups/use-add-user-to-group.mutation";
+import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
+import { useDeleteUserFromGroupMutation } from "../../hooks/api/groups/use-delete-user-from-group.mutation";
 import { useState, useEffect } from "react";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons"; 
 

@@ -1,5 +1,5 @@
 
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsNotEmpty, IsString, IsEmail, IsOptional } from "class-validator";
 
 export class CreateCenterDTO {
@@ -8,7 +8,7 @@ export class CreateCenterDTO {
   @IsString()
   center_name: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   employer_number: string;
@@ -17,17 +17,17 @@ export class CreateCenterDTO {
   @IsNotEmpty()
   id_company: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   contact_person: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   contact_phone: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   contact_email: string;

@@ -1,6 +1,6 @@
 import { Button, Table } from "antd";
 import { useNavigate } from "react-router-dom";
-import { useCompaniesQuery } from "../hooks/api/companies/use-companies.query";
+import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { PlusOutlined, ReloadOutlined } from "@ant-design/icons"; // Importar los iconos
 import { useEffect } from "react";
 

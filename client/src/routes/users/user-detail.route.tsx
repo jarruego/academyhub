@@ -1,11 +1,11 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useUserQuery } from "../hooks/api/users/use-user.query";
-import { useUpdateUserMutation } from "../hooks/api/users/use-update-user.mutation";
-import { useDeleteUserMutation } from "../hooks/api/users/use-delete-user.mutation";
+import { useUserQuery } from "../../hooks/api/users/use-user.query";
+import { useUpdateUserMutation } from "../../hooks/api/users/use-update-user.mutation";
+import { useDeleteUserMutation } from "../../hooks/api/users/use-delete-user.mutation";
 import { Button, Form, Input, message } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
-import { User } from "../shared/types/user/user";
+import { User } from "../../shared/types/user/user";
 
 export default function UserDetailRoute() {
   const navigate = useNavigate();

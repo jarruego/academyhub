@@ -1,10 +1,10 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message } from "antd";
-import { useCenterQuery } from "../hooks/api/centers/use-center.query";
-import { useUpdateCenterMutation } from "../hooks/api/centers/use-update-center.mutation";
-import { useDeleteCenterMutation } from "../hooks/api/centers/use-delete-center.mutation";
-import { Center } from "../shared/types/center/center";
+import { useCenterQuery } from "../../hooks/api/centers/use-center.query";
+import { useUpdateCenterMutation } from "../../hooks/api/centers/use-update-center.mutation";
+import { useDeleteCenterMutation } from "../../hooks/api/centers/use-delete-center.mutation";
+import { Center } from "../../shared/types/center/center";
 import { useEffect } from "react";
 import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 

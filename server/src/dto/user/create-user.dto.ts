@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsNotEmpty, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsOptional, IsDate, IsDateString} from "class-validator";
 // import { DocumentType } from "src/types/user/document-type.enum";
 // import { Gender } from "src/types/user/gender.enum";
@@ -10,18 +10,18 @@ export class CreateUserDTO {
   @IsString()
   name: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   first_surname: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   second_surname: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsNotEmpty() // TODO: Revisar, es posible que no sea obligatorio al insertar
   @IsString()
   dni: string;
 
@@ -30,97 +30,97 @@ export class CreateUserDTO {
   // @IsIn(Object.values(DocumentType))
   // document_type?: DocumentType;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsEmail()
   email: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   phone: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   moodle_username: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   moodle_password: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsOptional()
   @IsInt()
   moodle_id: number;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsDateString()
   // registration_date: Date;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // nss: string;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsIn(Object.values(Gender))
   // gender?: Gender;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // professional_category: string;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsBoolean()
   // disability: boolean;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsBoolean()
   // terrorism_victim: boolean;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsBoolean()
   // gender_violence_victim: boolean;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // education_level: string;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // address: string;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // postal_code: string;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // city: string;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // province: string;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // country: string;
 
-  // @ApiProperty()
+  // @ApiPropertyOptional()
   // @IsOptional()
   // @IsString()
   // observations: string;

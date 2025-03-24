@@ -1,17 +1,17 @@
 import { useParams } from "react-router-dom";
-import { useCourseQuery } from "../hooks/api/courses/use-course.query";
-import { useGroupsQuery } from "../hooks/api/groups/use-groups.query";
-import { useUpdateCourseMutation } from "../hooks/api/courses/use-update-course.mutation";
+import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
+import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
+import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
 import { Button, DatePicker, Form, Input, Table, Select, message } from "antd";
 import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect } from "react";
-import { useUsersByGroupQuery } from "../hooks/api/users/use-users-by-group.query";
-import { Course } from "../shared/types/course/course";
-import { CourseModality } from "../shared/types/course/course-modality.enum";
-import { useDeleteCourseMutation } from "../hooks/api/courses/use-delete-course.mutation";
+import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
+import { Course } from "../../shared/types/course/course";
+import { CourseModality } from "../../shared/types/course/course-modality.enum";
+import { useDeleteCourseMutation } from "../../hooks/api/courses/use-delete-course.mutation";
 import { useNavigate } from "react-router-dom";
-import { USERS_TABLE_COLUMNS } from "../constants/tables/users-table-columns.constant";
+import { USERS_TABLE_COLUMNS } from "../../constants/tables/users-table-columns.constant";
 
 export default function CourseDetailRoute() {
   const navigate = useNavigate();

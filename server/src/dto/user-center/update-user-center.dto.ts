@@ -1,23 +1,23 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsDateString, IsOptional } from 'class-validator';
 
 export class UpdateUserCenterDTO {
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsInt()
   @IsOptional()
   id_user?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsInt()
   @IsOptional()
   id_center?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsDateString()
   @IsOptional()
   start_date?: Date;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsDateString()
   @IsOptional()
   end_date?: Date;

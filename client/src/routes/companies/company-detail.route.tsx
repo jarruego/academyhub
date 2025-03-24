@@ -1,12 +1,12 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useCompanyQuery } from "../hooks/api/companies/use-company.query";
-import { useUpdateCompanyMutation } from "../hooks/api/companies/use-update-company.mutation";
-import { useDeleteCompanyMutation } from "../hooks/api/companies/use-delete-company.mutation";
+import { useCompanyQuery } from "../../hooks/api/companies/use-company.query";
+import { useUpdateCompanyMutation } from "../../hooks/api/companies/use-update-company.mutation";
+import { useDeleteCompanyMutation } from "../../hooks/api/companies/use-delete-company.mutation";
 import { Button, Form, Input, message, Table, Tabs } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
-import { Company } from "../shared/types/company/company";
-import { useCentersQuery } from "../hooks/api/centers/use-centers.query";
+import { Company } from "../../shared/types/company/company";
+import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { PlusOutlined, DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 
 export default function CompanyDetailRoute() {
