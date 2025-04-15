@@ -8,7 +8,6 @@ export const authUserTable = pgTable('auth_users', {
     email: varchar({length: 128}).notNull().unique(),
     username: varchar({length: 32}).notNull().unique(),
     password: varchar({length: 256}).notNull(),
-
-    // TODO: roleId
+    //accessLevel: varchar({length: 16}).default('user').notNull(), // Ejemplo: 'admin', 'editor', 'user'
     ...TIMESTAMPS,
 });
