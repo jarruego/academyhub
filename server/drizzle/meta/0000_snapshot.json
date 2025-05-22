@@ -1,5 +1,5 @@
 {
-  "id": "0e7c7aa9-36eb-48da-9443-cd8c809f2906",
+  "id": "9bc7fef8-17d4-47ec-9f57-8429c29c5682",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -729,6 +729,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "registration_date": {
+          "name": "registration_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "dni": {
           "name": "dni",
           "type": "text",
@@ -737,6 +743,92 @@
         },
         "phone": {
           "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nss": {
+          "name": "nss",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "document_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gender": {
+          "name": "gender",
+          "type": "gender",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "professional_category": {
+          "name": "professional_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disability": {
+          "name": "disability",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "terrorism_victim": {
+          "name": "terrorism_victim",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gender_violence_victim": {
+          "name": "gender_violence_victim",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "education_level": {
+          "name": "education_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "postal_code": {
+          "name": "postal_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "province": {
+          "name": "province",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observations": {
+          "name": "observations",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -779,6 +871,13 @@
           "nullsNotDistinct": false,
           "columns": [
             "dni"
+          ]
+        },
+        "users_nss_unique": {
+          "name": "users_nss_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nss"
           ]
         }
       },

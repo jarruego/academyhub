@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty } from "class-validator";
-//import { DocumentType } from "src/types/user/document-type.enum";
-//import { Gender } from "src/types/user/gender.enum";
+// import { DocumentType } from "src/types/user/document-type.enum";
+// import { Gender } from "src/types/user/gender.enum";
 
 export class FilterUserDTO {
   @IsOptional()

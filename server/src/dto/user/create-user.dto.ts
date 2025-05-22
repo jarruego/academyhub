@@ -28,7 +28,7 @@ export class CreateUserDTO {
   // @ApiProperty()
   // @IsNotEmpty()
   // @IsIn(Object.values(DocumentType))
-  // document_type?: DocumentType;
+  // document_type: DocumentType;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -68,7 +68,7 @@ export class CreateUserDTO {
   // @ApiPropertyOptional()
   // @IsOptional()
   // @IsIn(Object.values(Gender))
-  // gender?: Gender;
+  // gender: Gender;
 
   @ApiPropertyOptional()
   @IsOptional()

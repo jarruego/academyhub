@@ -1,7 +1,7 @@
 import { pgTable, serial, integer, text, date, boolean, decimal, pgEnum, timestamp } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { CourseModality } from "src/types/course/course-modality.enum";
-import { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { InferSelectModel } from "drizzle-orm";
 
 export const courseModality = pgEnum('course_modality', Object.values(CourseModality) as [string, ...string[]]);
 

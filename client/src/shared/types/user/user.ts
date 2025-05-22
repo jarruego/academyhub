@@ -1,3 +1,5 @@
+// import { Gender } from "./gender.enum";
+
 export type User = {
     id_user: number;
     name: string;
@@ -14,6 +16,7 @@ export type User = {
     disability?: boolean;
     terrorism_victim?: boolean;
     gender_violence_victim?: boolean;
+    // gender?: Gender;
     education_level?: string;
     postal_code?: string;
     city?: string;
