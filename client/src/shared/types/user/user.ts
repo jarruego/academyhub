@@ -9,4 +9,17 @@ export type User = {
     moodle_id?: number; 
     dni: string;
     phone: string;
+    address?: string;
+    professional_category?: string;
+    disability?: boolean;
+    terrorism_victim?: boolean;
+    gender_violence_victim?: boolean;
+    education_level?: string;
+    postal_code?: string;
+    city?: string;
+    province?: string;
+    country?: string;
+    observations?: string;
+    registration_date?: Date;
+    nss?: string;
 }

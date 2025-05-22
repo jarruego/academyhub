@@ -48,6 +48,13 @@ export class UserRepository extends Repository {
         if (filter.phone) where.push(ilike(userTable.phone, `%{filter.phone}%`));
         //if (filter.nss) where.push(ilike(userTable.nss, `%{filter.nss}%`));
         //if (filter.document_type) where.push(ilike(userTable.document_type, `%{filter.document_type}%`));
+        if (filter.professional_category) where.push(ilike(userTable.professional_category, `%{filter.professional_category}%`));
+        if (filter.education_level) where.push(ilike(userTable.education_level, `%{filter.education_level}%`));
+        if (filter.postal_code) where.push(ilike(userTable.postal_code, `%{filter.postal_code}%`));
+        if (filter.city) where.push(ilike(userTable.city, `%{filter.city}%`));
+        if (filter.province) where.push(ilike(userTable.province, `%{filter.province}%`));
+        if (filter.country) where.push(ilike(userTable.country, `%{filter.country}%`));
+        if (filter.observations) where.push(ilike(userTable.observations, `%{filter.observations}%`));
         
         return await this.query(options).select().from(userTable).where(and(...where));
   }

@@ -55,73 +55,73 @@ export class CreateUserDTO {
   @IsInt()
   moodle_id: number;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsDateString()
-  // registration_date: Date;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  registration_date: Date;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // nss: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  nss: string;
 
   // @ApiPropertyOptional()
   // @IsOptional()
   // @IsIn(Object.values(Gender))
   // gender?: Gender;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // professional_category: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  professional_category: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsBoolean()
-  // disability: boolean;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  disability: boolean;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsBoolean()
-  // terrorism_victim: boolean;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  terrorism_victim: boolean;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsBoolean()
-  // gender_violence_victim: boolean;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  gender_violence_victim: boolean;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // education_level: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  education_level: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // address: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  address: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // postal_code: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  postal_code: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // city: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  city: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // province: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  province: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // country: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  country: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // observations: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  observations: string;
 }
