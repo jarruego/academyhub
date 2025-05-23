@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty } from "class-validator";
-// import { DocumentType } from "src/types/user/document-type.enum";
-// import { Gender } from "src/types/user/gender.enum";
+import { DocumentType } from "src/types/user/document-type.enum";
+import { Gender } from "src/types/user/gender.enum";
 
 export class UpdateUserDTO {
   @ApiPropertyOptional()
@@ -22,12 +22,12 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  dni: string;
+  dni?: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsIn(Object.values(DocumentType))
-  // document_type?: DocumentType;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsIn(Object.values(DocumentType))
+  document_type?: DocumentType;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -44,10 +44,10 @@ export class UpdateUserDTO {
   @IsString()
   moodle_username?: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // moodle_password: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  moodle_password: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -64,10 +64,10 @@ export class UpdateUserDTO {
   @IsString()
   nss: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsIn(Object.values(Gender))
-  // gender?: Gender;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsIn(Object.values(Gender))
+  gender?: Gender;
 
   @ApiPropertyOptional()
   @IsOptional()

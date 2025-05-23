@@ -4,8 +4,8 @@ import { TIMESTAMPS } from "./timestamps";
 import { Gender } from "src/types/user/gender.enum";
 import { DocumentType } from "src/types/user/document-type.enum";
 
-// export const gender = pgEnum('gender', Object.values(Gender) as [string, ...string[]]);
-// export const documentType = pgEnum('document_type', Object.values(DocumentType) as [string, ...string[]]);
+export const gender = pgEnum('gender', Object.values(Gender) as [string, ...string[]]);
+export const documentType = pgEnum('document_type', Object.values(DocumentType) as [string, ...string[]]);
 
 export const userTable = pgTable("users", {
     id_user: serial("id_user").primaryKey(),
@@ -20,8 +20,8 @@ export const userTable = pgTable("users", {
     dni: text("dni").unique(),
     phone: text("phone"),
     nss: text("nss").unique(),
-    // document_type: documentType(),
-    // gender: gender(), 
+    document_type: documentType("document_type").default('DNI'),
+    gender: gender("gender").default('Other'), 
     professional_category: text("professional_category"),
     disability: boolean("disability"),
     terrorism_victim: boolean("terrorism_victim"),

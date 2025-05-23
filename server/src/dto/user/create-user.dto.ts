@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsNotEmpty, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsOptional, IsDate, IsDateString} from "class-validator";
-// import { DocumentType } from "src/types/user/document-type.enum";
-// import { Gender } from "src/types/user/gender.enum";
+import { DocumentType } from "src/types/user/document-type.enum";
+import { Gender } from "src/types/user/gender.enum";
 
 
 export class CreateUserDTO {
@@ -23,12 +23,12 @@ export class CreateUserDTO {
   @ApiProperty()
   @IsNotEmpty() // TODO: Revisar, es posible que no sea obligatorio al insertar
   @IsString()
-  dni: string;
+  dni?: string;
 
-  // @ApiProperty()
-  // @IsNotEmpty()
-  // @IsIn(Object.values(DocumentType))
-  // document_type: DocumentType;
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsIn(Object.values(DocumentType))
+  document_type?: DocumentType;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -65,10 +65,10 @@ export class CreateUserDTO {
   @IsString()
   nss: string;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsIn(Object.values(Gender))
-  // gender: Gender;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsIn(Object.values(Gender))
+  gender?: Gender;
 
   @ApiPropertyOptional()
   @IsOptional()

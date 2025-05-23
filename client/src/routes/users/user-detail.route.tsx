@@ -2,10 +2,12 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useUserQuery } from "../../hooks/api/users/use-user.query";
 import { useUpdateUserMutation } from "../../hooks/api/users/use-update-user.mutation";
 import { useDeleteUserMutation } from "../../hooks/api/users/use-delete-user.mutation";
-import { Button, Form, Input, message, Checkbox } from "antd";
+import { Button, Form, Input, message, Checkbox, Select } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
 import { User } from "../../shared/types/user/user";
+import { Gender } from "../../shared/types/user/gender.enum";
+import { DocumentType } from "../../shared/types/user/document-type.enum";
 
 export default function UserDetailRoute() {
   const navigate = useNavigate();
@@ -74,19 +76,56 @@ export default function UserDetailRoute() {
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
+          <Form.Item label="DNI" name="dni" style={{ flex: 1 }}>
+            <Controller name="dni" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+          <Form.Item label="Tipo Doc." name="document_type" style={{ flex: 1 }}>
+            <Controller
+              name="document_type"
+              control={control}
+              render={({ field, fieldState }) => (
+                <Select
+                  {...field}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Seleccione tipo"
+                  status={fieldState.invalid ? "error" : undefined}
+                >
+                  <Select.Option value={DocumentType.DNI}>DNI</Select.Option>
+                  <Select.Option value={DocumentType.NIE}>NIE</Select.Option>
+                </Select>
+              )}
+            />
+          </Form.Item>
+          <Form.Item label="Moodle Username" name="moodle_username" style={{ flex: 1 }}>
+            <Controller name="moodle_username" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+        </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
           <Form.Item label="Email" name="email" style={{ flex: 1 }}>
             <Controller name="email" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
           <Form.Item label="Teléfono" name="phone" style={{ flex: 1 }}>
             <Controller name="phone" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
-        </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="DNI" name="dni" style={{ flex: 1 }}>
-            <Controller name="dni" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="Moodle Username" name="moodle_username" style={{ flex: 1 }}>
-            <Controller name="moodle_username" control={control} render={({ field }) => <Input {...field} />} />
+          <Form.Item label="Sexo" name="gender" style={{ flex: 1 }}>
+            <Controller
+              name="gender"
+              control={control}
+              render={({ field, fieldState }) => (
+                <Select
+                  {...field}
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="Seleccione sexo"
+                  status={fieldState.invalid ? "error" : undefined}
+                >
+                  <Select.Option value={Gender.MALE}>Masculino</Select.Option>
+                  <Select.Option value={Gender.FEMALE}>Femenino</Select.Option>
+                  <Select.Option value={Gender.OTHER}>Otro</Select.Option>
+                </Select>
+              )}
+            />
           </Form.Item>
         </div>
         <Form.Item label="Dirección" name="address">

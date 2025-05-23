@@ -1,6 +1,6 @@
 import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty } from "class-validator";
-// import { DocumentType } from "src/types/user/document-type.enum";
-// import { Gender } from "src/types/user/gender.enum";
+import { DocumentType } from "src/types/user/document-type.enum";
+import { Gender } from "src/types/user/gender.enum";
 
 export class FilterUserDTO {
   @IsOptional()
@@ -23,9 +23,9 @@ export class FilterUserDTO {
   @IsString()
   dni?: string;
 
-  // @IsOptional()
-  // @IsIn(Object.values(DocumentType))
-  // document_type?: DocumentType;
+  @IsOptional()
+  @IsIn(Object.values(DocumentType))
+  document_type?: DocumentType;
 
   @IsOptional()
   @IsEmail()
@@ -55,9 +55,9 @@ export class FilterUserDTO {
   @IsString()
   nss?: string;
 
-  // @IsOptional()
-  // @IsIn(Object.values(Gender))
-  // gender?: Gender;
+  @IsOptional()
+  @IsIn(Object.values(Gender))
+  gender?: Gender;
 
   @IsOptional()
   @IsString()

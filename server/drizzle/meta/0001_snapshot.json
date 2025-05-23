@@ -1,6 +1,6 @@
 {
-  "id": "c52d4bee-cafc-49b4-9859-7169d5e47ed0",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "3a3d9aa9-255d-4e33-a6ab-f8417271a951",
+  "prevId": "c52d4bee-cafc-49b4-9859-7169d5e47ed0",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -770,6 +770,22 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "document_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'DNI'"
+        },
+        "gender": {
+          "name": "gender",
+          "type": "gender",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Other'"
         },
         "professional_category": {
           "name": "professional_category",
