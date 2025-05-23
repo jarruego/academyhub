@@ -100,8 +100,14 @@ export class CourseService {
         moodle_id: moodleCourse.id,
         start_date: new Date(moodleCourse.startdate),
         end_date: new Date(moodleCourse.enddate),
+        // Campos opcionales necesarios para la creación
+        // TODO: comprobar si ya están definidos en la base de datos
         category: "",
         modality: CourseModality.ONLINE,
+        hours: 0,
+        price_per_hour: "",
+        active: true,
+        fundae_id: "",
       };
       const existingCourse = await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
       if (existingCourse) {

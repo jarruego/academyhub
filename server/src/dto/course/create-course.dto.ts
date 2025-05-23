@@ -36,29 +36,29 @@ export class CreateCourseDTO {
   @Type(() => Date)
   end_date: Date;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsString()
-  // fundae_id: string;
-
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
   @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
   modality: CourseModality;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsInt()
-  // hours: number;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  hours: number;
 
   // @ApiPropertyOptional()
   // @IsOptional()
   // @IsNumberString()
   // price_per_hour: string;
 
-  // @ApiProperty()
-  // @IsNotEmpty()
-  // @IsBoolean()
-  // active: boolean;
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsBoolean()
+  active: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  fundae_id: string;
 }

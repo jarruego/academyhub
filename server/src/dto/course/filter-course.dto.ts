@@ -29,24 +29,24 @@ export class FilterCourseDTO {
   @Type(() => Date)
   end_date?: Date;
 
-  // @IsOptional()
-  // @IsString()
-  // fundae_id?: string;
-
   @IsOptional()
   @IsString()
   @IsIn(Object.values(CourseModality)) // Validación de valores permitidos
   modality?: CourseModality;
 
-  // @IsOptional()
-  // @IsInt()
-  // hours?: number;
+  @IsOptional()
+  @IsInt()
+  hours?: number;
 
-  // @IsOptional()
-  // @IsBoolean()
-  // active?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
 
   // @IsOptional()
   // @IsNumberString()
   // price_per_hour?: string;
+
+  @IsOptional()
+  @IsString()
+  fundae_id?: string;
 }

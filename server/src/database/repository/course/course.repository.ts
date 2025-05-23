@@ -40,7 +40,7 @@ export class CourseRepository extends Repository {
         if (filter.end_date) where.push(eq(courseTable.end_date, filter.end_date));
         // if (filter.price_per_hour) where.push(eq(courseTable.price_per_hour, filter.price_per_hour));
         if (filter.modality) where.push(eq(courseTable.modality, filter.modality));
-        // if (filter.active) where.push(eq(courseTable.active, filter.active));
+        if (filter.active) where.push(eq(courseTable.active, filter.active));
 
         return await this.query(options).select().from(courseTable).where(and(...where));
   }

@@ -10,4 +10,8 @@ export type Course = {
     start_date: Dayjs;
     end_date: Dayjs;
     modality: CourseModality;
+    hours: number;
+    price_per_hour: number; 
+    fundae_id: string;
+    active: boolean;
 }
