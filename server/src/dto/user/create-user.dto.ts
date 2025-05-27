@@ -21,14 +21,14 @@ export class CreateUserDTO {
   second_surname: string;
 
   @ApiProperty()
-  @IsNotEmpty() // TODO: Revisar, es posible que no sea obligatorio al insertar
+  @IsNotEmpty()
   @IsString()
-  dni?: string;
+  dni: string; // TODO: DNI is not mandatory, but if provided, it must be unique
 
   @ApiProperty()
   @IsNotEmpty()
   @IsIn(Object.values(DocumentType))
-  document_type?: DocumentType;
+  document_type: DocumentType;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -65,10 +65,10 @@ export class CreateUserDTO {
   @IsString()
   nss: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
+  @ApiProperty()
+  @IsNotEmpty()
   @IsIn(Object.values(Gender))
-  gender?: Gender;
+  gender: Gender;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -15,6 +15,20 @@
       "when": 1748026699234,
       "tag": "0001_fast_betty_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1748282648712,
+      "tag": "0002_jittery_wild_pack",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1748282841316,
+      "tag": "0003_amusing_absorbing_man",
+      "breakpoints": true
     }
   ]
 }

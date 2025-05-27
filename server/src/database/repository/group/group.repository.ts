@@ -7,6 +7,7 @@ import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { userTable } from "src/database/schema/tables/user.table";
 import { UpdateUserGroupDTO } from "src/dto/user-group/update-user-group.dto";
 import { MoodleGroup } from "src/types/moodle/group";
+import { start } from "repl";
 
 @Injectable()
 export class GroupRepository extends Repository {
@@ -120,7 +121,11 @@ export class GroupRepository extends Repository {
       group_name: moodleGroup.name,
       moodle_id: moodleGroup.id,
       id_course: id_course,
-      description: moodleGroup.description || ''
+      description: moodleGroup.description || '',
+      // TODO: Moodle not providing this fields
+      fundae_id: '', 
+      start_date: null,
+      end_date: null  
     };
     const existingGroup = await this.findByMoodleId(moodleGroup.id, options);
     if (existingGroup) {

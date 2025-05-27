@@ -17,10 +17,10 @@ export const userTable = pgTable("users", {
     moodle_password: text("moodle_password"),
     moodle_id: integer("moodle_id").unique(),
     registration_date: date("registration_date", { mode: 'date' }),
-    dni: text("dni").unique(),
+    dni: text("dni").unique(), // TODO: DNI is not mandatory, but if provided, it must be unique
     phone: text("phone"),
     nss: text("nss").unique(),
-    document_type: documentType("document_type").default('DNI'),
+    document_type: documentType("document_type").default(DocumentType.DNI),
     gender: gender("gender").default('Other'), 
     professional_category: text("professional_category"),
     disability: boolean("disability"),

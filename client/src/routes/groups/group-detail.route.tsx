@@ -87,12 +87,17 @@ export default function EditGroupRoute() {
       <Tabs defaultActiveKey="1">
         <Tabs.TabPane tab="Datos del Grupo" key="1">
           <Form layout="vertical" onFinish={handleSubmit(submit)}>
-            <Form.Item label="ID del grupo" name="id_group">
-              <Controller name="id_group" control={control} render={({ field }) => <Input {...field} disabled />} />
-            </Form.Item>
-            <Form.Item label="Nombre del grupo" name="group_name">
-              <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
-            </Form.Item>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: "flex-start" }}>
+              <Form.Item label="ID del grupo" name="id_group">
+                <Controller name="id_group" control={control} render={({ field }) => <Input {...field} disabled />} />
+              </Form.Item>
+              <Form.Item label="ID FUNDAE" name="fundae_id">
+                <Controller name="fundae_id" control={control} render={({ field }) => <Input {...field} />} />
+              </Form.Item>
+              <Form.Item label="Nombre del grupo" name="group_name">
+                <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
+              </Form.Item>
+            </div>
             <Form.Item label="Descripción" name="description">
               <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
             </Form.Item>

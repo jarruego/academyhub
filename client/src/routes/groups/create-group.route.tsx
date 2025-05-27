@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message } from "antd";
+import { Button, Form, Input, message, DatePicker } from "antd";
 import { useCreateGroupMutation } from "../../hooks/api/groups/use-create-group.mutation";
 import { Group } from "../../shared/types/group/group";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
@@ -42,6 +42,17 @@ export default function CreateGroupRoute() {
         <Form.Item label="Descripción" name="description">
           <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
+          <Form.Item label="Fecha Inicio" name="start_date">
+            <Controller name="start_date" control={control} render={({ field }) => <DatePicker {...field} id="start_date" />} />
+          </Form.Item>
+          <Form.Item label="Fecha Fin" name="end_date">
+            <Controller name="end_date" control={control} render={({ field }) => <DatePicker {...field} id="end_date" />} />
+          </Form.Item>
+          <Form.Item label="ID FUNDAE" name="fundae_id">
+            <Controller name="fundae_id" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+        </div>
         <Form.Item>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
             Crear Grupo

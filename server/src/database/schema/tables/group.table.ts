@@ -9,8 +9,9 @@ export const groupTable = pgTable("groups", {
   group_name: text("group_name").notNull(),
   id_course: integer("id_course").notNull().references(() => courseTable.id_course),
   description: text("description"),
-  // start_date: date({mode: 'date'}),
-  // end_date: date({mode: 'date'}),
+  start_date: date({mode: 'date'}),
+  end_date: date({mode: 'date'}),
+  fundae_id: text(),
     ...TIMESTAMPS,
 });
 
