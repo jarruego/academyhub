@@ -17,7 +17,7 @@ export default function CentersRoute() {
       columns={[
         { title: 'ID', dataIndex: 'id_center' },
         { title: 'Nombre del centro', dataIndex: 'center_name' },
-        { title: 'Número de empleados', dataIndex: 'employer_number' },
+        { title: 'Número de patronal', dataIndex: 'employer_number' },
         { title: 'Persona de contacto', dataIndex: 'contact_person' },
         { title: 'Teléfono de contacto', dataIndex: 'contact_phone' },
         { title: 'Email de contacto', dataIndex: 'contact_email' },

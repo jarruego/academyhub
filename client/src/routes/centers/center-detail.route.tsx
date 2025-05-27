@@ -58,7 +58,7 @@ export default function EditCenterRoute() {
         <Form.Item label="Nombre del centro" name="center_name">
           <Controller name="center_name" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
-        <Form.Item label="Número de empleados" name="employer_number">
+        <Form.Item label="Número de patronal" name="employer_number">
           <Controller name="employer_number" control={control} render={({ field }) => <Input {...field} />} />
         </Form.Item>
         <Form.Item label="Persona de contacto" name="contact_person">

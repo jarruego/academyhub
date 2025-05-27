@@ -54,17 +54,19 @@ export default function CompanyDetailRoute() {
     <Tabs defaultActiveKey="1">
       <Tabs.TabPane tab="Datos de Empresa" key="1">
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
-          <Form.Item label="ID" name="id_company">
-            <Controller name="id_company" control={control} render={({ field }) => <Input {...field} disabled />} />
-          </Form.Item>
-          <Form.Item label="Nombre de la empresa" name="company_name">
-            <Controller name="company_name" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
+            <Form.Item label="ID" name="id_company" style={{ maxWidth: '35px' }}>
+              <Controller name="id_company" control={control} render={({ field }) => <Input {...field} disabled />} />
+            </Form.Item>
+            <Form.Item label="CIF" name="cif">
+              <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
+            </Form.Item>
+          </div>
+            <Form.Item label="Nombre de la empresa" name="company_name">
+              <Controller name="company_name" control={control} render={({ field }) => <Input {...field} />} />
+            </Form.Item>
           <Form.Item label="Razón Social" name="corporate_name">
             <Controller name="corporate_name" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="CIF" name="cif">
-            <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
@@ -79,7 +81,7 @@ export default function CompanyDetailRoute() {
           columns={[
             { title: 'ID', dataIndex: 'id_center' },
             { title: 'Nombre del centro', dataIndex: 'center_name' },
-            { title: 'Número de empleados', dataIndex: 'employer_number' },
+            { title: 'Número de patronal', dataIndex: 'employer_number' },
             { title: 'Persona de contacto', dataIndex: 'contact_person' },
             { title: 'Teléfono de contacto', dataIndex: 'contact_phone' },
             { title: 'Email de contacto', dataIndex: 'contact_email' },
