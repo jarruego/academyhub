@@ -4,7 +4,7 @@ import { getApiHost } from "../../../utils/api/get-api-host.util";
 import { User } from "../../../shared/types/user/user";
 
 export const useCreateUserMutation = () => {
-  const request = useAuthenticatedAxios<Omit<User, 'id_user'>>();
+  const request = useAuthenticatedAxios<Omit<User, 'id_user' >>();
   const queryClient = useQueryClient();
 
   return useMutation({

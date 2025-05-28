@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message, Table, Tabs } from "antd";
+import { Button, Form, Input, message, Table, Tabs, DatePicker } from "antd";
 import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
@@ -9,6 +9,7 @@ import { useDeleteUserFromGroupMutation } from "../../hooks/api/groups/use-delet
 import { Group } from "../../shared/types/group/group";
 import { useEffect, useState } from "react";
 import { DeleteOutlined, SaveOutlined, PlusOutlined } from "@ant-design/icons"; // Importar los iconos
+import dayjs from "dayjs";
 
 export default function EditGroupRoute() {
   const { id_group } = useParams();
@@ -36,7 +37,11 @@ export default function EditGroupRoute() {
   const submit: SubmitHandler<Group> = async (data) => {
     if (!groupData) return;
     try {
-      await updateGroup(data);
+      await updateGroup({
+        ...data,
+        start_date: data.start_date.add(1, 'day'),
+        end_date: data.end_date.add(1, 'day')
+      });
       message.success('Grupo actualizado exitosamente');
       navigate(`/courses/${groupData.id_course}`);
     } catch {
@@ -96,6 +101,34 @@ export default function EditGroupRoute() {
               </Form.Item>
               <Form.Item label="Nombre del grupo" name="group_name">
                 <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
+              </Form.Item>
+              <Form.Item label="Fecha Inicio" name="start_date">
+                <Controller
+                  name="start_date"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      {...field}
+                      value={field.value ? dayjs(field.value) : null}
+                      onChange={date => field.onChange(date.startOf("day"))}
+                      id="start_date"
+                    />
+                  )}
+                />
+              </Form.Item>
+              <Form.Item label="Fecha Fin" name="end_date">
+                <Controller
+                  name="end_date"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      {...field}
+                      value={field.value ? dayjs(field.value) : null}
+                      onChange={date => field.onChange(date.startOf("day"))}
+                      id="end_date"
+                    />
+                  )}
+                />
               </Form.Item>
             </div>
             <Form.Item label="Descripción" name="description">

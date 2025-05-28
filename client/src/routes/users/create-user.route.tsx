@@ -1,29 +1,65 @@
 import { Button, Form, Input, message, Checkbox, Select } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCreateUserMutation } from "../../hooks/api/users/use-create-user.mutation";
-import { User } from "../../shared/types/user/user";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { SaveOutlined } from "@ant-design/icons"; // Importar el icono
 import { useEffect } from "react";
 import { Gender } from "../../shared/types/user/gender.enum";
 import { DocumentType } from "../../shared/types/user/document-type.enum";
+import { zodResolver } from "@hookform/resolvers/zod"
+import z from "zod";
+import { DNI_SCHEMA } from "../../schemas/dni.schema";
+
+const CREATE_USER_FORM = z.object({
+  name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
+  first_surname: z.string({ required_error: "El primer apellido es obligatorio" }).min(1, "El primer apellido no puede estar vacío"),
+  second_surname: z.string({ required_error: "El segundo apellido es obligatorio" }).min(1, "El segundo apellido no puede estar vacío"),
+  email: z.string({ required_error: "El correo electrónico es obligatorio" }).email("El correo electrónico no es válido"),
+  moodle_username: z.string({ required_error: "El usuario de Moodle es obligatorio" }),
+  moodle_password: z.string({ required_error: "La contraseña de Moodle es obligatoria" }).min(1, "La contraseña de Moodle no puede estar vacía"),
+  moodle_id: z.number().optional(),
+  dni: DNI_SCHEMA,
+  document_type: z.nativeEnum(DocumentType, {
+    errorMap: () => ({ message: "Tipo de documento no válido" }),
+  }).optional(),
+  phone: z.string({ required_error: "El teléfono es obligatorio" }),
+  address: z.string().optional(),
+  professional_category: z.string().optional(),
+  disability: z.boolean().optional().default(false),
+  terrorism_victim: z.boolean().optional().default(false),
+  gender_violence_victim: z.boolean().optional().default(false),
+  gender: z.nativeEnum(Gender, {
+    errorMap: () => ({ message: "Género no válido" }),
+  }).optional(),
+  education_level: z.string().optional(),
+  postal_code: z.string().optional(),
+  city: z.string().optional(),
+  province: z.string().optional(),
+  country: z.string().optional(),
+  observations: z.string().optional(),
+  registration_date: z.date({ invalid_type_error: "La fecha de registro debe ser una fecha válida" }).optional(),
+  nss: z.string().optional(),
+});
 
 export default function CreateUserRoute() {
   const navigate = useNavigate();
   const { mutateAsync: createUser } = useCreateUserMutation();
-  const { handleSubmit, control } = useForm<Omit<User, 'id_user'>>({
-    defaultValues: {
-      disability: false,
-      terrorism_victim: false,
-      gender_violence_victim: false,
-    },
+  const { handleSubmit, control, formState: {errors} } = useForm({
+    // defaultValues: {
+    //   disability: false,
+    //   terrorism_victim: false,
+    //   gender_violence_victim: false,
+    // },
+    resolver: zodResolver(CREATE_USER_FORM)
   });
+
+  console.error(errors)
 
   useEffect(() => {
     document.title = "Crear Usuario";
   }, []);
 
-  const submit: SubmitHandler<Omit<User, 'id_user'>> = async (values) => {
+  const submit: SubmitHandler<z.infer<typeof CREATE_USER_FORM>> = async (values) => {
     try {
       await createUser(values);
       navigate('/users');
@@ -41,8 +77,8 @@ export default function CreateUserRoute() {
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="DNI" name="dni" style={{ flex: 1 }} required={true}>
-            <Controller name="dni" control={control} render={({ field }) => <Input {...field} />} />
+          <Form.Item help={errors.dni?.message} validateStatus={errors.dni ? "error" : undefined} label="DNI" name="dni" style={{ flex: 1 }}>
+            <Controller name="dni" control={control} render={({ field }) => <Input {...field} required />} />
           </Form.Item>
           <Form.Item label="Tipo Doc." name="document_type" style={{ flex: 1 }} required={true}>
             <Controller
@@ -173,6 +209,14 @@ export default function CreateUserRoute() {
                 </Checkbox>
               )}
             />
+          </Form.Item>
+        </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Form.Item label="Segundo Apellido" name="second_surname" style={{ flex: 2 }} required={true}>
+            <Controller name="second_surname" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+          <Form.Item label="Contraseña Moodle" name="moodle_password" style={{ flex: 2 }} required={true}>
+            <Controller name="moodle_password" control={control} render={({ field }) => <Input.Password {...field} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>

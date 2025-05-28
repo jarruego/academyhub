@@ -1,0 +1,2 @@
+--CREATE TYPE "public"."document_type" AS ENUM('DNI', 'NIE');--> statement-breakpoint
+--CREATE TYPE "public"."gender" AS ENUM('Male', 'Female', 'Other');
