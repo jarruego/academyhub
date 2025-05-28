@@ -53,8 +53,6 @@ export default function CreateUserRoute() {
     resolver: zodResolver(CREATE_USER_FORM)
   });
 
-  console.error(errors)
-
   useEffect(() => {
     document.title = "Crear Usuario";
   }, []);

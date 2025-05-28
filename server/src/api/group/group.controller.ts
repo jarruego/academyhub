@@ -18,7 +18,6 @@ export class GroupController {
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateGroupDTO: UpdateGroupDTO) {
     const numericId = parseInt(id, 10);
-    console.log({ updateGroupDTO})
     return this.groupService.update(numericId, updateGroupDTO);
   }
 
