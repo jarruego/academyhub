@@ -2,7 +2,7 @@ import { Injectable, HttpException, HttpStatus, InternalServerErrorException, Lo
 import axios from 'axios';
 import { MoodleCourse } from 'src/types/moodle/course';
 import { MoodleGroup } from 'src/types/moodle/group';
-import { MoodleUser } from 'src/types/moodle/user';
+import { MoodleUser, ExtendedMoodleUser } from 'src/types/moodle/user';
 
 type RequestOptions<D> = {
     params?: D;
@@ -14,7 +14,7 @@ type RequestOptions<D> = {
 @Injectable()
 export class MoodleService {
     private readonly MOODLE_URL = process.env.MOODLE_URL;
-    private readonly MOODLE_TOKEN = process.env.MOODLE_TOKEN; 
+    private readonly MOODLE_TOKEN = process.env.MOODLE_TOKEN;
 
     /**
      * Makes an HTTP request to the Moodle API with the specified function name and request options.
@@ -30,37 +30,41 @@ export class MoodleService {
      */
     private async request<R = Object, D = Object>(fn: string, { params: paramsData, method = 'get' }: RequestOptions<D> = {}) {
         const params = {
-                ...paramsData,
-                wstoken: this.MOODLE_TOKEN,
-                wsfunction: fn,
-                moodlewsrestformat: 'json',
-            };
+            ...paramsData,
+            wstoken: this.MOODLE_TOKEN,
+            wsfunction: fn,
+            moodlewsrestformat: 'json',
+        };
 
         try {
-            const response = await axios.request({url: this.MOODLE_URL, params, method });
+            const response = await axios.request({ url: this.MOODLE_URL, params, method });
 
             if (response.data.exception) throw response.data;
-            
+
             return response.data as R;
         } catch (moodleError) {
-            Logger.error({moodleError, params, url: this.MOODLE_URL}, "Moodle");
+            Logger.error({ moodleError, params, url: this.MOODLE_URL }, "Moodle");
             throw new InternalServerErrorException();
         }
     }
 
 
-    async getAllUsers() {
-        const data = await this.request<{users: Array<MoodleUser>}>('core_user_get_users', {params: {criteria: [
-            {
-                key: 'deleted',
-                value: '0'
+    async getAllUsers(): Promise<MoodleUser[]> {
+        const data = await this.request<{ users: Array<MoodleUser> }>('core_user_get_users', {
+            params: {
+                criteria: [
+                    {
+                        key: 'deleted',
+                        value: '0'
+                    }
+                ]
             }
-        ]}});
+        });
 
         return data.users;
     }
 
-    async getUserById(userId: number) {
+    async getUserById(userId: number): Promise<MoodleUser> {
         const data = await this.request<Array<MoodleUser>>('core_user_get_users_by_field', {
             params: {
                 field: 'id',
@@ -75,12 +79,12 @@ export class MoodleService {
         return data[0];
     }
 
-    async getAllCourses() {
+    async getAllCourses(): Promise<MoodleCourse[]> {
         const data = await this.request<Array<MoodleCourse>>('core_course_get_courses');
         return data;
     }
 
-    async getCourseGroups(courseId: number) {
+    async getCourseGroups(courseId: number): Promise<MoodleGroup[]> {
         const data = await this.request<Array<MoodleGroup>>('core_group_get_course_groups', {
             params: {
                 courseid: courseId
@@ -94,7 +98,7 @@ export class MoodleService {
      * Este método hace una solicitud a la API 'core_group_get_group_members' para obtener los IDs de los miembros
      * del grupo especificado. Luego, obtiene los detalles de cada usuario por su ID utilizando el método `getUserById`.
      */
-    async getGroupUsers(groupId: number) {
+    async getGroupUsers(groupId: number): Promise<MoodleUser[]> {
         const data = await this.request<Array<{ groupid: number, userids: number[] }>>('core_group_get_group_members', {
             params: {
                 groupids: [groupId]
@@ -110,7 +114,7 @@ export class MoodleService {
         return users;
     }
 
-    async getEnrolledUsers(courseId: number) {
+    async getEnrolledUsers(courseId: number): Promise<MoodleUser[]> {
         const data = await this.request<Array<MoodleUser>>('core_enrol_get_enrolled_users', {
             params: {
                 courseid: courseId
@@ -128,7 +132,40 @@ export class MoodleService {
         }));
     }
 
-    async getCourseUserProfiles(courseId: number, userId: number) {
+    /**
+     * Obtiene el progreso de un usuario en un curso específico.
+     * @param user Usuario de Moodle
+     * @param courseId ID del curso
+     * @returns ExtendedMoodleUser con completion_percentage y time_spent
+     */
+    /* TODO: Quizás sea mejor intregrarla en getEnroledUsers */
+    async getUserProgressInCourse(user: MoodleUser, courseId: number): Promise<ExtendedMoodleUser> {
+        const completionData = await this.request<any>('core_completion_get_activities_completion_status', {
+            params: {
+                courseid: courseId,
+                userid: user.id
+            }
+        });
+
+        const activities = completionData.statuses || [];
+        const completed = activities.filter((activity: any) => activity.state === 1).length;
+        const total = activities.length;
+        const completion_percentage = total > 0 ? Math.round((completed / total) * 100) : null;
+
+        return {
+            ...user,
+            roles: user.roles.map(role => ({
+                roleid: role.roleid,
+                name: role.name,
+                shortname: role.shortname,
+                sortorder: role.sortorder
+            })),
+            completion_percentage,
+            time_spent: null // Moodle estándar no lo proporciona, hace falta un plugin como block_dedication
+        };
+    }
+
+    async getCourseUserProfiles(courseId: number, userId: number): Promise<MoodleUser[]> {
         const data = await this.request<Array<MoodleUser>>('core_user_get_course_user_profiles', {
             params: {
                 userlist: [{ courseid: courseId, userid: userId }]

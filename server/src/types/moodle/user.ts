@@ -28,3 +28,8 @@ export type MoodleUser = {
         sortorder: number
     }>
 };
+
+export type ExtendedMoodleUser = MoodleUser & {
+    completion_percentage: number | null;
+    time_spent: number | null;
+};
