@@ -62,7 +62,7 @@ docker-compose up --build
 ```
 
 ## Contribuir
-Las contribuciones son bienvenidas. Por favor, abre un issue o pull request para sugerencias o mejoras.
+Las contribuciones son bienvenidas a partir de 2026, después de haber entregado mi TFG. Por favor, abre un issue o pull request para sugerencias o mejoras a partir de esa fecha.
 
 ## Licencia
 Este proyecto está bajo la licencia MIT. Consulta el archivo LICENSE para más información.
