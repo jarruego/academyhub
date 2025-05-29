@@ -66,7 +66,7 @@ export class CreateUserDTO {
   nss: string;
 
   @ApiProperty()
-  @IsNotEmpty()
+  @IsOptional()
   @IsIn(Object.values(Gender))
   gender: Gender;
 

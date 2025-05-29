@@ -9,20 +9,20 @@ import { DocumentType } from "../../shared/types/user/document-type.enum";
 import { zodResolver } from "@hookform/resolvers/zod"
 import z from "zod";
 import { DNI_SCHEMA } from "../../schemas/dni.schema";
+import { detectDocumentType } from "../../utils/detect-document-type";
 
 const CREATE_USER_FORM = z.object({
   name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
   first_surname: z.string({ required_error: "El primer apellido es obligatorio" }).min(1, "El primer apellido no puede estar vacío"),
-  second_surname: z.string({ required_error: "El segundo apellido es obligatorio" }).min(1, "El segundo apellido no puede estar vacío"),
+  second_surname: z.string().optional(),
   email: z.string({ required_error: "El correo electrónico es obligatorio" }).email("El correo electrónico no es válido"),
-  moodle_username: z.string({ required_error: "El usuario de Moodle es obligatorio" }),
-  moodle_password: z.string({ required_error: "La contraseña de Moodle es obligatoria" }).min(1, "La contraseña de Moodle no puede estar vacía"),
-  moodle_id: z.number().optional(),
+  moodle_username: z.string().optional(),
+  moodle_password: z.string().optional(),
   dni: DNI_SCHEMA,
   document_type: z.nativeEnum(DocumentType, {
     errorMap: () => ({ message: "Tipo de documento no válido" }),
   }).optional(),
-  phone: z.string({ required_error: "El teléfono es obligatorio" }),
+  phone: z.string().optional(),
   address: z.string().optional(),
   professional_category: z.string().optional(),
   disability: z.boolean().optional().default(false),
@@ -44,7 +44,7 @@ const CREATE_USER_FORM = z.object({
 export default function CreateUserRoute() {
   const navigate = useNavigate();
   const { mutateAsync: createUser } = useCreateUserMutation();
-  const { handleSubmit, control, formState: {errors} } = useForm({
+  const { handleSubmit, control, setValue, watch, formState: {errors} } = useForm({
     // defaultValues: {
     //   disability: false,
     //   terrorism_victim: false,
@@ -52,6 +52,13 @@ export default function CreateUserRoute() {
     // },
     resolver: zodResolver(CREATE_USER_FORM)
   });
+
+  // Detectar cambios en el campo dni y autocompletar document_type
+  const dniValue = watch("dni");
+  useEffect(() => {
+    const detected = detectDocumentType(dniValue);
+    if (detected) setValue("document_type", detected);
+  }, [dniValue, setValue]);
 
   useEffect(() => {
     document.title = "Crear Usuario";
@@ -73,23 +80,22 @@ export default function CreateUserRoute() {
           <Form.Item label="Moodle Username" name="moodle_username" style={{ flex: 1 }}>
             <Controller name="moodle_username" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
+          <Form.Item label="Contraseña Moodle" name="moodle_password" style={{ flex: 1 }}>
+            <Controller name="moodle_password" control={control} render={({ field }) => <Input.Password {...field} />} />
+          </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item help={errors.dni?.message} validateStatus={errors.dni ? "error" : undefined} label="DNI" name="dni" style={{ flex: 1 }}>
-            <Controller name="dni" control={control} render={({ field }) => <Input {...field} required />} />
-          </Form.Item>
-          <Form.Item label="Tipo Doc." name="document_type" style={{ flex: 1 }} required={true}>
+          <Form.Item label="Tipo Doc." name="document_type" style={{ flex: 1 }}>
             <Controller
               name="document_type"
               control={control}
-              rules={{ required: "El tipo de documento es obligatorio" }}
-              render={({ field, fieldState }) => (
+              render={({ field }) => (
                 <Select
                   {...field}
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="Seleccione tipo"
-                  status={fieldState.invalid ? "error" : undefined}
+                  value={field.value ?? undefined}
+                  disabled
+                  placeholder="Auto"
+                  allowClear
                 >
                   <Select.Option value={DocumentType.DNI}>DNI</Select.Option>
                   <Select.Option value={DocumentType.NIE}>NIE</Select.Option>
@@ -97,21 +103,27 @@ export default function CreateUserRoute() {
               )}
             />
           </Form.Item>
+          <Form.Item help={errors.dni?.message} validateStatus={errors.dni ? "error" : undefined} label="DNI" name="dni" style={{ flex: 1 }} required={true}>
+            <Controller name="dni" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
           <Form.Item label="Nombre" name="name" style={{ flex: 2 }} required={true}>
             <Controller name="name" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
-          <Form.Item label="Apellidos" name="first_surname" style={{ flex: 2 }} required={true}>
+          <Form.Item label="Apellido 1" name="first_surname" style={{ flex: 2 }} required={true}>
             <Controller name="first_surname" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+          <Form.Item label="Apellido 2" name="second_surname" style={{ flex: 2 }}>
+            <Controller name="second_surname" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="Email" name="email" style={{ flex: 1 }}>
+          <Form.Item label="Email" name="email" style={{ flex: 1 }} required={true}>
             <Controller name="email" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
           <Form.Item label="Teléfono" name="phone" style={{ flex: 1 }}>
             <Controller name="phone" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
-          <Form.Item label="Sexo" name="gender" style={{ flex: 1 }} required={true}>
+          <Form.Item label="Sexo" name="gender" style={{ flex: 1 }}>
             <Controller
               name="gender"
               control={control}
@@ -207,14 +219,6 @@ export default function CreateUserRoute() {
                 </Checkbox>
               )}
             />
-          </Form.Item>
-        </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="Segundo Apellido" name="second_surname" style={{ flex: 2 }} required={true}>
-            <Controller name="second_surname" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="Contraseña Moodle" name="moodle_password" style={{ flex: 2 }} required={true}>
-            <Controller name="moodle_password" control={control} render={({ field }) => <Input.Password {...field} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
