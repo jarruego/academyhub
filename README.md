@@ -61,6 +61,16 @@ cd server
 docker-compose up --build
 ```
 
+## Variables de entorno necesarias
+Para el correcto funcionamiento del servidor, es necesario definir ciertas variables de entorno en un archivo `.env` dentro de la carpeta `server/`. Ejemplo de variables requeridas:
+
+- `DATABASE_URL`: URL de conexión a la base de datos PostgreSQL.
+- `JWT_SECRET`: Clave secreta para la generación y validación de tokens JWT.
+- `MOODLE_TOKEN`: Token de acceso para la API de Moodle.
+- `MOODLE_URL`: URL del endpoint de la API de Moodle.
+
+Puedes encontrar un ejemplo en el archivo `.env` incluido en el proyecto. Asegúrate de completar estos valores antes de iniciar el servidor.
+
 ## Contribuir
 Las contribuciones son bienvenidas a partir de 2026, después de haber entregado mi TFG. Por favor, abre un issue o pull request para sugerencias o mejoras a partir de esa fecha.
 
