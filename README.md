@@ -5,6 +5,8 @@ Este proyecto es el Trabajo de Fin de Grado (TFG) y consiste en una aplicación 
 ## Descripción
 La aplicación permite la gestión de usuarios, centros, empresas, cursos y grupos, integrando funcionalidades de autenticación y administración. Está diseñada para facilitar la gestión académica y administrativa en un entorno educativo.
 
+Además, permite sincronizar datos de cursos, grupos y alumnos con Moodle, así como facilitar la gestión de la formación bonificada a través de FUNDAE, optimizando los procesos de integración y control de la formación.
+
 ## Estructura del Proyecto
 - `client/`: Aplicación frontend desarrollada con React y Vite.
 - `server/`: API backend desarrollada con NestJS y Drizzle ORM.
