@@ -37,7 +37,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  phone: string;
+  phone?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -47,7 +47,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  moodle_password: string;
+  moodle_password?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -62,7 +62,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  nss: string;
+  nss?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -97,7 +97,7 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  address: string;
+  address?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
