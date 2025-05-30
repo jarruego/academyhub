@@ -12,6 +12,7 @@ import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { useDeleteCourseMutation } from "../../hooks/api/courses/use-delete-course.mutation";
 import { useNavigate } from "react-router-dom";
 import { USERS_TABLE_COLUMNS } from "../../constants/tables/users-table-columns.constant";
+import dayjs from "dayjs";
 
 export default function CourseDetailRoute() {
   const navigate = useNavigate();
@@ -28,7 +29,11 @@ export default function CourseDetailRoute() {
 
   useEffect(() => {
     if (courseData) {
-      reset(courseData);
+      reset({
+        ...courseData,
+        start_date: courseData.start_date ? (dayjs.isDayjs(courseData.start_date) ? courseData.start_date.toDate() : courseData.start_date) : null,
+        end_date: courseData.end_date ? (dayjs.isDayjs(courseData.end_date) ? courseData.end_date.toDate() : courseData.end_date) : null,
+      });
     }
   }, [courseData, reset]);
 
@@ -51,7 +56,11 @@ export default function CourseDetailRoute() {
       hours: info.hours !== undefined && info.hours !== null ? Number(info.hours) : 0,
       price_per_hour: info.price_per_hour !== undefined && info.price_per_hour !== null ? Number(info.price_per_hour) : 0,
     };
-    await updateCourse(data);
+    await updateCourse({
+      ...data,
+      start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
+      end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
+    });
     navigate(-1);
   }
 
@@ -94,10 +103,32 @@ export default function CourseDetailRoute() {
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item label="Fecha Inicio" name="start_date">
-            <Controller name="start_date" control={control} render={({ field }) => <DatePicker {...field} id="start_date" />} />
+            <Controller
+              name="start_date"
+              control={control}
+              render={({ field }) => (
+                <DatePicker
+                  {...field}
+                  value={field.value ? dayjs(field.value) : null}
+                  onChange={date => field.onChange(date.startOf("day"))}
+                  id="start_date"
+                />
+              )}
+            />
           </Form.Item>
           <Form.Item label="Fecha Fin" name="end_date">
-            <Controller name="end_date" control={control} render={({ field }) => <DatePicker {...field} id="end_date" />} />
+            <Controller
+              name="end_date"
+              control={control}
+              render={({ field }) => (
+                <DatePicker
+                  {...field}
+                  value={field.value ? dayjs(field.value) : null}
+                  onChange={date => field.onChange(date.startOf("day"))}
+                  id="end_date"
+                />
+              )}
+            />
           </Form.Item>
           <Form.Item label="Modalidad" name="modality">
             <Controller

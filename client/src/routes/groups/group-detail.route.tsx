@@ -10,6 +10,8 @@ import { Group } from "../../shared/types/group/group";
 import { useEffect, useState } from "react";
 import { DeleteOutlined, SaveOutlined, PlusOutlined } from "@ant-design/icons"; // Importar los iconos
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+dayjs.extend(utc);
 
 export default function EditGroupRoute() {
   const { id_group } = useParams();
@@ -39,8 +41,8 @@ export default function EditGroupRoute() {
     try {
       await updateGroup({
         ...data,
-        start_date: data.start_date.add(1, 'day'),
-        end_date: data.end_date.add(1, 'day')
+        start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
+        end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
       });
       message.success('Grupo actualizado exitosamente');
       navigate(`/courses/${groupData.id_course}`);

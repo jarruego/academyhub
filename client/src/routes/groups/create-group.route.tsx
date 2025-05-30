@@ -6,6 +6,7 @@ import { Group } from "../../shared/types/group/group";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
+import dayjs from "dayjs";
 
 export default function CreateGroupRoute() {
   const { id_course } = useParams();
@@ -22,7 +23,13 @@ export default function CreateGroupRoute() {
 
   const submit: SubmitHandler<Omit<Group, 'id_group'>> = async (data) => {
     try {
-      await createGroup({ ...data, id_course: Number(id_course) });
+      await createGroup({
+        ...data,
+          id_course: Number(id_course),
+        start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
+        end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
+      });
+
       message.success('Grupo creado exitosamente');
       navigate(`/courses/${id_course}`);
     } catch {

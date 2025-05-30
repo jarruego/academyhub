@@ -1,4 +1,3 @@
-import { Dayjs } from "dayjs";
 import { CourseModality } from "./course-modality.enum";
 
 export type Course = {
@@ -7,8 +6,8 @@ export type Course = {
     moodle_id: number;
     category: string;
     short_name: string;
-    start_date: Dayjs;
-    end_date: Dayjs;
+    start_date: Date | null;
+    end_date: Date | null;
     modality: CourseModality;
     hours: number;
     price_per_hour: number; 

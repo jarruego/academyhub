@@ -6,6 +6,7 @@ import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { useNavigate } from "react-router-dom";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
+import dayjs from "dayjs";
 
 export default function CreateCourseRoute() {
   const { mutateAsync: createCourse } = useCreateCourseMutation();
@@ -26,8 +27,12 @@ export default function CreateCourseRoute() {
       hours: info.hours !== undefined && info.hours !== null ? Number(info.hours) : 0,
       price_per_hour: info.price_per_hour !== undefined && info.price_per_hour !== null ? Number(info.price_per_hour) : 0,
     };
-    try {
-      await createCourse(data);
+    try {      
+      await createCourse({
+        ...data,
+        start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
+        end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
+      });
       navigate('/courses');
     } catch {
       message.error('No se pudo guardar el formulario. Inténtalo de nuevo.');
