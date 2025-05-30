@@ -1,4 +1,4 @@
-import { Button, Form, Input, message, Checkbox, Select } from "antd";
+import { Button, Form, Input, Checkbox, Select, Modal } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCreateUserMutation } from "../../hooks/api/users/use-create-user.mutation";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
@@ -45,13 +45,9 @@ export default function CreateUserRoute() {
   const navigate = useNavigate();
   const { mutateAsync: createUser } = useCreateUserMutation();
   const { handleSubmit, control, setValue, watch, formState: {errors} } = useForm({
-    // defaultValues: {
-    //   disability: false,
-    //   terrorism_victim: false,
-    //   gender_violence_victim: false,
-    // },
     resolver: zodResolver(CREATE_USER_FORM)
   });
+  const [modal, contextHolder] = Modal.useModal();
 
   // Detectar cambios en el campo dni y autocompletar document_type
   const dniValue = watch("dni");
@@ -68,13 +64,17 @@ export default function CreateUserRoute() {
     try {
       await createUser(values);
       navigate('/users');
-    } catch {
-      message.error('No se pudo guardar el formulario. Inténtalo de nuevo.');
+    } catch  {
+      modal.error({
+        title: "Error al crear el usuario",
+        content: "Revise los datos e inténtelo de nuevo.",
+      });
     }
   }
 
   return (
     <div>
+      {contextHolder}
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Form.Item label="Moodle Username" name="moodle_username" style={{ flex: 1 }}>
