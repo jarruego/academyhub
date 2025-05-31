@@ -1,0 +1,1 @@
+ALTER TABLE "courses" ADD COLUMN "price_per_hour" numeric(10, 2);

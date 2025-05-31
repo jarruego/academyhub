@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsNotEmpty, IsString, IsInt, IsBoolean,  IsIn, IsOptional, IsDateString, IsNumberString, IsDate } from "class-validator";
+import { IsNotEmpty, IsString, IsInt, IsBoolean,  IsIn, IsOptional, IsDateString, IsNumberString, IsDate, IsNumber } from "class-validator";
 import { CourseModality } from "src/types/course/course-modality.enum";
 
 export class CreateCourseDTO {
@@ -47,10 +47,11 @@ export class CreateCourseDTO {
   @IsInt()
   hours: number;
 
-  // @ApiPropertyOptional()
-  // @IsOptional()
-  // @IsNumberString()
-  // price_per_hour: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  price_per_hour: string;
 
   @ApiProperty()
   @IsNotEmpty()

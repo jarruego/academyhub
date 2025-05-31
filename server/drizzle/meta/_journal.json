@@ -43,6 +43,13 @@
       "when": 1748624402172,
       "tag": "0005_abandoned_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1748716115232,
+      "tag": "0006_new_jackpot",
+      "breakpoints": true
     }
   ]
 }
