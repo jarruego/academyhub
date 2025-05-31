@@ -83,8 +83,8 @@ export default function UserDetailRoute() {
   }, [dniValue, setValue]);
 
   useEffect(() => {
-    if (userData) {
-      reset(userData);
+    if (userData) {      
+      reset(nullsToUndefined(userData)); 
     }
   }, [userData, reset]);
 

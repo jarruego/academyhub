@@ -89,61 +89,67 @@ export default function EditGroupRoute() {
     },
   };
 
-  return (
-    <div>
-      <Tabs defaultActiveKey="1">
-        <Tabs.TabPane tab="Datos del Grupo" key="1">
-          <Form layout="vertical" onFinish={handleSubmit(submit)}>
-            <div style={{ display: 'flex', gap: '16px', justifyContent: "flex-start" }}>
-              <Form.Item label="ID del grupo" name="id_group">
-                <Controller name="id_group" control={control} render={({ field }) => <Input {...field} disabled />} />
-              </Form.Item>
-              <Form.Item label="ID FUNDAE" name="fundae_id">
-                <Controller name="fundae_id" control={control} render={({ field }) => <Input {...field} />} />
-              </Form.Item>
-              <Form.Item label="Nombre del grupo" name="group_name">
-                <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
-              </Form.Item>
-              <Form.Item label="Fecha Inicio" name="start_date">
-                <Controller
-                  name="start_date"
-                  control={control}
-                  render={({ field }) => (
-                    <DatePicker
-                      {...field}
-                      value={field.value ? dayjs(field.value) : null}
-                      onChange={date => field.onChange(date.startOf("day"))}
-                      id="start_date"
-                    />
-                  )}
-                />
-              </Form.Item>
-              <Form.Item label="Fecha Fin" name="end_date">
-                <Controller
-                  name="end_date"
-                  control={control}
-                  render={({ field }) => (
-                    <DatePicker
-                      {...field}
-                      value={field.value ? dayjs(field.value) : null}
-                      onChange={date => field.onChange(date.startOf("day"))}
-                      id="end_date"
-                    />
-                  )}
-                />
-              </Form.Item>
-            </div>
-            <Form.Item label="Descripción" name="description">
-              <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
+  const items = [
+    {
+      key: "1",
+      label: "Datos del Grupo",
+      children: (
+        <Form layout="vertical" onFinish={handleSubmit(submit)}>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: "flex-start" }}>
+            <Form.Item label="ID del grupo" name="id_group">
+              <Controller name="id_group" control={control} render={({ field }) => <Input {...field} disabled />} />
             </Form.Item>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-              <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
-              <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
-            </div>
-          </Form>
-        </Tabs.TabPane>
-        <Tabs.TabPane tab="Usuarios del Grupo" key="2">
+            <Form.Item label="ID FUNDAE" name="fundae_id">
+              <Controller name="fundae_id" control={control} render={({ field }) => <Input {...field} />} />
+            </Form.Item>
+            <Form.Item label="Nombre del grupo" name="group_name">
+              <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
+            </Form.Item>
+            <Form.Item label="Fecha Inicio" name="start_date">
+              <Controller
+                name="start_date"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    {...field}
+                    value={field.value ? dayjs(field.value) : null}
+                    onChange={date => field.onChange(date.startOf("day"))}
+                    id="start_date"
+                  />
+                )}
+              />
+            </Form.Item>
+            <Form.Item label="Fecha Fin" name="end_date">
+              <Controller
+                name="end_date"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    {...field}
+                    value={field.value ? dayjs(field.value) : null}
+                    onChange={date => field.onChange(date.startOf("day"))}
+                    id="end_date"
+                  />
+                )}
+              />
+            </Form.Item>
+          </div>
+          <Form.Item label="Descripción" name="description">
+            <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+            <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
+          </div>
+        </Form>
+      ),
+    },
+    {
+      key: "2",
+      label: "Usuarios del Grupo",
+      children: (
+        <>
           <h2>Usuarios Grupo</h2>
           <Table
             rowKey="id_user"
@@ -181,8 +187,14 @@ export default function EditGroupRoute() {
               Importar Usuarios
             </Button>
           </div>
-        </Tabs.TabPane>
-      </Tabs>
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <Tabs defaultActiveKey="1" items={items} />
     </div>
   );
 }

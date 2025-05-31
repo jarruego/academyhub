@@ -50,9 +50,11 @@ export default function CompanyDetailRoute() {
     navigate(`/companies/${id_company}/add-center`);
   };
 
-  return (
-    <Tabs defaultActiveKey="1">
-      <Tabs.TabPane tab="Datos de Empresa" key="1">
+  const items = [
+    {
+      key: "1",
+      label: "Datos de Empresa",
+      children: (
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
             <Form.Item label="ID" name="id_company" style={{ maxWidth: '35px' }}>
@@ -62,9 +64,9 @@ export default function CompanyDetailRoute() {
               <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
             </Form.Item>
           </div>
-            <Form.Item label="Nombre de la empresa" name="company_name">
-              <Controller name="company_name" control={control} render={({ field }) => <Input {...field} />} />
-            </Form.Item>
+          <Form.Item label="Nombre de la empresa" name="company_name">
+            <Controller name="company_name" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
           <Form.Item label="Razón Social" name="corporate_name">
             <Controller name="corporate_name" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
@@ -74,29 +76,39 @@ export default function CompanyDetailRoute() {
             <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Empresa</Button>
           </div>
         </Form>
-      </Tabs.TabPane>
-      <Tabs.TabPane tab="Centros" key="2">
-        <Table
-          rowKey="id_center"
-          columns={[
-            { title: 'ID', dataIndex: 'id_center' },
-            { title: 'Nombre del centro', dataIndex: 'center_name' },
-            { title: 'Número de patronal', dataIndex: 'employer_number' },
-            { title: 'Persona de contacto', dataIndex: 'contact_person' },
-            { title: 'Teléfono de contacto', dataIndex: 'contact_phone' },
-            { title: 'Email de contacto', dataIndex: 'contact_email' },
-          ]}
-          dataSource={centersData}
-          loading={isCentersLoading}
-          onRow={(record) => ({
-            onDoubleClick: () => navigate(`/centers/${record.id_center}/edit`),
-            style: { cursor: 'pointer' }
-          })}
-        />
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter}>
-          Añadir Centro
-        </Button>
-      </Tabs.TabPane>
-    </Tabs>
+      ),
+    },
+    {
+      key: "2",
+      label: "Centros",
+      children: (
+        <>
+          <Table
+            rowKey="id_center"
+            columns={[
+              { title: 'ID', dataIndex: 'id_center' },
+              { title: 'Nombre del centro', dataIndex: 'center_name' },
+              { title: 'Número de patronal', dataIndex: 'employer_number' },
+              { title: 'Persona de contacto', dataIndex: 'contact_person' },
+              { title: 'Teléfono de contacto', dataIndex: 'contact_phone' },
+              { title: 'Email de contacto', dataIndex: 'contact_email' },
+            ]}
+            dataSource={centersData}
+            loading={isCentersLoading}
+            onRow={(record) => ({
+              onDoubleClick: () => navigate(`/centers/${record.id_center}/edit`),
+              style: { cursor: 'pointer' }
+            })}
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter}>
+            Añadir Centro
+          </Button>
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <Tabs defaultActiveKey="1" items={items} />
   );
 }
