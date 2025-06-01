@@ -14,7 +14,6 @@ import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 dayjs.extend(utc);
 
-// --- Validación con Zod ---
 const GROUP_FORM_SCHEMA = z.object({
   id_group: z.number(),
   moodle_id: z.number().optional(),

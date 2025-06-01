@@ -7,12 +7,28 @@ import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
-import { Course } from "../../shared/types/course/course";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { useDeleteCourseMutation } from "../../hooks/api/courses/use-delete-course.mutation";
 import { useNavigate } from "react-router-dom";
 import { USERS_TABLE_COLUMNS } from "../../constants/tables/users-table-columns.constant";
 import dayjs from "dayjs";
+import z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const COURSE_DETAIL_FORM_SCHEMA = z.object({
+  id_course: z.number(),
+  course_name: z.string({ required_error: "El nombre del curso es obligatorio" }).min(2, "El nombre es demasiado corto"),
+  short_name: z.string({ required_error: "El nombre corto es obligatorio" }).min(2, "El nombre corto es demasiado corto"),
+  start_date: z.date().nullable().optional().nullish(),
+  end_date: z.date().nullable().optional().nullish(),
+  modality: z.nativeEnum(CourseModality, { required_error: "La modalidad es obligatoria" }),
+  hours: z.coerce.number().min(0, "Las horas deben ser un número positivo").optional().nullish(),
+  price_per_hour: z.coerce.number().min(0, "El precio/hora debe ser un número positivo").optional().nullish(),
+  fundae_id: z.string().optional().nullish(),
+  active: z.boolean().optional().nullish(),
+  moodle_id: z.number().optional().nullish(),
+  category: z.string().optional().nullish(),
+});
 
 export default function CourseDetailRoute() {
   const navigate = useNavigate();
@@ -26,7 +42,9 @@ export default function CourseDetailRoute() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [modal, contextHolder] = Modal.useModal();
 
-  const { handleSubmit, control, reset } = useForm<Course>();
+  const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof COURSE_DETAIL_FORM_SCHEMA>>({
+    resolver: zodResolver(COURSE_DETAIL_FORM_SCHEMA),
+  });
 
   useEffect(() => {
     if (courseData) {
@@ -51,7 +69,7 @@ export default function CourseDetailRoute() {
   if (!courseData) return <div>Curso no encontrado</div>;
   if (isCourseLoading || isGroupsLoading) return <div>Cargando...</div>;
 
-  const submit: SubmitHandler<Course> = async (info) => {
+  const submit: SubmitHandler<z.infer<typeof COURSE_DETAIL_FORM_SCHEMA>> = async (info) => {
     const data = {
       ...info,
       hours: info.hours !== undefined && info.hours !== null ? Number(info.hours) : 0,
@@ -63,7 +81,7 @@ export default function CourseDetailRoute() {
       end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
     });
     navigate(-1);
-  }
+  };
 
   const handleDelete = async () => {
     modal.confirm({
@@ -104,19 +122,38 @@ export default function CourseDetailRoute() {
             <Controller name="id_course" control={control} render={({ field }) => <Input {...field} id="id_course" disabled />} />
           </Form.Item>
           <Form.Item label="ID Moodle" name="moodle_id">
-            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" disabled />} />
+            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" disabled  value={field.value ?? undefined}  />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="Nombre del curso" name="course_name" style={{ flex: 2 }}>
+          <Form.Item
+            label="Nombre del curso"
+            name="course_name"
+            style={{ flex: 2 }}
+            required={true}
+            help={errors.course_name?.message}
+            validateStatus={errors.course_name ? "error" : undefined}
+          >
             <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" />} />
           </Form.Item>
-          <Form.Item label="Nombre corto" name="short_name" style={{ flex: 1 }}>
+          <Form.Item
+            label="Nombre corto"
+            name="short_name"
+            style={{ flex: 1 }}
+            required={true}
+            help={errors.short_name?.message}
+            validateStatus={errors.short_name ? "error" : undefined}
+          >
             <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
-          <Form.Item label="Fecha Inicio" name="start_date">
+          <Form.Item
+            label="Fecha Inicio"
+            name="start_date"
+            help={errors.start_date?.message}
+            validateStatus={errors.start_date ? "error" : undefined}
+          >
             <Controller
               name="start_date"
               control={control}
@@ -124,13 +161,18 @@ export default function CourseDetailRoute() {
                 <DatePicker
                   {...field}
                   value={field.value ? dayjs(field.value) : null}
-                  onChange={date => field.onChange(date.startOf("day"))}
+                  onChange={date => field.onChange(date ? date.toDate() : null)}
                   id="start_date"
                 />
               )}
             />
           </Form.Item>
-          <Form.Item label="Fecha Fin" name="end_date">
+          <Form.Item
+            label="Fecha Fin"
+            name="end_date"
+            help={errors.end_date?.message}
+            validateStatus={errors.end_date ? "error" : undefined}
+          >
             <Controller
               name="end_date"
               control={control}
@@ -138,13 +180,19 @@ export default function CourseDetailRoute() {
                 <DatePicker
                   {...field}
                   value={field.value ? dayjs(field.value) : null}
-                  onChange={date => field.onChange(date.startOf("day"))}
+                  onChange={date => field.onChange(date ? date.toDate() : null)}
                   id="end_date"
                 />
               )}
             />
           </Form.Item>
-          <Form.Item label="Modalidad" name="modality">
+          <Form.Item
+            label="Modalidad"
+            name="modality"
+            required={true}
+            help={errors.modality?.message}
+            validateStatus={errors.modality ? "error" : undefined}
+          >
             <Controller
               name="modality"
               control={control}
@@ -159,28 +207,49 @@ export default function CourseDetailRoute() {
               )}
             />
           </Form.Item>
-          <Form.Item label="Horas" name="hours">
+          <Form.Item
+            label="Horas"
+            name="hours"
+            help={errors.hours?.message}
+            validateStatus={errors.hours ? "error" : undefined}
+          >
             <Controller
               name="hours"
               control={control}
-              render={({ field }) => <Input type="number" min={0} {...field} id="hours" style={{ width: 80 }} />}
+              render={({ field }) => <Input type="number" min={0} {...field} id="hours" style={{ width: 80 }}  value={field.value ?? undefined}  />}
             />
           </Form.Item>
-          <Form.Item label="Precio/hora" name="price_per_hour">
+          <Form.Item
+            label="Precio/hora"
+            name="price_per_hour"
+            help={errors.price_per_hour?.message}
+            validateStatus={errors.price_per_hour ? "error" : undefined}
+          >
             <Controller
               name="price_per_hour"
               control={control}
-              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" style={{ width: 100 }} />}
+              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" style={{ width: 100 }}  value={field.value ?? undefined}  />}
             />
           </Form.Item>
-          <Form.Item label="FUNDAE ID" name="fundae_id">
+          <Form.Item
+            label="FUNDAE ID"
+            name="fundae_id"
+            help={errors.fundae_id?.message}
+            validateStatus={errors.fundae_id ? "error" : undefined}
+          >
             <Controller
               name="fundae_id"
               control={control}
-              render={({ field }) => <Input {...field} id="fundae_id" style={{ width: 120 }} />}
+              render={({ field }) => <Input {...field} id="fundae_id" style={{ width: 120 }} value={field.value ?? undefined} />}
             />
           </Form.Item>
-          <Form.Item label="Activo" name="active" valuePropName="checked">
+          <Form.Item
+            label="Activo"
+            name="active"
+            valuePropName="checked"
+            help={errors.active?.message}
+            validateStatus={errors.active ? "error" : undefined}
+          >
             <Controller
               name="active"
               control={control}
@@ -212,7 +281,7 @@ export default function CourseDetailRoute() {
               type: 'radio',
               selectedRowKeys,
               onChange: (selectedRowKeys) => setSelectedRowKeys(selectedRowKeys as number[]),
-              renderCell: () => null, // Ocultar el radiobutton
+              renderCell: () => null,
             }}
             onRow={(record) => ({
               onClick: () => handleRowClick(record),
