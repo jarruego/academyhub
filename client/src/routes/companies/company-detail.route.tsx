@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useCompanyQuery } from "../../hooks/api/companies/use-company.query";
 import { useUpdateCompanyMutation } from "../../hooks/api/companies/use-update-company.mutation";
 import { useDeleteCompanyMutation } from "../../hooks/api/companies/use-delete-company.mutation";
-import { Button, Form, Input, message, Table, Tabs } from "antd";
+import { Button, Form, Input, Table, Tabs, Modal } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
 import { Company } from "../../shared/types/company/company";
@@ -29,6 +29,8 @@ export default function CompanyDetailRoute() {
     document.title = `Detalle de la Empresa ${id_company}`;
   }, [id_company]);
 
+  const [modal, contextHolder] = Modal.useModal();
+
   if (!companyData) return <div>Empresa no encontrada</div>;
   if (isCompanyLoading) return <div>Cargando...</div>;
 
@@ -38,12 +40,24 @@ export default function CompanyDetailRoute() {
   }
 
   const handleDelete = async () => {
-    try {
-      await deleteCompany();
-      navigate('/companies');
-    } catch {
-      message.error('No se pudo eliminar la empresa. Inténtalo de nuevo.');
-    }
+    modal.confirm({
+      title: "¿Seguro que desea eliminar esta empresa?",
+      content: "Esta acción no se puede deshacer.",
+      okText: "Eliminar",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          await deleteCompany();
+          navigate('/companies');
+        } catch {
+          modal.error({
+            title: "Error al eliminar la empresa",
+            content: "No se pudo eliminar la empresa. Inténtalo de nuevo.",
+          });
+        }
+      },
+    });
   };
 
   const handleAddCenter = () => {
@@ -109,6 +123,9 @@ export default function CompanyDetailRoute() {
   ];
 
   return (
-    <Tabs defaultActiveKey="1" items={items} />
+    <>
+      {contextHolder}
+      <Tabs defaultActiveKey="1" items={items} />
+    </>
   );
 }

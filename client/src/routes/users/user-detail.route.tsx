@@ -109,15 +109,24 @@ export default function UserDetailRoute() {
   };
 
   const handleDelete = async () => {
-    try {
-      await deleteUser();
-      navigate('/users');
-    } catch {
-      modal.error({
-        title: "Error al eliminar el usuario",
-        content: "No se pudo eliminar el usuario. Inténtelo de nuevo.",
-      });
-    }
+    modal.confirm({
+      title: "¿Seguro que desea eliminar este usuario?",
+      content: "Esta acción no se puede deshacer.",
+      okText: "Eliminar",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          await deleteUser();
+          navigate('/users');
+        } catch {
+          modal.error({
+            title: "Error al eliminar el usuario",
+            content: "No se pudo eliminar el usuario. Inténtelo de nuevo.",
+          });
+        }
+      },
+    });
   };
 
   return (

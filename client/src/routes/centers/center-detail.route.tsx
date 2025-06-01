@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message } from "antd";
+import { Button, Form, Input, message, Modal } from "antd";
 import { useCenterQuery } from "../../hooks/api/centers/use-center.query";
 import { useUpdateCenterMutation } from "../../hooks/api/centers/use-update-center.mutation";
 import { useDeleteCenterMutation } from "../../hooks/api/centers/use-delete-center.mutation";
@@ -16,6 +16,7 @@ export default function EditCenterRoute() {
   const { mutateAsync: updateCenter } = useUpdateCenterMutation(id_center || "");
   const { mutateAsync: deleteCenter } = useDeleteCenterMutation(id_center || "");
   const { handleSubmit, control, reset } = useForm<Center>();
+  const [modal, contextHolder] = Modal.useModal();
 
   useEffect(() => {
     document.title = `Detalle del Centro ${id_center}`;
@@ -40,17 +41,30 @@ export default function EditCenterRoute() {
   };
 
   const handleDelete = async () => {
-    try {
-      await deleteCenter();
-      message.success('Centro eliminado exitosamente');
-      navigate(location.state?.from || `/companies/${centerData?.id_company}`);
-    } catch {
-      message.error('No se pudo eliminar el centro');
-    }
+    modal.confirm({
+      title: "¿Seguro que desea eliminar este centro?",
+      content: "Esta acción no se puede deshacer.",
+      okText: "Eliminar",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          await deleteCenter();
+          message.success('Centro eliminado exitosamente');
+          navigate(location.state?.from || `/companies/${centerData?.id_company}`);
+        } catch {
+          modal.error({
+            title: "Error al eliminar el centro",
+            content: "No se pudo eliminar el centro. Inténtelo de nuevo.",
+          });
+        }
+      },
+    });
   };
 
   return (
     <div>
+      {contextHolder}
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <Form.Item label="ID del centro" name="id_center">
           <Controller name="id_center" control={control} render={({ field }) => <Input {...field} disabled />} />

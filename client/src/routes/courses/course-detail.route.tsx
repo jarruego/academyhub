@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table, Select, message, Checkbox } from "antd";
+import { Button, DatePicker, Form, Input, Table, Select, Checkbox, Modal } from "antd";
 import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect } from "react";
@@ -24,6 +24,7 @@ export default function CourseDetailRoute() {
   const { data: usersData, isLoading: isUsersLoading } = useUsersByGroupQuery(selectedGroupId);
   const { mutateAsync: deleteCourse } = useDeleteCourseMutation(id_course || "");
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
+  const [modal, contextHolder] = Modal.useModal();
 
   const { handleSubmit, control, reset } = useForm<Course>();
 
@@ -65,12 +66,24 @@ export default function CourseDetailRoute() {
   }
 
   const handleDelete = async () => {
-    try {
-      await deleteCourse();
-      navigate('/courses');
-    } catch {
-      message.error('No se pudo eliminar el curso. Recuerde que debe de estar vacío');
-    }
+    modal.confirm({
+      title: "¿Seguro que desea eliminar este curso?",
+      content: "Esta acción no se puede deshacer.",
+      okText: "Eliminar",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          await deleteCourse();
+          navigate('/courses');
+        } catch {
+          modal.error({
+            title: "Error al eliminar el curso",
+            content: "No se pudo eliminar el curso. Recuerde que debe de estar vacío.",
+          });
+        }
+      },
+    });
   };
 
   const handleAddGroup = () => {
@@ -84,6 +97,7 @@ export default function CourseDetailRoute() {
 
   return (
     <div>
+      {contextHolder}
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item label="ID" name="id_course">

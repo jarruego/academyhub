@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message, Table, Tabs, DatePicker } from "antd";
+import { Button, Form, Input, message, Table, Tabs, DatePicker, Modal } from "antd";
 import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
@@ -23,6 +23,7 @@ export default function EditGroupRoute() {
   const { mutateAsync: deleteUserFromGroup } = useDeleteUserFromGroupMutation();
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const { handleSubmit, control, reset } = useForm<Group>();
+  const [modal, contextHolder] = Modal.useModal();
 
   useEffect(() => {
     if (groupData) {
@@ -53,13 +54,25 @@ export default function EditGroupRoute() {
 
   const handleDelete = async () => {
     if (!groupData) return;
-    try {
-      await deleteGroup();
-      message.success('Grupo eliminado exitosamente');
-      navigate(`/courses/${groupData.id_course}`);
-    } catch {
-      message.error('No se pudo eliminar el grupo');
-    }
+    modal.confirm({
+      title: "¿Seguro que desea eliminar este grupo?",
+      content: "Esta acción no se puede deshacer.",
+      okText: "Eliminar",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          await deleteGroup();
+          message.success('Grupo eliminado exitosamente');
+          navigate(`/courses/${groupData.id_course}`);
+        } catch {
+          modal.error({
+            title: "Error al eliminar el grupo",
+            content: "No se pudo eliminar el grupo. Inténtelo de nuevo o asegúrese de que el grupo está vacío.",
+          });
+        }
+      },
+    });
   };
 
   const handleDeleteUsers = async () => {
@@ -194,6 +207,7 @@ export default function EditGroupRoute() {
 
   return (
     <div>
+      {contextHolder}
       <Tabs defaultActiveKey="1" items={items} />
     </div>
   );
