@@ -1,13 +1,24 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useCompanyQuery } from "../../hooks/api/companies/use-company.query";
 import { useUpdateCompanyMutation } from "../../hooks/api/companies/use-update-company.mutation";
 import { useDeleteCompanyMutation } from "../../hooks/api/companies/use-delete-company.mutation";
 import { Button, Form, Input, Table, Tabs, Modal } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
-import { Company } from "../../shared/types/company/company";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { PlusOutlined, DeleteOutlined, SaveOutlined } from "@ant-design/icons";
+import z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { CIF_SCHEMA } from "../../schemas/cif.schema";
+
+const COMPANY_FORM_SCHEMA = z.object({
+  id_company: z.number(),
+  company_name: z.string({ required_error: "El nombre es obligatorio" }).min(2, "El nombre no puede ser tan corto"),
+  corporate_name: z.string({ required_error: "La razón social es obligatoria" }).min(2, "La razón social no puede ser tan corta"),
+  cif: CIF_SCHEMA,
+  created_at: z.date().optional(),
+  updated_at: z.date().optional(),
+});
 
 export default function CompanyDetailRoute() {
   const navigate = useNavigate();
@@ -16,8 +27,11 @@ export default function CompanyDetailRoute() {
   const { mutateAsync: updateCompany } = useUpdateCompanyMutation(id_company || "");
   const { mutateAsync: deleteCompany } = useDeleteCompanyMutation(id_company || "");
   const { data: centersData, isLoading: isCentersLoading } = useCentersQuery(id_company || "");
+  const location = useLocation();
 
-  const { handleSubmit, control, reset } = useForm<Company>();
+  const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof COMPANY_FORM_SCHEMA>>({
+    resolver: zodResolver(COMPANY_FORM_SCHEMA)
+  });
 
   useEffect(() => {
     if (companyData) {
@@ -34,7 +48,7 @@ export default function CompanyDetailRoute() {
   if (!companyData) return <div>Empresa no encontrada</div>;
   if (isCompanyLoading) return <div>Cargando...</div>;
 
-  const submit: SubmitHandler<Company> = async (info) => {
+  const submit: SubmitHandler<z.infer<typeof COMPANY_FORM_SCHEMA>> = async (info) => {
     await updateCompany(info);
     navigate('/companies');
   }
@@ -64,6 +78,11 @@ export default function CompanyDetailRoute() {
     navigate(`/companies/${id_company}/add-center`);
   };
 
+  // Lee el parámetro 'tab' de la URL
+  const searchParams = new URLSearchParams(location.search);
+  const tabParam = searchParams.get("tab");
+  const defaultActiveKey = tabParam === "centers" ? "2" : "1";
+
   const items = [
     {
       key: "1",
@@ -74,14 +93,29 @@ export default function CompanyDetailRoute() {
             <Form.Item label="ID" name="id_company" style={{ maxWidth: '35px' }}>
               <Controller name="id_company" control={control} render={({ field }) => <Input {...field} disabled />} />
             </Form.Item>
-            <Form.Item label="CIF" name="cif">
+            <Form.Item
+              label="CIF"
+              name="cif"
+              help={errors.cif?.message}
+              validateStatus={errors.cif ? "error" : undefined}
+            >
               <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
             </Form.Item>
           </div>
-          <Form.Item label="Nombre de la empresa" name="company_name">
+          <Form.Item
+            label="Nombre de la empresa"
+            name="company_name"
+            help={errors.company_name?.message}
+            validateStatus={errors.company_name ? "error" : undefined}
+          >
             <Controller name="company_name" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
-          <Form.Item label="Razón Social" name="corporate_name">
+          <Form.Item
+            label="Razón Social"
+            name="corporate_name"
+            help={errors.corporate_name?.message}
+            validateStatus={errors.corporate_name ? "error" : undefined}
+          >
             <Controller name="corporate_name" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
@@ -125,7 +159,7 @@ export default function CompanyDetailRoute() {
   return (
     <>
       {contextHolder}
-      <Tabs defaultActiveKey="1" items={items} />
+      <Tabs defaultActiveKey={defaultActiveKey} items={items} />
     </>
   );
 }

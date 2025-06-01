@@ -6,12 +6,25 @@ import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { useDeleteUserFromGroupMutation } from "../../hooks/api/groups/use-delete-user-from-group.mutation";
-import { Group } from "../../shared/types/group/group";
 import { useEffect, useState } from "react";
-import { DeleteOutlined, SaveOutlined, PlusOutlined } from "@ant-design/icons"; // Importar los iconos
+import { DeleteOutlined, SaveOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 dayjs.extend(utc);
+
+// --- Validación con Zod ---
+const GROUP_FORM_SCHEMA = z.object({
+  id_group: z.number(),
+  moodle_id: z.number().optional(),
+  group_name: z.string({ required_error: "El nombre del grupo es obligatorio" }).min(2, "El nombre es demasiado corto"),
+  id_course: z.number(),
+  description: z.string().optional(),
+  start_date: z.date().nullable(),
+  end_date: z.date().nullable(),
+  fundae_id: z.string().optional(),
+});
 
 export default function EditGroupRoute() {
   const { id_group } = useParams();
@@ -22,12 +35,18 @@ export default function EditGroupRoute() {
   const { data: usersData, isLoading: isUsersLoading, refetch: refetchUsers } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
   const { mutateAsync: deleteUserFromGroup } = useDeleteUserFromGroupMutation();
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
-  const { handleSubmit, control, reset } = useForm<Group>();
+  const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof GROUP_FORM_SCHEMA>>({
+    resolver: zodResolver(GROUP_FORM_SCHEMA),
+  });
   const [modal, contextHolder] = Modal.useModal();
 
   useEffect(() => {
     if (groupData) {
-      reset(groupData);
+      reset({
+        ...groupData,
+        start_date: groupData.start_date ? dayjs(groupData.start_date).utc().toDate() : null,
+        end_date: groupData.end_date ? dayjs(groupData.end_date).utc().toDate() : null,
+      });
     }
   }, [groupData, reset]);
 
@@ -37,7 +56,7 @@ export default function EditGroupRoute() {
 
   if (isGroupLoading) return <div>Cargando...</div>;
 
-  const submit: SubmitHandler<Group> = async (data) => {
+  const submit: SubmitHandler<z.infer<typeof GROUP_FORM_SCHEMA>> = async (data) => {
     if (!groupData) return;
     try {
       await updateGroup({
@@ -109,16 +128,28 @@ export default function EditGroupRoute() {
       children: (
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
           <div style={{ display: 'flex', gap: '16px', justifyContent: "flex-start" }}>
-            <Form.Item label="ID del grupo" name="id_group">
+            <Form.Item label="ID del grupo" name="id_group"
+              help={errors.id_group?.message}
+              validateStatus={errors.id_group ? "error" : undefined}
+            >
               <Controller name="id_group" control={control} render={({ field }) => <Input {...field} disabled />} />
             </Form.Item>
-            <Form.Item label="ID FUNDAE" name="fundae_id">
+            <Form.Item label="ID FUNDAE" name="fundae_id"
+              help={errors.fundae_id?.message}
+              validateStatus={errors.fundae_id ? "error" : undefined}
+            >
               <Controller name="fundae_id" control={control} render={({ field }) => <Input {...field} />} />
             </Form.Item>
-            <Form.Item label="Nombre del grupo" name="group_name">
+            <Form.Item label="Nombre del grupo" name="group_name"
+              help={errors.group_name?.message}
+              validateStatus={errors.group_name ? "error" : undefined}
+            >
               <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
             </Form.Item>
-            <Form.Item label="Fecha Inicio" name="start_date">
+            <Form.Item label="Fecha Inicio" name="start_date"
+              help={errors.start_date?.message}
+              validateStatus={errors.start_date ? "error" : undefined}
+            >
               <Controller
                 name="start_date"
                 control={control}
@@ -126,13 +157,16 @@ export default function EditGroupRoute() {
                   <DatePicker
                     {...field}
                     value={field.value ? dayjs(field.value) : null}
-                    onChange={date => field.onChange(date.startOf("day"))}
+                    onChange={date => field.onChange(date ? date.toDate() : null)}
                     id="start_date"
                   />
                 )}
               />
             </Form.Item>
-            <Form.Item label="Fecha Fin" name="end_date">
+            <Form.Item label="Fecha Fin" name="end_date"
+              help={errors.end_date?.message}
+              validateStatus={errors.end_date ? "error" : undefined}
+            >
               <Controller
                 name="end_date"
                 control={control}
@@ -140,14 +174,17 @@ export default function EditGroupRoute() {
                   <DatePicker
                     {...field}
                     value={field.value ? dayjs(field.value) : null}
-                    onChange={date => field.onChange(date.startOf("day"))}
+                    onChange={date => field.onChange(date ? date.toDate() : null)}
                     id="end_date"
                   />
                 )}
               />
             </Form.Item>
           </div>
-          <Form.Item label="Descripción" name="description">
+          <Form.Item label="Descripción" name="description"
+            help={errors.description?.message}
+            validateStatus={errors.description ? "error" : undefined}
+          >
             <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>

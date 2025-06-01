@@ -1,11 +1,11 @@
 export type Center = {
     id_center: number;
     center_name: string;
-    employer_number: string;
+    employer_number?: string | null;
     id_company: number;
-    contact_person: string;
-    contact_phone: string;
-    contact_email: string;
-    created_at: string;
-    updated_at: string;
+    contact_person?: string | null;
+    contact_phone?: string | null;
+    contact_email?: string | null;
+    created_at?: Date;
+    updated_at?: Date;
 };

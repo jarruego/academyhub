@@ -2,7 +2,7 @@ import { Button, Form, Input, Checkbox, Select, Modal } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCreateUserMutation } from "../../hooks/api/users/use-create-user.mutation";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { SaveOutlined } from "@ant-design/icons"; // Importar el icono
+import { SaveOutlined } from "@ant-design/icons"; 
 import { useEffect } from "react";
 import { Gender } from "../../shared/types/user/gender.enum";
 import { DocumentType } from "../../shared/types/user/document-type.enum";

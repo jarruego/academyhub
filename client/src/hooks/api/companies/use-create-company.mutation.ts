@@ -4,11 +4,11 @@ import { getApiHost } from "../../../utils/api/get-api-host.util";
 import { Company } from "../../../shared/types/company/company";
 
 export const useCreateCompanyMutation = () => {
-    const request = useAuthenticatedAxios<Company>();
+    const request = useAuthenticatedAxios<Omit<Company, 'id_company'>>();
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (company: Company) => (await request({
+        mutationFn: async (company: Omit<Company, 'id_company'>) => (await request({
             method: 'POST',
             url: `${getApiHost()}/company`,
             data: company,

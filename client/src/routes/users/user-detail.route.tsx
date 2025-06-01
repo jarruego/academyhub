@@ -68,13 +68,6 @@ export default function UserDetailRoute() {
 
   const [modal, contextHolder] = Modal.useModal();
 
-  // Mostrar errores de validación por consola
-  useEffect(() => {
-    if (Object.keys(errors).length > 0) {
-      console.log("Errores de validación:", errors);
-    }
-  }, [errors]);
-
   // Detectar cambios en el campo dni y autocompletar document_type
   const dniValue = watch("dni");
   useEffect(() => {

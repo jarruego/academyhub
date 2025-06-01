@@ -3,6 +3,6 @@ export type Company = {
     company_name: string;
     corporate_name: string;
     cif: string;
-    created_at: string;
-    updated_at: string;
+    created_at?: Date;
+    updated_at?: Date;
 };
