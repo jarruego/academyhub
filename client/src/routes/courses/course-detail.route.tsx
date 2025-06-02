@@ -14,6 +14,7 @@ import { USERS_TABLE_COLUMNS } from "../../constants/tables/users-table-columns.
 import dayjs from "dayjs";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { User } from "../../shared/types/user/user";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -122,7 +123,7 @@ export default function CourseDetailRoute() {
             <Controller name="id_course" control={control} render={({ field }) => <Input {...field} id="id_course" disabled />} />
           </Form.Item>
           <Form.Item label="ID Moodle" name="moodle_id">
-            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" disabled  value={field.value ?? undefined}  />} />
+            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" disabled value={field.value ?? undefined} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -216,7 +217,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="hours"
               control={control}
-              render={({ field }) => <Input type="number" min={0} {...field} id="hours" style={{ width: 80 }}  value={field.value ?? undefined}  />}
+              render={({ field }) => <Input type="number" min={0} {...field} id="hours" style={{ width: 80 }} value={field.value ?? undefined} />}
             />
           </Form.Item>
           <Form.Item
@@ -228,7 +229,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="price_per_hour"
               control={control}
-              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" style={{ width: 100 }}  value={field.value ?? undefined}  />}
+              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" style={{ width: 100 }} value={field.value ?? undefined} />}
             />
           </Form.Item>
           <Form.Item
@@ -289,22 +290,38 @@ export default function CourseDetailRoute() {
               style: { cursor: 'pointer' }
             })}
           />
-          <Table
-            title={() => <h3>Usuarios del Grupo</h3>}
-            rowKey="id_user"
-            columns={[
-              ...USERS_TABLE_COLUMNS,
-              {
-                title: 'Extra'
-              },
-            ]}
-            dataSource={usersData}
-            loading={isUsersLoading}
-            onRow={(record) => ({
-              onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
-              style: { cursor: 'pointer' }
-            })}
-          />
+
+          <div style={{ marginTop: 8, display: 'flex', width: '100%', flexDirection: 'column', gap: '8px' }}>
+            <Table<User>
+              title={() => <h3>Usuarios del Grupo</h3>}
+              rowKey="id_user"
+              columns={[
+                ...USERS_TABLE_COLUMNS,
+                {
+                  title: 'Extra'
+                },
+              ]}
+              dataSource={usersData}
+              loading={isUsersLoading}
+              scroll={{ y: 400 }}
+              pagination={{ pageSize: 100 }}
+              rowSelection={{
+                type: 'checkbox',
+              }}
+              onRow={(record) => ({
+                onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
+                style: { cursor: 'pointer' }
+              })}
+            />
+            <Button
+              type="default"
+              icon={<SaveOutlined />}
+              style={{ maxWidth: '450px' }}
+            // onClick={handleBonificarSeleccionados} // Aquí irá la lógica futura
+            >
+              Bonificar seleccionados y crear XML FUNDAE (próximamente)
+            </Button>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>

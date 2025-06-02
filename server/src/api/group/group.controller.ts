@@ -1,10 +1,11 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe, HttpCode } from '@nestjs/common';
 import { CreateGroupDTO } from '../../dto/group/create-group.dto';
 import { UpdateGroupDTO } from '../../dto/group/update-group.dto';
 import { GroupService } from './group.service';
 import { CreateUserGroupDTO } from '../../dto/user-group/create-user-group.dto';
 import { FilterGroupDTO } from 'src/dto/group/filter-group.dto';
 import { UpdateUserGroupDTO } from 'src/dto/user-group/update-user-group.dto';
+import { GetBonificationFileDTO } from 'src/dto/group/get-bonification-file.dto';
 
 @Controller('group')
 export class GroupController {
@@ -59,5 +60,11 @@ export class GroupController {
     const numericId = parseInt(id, 10);
     const numericUserId = parseInt(userId, 10);
     return this.groupService.updateUserInGroup(numericId, numericUserId, updateUserGroupDTO);
+  }
+
+  @Post('bonification-file')
+  @HttpCode(200)
+  async getBonificationFile(@Body() body: GetBonificationFileDTO) {
+    return await this.groupService.getBonificationFile(body.groupId, body.userIds);
   }
 }

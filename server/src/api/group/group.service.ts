@@ -7,11 +7,13 @@ import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { GroupInsertModel, GroupSelectModel, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
+import { GroupBonificableService } from "./group-bonification.service";
 
 @Injectable()
 export class GroupService {
   constructor(private readonly groupRepository: GroupRepository,
     private readonly courseRepository: CourseRepository,
+    private readonly groupBonificableService: GroupBonificableService,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
   ) { }
 
@@ -111,5 +113,9 @@ export class GroupService {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.groupRepository.findUserInGroup(id_user, id_group, { transaction });
     });
+  }
+
+  async getBonificationFile(groupId: number, userIds: number[]) {
+    return await this.groupBonificableService.generateBonificationFile(groupId, userIds);
   }
 }
