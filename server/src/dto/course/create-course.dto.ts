@@ -51,7 +51,7 @@ export class CreateCourseDTO {
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  price_per_hour: string;
+  price_per_hour: number;
 
   @ApiProperty()
   @IsNotEmpty()

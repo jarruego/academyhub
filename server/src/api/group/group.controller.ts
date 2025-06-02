@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe, HttpCode } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe, HttpCode, Res } from '@nestjs/common';
 import { CreateGroupDTO } from '../../dto/group/create-group.dto';
 import { UpdateGroupDTO } from '../../dto/group/update-group.dto';
 import { GroupService } from './group.service';
@@ -6,6 +6,7 @@ import { CreateUserGroupDTO } from '../../dto/user-group/create-user-group.dto';
 import { FilterGroupDTO } from 'src/dto/group/filter-group.dto';
 import { UpdateUserGroupDTO } from 'src/dto/user-group/update-user-group.dto';
 import { GetBonificationFileDTO } from 'src/dto/group/get-bonification-file.dto';
+import { Response } from 'express';
 
 @Controller('group')
 export class GroupController {

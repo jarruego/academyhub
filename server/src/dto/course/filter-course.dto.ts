@@ -42,9 +42,10 @@ export class FilterCourseDTO {
   @IsBoolean()
   active?: boolean;
 
-  // @IsOptional()
-  // @IsNumberString()
-  // price_per_hour?: string;
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  price_per_hour?: number;
 
   @IsOptional()
   @IsString()

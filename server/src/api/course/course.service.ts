@@ -105,7 +105,7 @@ export class CourseService {
         category: "",
         modality: CourseModality.ONLINE,
         hours: 0,
-        price_per_hour: "",
+        price_per_hour: null,
         active: true,
         fundae_id: "",
       };

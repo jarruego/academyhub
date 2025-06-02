@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
-import { eq, ilike, and, not } from "drizzle-orm";
+import { eq, ilike, and, not, inArray } from "drizzle-orm";
 import { CreateGroupDTO } from "src/dto/group/create-group.dto";
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { userTable } from "src/database/schema/tables/user.table";
@@ -60,22 +60,20 @@ export class GroupRepository extends Repository {
 
   async findUsersInGroup(groupId: number, options?: QueryOptions) {
     const rows = await this.query(options)
-      .select({
-        id_user: userTable.id_user,
-        username: userTable.moodle_username,
-        email: userTable.email,
-        name: userTable.name,
-        first_surname: userTable.first_surname,
-        moodle_id: userTable.moodle_id,
-        id_group: userGroupTable.id_group,
-        completion_percentage: userGroupTable.completion_percentage,
-        id_center: userGroupTable.id_center,
-        time_spent: userGroupTable.time_spent,
-      })
+      .select()
       .from(userGroupTable)
       .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
       .where(eq(userGroupTable.id_group, groupId));
-    return rows;
+    return rows.map((r) => r.users);
+  }
+
+    async findUsersInGroupByIds(groupId: number, userIds: number[], options?: QueryOptions) {
+    const rows = await this.query(options)
+      .select()
+      .from(userGroupTable)
+      .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
+      .where(and(eq(userGroupTable.id_group, groupId), inArray(userGroupTable.id_user, userIds)));
+    return rows.map((r) => r.users);
   }
 
   async updateUserInGroup(id_group: number, id_user: number, updateUserGroupDTO: UpdateUserGroupDTO, options?: QueryOptions) {

@@ -1,8 +1,18 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 import { GroupRepository } from "src/database/repository/group/group.repository";
+import { CourseSelectModel } from "src/database/schema/tables/course.table";
+import { GroupSelectModel } from "src/database/schema/tables/group.table";
+import { UserSelectModel } from "src/database/schema/tables/user.table";
+import { create } from 'xmlbuilder2';
+
+type CreateFundaeXmlObjectOptions = {
+    course: CourseSelectModel;
+    group: GroupSelectModel;
+    users: UserSelectModel[];
+}
 
 @Injectable()
 export class GroupBonificableService {
@@ -14,20 +24,65 @@ export class GroupBonificableService {
             const group = await this.groupRepository.findById(groupId, { transaction });
             if (!group) throw new NotFoundException("Group does not exist");
 
-            const { fundae_id: groupFundaeId } = group;
-
             // Obtener id fundae de los curso
             const course = await this.courseRepository.findById(group.id_course, { transaction });
             if (!course) throw new NotFoundException("Course not found");
 
-            const { fundae_id: courseFundaeId } = course;
-
             // Obtenemos los alumnos del grupo
-            const users = await this.groupRepository.findUsersInGroup(group.id_group, { transaction });
+            const users = await this.groupRepository.findUsersInGroupByIds(group.id_group, userIds, { transaction });
             if (users.length <= 0) throw new BadRequestException("No users found in group");
 
-            // Calcular coste total por alumno
-            //const costPerUser = course.price_per_hour * course.hours;
+            const xml = create(GroupBonificableService.createFundaeXmlObject({ course, group, users })).end({ prettyPrint: true });
+            return xml;
         });
     }
+
+    // Crea el objeto base para generar el XML
+    static createFundaeXmlObject({ course, group, users }: CreateFundaeXmlObjectOptions) {
+        // Calcular coste total por alumno
+        const costPerUser = (course.price_per_hour ?? 0) * course.hours;
+
+        // Controlar posibles errores
+        const courseFundaeId = +course.fundae_id;
+        const groupFundaeId = +group.fundae_id;
+
+        if (isNaN(courseFundaeId) || isNaN(groupFundaeId)) throw new InternalServerErrorException("Fundae ID was not a number");
+
+        // Generar array de participantes
+        const participantes = users.map((user) => {
+            if (!user.dni) throw new InternalServerErrorException(`User ${user.id_user} does not have DNI`);
+
+            return {
+                nif: user.dni,
+                N_TIPO_DOCUMENTO: user.document_type,
+                ERTE_RD_ley: false,
+                email: user.email,
+                telefono: user.phone,
+                discapacidad: user.disability,
+                afectadosTerrorismo: user.terrorism_victim,
+                afectadosViolenciaGenero: user.gender_violence_victim,
+                categoriaprofesional: user.professional_category,
+                nivelestudios: user.education_level,
+                DiplomaAcreditativo: "N",
+                fijoDiscontinuo: false,
+            }
+        });
+
+        // Generar objeto
+        const obj = {
+            grupos: {
+                grupo: {
+                    idAccion: minStringDigits(courseFundaeId),
+                    idGrupo: minStringDigits(groupFundaeId),
+                    participantes,
+                }
+            }
+        };
+
+        return obj;
+    }
 }
+
+const minStringDigits = (num: number, min: number = 5): string => {
+  return num.toString().padStart(min, '0');
+};

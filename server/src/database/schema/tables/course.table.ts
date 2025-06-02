@@ -15,7 +15,7 @@ export const courseTable = pgTable('courses', {
   end_date: timestamp({withTimezone: true}),
   modality: courseModality().notNull(),
   hours: integer(), 
-  price_per_hour: decimal({ precision: 10, scale: 2 }),
+  price_per_hour: decimal({ precision: 10, scale: 2 }).$type<number>(),
   active: boolean().notNull(),
   fundae_id: text(),
   ...TIMESTAMPS,
