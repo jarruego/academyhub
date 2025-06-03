@@ -4,11 +4,15 @@ import { UserController } from './user.controller';
 import { UserRepository } from 'src/database/repository/user/user.repository';
 import { MoodleService } from 'src/api/moodle/moodle.service';
 import { GroupModule } from '../group/group.module';
+import { CenterModule } from '../center/center.module';
+import { CenterRepository } from 'src/database/repository/center/center.repository';
+import { CompanyModule } from '../company/company.module';
+import { CompanyRepository } from 'src/database/repository/company/company.repository';
 
 @Module({
-  providers: [UserService, UserRepository, MoodleService],
+  providers: [UserService, UserRepository, MoodleService, CenterRepository, CompanyRepository],
   controllers: [UserController],
   exports: [UserService, UserRepository],
-  imports: [GroupModule]
+  imports: [GroupModule, CenterModule, CompanyModule]
 })
 export class UserModule {}

@@ -33,9 +33,14 @@ export class CenterController {
   }
 
   @Post(':id/users')
-  async addUserToCenter(@Param('id') id: string, @Body() createUserCenterDTO: CreateUserCenterDTO) {
-    createUserCenterDTO.id_center = parseInt(id, 10);
-    return this.centerService.addUserToCenter(createUserCenterDTO);
+  async addUserToCenter(@Param('id') id: string, @Body() createUserCenterDTO: Omit<CreateUserCenterDTO, 'id_center'>) {
+    const dto = {
+      ...createUserCenterDTO,
+      id_center: parseInt(id, 10),
+      start_date: createUserCenterDTO.start_date ? new Date(createUserCenterDTO.start_date) : undefined,
+      end_date: createUserCenterDTO.end_date ? new Date(createUserCenterDTO.end_date) : undefined
+    };
+    return this.centerService.addUserToCenter(dto);
   }
 
   @Get(':id/users')
@@ -62,5 +67,14 @@ export class CenterController {
     const numericCenterId = parseInt(id, 10);
     const numericUserId = parseInt(userId, 10);
     return this.centerService.deleteUserFromCenter(numericCenterId, numericUserId);
+  }
+
+  @Get(":id/company")
+  async getCompanyOfCenter(@Param("id") id: string) {
+    const numericId = parseInt(id, 10);
+    const center = await this.centerService.findById(numericId);
+    if (!center) throw new Error("Centro no encontrado");
+    // Buscar la empresa asociada
+    return this.centerService.getCompanyOfCenter(numericId);
   }
 }

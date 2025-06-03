@@ -86,4 +86,14 @@ export class CenterService {
       return await this.centerRepository.deleteUserFromCenter(id_center, id_user, { transaction });
     });
   }
+
+  async getCompanyOfCenter(centerId: number) {
+    return await (this.databaseService.db).transaction(async transaction => {
+      const center = await this.centerRepository.findById(centerId, { transaction });
+      if (!center) throw new NotFoundException(`Center with ID ${centerId} not found`);
+      const company = await this.companyRepository.findOne(center.id_company, { transaction });
+      if (!company) throw new NotFoundException(`Company with ID ${center.id_company} not found`);
+      return company;
+    });
+  }
 }

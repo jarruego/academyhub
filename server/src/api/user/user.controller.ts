@@ -4,12 +4,14 @@ import { UpdateUserDTO } from '../../dto/user/update-user.dto';
 import { UserService } from './user.service';
 import { FilterUserDTO } from 'src/dto/user/filter-user.dto';
 import { MoodleService } from 'src/api/moodle/moodle.service';
+import { CenterRepository } from 'src/database/repository/center/center.repository';
 
 @Controller('user')
 export class UserController {
   constructor(
     private readonly userService: UserService,
-    private readonly moodleService: MoodleService
+    private readonly moodleService: MoodleService,
+    private readonly centerRepository: CenterRepository
   ) {}
 
   @Post()
@@ -50,4 +52,11 @@ export class UserController {
     const numericGroupId = parseInt(id_group, 10);
     return this.userService.bulkCreateAndAddToGroup(users, numericGroupId);
   }
+
+  @Get(':id/centers')
+  async findCentersByUser(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.userService.findCentersByUserId(numericId);
+  }
+
 }

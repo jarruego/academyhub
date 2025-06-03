@@ -8,6 +8,10 @@ import { GroupService } from "../group/group.service";
 import { UserInsertModel, UserSelectModel, UserUpdateModel } from "src/database/schema/tables/user.table";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
+import { CenterRepository } from "src/database/repository/center/center.repository";
+import { eq } from "drizzle-orm";
+import { userCenterTable, UserCenterInsertModel } from "src/database/schema/tables/user_center.table";
+import { CompanyRepository } from "src/database/repository/company/company.repository";
 
 @Injectable()
 export class UserService {
@@ -16,7 +20,9 @@ export class UserService {
     private readonly MoodleService: MoodleService,
     private readonly groupRepository: GroupRepository,
     private readonly groupService: GroupService,
-    @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
+    @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
+    private readonly centerRepository: CenterRepository,
+    private readonly companyRepository: CompanyRepository
   ) { }
 
   async findById(id: number, options?: QueryOptions) {
@@ -128,6 +134,29 @@ export class UserService {
         }
       }
       return createdUsers;
+    });
+  }
+
+  async findCentersByUserId(id_user: number) {
+    return await (this.databaseService.db).transaction(async transaction => {
+      const userCenters = await transaction
+        .select()
+        .from(userCenterTable)
+        .where(eq(userCenterTable.id_user, id_user));
+      if (!userCenters.length) return [];
+      const centers = await Promise.all(
+        userCenters.map(async (uc: any) => {
+          const center = await this.centerRepository.findById(uc.id_center, { transaction });
+          if (!center) return null;
+          // Buscar el nombre de la empresa
+          const company = await this.companyRepository.findOne(center.id_company, { transaction });
+          return {
+            ...center,
+            company_name: company?.company_name || null
+          };
+        })
+      );
+      return centers.filter(Boolean);
     });
   }
 }
