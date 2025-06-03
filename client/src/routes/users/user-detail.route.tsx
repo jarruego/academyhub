@@ -41,6 +41,9 @@ const USER_FORM_SCHEMA = z.object({
   observations: z.string().nullish(),
   registration_date: z.date({ invalid_type_error: "La fecha de registro debe ser una fecha válida" }).nullish(),
   nss: z.string().nullish(),
+  seasonalWorker: z.boolean().nullish().default(false),
+  erteLaw: z.boolean().nullish().default(false),
+  accreditationDiploma: z.union([z.literal("S"), z.literal("N"), z.null()]).nullish().default("N"),
 });
 
 function nullsToUndefined<T>(obj: T): T {
@@ -76,8 +79,17 @@ export default function UserDetailRoute() {
   }, [dniValue, setValue]);
 
   useEffect(() => {
-    if (userData) {      
-      reset(nullsToUndefined(userData)); 
+    if (userData) {
+      // Normalizar accreditationDiploma a 'S', 'N' o null
+      let diploma: "S" | "N" | null = null;
+      if (userData.accreditationDiploma === "S") diploma = "S";
+      else if (userData.accreditationDiploma === "N") diploma = "N";
+      // Si viene cualquier otro valor, lo dejamos en null
+      const normalized = {
+        ...nullsToUndefined(userData),
+        accreditationDiploma: diploma
+      };
+      reset(normalized);
     }
   }, [userData, reset]);
 
@@ -263,6 +275,50 @@ export default function UserDetailRoute() {
                   checked={!!field.value}
                 >
                   Víctima de Violencia de Género
+                </Checkbox>
+              )}
+            />
+          </Form.Item>
+        </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Form.Item name="seasonalWorker" valuePropName="checked" style={{ flex: 1 }}>
+            <Controller
+              name="seasonalWorker"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  {...field}
+                  checked={!!field.value}
+                >
+                  Trabajador fijo-discontinuo
+                </Checkbox>
+              )}
+            />
+          </Form.Item>
+          <Form.Item name="erteLaw" valuePropName="checked" style={{ flex: 1 }}>
+            <Controller
+              name="erteLaw"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  {...field}
+                  checked={!!field.value}
+                >
+                  ERTE RD Ley
+                </Checkbox>
+              )}
+            />
+          </Form.Item>
+          <Form.Item name="accreditationDiploma" valuePropName="checked" style={{ flex: 1 }}>
+            <Controller
+              name="accreditationDiploma"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  checked={field.value === "S"}
+                  onChange={e => field.onChange(e.target.checked ? "S" : "N")}
+                >
+                  Diploma acreditativo
                 </Checkbox>
               )}
             />

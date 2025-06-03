@@ -27,4 +27,7 @@ export type User = {
     observations?: string | null;
     registration_date?: Date | null;
     nss?: string | null;
+    seasonalWorker?: boolean | null;
+    erteLaw?: boolean | null;
+    accreditationDiploma?: string | null;
 }

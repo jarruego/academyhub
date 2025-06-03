@@ -123,4 +123,19 @@ export class UpdateUserDTO {
   @IsOptional()
   @IsString()
   observations?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  seasonalWorker: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  erteLaw: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  accreditationDiploma: string;  
 }

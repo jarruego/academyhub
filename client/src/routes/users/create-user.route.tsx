@@ -39,6 +39,9 @@ const CREATE_USER_FORM = z.object({
   observations: z.string().optional(),
   registration_date: z.date({ invalid_type_error: "La fecha de registro debe ser una fecha válida" }).optional(),
   nss: z.string().optional(),
+  seasonalWorker: z.boolean().optional().default(false),
+  erteLaw: z.boolean().optional().default(false),
+  accreditationDiploma: z.enum(["S", "N"]).optional().default("N"),
 });
 
 export default function CreateUserRoute() {
@@ -174,9 +177,6 @@ export default function CreateUserRoute() {
             <Controller name="nss" control={control} render={({ field }) => <Input {...field} />} />
           </Form.Item>
         </div>
-        <Form.Item label="Observaciones" name="observations">
-          <Controller name="observations" control={control} render={({ field }) => <Input.TextArea {...field} rows={3} />} />
-        </Form.Item>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Form.Item name="disability" valuePropName="checked" style={{ flex: 1 }}>
             <Controller
@@ -221,6 +221,53 @@ export default function CreateUserRoute() {
             />
           </Form.Item>
         </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Form.Item name="seasonalWorker" valuePropName="checked" style={{ flex: 1 }}>
+            <Controller
+              name="seasonalWorker"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  {...field}
+                  checked={field.value}
+                >
+                  Trabajador fijo-discontinuo
+                </Checkbox>
+              )}
+            />
+          </Form.Item>
+          <Form.Item name="erteLaw" valuePropName="checked" style={{ flex: 1 }}>
+            <Controller
+              name="erteLaw"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  {...field}
+                  checked={field.value}
+                >
+                  ERTE RD Ley
+                </Checkbox>
+              )}
+            />
+          </Form.Item>
+          <Form.Item name="accreditationDiploma" valuePropName="checked" style={{ flex: 1 }}>
+            <Controller
+              name="accreditationDiploma"
+              control={control}
+              render={({ field }) => (
+                <Checkbox
+                  checked={field.value === "S"}
+                  onChange={e => field.onChange(e.target.checked ? "S" : "N")}
+                >
+                  Diploma acreditativo
+                </Checkbox>
+              )}
+            />
+          </Form.Item>
+        </div>
+        <Form.Item label="Observaciones" name="observations">
+          <Controller name="observations" control={control} render={({ field }) => <Input.TextArea {...field} rows={3} />} />
+        </Form.Item>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>

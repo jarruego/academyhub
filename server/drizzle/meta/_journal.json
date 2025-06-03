@@ -50,6 +50,13 @@
       "when": 1748716115232,
       "tag": "0006_new_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1748968300277,
+      "tag": "0007_lovely_shockwave",
+      "breakpoints": true
     }
   ]
 }

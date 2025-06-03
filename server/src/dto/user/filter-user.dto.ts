@@ -102,4 +102,16 @@ export class FilterUserDTO {
   @IsOptional()
   @IsString()
   observations?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  seasonalWorker: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  erteLaw: boolean;
+
+  @IsOptional()
+  @IsString()
+  accreditationDiploma: string;  
 }
