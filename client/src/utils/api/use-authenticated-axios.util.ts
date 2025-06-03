@@ -6,7 +6,7 @@ export function useAuthenticatedAxios<D>() {
     
     return (options: AxiosRequestConfig<D>) => axios.request<D>({
         headers: {
-            authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
             ...options.headers,
         },
         ...options,

@@ -15,6 +15,7 @@ import dayjs from "dayjs";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { User } from "../../shared/types/user/user";
+import { useCreateBonificationFileMutation } from "../../hooks/api/groups/use-create-bonification-file.mutation";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -40,6 +41,7 @@ export default function CourseDetailRoute() {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const { data: usersData, isLoading: isUsersLoading } = useUsersByGroupQuery(selectedGroupId);
   const { mutateAsync: deleteCourse } = useDeleteCourseMutation(id_course || "");
+  const { mutateAsync: createBonificationFile } = useCreateBonificationFileMutation();
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [modal, contextHolder] = Modal.useModal();
 
@@ -112,6 +114,29 @@ export default function CourseDetailRoute() {
   const handleRowClick = (record: { id_group: number }) => {
     setSelectedGroupId(record.id_group);
     setSelectedRowKeys([record.id_group]);
+  };
+
+  //TODO: No funciona, error 401 (Unauthorized).
+  const handleBonificarSeleccionados = async () => {
+    // Prueba con datos fijos
+    const groupId = 1;
+    const userIds = [2, 7, 5];
+    try {
+      const xmlBlob = await createBonificationFile({ groupId, userIds });
+      const url = window.URL.createObjectURL(xmlBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bonificacion_grupo_${groupId}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      Modal.error({
+        title: "Error al generar el XML",
+        content: "No se pudo generar el archivo de bonificación.",
+      });
+    }
   };
 
   return (
@@ -317,7 +342,7 @@ export default function CourseDetailRoute() {
               type="default"
               icon={<SaveOutlined />}
               style={{ maxWidth: '450px' }}
-            // onClick={handleBonificarSeleccionados} // Aquí irá la lógica futura
+              onClick={handleBonificarSeleccionados}
             >
               Bonificar seleccionados y crear XML FUNDAE (próximamente)
             </Button>

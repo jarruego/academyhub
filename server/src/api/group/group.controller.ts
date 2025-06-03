@@ -6,7 +6,6 @@ import { CreateUserGroupDTO } from '../../dto/user-group/create-user-group.dto';
 import { FilterGroupDTO } from 'src/dto/group/filter-group.dto';
 import { UpdateUserGroupDTO } from 'src/dto/user-group/update-user-group.dto';
 import { GetBonificationFileDTO } from 'src/dto/group/get-bonification-file.dto';
-import { Response } from 'express';
 
 @Controller('group')
 export class GroupController {
