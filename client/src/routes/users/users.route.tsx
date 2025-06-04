@@ -18,10 +18,10 @@ export default function UsersRoute() {
   };
 
   const filteredUsers = usersData?.filter(user => 
-    user.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    user.first_surname.toLowerCase().includes(searchText.toLowerCase()) ||
-    user.moodle_username.toLowerCase().includes(searchText.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchText.toLowerCase())
+    (user.name ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
+    (user.first_surname ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
+    (user.moodle_username ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
+    (user.email ?? "").toLowerCase().includes(searchText.toLowerCase())
   );
 
   return <div>
@@ -65,7 +65,7 @@ export default function UsersRoute() {
         {
           title: 'MOODLE USERNAME',
           dataIndex: 'moodle_username',
-          sorter: (a, b) => a.moodle_username.localeCompare(b.moodle_username),
+          sorter: (a, b) => (a.moodle_username ?? "").localeCompare(b.moodle_username ?? ""),
         }
       ]} 
       dataSource={filteredUsers} 
