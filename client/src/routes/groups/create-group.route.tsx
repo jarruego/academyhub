@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { Button, Form, Input, message, DatePicker } from "antd";
 import { useCreateGroupMutation } from "../../hooks/api/groups/use-create-group.mutation";
-import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
+import { SaveOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import dayjs from "dayjs";
@@ -130,9 +130,6 @@ export default function CreateGroupRoute() {
         <Form.Item>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
             Crear Grupo
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} style={{ marginLeft: '16px' }}>
-            Refrescar
           </Button>
         </Form.Item>
       </Form>

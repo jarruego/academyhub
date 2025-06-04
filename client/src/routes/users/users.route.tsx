@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
 
 export default function UsersRoute() {
-  const { data: usersData, isLoading: isUsersLoading, isFetching: isUsersRefetching, refetch: refetchUsers } = useUsersQuery();
+  const { data: usersData, isLoading: isUsersLoading } = useUsersQuery();
   const [searchText, setSearchText] = useState("");
   const navigate = useNavigate();
 
@@ -13,15 +13,20 @@ export default function UsersRoute() {
     document.title = "Usuarios";
   }, []);
 
+  const normalize = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
   };
 
+  const normalizedSearch = normalize(searchText);
+
   const filteredUsers = usersData?.filter(user => 
-    (user.name ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
-    (user.first_surname ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
-    (user.moodle_username ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
-    (user.email ?? "").toLowerCase().includes(searchText.toLowerCase())
+    normalize(user.name ?? '').includes(normalizedSearch) ||
+    normalize(user.first_surname ?? '').includes(normalizedSearch) ||
+    normalize(user.moodle_username ?? '').includes(normalizedSearch) ||
+    normalize(user.email ?? '').includes(normalizedSearch) ||
+    normalize(user.dni ?? '').includes(normalizedSearch)
   );
 
   return <div>
@@ -45,6 +50,11 @@ export default function UsersRoute() {
           title: 'MOODLE ID',
           dataIndex: 'moodle_id',
           sorter: (a, b) => (a.moodle_id ?? 0) - (b.moodle_id ?? 0),
+        },
+        {
+          title: 'DNI',
+          dataIndex: 'dni',
+          sorter: (a, b) => (a.dni ?? '').localeCompare(b.dni ?? ''),
         },
         {
           title: 'Name',

@@ -1,0 +1,1 @@
+ALTER TABLE "user_center" ADD COLUMN "is_main_center" boolean DEFAULT false NOT NULL;

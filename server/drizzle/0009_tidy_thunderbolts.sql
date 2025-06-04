@@ -1,0 +1,1 @@
+ALTER TABLE "user_group" ALTER COLUMN "join_date" SET DEFAULT now();

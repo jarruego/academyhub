@@ -1,4 +1,4 @@
-import { pgTable, integer, primaryKey, date, text } from "drizzle-orm/pg-core";
+import { pgTable, integer, primaryKey, date, text, boolean } from "drizzle-orm/pg-core";
 import { userTable } from "./user.table";
 import { centerTable } from "./center.table";
 import { InferSelectModel } from "drizzle-orm";
@@ -8,6 +8,8 @@ export const userCenterTable = pgTable("user_center", {
   id_center: integer("id_center").notNull().references(() => centerTable.id_center),
   start_date: date({mode: 'date'}),
   end_date: date({mode: 'date'}),
+  is_main_center: boolean('is_main_center').notNull().default(false),
+  
 }, (table) => {
   return {
     pk: primaryKey(table.id_user, table.id_center)

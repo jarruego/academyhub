@@ -1,6 +1,6 @@
 # Final Degree Project (TFG)
 
-This project is my Final Degree Project (Trabajo de Fin de Grado) developed by Jose Alberto Arruego.
+This project is my Final Degree Project (Trabajo de Fin de Grado). Developed by Jose Alberto Arruego.
 
 ## Description
 This project is an open-source web application designed to address the needs of small and medium-sized training companies in Spain, especially those using Moodle. Its main goal is to simplify training management—both face-to-face and online—without requiring advanced technical knowledge or experience in Moodle administration. The platform helps SMEs comply with essential regulations such as SEPE and FUNDAE, reducing barriers and improving competitiveness in the training sector.

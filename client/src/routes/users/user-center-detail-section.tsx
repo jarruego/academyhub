@@ -94,13 +94,14 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
           loading={isCompaniesLoading}
           value={selectedCompany}
           onChange={setSelectedCompany}
+          optionLabelProp="label"
           optionFilterProp="children"
           filterOption={(input, option) =>
             (option?.children?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
           }
         >
           {companies?.map(company => (
-            <Select.Option key={company.id_company} value={company.id_company}>
+            <Select.Option key={company.id_company} value={company.id_company} label={`${company.company_name} (${company.cif})`}>
               {company.company_name} ({company.cif})
             </Select.Option>
           ))}
@@ -112,6 +113,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
           loading={isCentersLoadingAll}
           value={selectedCenter}
           onChange={setSelectedCenter}
+          optionLabelProp="label"
           optionFilterProp="children"
           filterOption={(input, option) =>
             (option?.children?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
@@ -123,7 +125,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
               !(userCenters || []).some(uc => uc.id_center === center.id_center)
             )
             .map(center => (
-              <Select.Option key={center.id_center} value={center.id_center}>
+              <Select.Option key={center.id_center} value={center.id_center} label={`${center.center_name} (${center.employer_number || 'Sin nº patronal'})`}>
                 {center.center_name} ({center.employer_number || 'Sin nº patronal'})
               </Select.Option>
             ))}

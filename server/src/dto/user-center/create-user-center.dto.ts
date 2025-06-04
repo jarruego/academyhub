@@ -24,4 +24,8 @@ export class CreateUserCenterDTO {
   @IsDate()
   @Type(() => Date)
   end_date: Date;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  is_main_center?: boolean = false;
 }

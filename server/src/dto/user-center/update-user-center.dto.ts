@@ -21,4 +21,8 @@ export class UpdateUserCenterDTO {
   @IsDateString()
   @IsOptional()
   end_date?: Date;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  is_main_center?: boolean;
 }

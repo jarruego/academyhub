@@ -16,13 +16,13 @@ dayjs.extend(utc);
 
 const GROUP_FORM_SCHEMA = z.object({
   id_group: z.number(),
-  moodle_id: z.number().optional(),
+  moodle_id: z.number().optional().nullish(),
   group_name: z.string({ required_error: "El nombre del grupo es obligatorio" }).min(2, "El nombre es demasiado corto"),
   id_course: z.number(),
-  description: z.string().optional(),
-  start_date: z.date().nullable(),
-  end_date: z.date().nullable(),
-  fundae_id: z.string().optional(),
+  description: z.string().optional().nullish(),
+  start_date: z.date().nullish(),
+  end_date: z.date().nullish(),
+  fundae_id: z.string().optional().nullish(),
 });
 
 export default function EditGroupRoute() {
@@ -137,7 +137,11 @@ export default function EditGroupRoute() {
               help={errors.fundae_id?.message}
               validateStatus={errors.fundae_id ? "error" : undefined}
             >
-              <Controller name="fundae_id" control={control} render={({ field }) => <Input {...field} />} />
+              <Controller
+                name="fundae_id"
+                control={control}
+                render={({ field }) => <Input {...field} value={field.value ?? ""} />}
+              />
             </Form.Item>
             <Form.Item label="Nombre del grupo" name="group_name"
               help={errors.group_name?.message}
@@ -184,7 +188,7 @@ export default function EditGroupRoute() {
             help={errors.description?.message}
             validateStatus={errors.description ? "error" : undefined}
           >
-            <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
+            <Controller name="description" control={control} render={({ field }) => <Input {...field} value={field.value ?? ""} />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>

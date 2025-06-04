@@ -38,7 +38,8 @@ export class CenterController {
       ...createUserCenterDTO,
       id_center: parseInt(id, 10),
       start_date: createUserCenterDTO.start_date ? new Date(createUserCenterDTO.start_date) : undefined,
-      end_date: createUserCenterDTO.end_date ? new Date(createUserCenterDTO.end_date) : undefined
+      end_date: createUserCenterDTO.end_date ? new Date(createUserCenterDTO.end_date) : undefined,
+      is_main_center: createUserCenterDTO.is_main_center ?? false
     };
     return this.centerService.addUserToCenter(dto);
   }
@@ -50,10 +51,19 @@ export class CenterController {
   }
 
   @Put(':id/users/:userId')
-  async updateUserInCenter(@Param('id') id: string, @Param('userId') userId: string, @Body() updateUserCenterDTO: UpdateUserCenterDTO) {
+  async updateUserInCenter(
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body() updateUserCenterDTO: UpdateUserCenterDTO
+  ) {
     const numericCenterId = parseInt(id, 10);
     const numericUserId = parseInt(userId, 10);
-    return this.centerService.updateUserInCenter(numericCenterId, numericUserId, updateUserCenterDTO);
+    const dto = {
+      ...updateUserCenterDTO,
+      start_date: updateUserCenterDTO.start_date ? new Date(updateUserCenterDTO.start_date) : undefined,
+      end_date: updateUserCenterDTO.end_date ? new Date(updateUserCenterDTO.end_date) : undefined,
+    };
+    return this.centerService.updateUserInCenter(numericCenterId, numericUserId, dto);
   }
 
   @Delete(':id')

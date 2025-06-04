@@ -13,14 +13,18 @@ export default function CoursesRoute() {
     document.title = "Cursos";
   }, []);
 
+  const normalize = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
   };
 
+  const normalizedSearch = normalize(searchText);
+
   const filteredCourses = coursesData?.filter(course =>
-    (course.course_name ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
-    (course.short_name ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
-    (course.moodle_id ? String(course.moodle_id) : "").toLowerCase().includes(searchText.toLowerCase())
+    normalize(course.course_name ?? '').includes(normalizedSearch) ||
+    normalize(course.short_name ?? '').includes(normalizedSearch) ||
+    normalize(course.moodle_id ? String(course.moodle_id) : '').includes(normalizedSearch)
   );
 
   return <div>
@@ -58,11 +62,13 @@ export default function CoursesRoute() {
           title: 'Fecha Inicio',
           dataIndex: 'start_date',
           sorter: (a, b) => new Date(a.start_date ?? '').getTime() - new Date(b.start_date ?? '').getTime(),
+          render: (date) => date ? new Date(date).toLocaleDateString('es-ES') : '',
         },
         {
           title: 'Fecha Fin',
           dataIndex: 'end_date',
           sorter: (a, b) => new Date(a.end_date ?? '').getTime() - new Date(b.end_date ?? '').getTime(),
+          render: (date) => date ? new Date(date).toLocaleDateString('es-ES') : '',
         }
       ]} 
       dataSource={filteredCourses} 
