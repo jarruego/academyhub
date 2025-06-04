@@ -1,78 +1,87 @@
-# Trabajo de Fin de Grado (TFG)
+# Final Degree Project (TFG)
 
-Este proyecto es el Trabajo de Fin de Grado (TFG) y consiste en una aplicación web dividida en dos partes: cliente (frontend) y servidor (backend).
+This project is my Final Degree Project (Trabajo de Fin de Grado) developed by Jose Alberto Arruego.
 
-## Descripción
-La aplicación permite la gestión de usuarios, centros, empresas, cursos y grupos, integrando funcionalidades de autenticación y administración. Está diseñada para facilitar la gestión académica y administrativa en un entorno educativo.
+## Description
+This project is an open-source web application designed to address the needs of small and medium-sized training companies in Spain, especially those using Moodle. Its main goal is to simplify training management—both face-to-face and online—without requiring advanced technical knowledge or experience in Moodle administration. The platform helps SMEs comply with essential regulations such as SEPE and FUNDAE, reducing barriers and improving competitiveness in the training sector.
 
-Además, permite sincronizar datos de cursos, grupos y alumnos con Moodle, así como facilitar la gestión de la formación bonificada a través de FUNDAE, optimizando los procesos de integración y control de la formación.
+Built with modern technologies and a scalable architecture, the platform is released under the MIT license, allowing free use, redistribution, and customization.
 
-## Estructura del Proyecto
-- `client/`: Aplicación frontend desarrollada con React y Vite.
-- `server/`: API backend desarrollada con NestJS y Drizzle ORM.
+## Project Structure
+- `client/`: Frontend application built with React and Vite.
+- `server/`: Backend API built with NestJS and Drizzle ORM.
 
-## Tecnologías Utilizadas
+## Technologies Used
 - **Frontend:** React, TypeScript, Vite
 - **Backend:** NestJS, TypeScript, Drizzle ORM
-- **Base de datos:** PostgreSQL
-- **Docker:** Para el despliegue y desarrollo local
+- **Database:** PostgreSQL
+- **Docker:** For deployment and local development
 
-### Principales librerías utilizadas en producción
+### Main Production Libraries
 - **Frontend:**
-  - [Ant Design (antd)](https://ant.design/): Framework de componentes UI
-  - [Zod](https://zod.dev/): Validación de esquemas y formularios
-  - [React Router](https://reactrouter.com/): Enrutamiento
-  - [Axios](https://axios-http.com/): Cliente HTTP
+  - [Ant Design (antd)](https://ant.design/): UI component framework
+  - [Zod](https://zod.dev/): Schema and form validation
+  - [React Router](https://reactrouter.com/): Routing
+  - [Axios](https://axios-http.com/): HTTP client
+  - [React Hook Form](https://react-hook-form.com/): Form management
+  - [TanStack React Query](https://tanstack.com/query/latest): Data fetching and caching
+  - [Day.js](https://day.js.org/): Date handling
+  - [xlsx](https://github.com/SheetJS/sheetjs): Spreadsheet import/export
 - **Backend:**
-  - [NestJS](https://nestjs.com/): Framework backend
-  - [Drizzle ORM](https://orm.drizzle.team/): ORM para TypeScript
-  - [Passport](http://www.passportjs.org/): Autenticación
-  - [Class-validator](https://github.com/typestack/class-validator): Validación de DTOs
+  - [NestJS](https://nestjs.com/): Backend framework
+  - [Drizzle ORM](https://orm.drizzle.team/): ORM for TypeScript
+  - [Passport](http://www.passportjs.org/): Authentication
+  - [Class-validator](https://github.com/typestack/class-validator): DTO validation
+  - [@nestjs/swagger](https://docs.nestjs.com/openapi/introduction): API documentation
+  - [@nestjs/throttler](https://docs.nestjs.com/security/rate-limiting): Rate limiting
+  - [dotenv](https://github.com/motdotla/dotenv): Environment variable management
+  - [pg](https://node-postgres.com/): PostgreSQL driver
+  - [xmlbuilder2](https://oozcitak.github.io/xmlbuilder2/): XML construction
 
-## Instalación y Ejecución
+## Installation and Usage
 
-### Requisitos previos
-- Node.js (v18 o superior)
-- Docker y Docker Compose (opcional, recomendado para desarrollo)
+### Prerequisites
+- Node.js (v18 or higher)
+- Docker and Docker Compose (optional, recommended for development)
 
-### Clonar el repositorio
+### Clone the repository
 ```bash
-git clone <URL-del-repositorio>
+git clone <repository-url>
 cd TFG
 ```
 
-### Instalación del cliente
+### Client installation
 ```bash
 cd client
 npm install
 npm run dev
 ```
 
-### Instalación del servidor
+### Server installation
 ```bash
 cd server
 npm install
 npm run start:dev
 ```
 
-### Uso con Docker
+### Using Docker
 ```bash
 cd server
 docker-compose up --build
 ```
 
-## Variables de entorno necesarias
-Para el correcto funcionamiento del servidor, es necesario definir ciertas variables de entorno en un archivo `.env` dentro de la carpeta `server/`. Ejemplo de variables requeridas:
+## Required Environment Variables
+To run the server, you must define certain environment variables in a `.env` file inside the `server/` folder. Example of required variables:
 
-- `DATABASE_URL`: URL de conexión a la base de datos PostgreSQL.
-- `JWT_SECRET`: Clave secreta para la generación y validación de tokens JWT.
-- `MOODLE_TOKEN`: Token de acceso para la API de Moodle.
-- `MOODLE_URL`: URL del endpoint de la API de Moodle.
+- `DATABASE_URL`: PostgreSQL database connection URL.
+- `JWT_SECRET`: Secret key for JWT token generation and validation.
+- `MOODLE_TOKEN`: Access token for the Moodle API.
+- `MOODLE_URL`: Moodle API endpoint URL.
 
-Puedes encontrar un ejemplo en el archivo `.env` incluido en el proyecto. Asegúrate de completar estos valores antes de iniciar el servidor.
+You can find an example in the `.env` file included in the project. Make sure to fill in these values before starting the server.
 
-## Contribuir
-Las contribuciones son bienvenidas a partir de 2026, después de haber entregado mi TFG. Por favor, abre un issue o pull request para sugerencias o mejoras a partir de esa fecha.
+## Contributing
+Contributions are welcome starting in 2026, after the TFG has been submitted. Please open an issue or pull request for suggestions or improvements after that date.
 
-## Licencia
-Este proyecto está bajo la licencia MIT. Consulta el archivo LICENSE para más información.
+## License
+This project is licensed under the MIT License. See the LICENSE file for more information.
