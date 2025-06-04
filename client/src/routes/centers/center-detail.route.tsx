@@ -4,6 +4,7 @@ import { Button, Form, Input, message, Modal } from "antd";
 import { useCenterQuery } from "../../hooks/api/centers/use-center.query";
 import { useUpdateCenterMutation } from "../../hooks/api/centers/use-update-center.mutation";
 import { useDeleteCenterMutation } from "../../hooks/api/centers/use-delete-center.mutation";
+import { useCompanyQuery } from "../../hooks/api/companies/use-company.query";
 import { useEffect } from "react";
 import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import z from "zod";
@@ -26,6 +27,7 @@ export default function EditCenterRoute() {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: centerData, isLoading: isCenterLoading } = useCenterQuery(id_center || "");
+  const { data: companyData, isLoading: isCompanyLoading } = useCompanyQuery(centerData?.id_company ? String(centerData.id_company) : "");
   const { mutateAsync: updateCenter } = useUpdateCenterMutation(id_center || "");
   const { mutateAsync: deleteCenter } = useDeleteCenterMutation(id_center || "");
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof CENTER_FORM_SCHEMA>>({
@@ -43,7 +45,7 @@ export default function EditCenterRoute() {
     }
   }, [centerData, reset]);
 
-  if (isCenterLoading) return <div>Cargando...</div>;
+  if (isCenterLoading || (centerData && isCompanyLoading)) return <div>Cargando...</div>;
 
   const submit: SubmitHandler<z.infer<typeof CENTER_FORM_SCHEMA>> = async (data) => {
     try {
@@ -80,43 +82,59 @@ export default function EditCenterRoute() {
   return (
     <div>
       {contextHolder}
-      <Form layout="vertical" onFinish={handleSubmit(submit)}>
-        <Form.Item label="ID del centro" name="id_center"
-          help={errors.id_center?.message}
-          validateStatus={errors.id_center ? "error" : undefined}
-        >
-          <Controller name="id_center" control={control} render={({ field }) => <Input {...field} disabled />} />
+      {companyData && (
+        <Form.Item label="Empresa:" style={{ marginBottom: 0, display: 'flex', gap: 8 }}>
+          <Input value={companyData.corporate_name} disabled style={{ width: 400, flex: 1 }} />
+          <Button
+            type="link"
+            onClick={() => navigate(`/companies/${companyData.id_company}`)}
+            style={{ width: 'auto', flex: 1 }}
+          >
+            Ver
+          </Button>
         </Form.Item>
-        <Form.Item label="Nombre del centro" name="center_name"
-          help={errors.center_name?.message}
-          validateStatus={errors.center_name ? "error" : undefined}
-        >
-          <Controller name="center_name" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Número de patronal" name="employer_number"
-          help={errors.employer_number?.message}
-          validateStatus={errors.employer_number ? "error" : undefined}
-        >
-          <Controller name="employer_number" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
-        </Form.Item>
-        <Form.Item label="Persona de contacto" name="contact_person"
-          help={errors.contact_person?.message}
-          validateStatus={errors.contact_person ? "error" : undefined}
-        >
-          <Controller name="contact_person" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
-        </Form.Item>
-        <Form.Item label="Teléfono de contacto" name="contact_phone"
-          help={errors.contact_phone?.message}
-          validateStatus={errors.contact_phone ? "error" : undefined}
-        >
-          <Controller name="contact_phone" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
-        </Form.Item>
-        <Form.Item label="Email de contacto" name="contact_email"
-          help={errors.contact_email?.message}
-          validateStatus={errors.contact_email ? "error" : undefined}
-        >
-          <Controller name="contact_email" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
-        </Form.Item>
+      )}
+      <Form layout="vertical" onFinish={handleSubmit(submit)} style={{ marginTop: 16 }}>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Form.Item label="ID centro" name="id_center"
+            help={errors.id_center?.message}
+            validateStatus={errors.id_center ? "error" : undefined}
+          >
+            <Controller name="id_center" control={control} render={({ field }) => <Input {...field} disabled />} />
+          </Form.Item>
+          <Form.Item label="Nombre del centro" name="center_name"
+            help={errors.center_name?.message}
+            validateStatus={errors.center_name ? "error" : undefined}
+          >
+            <Controller name="center_name" control={control} render={({ field }) => <Input {...field} />} />
+          </Form.Item>
+          <Form.Item label="Número de patronal" name="employer_number"
+            help={errors.employer_number?.message}
+            validateStatus={errors.employer_number ? "error" : undefined}
+          >
+            <Controller name="employer_number" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+          </Form.Item>
+        </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Form.Item label="Persona de contacto" name="contact_person"
+            help={errors.contact_person?.message}
+            validateStatus={errors.contact_person ? "error" : undefined}
+          >
+            <Controller name="contact_person" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+          </Form.Item>
+          <Form.Item label="Teléfono de contacto" name="contact_phone"
+            help={errors.contact_phone?.message}
+            validateStatus={errors.contact_phone ? "error" : undefined}
+          >
+            <Controller name="contact_phone" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+          </Form.Item>
+          <Form.Item label="Email de contacto" name="contact_email"
+            help={errors.contact_email?.message}
+            validateStatus={errors.contact_email ? "error" : undefined}
+          >
+            <Controller name="contact_email" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+          </Form.Item>
+        </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
