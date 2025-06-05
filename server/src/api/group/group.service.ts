@@ -8,12 +8,19 @@ import { DatabaseService } from "src/database/database.service";
 import { GroupInsertModel, GroupSelectModel, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
 import { GroupBonificableService } from "./group-bonification.service";
+import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
+import { UserGroupRepository } from "src/database/repository/course/user-group.repository";
+
+
+type AddUserToGroupOptions = {id_group: number; id_user: number; id_center?: number }
 
 @Injectable()
 export class GroupService {
   constructor(private readonly groupRepository: GroupRepository,
     private readonly courseRepository: CourseRepository,
     private readonly groupBonificableService: GroupBonificableService,
+    private readonly userCourseRepository: UserCourseRepository,
+    private readonly userGroupRepository: UserGroupRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
   ) { }
 
@@ -42,7 +49,9 @@ export class GroupService {
     });
   }
 
-  async addUserToGroup(id_group: number, id_user: number, options?: QueryOptions) {
+  
+
+  async addUserToGroup({ id_group, id_user, id_center }: AddUserToGroupOptions, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       const result = await this.groupRepository.addUserToGroup(id_group, id_user, { transaction });
 
@@ -51,18 +60,35 @@ export class GroupService {
       const id_course = group.id_course;
 
       // Check if the user is already in the course
-      const usersInCourse = await this.courseRepository.findUsersInCourse(id_course, { transaction });
-      const userExistsInCourse = usersInCourse.some(user => user.id_user === id_user);
+      const userCourse = await this.userCourseRepository.findByCourseAndUserId(id_course, id_user, { transaction });
 
       // Associate user with the corresponding course if not already in the course
-      if (!userExistsInCourse) {
-        await this.courseRepository.addUserToCourse({
-          id_user: id_user,
-          id_course: id_course,
+      if (!userCourse) {
+        await this.userCourseRepository.create({ 
+          id_user,
+          id_course,
           enrollment_date: new Date(),
-          //status: EnrollmentStatus.ACTIVE,
           completion_percentage: "0",
-          time_spent: 0
+          time_spent: 0,
+         });
+      }
+
+      // Associate group
+      const userGroup = await this.userGroupRepository.findByGroupAndUserId(id_group, id_user, { transaction });
+
+      if (userGroup) {
+        await this.userGroupRepository.updateById(id_user, id_group, {
+          id_center
+        }, {transaction})
+      } else {
+        await this.userGroupRepository.create({
+          id_group,
+          id_user,
+          id_center,
+          join_date: new Date(),
+          completion_percentage: "0",
+          time_spent: 0,
+          last_access: null
         }, { transaction });
       }
 

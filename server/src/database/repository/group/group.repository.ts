@@ -3,7 +3,7 @@ import { QueryOptions, Repository } from "../repository";
 import { GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { eq, ilike, and, not, inArray } from "drizzle-orm";
 import { CreateGroupDTO } from "src/dto/group/create-group.dto";
-import { userGroupTable } from "src/database/schema/tables/user_group.table";
+import { userGroupTable, UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
 import { userTable } from "src/database/schema/tables/user.table";
 import { UpdateUserGroupDTO } from "src/dto/user-group/update-user-group.dto";
 import { MoodleGroup } from "src/types/moodle/group";
@@ -76,10 +76,10 @@ export class GroupRepository extends Repository {
     return rows.map((r) => r.users);
   }
 
-  async updateUserInGroup(id_group: number, id_user: number, updateUserGroupDTO: UpdateUserGroupDTO, options?: QueryOptions) {
+  async updateUserInGroup(id_group: number, id_user: number, data: UserGroupUpdateModel, options?: QueryOptions) {
     const result = await this.query(options)
       .update(userGroupTable)
-      .set(updateUserGroupDTO)
+      .set(data)
       .where(and(eq(userGroupTable.id_group, id_group), eq(userGroupTable.id_user, id_user)));
     return result;
   }

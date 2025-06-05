@@ -107,7 +107,7 @@ export class UserService {
       const userGroupRows = await this.groupRepository.findUserInGroup(userId, id_group, { transaction });
 
       if (userGroupRows.length <= 0) {
-        await this.groupService.addUserToGroup(id_group, userId, { transaction });
+        await this.groupService.addUserToGroup({id_group, id_user: userId}, { transaction });
       }
 
     });
@@ -130,7 +130,7 @@ export class UserService {
         createdUsers.push(userId);
         const userGroupRows = await this.groupRepository.findUserInGroup(userId, id_group, { transaction });
         if (userGroupRows.length <= 0) {
-          await this.groupService.addUserToGroup(id_group, userId, { transaction });
+          await this.groupService.addUserToGroup({id_group, id_user: userId }, { transaction });
         }
       }
       return createdUsers;

@@ -1,7 +1,7 @@
 import { pgTable, integer, primaryKey, date, decimal, timestamp } from "drizzle-orm/pg-core";
+import type { InferSelectModel } from "drizzle-orm";
 import { userTable } from "./user.table";
 import { groupTable } from "./group.table";
-import { InferSelectModel } from "drizzle-orm";
 import { centerTable } from "./center.table";
 
 export const userGroupTable = pgTable("user_group", {
@@ -18,6 +18,6 @@ export const userGroupTable = pgTable("user_group", {
   };
 });
 
-export type UserGroupSelectModel = Partial<InferSelectModel<typeof userGroupTable>>;
-export type UserGroupInsertModel = InferSelectModel<typeof userGroupTable>;
-export type UserGroupUpdateModel = Partial<Omit<InferSelectModel<typeof userGroupTable>, 'id_user' | 'id_group'>> & Pick<InferSelectModel<typeof userGroupTable>, 'id_user' | 'id_group'>;
+export type UserGroupSelectModel = InferSelectModel<typeof userGroupTable>;
+export type UserGroupInsertModel = UserGroupSelectModel; // No usamos InferInsertModel porque los ids no son autoincrementales
+export type UserGroupUpdateModel = Partial<UserGroupInsertModel>;
