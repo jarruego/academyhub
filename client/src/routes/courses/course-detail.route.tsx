@@ -119,7 +119,7 @@ export default function CourseDetailRoute() {
   //TODO: No funciona, error 401 (Unauthorized).
   const handleBonificarSeleccionados = async () => {
     // Prueba con datos fijos
-    const groupId = 1;
+    const groupId = 20;
     const userIds = [2, 7, 5];
     try {
       const xmlBlob = await createBonificationFile({ groupId, userIds });

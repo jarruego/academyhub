@@ -32,7 +32,7 @@ export class GroupBonificableService {
             const users = await this.groupRepository.findUsersInGroupByIds(group.id_group, userIds, { transaction });
             if (users.length <= 0) throw new BadRequestException("No users found in group");
 
-            const xml = create(GroupBonificableService.createFundaeXmlObject({ course, group, users })).end({ prettyPrint: true });
+            const xml = create(GroupBonificableService.createFundaeXmlObject({ course, group, users })).dec({ version: '1.0', encoding: 'UTF-8', standalone: true}).end({ prettyPrint: true });
             return xml;
         });
     }
