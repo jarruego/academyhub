@@ -6,9 +6,10 @@ import { CourseRepository } from 'src/database/repository/course/course.reposito
 import { GroupBonificableService } from './group-bonification.service';
 import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
 import { UserGroupRepository } from 'src/database/repository/course/user-group.repository';
+import { UserCenterRepository } from 'src/database/repository/center/user-center.repository';
 
 @Module({
-  providers: [GroupService, GroupRepository, CourseRepository, GroupBonificableService, UserCourseRepository, UserGroupRepository],
+  providers: [GroupService, GroupRepository, CourseRepository, GroupBonificableService, UserCourseRepository, UserGroupRepository, UserCenterRepository],
   controllers: [GroupController],
   exports: [GroupService, GroupRepository, GroupBonificableService],
 })

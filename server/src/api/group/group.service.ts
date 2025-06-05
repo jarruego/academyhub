@@ -10,6 +10,7 @@ import { UserGroupUpdateModel } from "src/database/schema/tables/user_group.tabl
 import { GroupBonificableService } from "./group-bonification.service";
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
 import { UserGroupRepository } from "src/database/repository/course/user-group.repository";
+import { UserCenterRepository } from "src/database/repository/center/user-center.repository";
 
 
 type AddUserToGroupOptions = {id_group: number; id_user: number; id_center?: number }
@@ -21,6 +22,7 @@ export class GroupService {
     private readonly groupBonificableService: GroupBonificableService,
     private readonly userCourseRepository: UserCourseRepository,
     private readonly userGroupRepository: UserGroupRepository,
+    private readonly userCenterRepository: UserCenterRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
   ) { }
 
@@ -43,7 +45,7 @@ export class GroupService {
     });
   }
 
-  async findAll(filter: GroupSelectModel, options?: QueryOptions) {
+  async findAll(filter: Partial<GroupSelectModel>, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.groupRepository.findAll(filter, { transaction });
     });
@@ -88,7 +90,7 @@ export class GroupService {
           join_date: new Date(),
           completion_percentage: "0",
           time_spent: 0,
-          last_access: null
+          last_access: null,
         }, { transaction });
       }
 

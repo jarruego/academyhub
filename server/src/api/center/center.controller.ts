@@ -1,10 +1,11 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe } from '@nestjs/common';
 import { CreateCenterDTO } from '../../dto/center/create-center.dto';
 import { UpdateCenterDTO } from '../../dto/center/update-center.dto';
 import { CenterService } from './center.service';
 import { FilterCenterDTO } from 'src/dto/center/filter-center.dto';
 import { CreateUserCenterDTO } from "src/dto/user-center/create-user-center.dto";
 import { UpdateUserCenterDTO } from 'src/dto/user-center/update-user-center.dto';
+import { UpdateUsersMainCenterDTO } from 'src/dto/center/update-users-main-center.dto';
 
 @Controller('center')
 export class CenterController {
@@ -15,10 +16,14 @@ export class CenterController {
     return this.centerService.create(createCenterDTO);
   }
 
+  @Put('users-main-center')
+  async updateUsersMainCenter(@Body() body: UpdateUsersMainCenterDTO) {
+    await this.centerService.updateUsersMainCenters(body.users);
+  }
+
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateCenterDTO: UpdateCenterDTO) {
-    const numericId = parseInt(id, 10);
-    return this.centerService.update(numericId, updateCenterDTO);
+  async update(@Param('id', new ParseIntPipe()) id: number, @Body() updateCenterDTO: UpdateCenterDTO) {
+    return this.centerService.update(id, updateCenterDTO);
   }
 
   @Get(':id')

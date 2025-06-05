@@ -11,6 +11,12 @@ import { GetBonificationFileDTO } from 'src/dto/group/get-bonification-file.dto'
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
 
+  @Post('bonification-file')
+  @HttpCode(200)
+  async getBonificationFile(@Body() body: GetBonificationFileDTO) {
+    return await this.groupService.getBonificationFile(body.groupId, body.userIds);
+  }
+  
   @Post()
   async create(@Body() createGroupDTO: CreateGroupDTO) {
     return this.groupService.create(createGroupDTO);
@@ -62,9 +68,4 @@ export class GroupController {
     return this.groupService.updateUserInGroup(numericId, numericUserId, updateUserGroupDTO);
   }
 
-  @Post('bonification-file')
-  @HttpCode(200)
-  async getBonificationFile(@Body() body: GetBonificationFileDTO) {
-    return await this.groupService.getBonificationFile(body.groupId, body.userIds);
-  }
 }

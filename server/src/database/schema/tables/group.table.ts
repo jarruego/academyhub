@@ -1,7 +1,7 @@
 import { pgTable, serial, integer, text, date, timestamp } from "drizzle-orm/pg-core";
 import { courseTable } from "./course.table";
 import { TIMESTAMPS } from "./timestamps";
-import { InferSelectModel } from "drizzle-orm";
+import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 export const groupTable = pgTable("groups", {
   id_group: serial("id_group").primaryKey(),
@@ -12,9 +12,9 @@ export const groupTable = pgTable("groups", {
   start_date: timestamp({withTimezone: true}),
   end_date: timestamp({withTimezone: true}),
   fundae_id: text(),
-    ...TIMESTAMPS,
+  ...TIMESTAMPS,
 });
 
-export type GroupSelectModel = Partial<InferSelectModel<typeof groupTable>>;
-export type GroupInsertModel = Omit<InferSelectModel<typeof groupTable>, 'id_group' | 'createdAt' | 'updatedAt'>
-export type GroupUpdateModel = Partial<InferSelectModel<typeof groupTable>>;
+export type GroupSelectModel = InferSelectModel<typeof groupTable>;
+export type GroupInsertModel = InferInsertModel<typeof groupTable>;
+export type GroupUpdateModel = Partial<GroupInsertModel>;

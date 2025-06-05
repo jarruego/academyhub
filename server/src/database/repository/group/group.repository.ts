@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
+import { GroupInsertModel, GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { eq, ilike, and, not, inArray } from "drizzle-orm";
 import { CreateGroupDTO } from "src/dto/group/create-group.dto";
 import { userGroupTable, UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
@@ -22,17 +22,17 @@ export class GroupRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(createGroupDTO: CreateGroupDTO, options?: QueryOptions) {
+  async create(data: GroupInsertModel, options?: QueryOptions) {
     const result = await this.query(options)
       .insert(groupTable)
-      .values(createGroupDTO).returning({ id: groupTable.id_group });
+      .values(data).returning({ id: groupTable.id_group });
     return result;
   }
 
-  async update(id: number, updateGroupDTO: GroupUpdateModel, options?: QueryOptions) {
+  async update(id: number, data: GroupUpdateModel, options?: QueryOptions) {
     const result = await this.query(options)
       .update(groupTable)
-      .set(updateGroupDTO)
+      .set(data)
       .where(eq(groupTable.id_group, id));
     return result;
   }
