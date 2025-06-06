@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { CourseRepository } from "src/database/repository/course/course.repository";
+import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
 import { MoodleService } from "../moodle/moodle.service";
 import { GroupRepository } from "src/database/repository/group/group.repository";
 import { UserRepository } from "src/database/repository/user/user.repository";
@@ -17,6 +18,7 @@ import { UserCourseRoleInsertModel } from "src/database/schema/tables/user_cours
 export class CourseService {
   constructor(
     private readonly courseRepository: CourseRepository,
+    private readonly userCourseRepository: UserCourseRepository,
     private readonly groupRepository: GroupRepository,
     private readonly MoodleService: MoodleService,
     private readonly userRepository: UserRepository,
@@ -43,7 +45,7 @@ export class CourseService {
     });
   }
 
-  async findAll(filter: CourseSelectModel, options?: QueryOptions) {
+  async findAll(filter: Partial<CourseSelectModel>, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.courseRepository.findAll(filter, { transaction });
     });
@@ -51,13 +53,13 @@ export class CourseService {
 
   async addUserToCourse(userCourseInsertModel: UserCourseInsertModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.courseRepository.addUserToCourse(userCourseInsertModel, { transaction });
+      return await this.userCourseRepository.addUserToCourse(userCourseInsertModel, { transaction });
     });
   }
 
   async findUsersInCourse(courseId: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.courseRepository.findUsersInCourse(courseId, { transaction });
+      return await this.userCourseRepository.findUsersInCourse(courseId, { transaction });
     });
   }
 
@@ -69,13 +71,13 @@ export class CourseService {
 
   async updateUserInCourse(id_course: number, id_user: number, userCourseUpdateModel: UserCourseUpdateModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.courseRepository.updateUserInCourse(id_course, id_user, userCourseUpdateModel, { transaction });
+      return await this.userCourseRepository.updateUserInCourse(id_course, id_user, userCourseUpdateModel, { transaction });
     });
   }
 
   async deleteUserFromCourse(id_course: number, id_user: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.courseRepository.deleteUserFromCourse(id_course, id_user, { transaction });
+      return await this.userCourseRepository.deleteUserFromCourse(id_course, id_user, { transaction });
     });
   }
 

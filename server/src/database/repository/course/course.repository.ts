@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { eq, ilike, and } from "drizzle-orm";
-import { userCourseTable } from "src/database/schema/tables/user_course.table";
+import { UserCourseInsertModel, userCourseTable } from "src/database/schema/tables/user_course.table";
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
 import { userCourseMoodleRoleTable, UserCourseRoleInsertModel } from "src/database/schema/tables/user_course_moodle_role.table";
@@ -45,40 +45,10 @@ export class CourseRepository extends Repository {
         return await this.query(options).select().from(courseTable).where(and(...where));
   }
 
-  async addUserToCourse(createUserCourseDTO: CreateUserCourseDTO, options?: QueryOptions) {
-    const result = await this.query(options)
-      .insert(userCourseTable)
-      .values(createUserCourseDTO);
-    return result;
-  }
-
-  async findUsersInCourse(courseId: number, options?: QueryOptions) {
-    const rows = await this.query(options)
-      .select()
-      .from(userCourseTable)
-      .where(eq(userCourseTable.id_course, courseId));
-    return rows;
-  }
-
-  async updateUserInCourse(id_course: number, id_user: number, updateUserCourseDTO: UpdateUserCourseDTO, options?: QueryOptions) {
-    const result = await this.query(options)
-      .update(userCourseTable)
-      .set(updateUserCourseDTO)
-      .where(and(eq(userCourseTable.id_course, id_course), eq(userCourseTable.id_user, id_user)));
-    return result;
-  }
-
   async deleteById(id: number, options?: QueryOptions) {
     const result = await this.query(options)
       .delete(courseTable)
       .where(eq(courseTable.id_course, id));
-    return result;
-  }
-
-  async deleteUserFromCourse(id_course: number, id_user: number, options?: QueryOptions) {
-    const result = await this.query(options)
-      .delete(userCourseTable)
-      .where(and(eq(userCourseTable.id_course, id_course), eq(userCourseTable.id_user, id_user)));
     return result;
   }
 

@@ -2,6 +2,11 @@ import { IsNumber, IsOptional, IsPositive, IsString, MaxLength } from "class-val
 import { CenterSelectModel } from "src/database/schema/tables/center.table";
 
 export class FilterCenterDTO implements Partial<CenterSelectModel> {
+    @IsNumber()
+    @IsPositive()
+    @IsOptional()
+    id_center: number;
+
     @IsString()
     @IsOptional()
     @MaxLength(128)

@@ -4,6 +4,7 @@ import { ConfigProvider } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Router from './router';
 import AuthProvider from './providers/auth/auth.provider';
+import { App as AntdApp } from "antd";
 import './index.css';
 
 const queryClient = new QueryClient();
@@ -19,9 +20,11 @@ createRoot(document.getElementById('root')!).render(
           },
         }}
       >
-        <AuthProvider>
-          <Router/>
-        </AuthProvider>
+        <AntdApp>
+          <AuthProvider>
+            <Router/>
+          </AuthProvider>
+        </AntdApp>
       </ConfigProvider>
     </QueryClientProvider>
   </StrictMode>,

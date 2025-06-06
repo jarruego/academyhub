@@ -8,9 +8,10 @@ import { CenterModule } from '../center/center.module';
 import { CenterRepository } from 'src/database/repository/center/center.repository';
 import { CompanyModule } from '../company/company.module';
 import { CompanyRepository } from 'src/database/repository/company/company.repository';
+import { UserGroupRepository } from 'src/database/repository/group/user-group.repository';
 
 @Module({
-  providers: [UserService, UserRepository, MoodleService, CenterRepository, CompanyRepository],
+  providers: [UserService, UserRepository, MoodleService, CenterRepository, CompanyRepository, UserGroupRepository],
   controllers: [UserController],
   exports: [UserService, UserRepository],
   imports: [GroupModule, CenterModule, CompanyModule]

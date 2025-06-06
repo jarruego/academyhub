@@ -9,7 +9,7 @@ import { GroupInsertModel, GroupSelectModel, GroupUpdateModel } from "src/databa
 import { UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
 import { GroupBonificableService } from "./group-bonification.service";
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
-import { UserGroupRepository } from "src/database/repository/course/user-group.repository";
+import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
 import { UserCenterRepository } from "src/database/repository/center/user-center.repository";
 
 
@@ -55,7 +55,7 @@ export class GroupService {
 
   async addUserToGroup({ id_group, id_user, id_center }: AddUserToGroupOptions, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      const result = await this.groupRepository.addUserToGroup(id_group, id_user, { transaction });
+      const result = await this.userGroupRepository.addUserToGroup(id_group, id_user, { transaction });
 
       // Get the id_course of the group
       const group = await this.groupRepository.findById(id_group, { transaction });
@@ -79,9 +79,9 @@ export class GroupService {
       const userGroup = await this.userGroupRepository.findByGroupAndUserId(id_group, id_user, { transaction });
 
       if (userGroup) {
-        await this.userGroupRepository.updateById(id_user, id_group, {
-          id_center
-        }, {transaction})
+        if (typeof id_center !== 'undefined') {
+          await this.userGroupRepository.updateById(id_user, id_group, { id_center }, { transaction });
+        }
       } else {
         await this.userGroupRepository.create({
           id_group,
@@ -100,7 +100,7 @@ export class GroupService {
 
   async findUsersInGroup(groupId: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.groupRepository.findUsersInGroup(groupId, { transaction });
+      return await this.userGroupRepository.findUsersInGroup(groupId, { transaction });
     });
   }
 
@@ -115,16 +115,16 @@ export class GroupService {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
 
       // Check if the user is enrolled in other groups of the same course
-      const isEnrolledInOtherGroups = await this.groupRepository.isUserEnrolledInOtherGroups(id_group, id_user, { transaction });
+      const isEnrolledInOtherGroups = await this.userGroupRepository.isUserEnrolledInOtherGroups(id_group, id_user, { transaction });
       console.log('Enrolled in other groups?:', isEnrolledInOtherGroups);
 
       // If the user is not enrolled in any other groups of the same course, remove them from the course
       if (!isEnrolledInOtherGroups) {
         const group = await this.groupRepository.findById(id_group, { transaction });
-        await this.courseRepository.deleteUserFromCourse(group.id_course, id_user, { transaction });
+        await this.userCourseRepository.deleteUserFromCourse(group.id_course, id_user, { transaction });
       }      
       // Delete the user from the group
-      const result = await this.groupRepository.deleteUserFromGroup(id_group, id_user, { transaction });
+      const result = await this.userGroupRepository.deleteUserFromGroup(id_group, id_user, { transaction });
       console.log('User removed from group');
 
       return result;
@@ -133,13 +133,13 @@ export class GroupService {
 
   async updateUserInGroup(id_group: number, id_user: number, userGroupUpdateModel: UserGroupUpdateModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.groupRepository.updateUserInGroup(id_group, id_user, userGroupUpdateModel, { transaction });
+      return await this.userGroupRepository.updateUserInGroup(id_group, id_user, userGroupUpdateModel, { transaction });
     });
   }
 
   async findUserInGroup(id_user: number, id_group: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.groupRepository.findUserInGroup(id_user, id_group, { transaction });
+      return await this.userGroupRepository.findUserInGroup(id_user, id_group, { transaction });
     });
   }
 

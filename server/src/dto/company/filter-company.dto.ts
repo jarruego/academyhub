@@ -1,7 +1,12 @@
 
-import { IsOptional, IsString, MaxLength } from "class-validator";
+import { IsNumber, IsOptional, IsPositive, IsString, MaxLength } from "class-validator";
 
 export class FilterCompanyDTO {
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  id_company?: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(100)

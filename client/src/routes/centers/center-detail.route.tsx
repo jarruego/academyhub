@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message, Modal } from "antd";
+import { App, Button, Form, Input, Modal } from "antd";
 import { useCenterQuery } from "../../hooks/api/centers/use-center.query";
 import { useUpdateCenterMutation } from "../../hooks/api/centers/use-update-center.mutation";
 import { useDeleteCenterMutation } from "../../hooks/api/centers/use-delete-center.mutation";
@@ -23,6 +23,7 @@ const CENTER_FORM_SCHEMA = z.object({
 });
 
 export default function EditCenterRoute() {
+  const { message } = App.useApp();
   const { id_center } = useParams();
   const navigate = useNavigate();
   const location = useLocation();

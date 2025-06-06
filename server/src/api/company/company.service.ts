@@ -39,7 +39,7 @@ export class CompanyService {
     });
   }
 
-  async findAll(filter: CompanySelectModel, options?: QueryOptions) {
+  async findAll(filter: Partial<CompanySelectModel>, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.companyRepository.findAll(filter, { transaction });
     });

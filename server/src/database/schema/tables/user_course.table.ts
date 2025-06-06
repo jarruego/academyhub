@@ -1,7 +1,7 @@
 import { pgTable, integer, date, decimal, doublePrecision, primaryKey } from "drizzle-orm/pg-core";
 import { userTable } from "./user.table";
 import { courseTable } from "./course.table";
-import { InferSelectModel } from "drizzle-orm";
+import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 // import { EnrollmentStatus } from "src/types/course/enrollment-status.enum";
 
 // export const enrollmentStatus = pgEnum('enrollment_status', Object.values(EnrollmentStatus) as [string, ...string[]]);
@@ -19,8 +19,8 @@ export const userCourseTable = pgTable("user_course", {
   };
 });
 
-export type UserCourseSelectModel = Partial<InferSelectModel<typeof userCourseTable>>;
-export type UserCourseInsertModel = InferSelectModel<typeof userCourseTable>;
-export type UserCourseUpdateModel = Partial<InferSelectModel<typeof userCourseTable>>;
+export type UserCourseSelectModel = InferSelectModel<typeof userCourseTable>;
+export type UserCourseInsertModel = InferInsertModel<typeof userCourseTable>;
+export type UserCourseUpdateModel = Partial<UserCourseInsertModel>;
 
 

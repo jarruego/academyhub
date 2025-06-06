@@ -1,6 +1,6 @@
 import { pgTable, varchar, serial } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
-import { InferSelectModel } from "drizzle-orm";
+import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 export const companyTable = pgTable('companies', {
     id_company: serial().primaryKey(),
@@ -10,6 +10,7 @@ export const companyTable = pgTable('companies', {
     //...TIMESTAMPS,
 });
 
-export type CompanySelectModel = Partial<InferSelectModel<typeof companyTable>>;
-export type CompanyInsertModel = Omit<InferSelectModel<typeof companyTable>, 'id_company'>;
-export type CompanyUpdateModel = Partial<InferSelectModel<typeof companyTable>>;
+export type CompanySelectModel = InferSelectModel<typeof companyTable>;
+export type CompanyInsertModel = InferInsertModel<typeof companyTable>;
+export type CompanyUpdateModel = Partial<CompanyInsertModel>;
+

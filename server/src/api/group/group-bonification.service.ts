@@ -3,6 +3,7 @@ import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 import { GroupRepository } from "src/database/repository/group/group.repository";
+import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
 import { CourseSelectModel } from "src/database/schema/tables/course.table";
 import { GroupSelectModel } from "src/database/schema/tables/group.table";
 import { UserSelectModel } from "src/database/schema/tables/user.table";
@@ -16,7 +17,12 @@ type CreateFundaeXmlObjectOptions = {
 
 @Injectable()
 export class GroupBonificableService {
-    constructor (@Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService, private readonly groupRepository: GroupRepository, private readonly courseRepository: CourseRepository) {}
+    constructor (
+        @Inject(DATABASE_PROVIDER) 
+        private readonly databaseService: DatabaseService, 
+        private readonly groupRepository: GroupRepository, 
+        private readonly userGroupRepository: UserGroupRepository,
+        private readonly courseRepository: CourseRepository) {}
 
     async generateBonificationFile(groupId: number, userIds: number[]) {
         return await this.databaseService.db.transaction(async (transaction) => {
@@ -29,7 +35,7 @@ export class GroupBonificableService {
             if (!course) throw new NotFoundException("Course not found");
 
             // Get group students
-            const users = await this.groupRepository.findUsersInGroupByIds(group.id_group, userIds, { transaction });
+            const users = await this.userGroupRepository.findUsersInGroupByIds(group.id_group, userIds, { transaction });
             if (users.length <= 0) throw new BadRequestException("No users found in group");
 
             const xml = create(GroupBonificableService.createFundaeXmlObject({ course, group, users })).dec({ version: '1.0', encoding: 'UTF-8', standalone: true}).end({ prettyPrint: true });

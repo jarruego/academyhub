@@ -5,6 +5,7 @@ import { QueryOptions } from "src/database/repository/repository";
 import { MoodleUser } from "src/types/moodle/user";
 import { GroupRepository } from "src/database/repository/group/group.repository";
 import { GroupService } from "../group/group.service";
+import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
 import { UserInsertModel, UserSelectModel, UserUpdateModel } from "src/database/schema/tables/user.table";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
@@ -20,6 +21,7 @@ export class UserService {
     private readonly MoodleService: MoodleService,
     private readonly groupRepository: GroupRepository,
     private readonly groupService: GroupService,
+    private readonly userGroupRepository: UserGroupRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
     private readonly centerRepository: CenterRepository,
     private readonly companyRepository: CompanyRepository
@@ -104,7 +106,7 @@ export class UserService {
         userId = result.insertId;
       }
 
-      const userGroupRows = await this.groupRepository.findUserInGroup(userId, id_group, { transaction });
+      const userGroupRows = await this.userGroupRepository.findUserInGroup(userId, id_group, { transaction });
 
       if (userGroupRows.length <= 0) {
         await this.groupService.addUserToGroup({id_group, id_user: userId}, { transaction });
@@ -128,7 +130,7 @@ export class UserService {
           userId = result.insertId;
         }
         createdUsers.push(userId);
-        const userGroupRows = await this.groupRepository.findUserInGroup(userId, id_group, { transaction });
+        const userGroupRows = await this.userGroupRepository.findUserInGroup(userId, id_group, { transaction });
         if (userGroupRows.length <= 0) {
           await this.groupService.addUserToGroup({id_group, id_user: userId }, { transaction });
         }
