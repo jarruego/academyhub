@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table, Select, Checkbox, Modal } from "antd";
+import { Button, DatePicker, Form, Input, Table, Select, Checkbox, Modal, App } from "antd";
 import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect } from "react";
@@ -33,6 +33,7 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
 });
 
 export default function CourseDetailRoute() {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const { id_course } = useParams();
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
@@ -97,6 +98,7 @@ export default function CourseDetailRoute() {
         try {
           await deleteCourse();
           navigate('/courses');
+          message.success('Curso borrado exitosamente');
         } catch {
           modal.error({
             title: "Error al eliminar el curso",

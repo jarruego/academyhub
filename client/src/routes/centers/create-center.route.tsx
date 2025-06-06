@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message } from "antd";
+import { App, Button, Form, Input } from "antd";
 import { useCreateCenterMutation } from "../../hooks/api/centers/use-create-center.mutation";
 import { SaveOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
@@ -18,6 +18,7 @@ const CREATE_CENTER_FORM = z.object({
 });
 
 export default function CreateCenterRoute() {
+  const { message } = App.useApp();
   const { id_company } = useParams();
   const navigate = useNavigate();
   const { mutateAsync: createCenter } = useCreateCenterMutation();
