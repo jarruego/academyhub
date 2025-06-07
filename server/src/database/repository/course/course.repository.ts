@@ -2,9 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { eq, ilike, and } from "drizzle-orm";
-import { UserCourseInsertModel, userCourseTable } from "src/database/schema/tables/user_course.table";
-import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
-import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
 import { userCourseMoodleRoleTable, UserCourseRoleInsertModel } from "src/database/schema/tables/user_course_moodle_role.table";
 
 @Injectable()
@@ -15,17 +12,17 @@ export class CourseRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(courseInsertModel: CourseInsertModel, options?: QueryOptions) {
+  async create(data: CourseInsertModel, options?: QueryOptions) {
     const result = await this.query(options)
       .insert(courseTable)
-      .values(courseInsertModel).returning({id: courseTable.id_course});
+      .values(data).returning({id: courseTable.id_course});
     return result;
   }
 
-  async update(id: number, updateCourseDTO: CourseUpdateModel, options?: QueryOptions) {
+  async update(id: number, data: CourseUpdateModel, options?: QueryOptions) {
     const result = await this.query(options)
       .update(courseTable)
-      .set(updateCourseDTO)
+      .set(data)
       .where(eq(courseTable.id_course, id));
     return result;
   }

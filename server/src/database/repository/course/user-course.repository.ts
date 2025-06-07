@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { UpdateUserCourseDTO } from "src/dto/user-course/update-user-course.dto";
-import { UserCourseSelectModel, UserCourseInsertModel, userCourseTable, UserCourseUpdateModel } from "src/database/schema/tables/user_course.table";
+import { UserCourseInsertModel, userCourseTable, UserCourseUpdateModel } from "src/database/schema/tables/user_course.table";
 import { and, eq } from "drizzle-orm";
 
 @Injectable()
@@ -33,10 +32,10 @@ export class UserCourseRepository extends Repository {
         return rows;
     }
 
-    async updateUserInCourse(id_course: number, id_user: number, updateUserCourseDTO: UpdateUserCourseDTO, options?: QueryOptions) {
+    async updateUserInCourse(id_course: number, id_user: number, data: UserCourseUpdateModel, options?: QueryOptions) {
         const result = await this.query(options)
             .update(userCourseTable)
-            .set(updateUserCourseDTO)
+            .set(data)
             .where(and(eq(userCourseTable.id_course, id_course), eq(userCourseTable.id_user, id_user)));
         return result;
     }

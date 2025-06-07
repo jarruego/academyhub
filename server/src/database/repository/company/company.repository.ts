@@ -1,9 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { CompanySelectModel, companyTable } from "src/database/schema/tables/company.table";
+import { CompanyInsertModel, CompanySelectModel, companyTable, CompanyUpdateModel } from "src/database/schema/tables/company.table";
 import { eq, ilike, and } from "drizzle-orm";
-import { CreateCompanyDTO } from "src/dto/company/create-company.dto";
-import { UpdateCompanyDTO } from "src/dto/company/update-company.dto";
 
 @Injectable()
 export class CompanyRepository extends Repository {
@@ -13,17 +11,17 @@ export class CompanyRepository extends Repository {
         return rows?.[0];
     }
 
-    async create(createCompanyDTO: CreateCompanyDTO, options?: QueryOptions) {
+    async create(data: CompanyInsertModel, options?: QueryOptions) {
         const result = await this.query(options)
             .insert(companyTable)
-            .values(createCompanyDTO);
+            .values(data);
         return result;
     }
 
-    async update(id: number, updateCompanyDTO: UpdateCompanyDTO, options?: QueryOptions) {
+    async update(id: number, data: CompanyUpdateModel, options?: QueryOptions) {
         const result = await this.query(options)
             .update(companyTable)
-            .set(updateCompanyDTO)
+            .set(data)
             .where(eq(companyTable.id_company, id));
         return result;
     }

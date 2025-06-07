@@ -3,7 +3,6 @@ import { QueryOptions, Repository } from "../repository";
 import { CenterInsertModel, CenterSelectModel, centerTable, CenterUpdateModel } from "src/database/schema/tables/center.table";
 import { eq, ilike, and, sql } from "drizzle-orm"; 
 import { UserCenterInsertModel, userCenterTable } from "src/database/schema/tables/user_center.table";
-import { UpdateUserCenterDTO } from "src/dto/user-center/update-user-center.dto";
 
 @Injectable()
 export class CenterRepository extends Repository {
@@ -26,17 +25,17 @@ export class CenterRepository extends Repository {
         return await this.query(options).select().from(centerTable).where(and(...where));
     }
 
-    async create(centerInsertModel: CenterInsertModel, options?: QueryOptions) {
+    async create(data: CenterInsertModel, options?: QueryOptions) {
         const result = await this.query(options)
             .insert(centerTable)
-            .values(centerInsertModel);
+            .values(data);
         return result;
     }
 
-    async update(id: number, centerUpdateModel: CenterUpdateModel, options?: QueryOptions) {
+    async update(id: number, data: CenterUpdateModel, options?: QueryOptions) {
         const result = await this.query(options)
             .update(centerTable)
-            .set(centerUpdateModel)
+            .set(data)
             .where(eq(centerTable.id_center, id));
         return result;
     }
@@ -48,10 +47,10 @@ export class CenterRepository extends Repository {
         return result;
     }
 
-    async addUserToCenter(userCenterInsertModel: UserCenterInsertModel, options?: QueryOptions) {
+    async addUserToCenter(data: UserCenterInsertModel, options?: QueryOptions) {
         const result = await this.query(options)
             .insert(userCenterTable)
-            .values(userCenterInsertModel);
+            .values(data);
         return result;
     }
 
@@ -63,10 +62,10 @@ export class CenterRepository extends Repository {
         return rows;
     }
 
-    async updateUserInCenter(id_center: number, id_user: number, updateUserCenterDTO: UpdateUserCenterDTO, options?: QueryOptions) {
+    async updateUserInCenter(id_center: number, id_user: number, data: CenterUpdateModel, options?: QueryOptions) {
         const result = await this.query(options)
             .update(userCenterTable)
-            .set(updateUserCenterDTO)
+            .set(data)
             .where(and(eq(userCenterTable.id_center, id_center), eq(userCenterTable.id_user, id_user)));
         return result;
     }

@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { GroupInsertModel, GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { eq, ilike, and } from "drizzle-orm";
-import { CreateGroupDTO } from "src/dto/group/create-group.dto";
 import { MoodleGroup } from "src/types/moodle/group";
 
 @Injectable()

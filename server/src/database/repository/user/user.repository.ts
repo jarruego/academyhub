@@ -13,18 +13,18 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(userInsertModel: UserInsertModel, options?: QueryOptions): Promise<{ insertId: number }> {
+  async create(data: UserInsertModel, options?: QueryOptions): Promise<{ insertId: number }> {
     const result = await this.query(options)
       .insert(userTable)
-      .values(userInsertModel)
+      .values(data)
       .returning({ insertId: userTable.id_user });
     return result[0];
   }
 
-  async update(id: number, updateUserDTO: UserUpdateModel, options?: QueryOptions) {
+  async update(id: number, data: UserUpdateModel, options?: QueryOptions) {
       const result = await this.query(options)
         .update(userTable)
-        .set(updateUserDTO)
+        .set(data)
         .where(eq(userTable.id_user, id));
       return result;
   }

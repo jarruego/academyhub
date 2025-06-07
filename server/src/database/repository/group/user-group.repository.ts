@@ -3,7 +3,7 @@ import { QueryOptions, Repository } from "../repository";
 import { and, eq, not, inArray } from "drizzle-orm";
 import { UserGroupInsertModel, userGroupTable, UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
 import { userTable } from "src/database/schema/tables/user.table";
-import { GroupSelectModel, groupTable } from "src/database/schema/tables/group.table";
+import { groupTable } from "src/database/schema/tables/group.table";
 
 @Injectable()
 export class UserGroupRepository extends Repository {
