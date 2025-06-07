@@ -65,6 +65,7 @@ export default function CourseDetailRoute() {
   useEffect(() => {
     if (groupsData && groupsData.length > 0) {
       setSelectedGroupId(groupsData[0].id_group);
+      setSelectedRowKeys([groupsData[0].id_group]); 
     }
   }, [groupsData]);
 
