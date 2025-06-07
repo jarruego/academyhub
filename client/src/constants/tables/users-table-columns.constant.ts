@@ -12,6 +12,8 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
     } }, // Caso para texto
     { title: 'Apellidos', dataIndex: ['first_surname'] },
     { title: 'Email', dataIndex: ['email'] },
-    { title: 'MOODLE USERNAME', dataIndex: ['username'] },
+    { title: 'MOODLE USERNAME', dataIndex: ['moodle_username'] },
     { title: 'Porcentaje', dataIndex: ['completion_percentage'] },
+    { title: 'Centro', dataIndex: ['main_center', 'center_name'], render: (_, user) => user.main_center?.center_name ?? '-' },
+    { title: 'Empresa', dataIndex: ['main_center', 'company_name'], render: (_, user) => user.main_center?.company_name ?? '-' },
 ]

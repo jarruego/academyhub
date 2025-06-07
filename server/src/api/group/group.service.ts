@@ -1,7 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { GroupRepository } from "src/database/repository/group/group.repository";
 import { QueryOptions } from "src/database/repository/repository";
-import { CourseRepository } from "src/database/repository/course/course.repository";
 // import { EnrollmentStatus } from "src/types/user-course/enrollment-status.enum";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
@@ -10,19 +9,23 @@ import { UserGroupUpdateModel } from "src/database/schema/tables/user_group.tabl
 import { GroupBonificableService } from "./group-bonification.service";
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
 import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
-import { UserCenterRepository } from "src/database/repository/center/user-center.repository";
+import { CenterRepository } from "src/database/repository/center/center.repository";
+import { CompanyRepository } from "src/database/repository/company/company.repository";
+import { userCenterTable } from "src/database/schema/tables/user_center.table";
+import { eq } from "drizzle-orm";
 
 
 type AddUserToGroupOptions = {id_group: number; id_user: number; id_center?: number }
 
 @Injectable()
 export class GroupService {
-  constructor(private readonly groupRepository: GroupRepository,
-    private readonly courseRepository: CourseRepository,
+  constructor(
+    private readonly groupRepository: GroupRepository,
     private readonly groupBonificableService: GroupBonificableService,
     private readonly userCourseRepository: UserCourseRepository,
     private readonly userGroupRepository: UserGroupRepository,
-    private readonly userCenterRepository: UserCenterRepository,
+    private readonly centerRepository: CenterRepository,
+    private readonly companyRepository: CompanyRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
   ) { }
 
@@ -100,7 +103,44 @@ export class GroupService {
 
   async findUsersInGroup(groupId: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.userGroupRepository.findUsersInGroup(groupId, { transaction });
+      // Get the users in the group
+      const users = await this.userGroupRepository.findUsersInGroup(groupId, { transaction });
+      // For each user, get their main_center
+      const usersWithMainCenter = await Promise.all(
+        users.map(async (user: any) => {
+          // Find the user's centers
+          const userCenters = await transaction
+            .select()
+            .from(userCenterTable)
+            .where(eq(userCenterTable.id_user, user.id_user));
+          // Find the main center
+          const mainUserCenter = userCenters.find((uc: any) => uc.is_main_center === true);
+          if (mainUserCenter) {
+            // Get center data
+            const center = await this.centerRepository.findById(mainUserCenter.id_center, { transaction });
+            let companyName = null;
+            if (center) {
+              const company = await this.companyRepository.findOne(center.id_company, { transaction });
+              companyName = company?.company_name || null;
+            }
+            return {
+              ...user,
+              main_center: center ? {
+                id_center: center.id_center,
+                center_name: center.center_name,
+                id_company: center.id_company,
+                company_name: companyName
+              } : null
+            };
+          } else {
+            return {
+              ...user,
+              main_center: null
+            };
+          }
+        })
+      );
+      return usersWithMainCenter;
     });
   }
 

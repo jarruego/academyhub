@@ -75,6 +75,16 @@ export default function UsersRoute() {
           title: 'MOODLE USERNAME',
           dataIndex: 'moodle_username',
           sorter: (a, b) => (a.moodle_username ?? "").localeCompare(b.moodle_username ?? ""),
+        },
+        {
+          title: 'Centro',
+          dataIndex: ['main_center', 'center_name'],
+          render: (_, user) => user.main_center?.center_name ?? '-',
+        },
+        {
+          title: 'Empresa',
+          dataIndex: ['main_center', 'company_name'],
+          render: (_, user) => user.main_center?.company_name ?? '-',
         }
       ]} 
       dataSource={filteredUsers} 

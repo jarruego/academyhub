@@ -11,7 +11,7 @@ import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { CenterRepository } from "src/database/repository/center/center.repository";
 import { eq } from "drizzle-orm";
-import { userCenterTable, UserCenterInsertModel } from "src/database/schema/tables/user_center.table";
+import { userCenterTable } from "src/database/schema/tables/user_center.table";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 
 @Injectable()
@@ -19,7 +19,6 @@ export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly MoodleService: MoodleService,
-    private readonly groupRepository: GroupRepository,
     private readonly groupService: GroupService,
     private readonly userGroupRepository: UserGroupRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
@@ -48,7 +47,44 @@ export class UserService {
 
   async findAll(userSelectModel: UserSelectModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.userRepository.findAll(userSelectModel, { transaction });
+      // Get all users
+      const users = await this.userRepository.findAll(userSelectModel, { transaction });
+      // For each user, get their main center (is_main_center = true) and company name
+      const usersWithMainCenter = await Promise.all(
+        users.map(async (user: any) => {
+          const userCenter = await transaction
+            .select()
+            .from(userCenterTable)
+            .where(
+              eq(userCenterTable.id_user, user.id_user)
+            );
+          // Find the main center in the userCenter array
+          const mainUserCenter = userCenter.find((uc: any) => uc.is_main_center === true);
+          if (mainUserCenter) {
+            const center = await this.centerRepository.findById(mainUserCenter.id_center, { transaction });
+            let companyName = null;
+            if (center) {
+              const company = await this.companyRepository.findOne(center.id_company, { transaction });
+              companyName = company?.company_name || null;
+            }
+            return {
+              ...user,
+              main_center: center ? {
+                id_center: center.id_center,
+                center_name: center.center_name,
+                id_company: center.id_company,
+                company_name: companyName
+              } : null
+            };
+          } else {
+            return {
+              ...user,
+              main_center: null
+            };
+          }
+        })
+      );
+      return usersWithMainCenter;
     });
   }
 
@@ -141,20 +177,25 @@ export class UserService {
 
   async findCentersByUserId(id_user: number) {
     return await (this.databaseService.db).transaction(async transaction => {
+      // Get all user_center records for the user
       const userCenters = await transaction
         .select()
         .from(userCenterTable)
         .where(eq(userCenterTable.id_user, id_user));
       if (!userCenters.length) return [];
+      // For each user_center, get the center and add is_main_center and dates
       const centers = await Promise.all(
         userCenters.map(async (uc: any) => {
           const center = await this.centerRepository.findById(uc.id_center, { transaction });
           if (!center) return null;
-          // Buscar el nombre de la empresa
+          // Get the company name
           const company = await this.companyRepository.findOne(center.id_company, { transaction });
           return {
             ...center,
-            company_name: company?.company_name || null
+            company_name: company?.company_name || null,
+            is_main_center: uc.is_main_center,
+            start_date: uc.start_date,
+            end_date: uc.end_date
           };
         })
       );

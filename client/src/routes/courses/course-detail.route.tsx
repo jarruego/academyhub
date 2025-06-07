@@ -45,6 +45,8 @@ export default function CourseDetailRoute() {
   const { mutateAsync: createBonificationFile } = useCreateBonificationFileMutation();
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [modal, contextHolder] = Modal.useModal();
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]); // IDs selected in the table
+  const [isBonificationModalOpen, setIsBonificationModalOpen] = useState(false);
 
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof COURSE_DETAIL_FORM_SCHEMA>>({
     resolver: zodResolver(COURSE_DETAIL_FORM_SCHEMA),
@@ -118,25 +120,44 @@ export default function CourseDetailRoute() {
     setSelectedRowKeys([record.id_group]);
   };
 
-  //TODO: No funciona, error 401 (Unauthorized).
-  const handleBonificarSeleccionados = async () => {
-    // Prueba con datos fijos
-    const groupId = 20;
-    const userIds = [2, 7, 5];
+  // Collects the selected users from the table
+  const handleUserSelectionChange = (selectedRowKeys: React.Key[]) => {
+    setSelectedUserIds(selectedRowKeys as number[]);
+  };
+
+  // Opens the bonification modal
+  const openBonificationModal = () => {
+    if (selectedUserIds.length === 0) {
+      message.warning("Select at least one user to bonify.");
+      return;
+    }
+    setIsBonificationModalOpen(true);
+  };
+
+  // Removes a user from the selection inside the modal
+  const handleRemoveUserFromModal = (userId: number) => {
+    setSelectedUserIds((prev) => prev.filter((id) => id !== userId));
+  };
+
+  // Confirms bonification and generates the XML
+  const handleConfirmBonification = async () => {
+    if (!selectedGroupId || selectedUserIds.length === 0) return;
     try {
-      const xmlBlob = await createBonificationFile({ groupId, userIds });
+      const xmlBlob = await createBonificationFile({ groupId: selectedGroupId, userIds: selectedUserIds });
       const url = window.URL.createObjectURL(xmlBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `bonificacion_grupo_${groupId}.xml`;
+      a.download = `bonification_group_${selectedGroupId}.xml`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
+      setIsBonificationModalOpen(false);
+      message.success("XML generated successfully");
     } catch {
       Modal.error({
-        title: "Error al generar el XML",
-        content: "No se pudo generar el archivo de bonificación.",
+        title: "Error generating XML",
+        content: "Could not generate the bonification file.",
       });
     }
   };
@@ -144,6 +165,38 @@ export default function CourseDetailRoute() {
   return (
     <div>
       {contextHolder}
+      {/* Modal de bonificación */}
+      <Modal
+        open={isBonificationModalOpen}
+        title="Bonificar usuarios seleccionados y crear XML FUNDAE"
+        onCancel={() => setIsBonificationModalOpen(false)}
+        onOk={handleConfirmBonification}
+        okText="Bonificar y generar XML"
+        cancelText="Cancelar"
+        width="90vw"
+        style={{ top: 20, minHeight: '90vh', maxWidth: '90vw' }}
+        bodyStyle={{ minHeight: '80vh', maxHeight: '80vh', overflowY: 'auto' }}
+      >
+        <Table<User>
+          rowKey="id_user"
+          dataSource={usersData?.filter(u => selectedUserIds.includes(u.id_user))}
+          columns={[
+            ...USERS_TABLE_COLUMNS,
+            {
+              title: 'Acciones',
+              key: 'acciones',
+              render: (_, record) => (
+                <Button danger size="small" onClick={() => handleRemoveUserFromModal(record.id_user)}>
+                  Quitar
+                </Button>
+              ),
+            },
+          ]}
+          pagination={false}
+          size="small"
+        />
+        {selectedUserIds.length === 0 && <div style={{color: 'red', marginTop: 12}}>No hay usuarios seleccionados.</div>}
+      </Modal>
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item label="ID" name="id_course">
@@ -334,6 +387,8 @@ export default function CourseDetailRoute() {
               pagination={{ pageSize: 100 }}
               rowSelection={{
                 type: 'checkbox',
+                selectedRowKeys: selectedUserIds,
+                onChange: handleUserSelectionChange,
               }}
               onRow={(record) => ({
                 onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
@@ -344,9 +399,9 @@ export default function CourseDetailRoute() {
               type="default"
               icon={<SaveOutlined />}
               style={{ maxWidth: '450px' }}
-              onClick={handleBonificarSeleccionados}
+              onClick={openBonificationModal}
             >
-              Bonificar seleccionados y crear XML FUNDAE (próximamente)
+              Bonificar seleccionados y crear XML FUNDAE
             </Button>
           </div>
         </div>

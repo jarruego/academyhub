@@ -30,4 +30,10 @@ export type User = {
     seasonalWorker?: boolean | null;
     erteLaw?: boolean | null;
     accreditationDiploma?: string | null;
+    main_center?: {
+        id_center: number;
+        center_name: string;
+        id_company: number;
+        company_name: string;
+    };
 }
