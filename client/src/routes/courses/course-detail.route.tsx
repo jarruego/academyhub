@@ -16,6 +16,7 @@ import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { User } from "../../shared/types/user/user";
 import { useCreateBonificationFileMutation } from "../../hooks/api/groups/use-create-bonification-file.mutation";
+import { useUpdateUserMainCenterMutation } from "../../hooks/api/centers/use-update-user-main-center.mutation";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -40,13 +41,16 @@ export default function CourseDetailRoute() {
   const { data: groupsData, isLoading: isGroupsLoading } = useGroupsQuery(id_course || "");
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const { data: usersData, isLoading: isUsersLoading } = useUsersByGroupQuery(selectedGroupId);
+  const { data: usersData, isLoading: isUsersLoading, refetch: refetchUsersByGroup } = useUsersByGroupQuery(selectedGroupId);
   const { mutateAsync: deleteCourse } = useDeleteCourseMutation(id_course || "");
   const { mutateAsync: createBonificationFile } = useCreateBonificationFileMutation();
+  const updateUserMainCenterMutation = useUpdateUserMainCenterMutation();
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [modal, contextHolder] = Modal.useModal();
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]); // IDs selected in the table
   const [isBonificationModalOpen, setIsBonificationModalOpen] = useState(false);
+  // Estado para centros seleccionados en la modal de bonificación
+  const [selectedCenters, setSelectedCenters] = useState<Record<number, number>>({}); // { [id_user]: id_center }
 
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof COURSE_DETAIL_FORM_SCHEMA>>({
     resolver: zodResolver(COURSE_DETAIL_FORM_SCHEMA),
@@ -163,6 +167,61 @@ export default function CourseDetailRoute() {
     }
   };
 
+  // Definir columnas específicas para el modal de bonificación
+  const BONIFICATION_MODAL_USER_COLUMNS = [
+    {
+      title: 'Centro (empresa)',
+      dataIndex: 'centro_select',
+      render: (_: unknown, user: User) => {
+        const selected = selectedCenters[user.id_user] ?? user.centers?.find(c => c.is_main_center)?.id_center ?? user.centers?.[0]?.id_center;
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Select
+              style={{ minWidth: 220 }}
+              value={selected}
+              placeholder={user.centers?.length ? 'Selecciona centro' : 'Sin centros'}
+              options={user.centers?.map(center => ({
+                value: center.id_center,
+                label: `${center.center_name} (${center.company_name ?? ''})${center.is_main_center ? ' (principal)' : ''}`
+              }))}
+              allowClear
+              onChange={val => setSelectedCenters(prev => ({ ...prev, [user.id_user]: val }))}
+            />
+            {selected && (
+              <Button
+                type="primary"
+                size="small"
+                loading={updateUserMainCenterMutation.isPending}
+                onClick={() => updateUserMainCenterMutation.mutate(
+                  { userId: user.id_user, centerId: selected },
+                  {
+                    onSuccess: () => {
+                      message.success('Centro principal actualizado');
+                      refetchUsersByGroup();
+                    },
+                    onError: () => message.error('Error al actualizar el centro principal')
+                  }
+                )}
+              >
+                Guardar
+              </Button>
+            )}
+          </div>
+        );
+      }
+    },
+    ...USERS_TABLE_COLUMNS.filter(col => col.title !== 'Centro' && col.title !== 'Empresa'),
+    {
+      title: 'Acciones',
+      key: 'acciones',
+      render: (_: unknown, record: User) => (
+        <Button danger size="small" onClick={() => handleRemoveUserFromModal(record.id_user)}>
+          Quitar
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div>
       {contextHolder}
@@ -181,18 +240,7 @@ export default function CourseDetailRoute() {
         <Table<User>
           rowKey="id_user"
           dataSource={usersData?.filter(u => selectedUserIds.includes(u.id_user))}
-          columns={[
-            ...USERS_TABLE_COLUMNS,
-            {
-              title: 'Acciones',
-              key: 'acciones',
-              render: (_, record) => (
-                <Button danger size="small" onClick={() => handleRemoveUserFromModal(record.id_user)}>
-                  Quitar
-                </Button>
-              ),
-            },
-          ]}
+          columns={BONIFICATION_MODAL_USER_COLUMNS}
           pagination={false}
           size="small"
         />

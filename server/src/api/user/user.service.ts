@@ -47,44 +47,41 @@ export class UserService {
 
   async findAll(userSelectModel: UserSelectModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      // Get all users
+      // Obtener todos los usuarios
       const users = await this.userRepository.findAll(userSelectModel, { transaction });
-      // For each user, get their main center (is_main_center = true) and company name
-      const usersWithMainCenter = await Promise.all(
+      // Para cada usuario, obtener todos sus centros y el main_center
+      const usersWithCenters = await Promise.all(
         users.map(async (user: any) => {
-          const userCenter = await transaction
+          const userCenters = await transaction
             .select()
             .from(userCenterTable)
-            .where(
-              eq(userCenterTable.id_user, user.id_user)
-            );
-          // Find the main center in the userCenter array
-          const mainUserCenter = userCenter.find((uc: any) => uc.is_main_center === true);
-          if (mainUserCenter) {
-            const center = await this.centerRepository.findById(mainUserCenter.id_center, { transaction });
-            let companyName = null;
-            if (center) {
+            .where(eq(userCenterTable.id_user, user.id_user));
+
+          // Array de centros completos
+          const centers = await Promise.all(
+            userCenters.map(async (uc: any) => {
+              const center = await this.centerRepository.findById(uc.id_center, { transaction });
+              if (!center) return null;
               const company = await this.companyRepository.findOne(center.id_company, { transaction });
-              companyName = company?.company_name || null;
-            }
-            return {
-              ...user,
-              main_center: center ? {
-                id_center: center.id_center,
-                center_name: center.center_name,
-                id_company: center.id_company,
-                company_name: companyName
-              } : null
-            };
-          } else {
-            return {
-              ...user,
-              main_center: null
-            };
-          }
+              return {
+                ...center,
+                company_name: company?.company_name || null,
+                is_main_center: uc.is_main_center,
+                start_date: uc.start_date,
+                end_date: uc.end_date
+              };
+            })
+          );
+          // main_center para compatibilidad
+          const mainUserCenter = centers.find((c: any) => c && c.is_main_center === true) || null;
+          return {
+            ...user,
+            centers: centers.filter(Boolean),
+            main_center: mainUserCenter
+          };
         })
       );
-      return usersWithMainCenter;
+      return usersWithCenters;
     });
   }
 

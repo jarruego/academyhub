@@ -78,13 +78,11 @@ export default function UsersRoute() {
         },
         {
           title: 'Centro',
-          dataIndex: ['main_center', 'center_name'],
-          render: (_, user) => user.main_center?.center_name ?? '-',
+          render: (_, user) => (user.centers?.find(c => c.is_main_center)?.center_name ?? user.centers?.[0]?.center_name ?? '-'),
         },
         {
           title: 'Empresa',
-          dataIndex: ['main_center', 'company_name'],
-          render: (_, user) => user.main_center?.company_name ?? '-',
+          render: (_, user) => (user.centers?.find(c => c.is_main_center)?.company_name ?? user.centers?.[0]?.company_name ?? '-'),
         }
       ]} 
       dataSource={filteredUsers} 

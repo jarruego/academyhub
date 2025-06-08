@@ -14,6 +14,6 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
     { title: 'Email', dataIndex: ['email'] },
     { title: 'MOODLE USERNAME', dataIndex: ['moodle_username'] },
     { title: 'Porcentaje', dataIndex: ['completion_percentage'] },
-    { title: 'Centro', dataIndex: ['main_center', 'center_name'], render: (_, user) => user.main_center?.center_name ?? '-' },
-    { title: 'Empresa', dataIndex: ['main_center', 'company_name'], render: (_, user) => user.main_center?.company_name ?? '-' },
+    { title: 'Centro', render: (_, user) => (user.centers?.find(c => c.is_main_center)?.center_name ?? user.centers?.[0]?.center_name ?? '-') },
+    { title: 'Empresa', render: (_, user) => (user.centers?.find(c => c.is_main_center)?.company_name ?? user.centers?.[0]?.company_name ?? '-') },
 ]
