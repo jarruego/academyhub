@@ -145,8 +145,86 @@ export default function CourseDetailRoute() {
   };
 
   // Confirms bonification and generates the XML
+  const REQUIRED_USER_FIELDS = [
+    'dni', // nif
+    'document_type', // N_TIPO_DOCUMENTO
+    'erteLaw', // ERTE_RD_ley
+    'email',
+    'phone', // telefono
+    'disability', // discapacidad
+    'terrorism_victim', // afectadosTerrorismo
+    'gender_violence_victim', // afectadosViolenciaGenero
+    'professional_category', // categoriaprofesional
+    'education_level', // nivelestudios
+    'accreditationDiploma', // DiplomaAcreditativo
+    'seasonalWorker', // fijoDiscontinuo
+  ];
+
+  const FIELD_LABELS: Record<string, string> = {
+    dni: 'NIF',
+    document_type: 'Tipo de documento',
+    erteLaw: 'ERTE RD Ley',
+    email: 'Email',
+    phone: 'Teléfono',
+    disability: 'Discapacidad',
+    terrorism_victim: 'Afectado por terrorismo',
+    gender_violence_victim: 'Afectado por violencia de género',
+    professional_category: 'Categoría profesional',
+    education_level: 'Nivel de estudios',
+    accreditationDiploma: 'Diploma acreditativo',
+    seasonalWorker: 'Fijo discontinuo',
+  };
+
+  type UserWithMissingFields = {
+    id_user: number;
+    display: string;
+    missingFields: string[];
+  };
+
   const handleConfirmBonification = async () => {
     if (!selectedGroupId || selectedUserIds.length === 0) return;
+    // Validación de campos requeridos antes de bonificar
+    const usersToBonify = usersData?.filter(u => selectedUserIds.includes(u.id_user)) || [];
+    const usersWithMissingFields: UserWithMissingFields[] = usersToBonify.map((user) => {
+      const missingFields = REQUIRED_USER_FIELDS.filter(field => {
+        const value = (user as Record<string, unknown>)[field];
+        // Considera nulo, undefined, string vacío o NaN como campo faltante
+        if (value === undefined || value === null) return true;
+        if (typeof value === 'string' && value.trim() === '') return true;
+        if (typeof value === 'number' && isNaN(value)) return true;
+        return false;
+      });
+      return missingFields.length > 0 ? {
+        id_user: user.id_user,
+        display: `${user.name} ${user.first_surname}`.trim() || user.dni || `ID ${user.id_user}`,
+        missingFields,
+      } : null;
+    }).filter((u): u is UserWithMissingFields => Boolean(u));
+
+    if (usersWithMissingFields.length > 0) {
+      modal.info({
+        title: 'Faltan datos obligatorios en algunos usuarios',
+        width: 600,
+        icon: <span style={{ color: '#faad14', fontSize: 22, marginRight: 8 }}>⚠️</span>,
+        content: (
+          <div style={{ maxHeight: 320, overflowY: 'auto', paddingTop: 8 }}>
+            <p style={{ marginBottom: 12 }}>Antes de bonificar, completa los siguientes campos en los usuarios:</p>
+            <ul style={{ paddingLeft: 20 }}>
+              {usersWithMissingFields.map((u) => (
+                <li key={u.id_user} style={{ marginBottom: 8 }}>
+                  <b>{u.display}:</b> {u.missingFields.map((f) => FIELD_LABELS[f] || f).join(', ')}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+        okText: 'Cerrar',
+        centered: true,
+        maskClosable: true,
+      });
+      return;
+    }
+
     try {
       const xmlBlob = await createBonificationFile({ groupId: selectedGroupId, userIds: selectedUserIds });
       const url = window.URL.createObjectURL(xmlBlob);
@@ -235,7 +313,7 @@ export default function CourseDetailRoute() {
         cancelText="Cancelar"
         width="90vw"
         style={{ top: 20, minHeight: '90vh', maxWidth: '90vw' }}
-        bodyStyle={{ minHeight: '80vh', maxHeight: '80vh', overflowY: 'auto' }}
+        styles={{ body: { minHeight: '80vh', maxHeight: '80vh', overflowY: 'auto' } }}
       >
         <Table<User>
           rowKey="id_user"
@@ -243,6 +321,12 @@ export default function CourseDetailRoute() {
           columns={BONIFICATION_MODAL_USER_COLUMNS}
           pagination={false}
           size="small"
+          onRow={(record) => ({
+            onDoubleClick: () => {
+              window.open(`/users/${record.id_user}`, '_blank', 'noopener');
+            },
+            style: { cursor: 'pointer' }
+          })}
         />
         {selectedUserIds.length === 0 && <div style={{color: 'red', marginTop: 12}}>No hay usuarios seleccionados.</div>}
       </Modal>
@@ -440,7 +524,10 @@ export default function CourseDetailRoute() {
                 onChange: handleUserSelectionChange,
               }}
               onRow={(record) => ({
-                onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
+                onDoubleClick: () => {
+                  window.open(`/users/${record.id_user}`, '_blank', 'noopener');
+                  setTimeout(() => refetchUsersByGroup(), 1000); // Refresca tras abrir la ficha
+                },
                 style: { cursor: 'pointer' }
               })}
             />
