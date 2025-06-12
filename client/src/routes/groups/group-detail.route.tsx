@@ -5,9 +5,8 @@ import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
-import { useDeleteUserFromGroupMutation } from "../../hooks/api/groups/use-delete-user-from-group.mutation";
-import { useEffect, useState } from "react";
-import { DeleteOutlined, SaveOutlined, PlusOutlined } from "@ant-design/icons";
+import { useEffect } from "react";
+import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import z from "zod";
@@ -31,9 +30,7 @@ export default function EditGroupRoute() {
   const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(id_group || "");
   const { mutateAsync: updateGroup } = useUpdateGroupMutation(id_group || "");
   const { mutateAsync: deleteGroup } = useDeleteGroupMutation(id_group || "");
-  const { data: usersData, isLoading: isUsersLoading, refetch: refetchUsers } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
-  const { mutateAsync: deleteUserFromGroup } = useDeleteUserFromGroupMutation();
-  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const { data: usersData, isLoading: isUsersLoading } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof GROUP_FORM_SCHEMA>>({
     resolver: zodResolver(GROUP_FORM_SCHEMA),
   });
@@ -93,31 +90,12 @@ export default function EditGroupRoute() {
     });
   };
 
-  const handleDeleteUsers = async () => {
-    if (!id_group || selectedUserIds.length === 0) return;
-    try {
-      await Promise.all(selectedUserIds.map(id_user => deleteUserFromGroup({ id_group: parseInt(id_group, 10), id_user })));
-      message.success('Usuarios eliminados exitosamente');
-      setSelectedUserIds([]);
-      await refetchUsers();
-    } catch {
-      message.error('No se pudo eliminar a los usuarios');
-    }
-  };
-
   const handleAddUserToGroup = () => {
     navigate(`/groups/${id_group}/add-user`);
   };
 
   const handleImportUsers = () => {
     navigate(`/groups/${id_group}/import-users`);
-  };
-
-  const rowSelection = {
-    selectedRowKeys: selectedUserIds,
-    onChange: (selectedRowKeys: React.Key[]) => {
-      setSelectedUserIds(selectedRowKeys as number[]);
-    },
   };
 
   const items = [
@@ -184,6 +162,7 @@ export default function EditGroupRoute() {
               />
             </Form.Item>
           </div>
+          </div>
           <Form.Item label="Descripción" name="description"
             help={errors.description?.message}
             validateStatus={errors.description ? "error" : undefined}
@@ -214,7 +193,6 @@ export default function EditGroupRoute() {
             ]}
             dataSource={usersData}
             loading={isUsersLoading}
-            rowSelection={rowSelection}
             onRow={(record) => ({
               onClick: () => {
                 setSelectedUserIds((prevSelected) => {
@@ -231,11 +209,8 @@ export default function EditGroupRoute() {
           />
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddUserToGroup} >
-              Añadir Usuarios al Grupo
-            </Button>
-            <Button type="primary" danger onClick={handleDeleteUsers} icon={<DeleteOutlined />}>
-              Eliminar Usuarios Seleccionados
+            <Button type="primary" icon={<TeamOutlined />} onClick={handleAddUserToGroup} >
+              Gestionar Usuarios del Grupo
             </Button>
             <Button type="primary" onClick={handleImportUsers}>
               Importar Usuarios
