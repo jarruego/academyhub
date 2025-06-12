@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { CenterInsertModel, CenterSelectModel, centerTable, CenterUpdateModel } from "src/database/schema/tables/center.table";
-import { eq, ilike, and, sql } from "drizzle-orm"; 
-import { UserCenterInsertModel, userCenterTable } from "src/database/schema/tables/user_center.table";
+import { eq, ilike, and } from "drizzle-orm"; 
+import { UserCenterInsertModel, userCenterTable, UserCenterUpdateModel } from "src/database/schema/tables/user_center.table";
 
 @Injectable()
 export class CenterRepository extends Repository {
@@ -62,7 +62,7 @@ export class CenterRepository extends Repository {
         return rows;
     }
 
-    async updateUserInCenter(id_center: number, id_user: number, data: CenterUpdateModel, options?: QueryOptions) {
+    async updateUserInCenter(id_center: number, id_user: number, data: UserCenterUpdateModel, options?: QueryOptions) {
         const result = await this.query(options)
             .update(userCenterTable)
             .set(data)
