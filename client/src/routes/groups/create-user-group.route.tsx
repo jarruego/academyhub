@@ -69,7 +69,7 @@ export default function CreateUserGroupRoute() {
 
   return (
     <div>
-      <h2>Usuarios BD</h2>
+      <h2>Todos los Usuarios</h2>
       <Input
         placeholder="Buscar usuarios"
         value={searchTerm}
@@ -95,7 +95,7 @@ export default function CreateUserGroupRoute() {
           style: { cursor: 'pointer' }
         })}
       />
-      <h2>Usuarios Grupo</h2>
+      <h2>Usuarios del Grupo</h2>
       <Button type="primary" danger onClick={handleDeleteUsers} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
         Eliminar del Grupo
       </Button>
@@ -115,7 +115,7 @@ export default function CreateUserGroupRoute() {
           style: { cursor: 'pointer' }
         })}
       />
-      <Button type="default" onClick={() => navigate(-1)} style={{ marginTop: '16px' }}>
+      <Button type="default" onClick={() => navigate(`/groups/${id_group}/edit`)} style={{ marginTop: '16px' }}>
         Volver al Grupo
       </Button>
     </div>

@@ -6,7 +6,7 @@ import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { useEffect } from "react";
-import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
+import { DeleteOutlined, SaveOutlined, TeamOutlined, ImportOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import z from "zod";
@@ -162,7 +162,6 @@ export default function EditGroupRoute() {
               />
             </Form.Item>
           </div>
-          </div>
           <Form.Item label="Descripción" name="description"
             help={errors.description?.message}
             validateStatus={errors.description ? "error" : undefined}
@@ -193,26 +192,13 @@ export default function EditGroupRoute() {
             ]}
             dataSource={usersData}
             loading={isUsersLoading}
-            onRow={(record) => ({
-              onClick: () => {
-                setSelectedUserIds((prevSelected) => {
-                  if (prevSelected.includes(record.id_user)) {
-                    return prevSelected.filter((id) => id !== record.id_user);
-                  } else {
-                    return [...prevSelected, record.id_user];
-                  }
-                });
-              },
-              onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
-              style: { cursor: 'pointer' }
-            })}
           />
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
             <Button type="primary" icon={<TeamOutlined />} onClick={handleAddUserToGroup} >
               Gestionar Usuarios del Grupo
             </Button>
-            <Button type="primary" onClick={handleImportUsers}>
+            <Button type="primary" icon={<ImportOutlined />} onClick={handleImportUsers}>
               Importar Usuarios
             </Button>
           </div>
