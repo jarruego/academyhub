@@ -25,7 +25,7 @@ export default function CoursesRoute() {
     normalize(course.course_name ?? '').includes(normalizedSearch) ||
     normalize(course.short_name ?? '').includes(normalizedSearch) ||
     normalize(course.moodle_id ? String(course.moodle_id) : '').includes(normalizedSearch)
-  );
+  )?.slice().sort((a, b) => (a.course_name ?? '').localeCompare(b.course_name ?? ''));
 
   return <div>
     <Input.Search 

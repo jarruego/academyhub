@@ -26,7 +26,9 @@ export default function UsersRoute() {
     normalize(user.first_surname ?? '').includes(normalizedSearch) ||
     normalize(user.moodle_username ?? '').includes(normalizedSearch) ||
     normalize(user.email ?? '').includes(normalizedSearch) ||
-    normalize(user.dni ?? '').includes(normalizedSearch)
+    normalize(user.dni ?? '').includes(normalizedSearch) ||
+    normalize(user.centers?.find(c => c.is_main_center)?.center_name ?? user.centers?.[0]?.center_name ?? '').includes(normalizedSearch) ||
+    normalize(user.centers?.find(c => c.is_main_center)?.company_name ?? user.centers?.[0]?.company_name ?? '').includes(normalizedSearch)
   );
 
   return <div>
@@ -79,10 +81,20 @@ export default function UsersRoute() {
         {
           title: 'Centro',
           render: (_, user) => (user.centers?.find(c => c.is_main_center)?.center_name ?? user.centers?.[0]?.center_name ?? '-'),
+          sorter: (a, b) => {
+            const ca = a.centers?.find(c => c.is_main_center)?.center_name ?? a.centers?.[0]?.center_name ?? '';
+            const cb = b.centers?.find(c => c.is_main_center)?.center_name ?? b.centers?.[0]?.center_name ?? '';
+            return ca.localeCompare(cb);
+          },
         },
         {
           title: 'Empresa',
           render: (_, user) => (user.centers?.find(c => c.is_main_center)?.company_name ?? user.centers?.[0]?.company_name ?? '-'),
+          sorter: (a, b) => {
+            const ca = a.centers?.find(c => c.is_main_center)?.company_name ?? a.centers?.[0]?.company_name ?? '';
+            const cb = b.centers?.find(c => c.is_main_center)?.company_name ?? b.centers?.[0]?.company_name ?? '';
+            return ca.localeCompare(cb);
+          },
         }
       ]} 
       dataSource={filteredUsers} 

@@ -116,7 +116,7 @@ export default function CreateUserGroupRoute() {
         })}
       />
       <Button type="default" onClick={() => navigate(-1)} style={{ marginTop: '16px' }}>
-        Cancelar
+        Volver al Grupo
       </Button>
     </div>
   );

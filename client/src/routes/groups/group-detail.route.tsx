@@ -191,7 +191,7 @@ export default function EditGroupRoute() {
             <Controller name="description" control={control} render={({ field }) => <Input {...field} value={field.value ?? ""} />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
-            <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+            <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
             <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
           </div>
@@ -230,6 +230,7 @@ export default function EditGroupRoute() {
             })}
           />
           <div style={{ display: 'flex', gap: '16px' }}>
+            <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={handleAddUserToGroup} >
               Añadir Usuarios al Grupo
             </Button>
