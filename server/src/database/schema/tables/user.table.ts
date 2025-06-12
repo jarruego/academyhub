@@ -1,8 +1,8 @@
 import { InferSelectModel } from "drizzle-orm";
 import { pgTable, serial, text, integer, boolean, date, pgEnum } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
-import { Gender } from "src/types/user/gender.enum";
-import { DocumentType } from "src/types/user/document-type.enum";
+import { Gender } from "../../../types/user/gender.enum";
+import { DocumentType } from "../../../types/user/document-type.enum";
 
 export const gender = pgEnum('gender', Object.values(Gender) as [string, ...string[]]);
 export const documentType = pgEnum('document_type', Object.values(DocumentType) as [string, ...string[]]);

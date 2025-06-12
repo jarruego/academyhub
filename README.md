@@ -80,6 +80,32 @@ To run the server, you must define certain environment variables in a `.env` fil
 
 You can find an example in the `.env` file included in the project. Make sure to fill in these values before starting the server.
 
+## Seed Data Scripts
+
+There are two seed scripts available to populate the database with sample data if desired:
+
+- `server/seed-all.ts`: Populates all main tables (users, companies, centers, courses, groups, and their relationships) with realistic sample data.
+- `server/seed-auth-users.ts`: Populates only authentication users for quick testing of login and roles.
+
+### How to use the seed scripts
+
+1. Make sure your database is running and your `.env` file is properly configured in the `server/` folder.
+2. Install dependencies in the `server/` folder if you haven't already:
+   ```bash
+   cd server
+   npm install
+   ```
+3. Run the desired seed script with Node.js:
+   ```bash
+   # To populate all main tables with sample data
+   npx ts-node seed-all.ts
+
+   # To populate only authentication users
+   npx ts-node seed-auth-users.ts
+   ```
+
+> **Note:** Running these scripts will erase existing data in the affected tables and insert new sample data.
+
 ## Contributing
 Contributions are welcome starting in 2026, after the TFG has been submitted. Please open an issue or pull request for suggestions or improvements after that date.
 
