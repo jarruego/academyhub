@@ -6,8 +6,9 @@ import { UserCenterRepository } from "src/database/repository/center/user-center
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 import { QueryOptions } from "src/database/repository/repository";
 import { CenterInsertModel, CenterSelectModel, CenterUpdateModel } from "src/database/schema/tables/center.table";
-import { UserCenterInsertModel, UserCenterUpdateModel } from "src/database/schema/tables/user_center.table";
+import { UserCenterInsertModel, UserCenterUpdateModel, userCenterTable } from "src/database/schema/tables/user_center.table";
 import { UpdateUsersMainCenterDTO } from "src/dto/center/update-users-main-center.dto";
+import { eq } from "drizzle-orm";
 
 @Injectable()
 export class CenterService {
@@ -68,7 +69,21 @@ export class CenterService {
 
   async addUserToCenter(userCenterInsertModel: UserCenterInsertModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.centerRepository.addUserToCenter(userCenterInsertModel, { transaction });
+      // Comprobar si el usuario ya pertenece a algún centro
+      const existingCenters = await transaction
+        .select()
+        .from(userCenterTable)
+        .where(eq(userCenterTable.id_user, userCenterInsertModel.id_user));
+      let isMain = userCenterInsertModel.is_main_center;
+      if (!existingCenters.length) {
+        isMain = true;
+      } else if (typeof isMain === 'undefined') {
+        isMain = false;
+      }
+      return await this.centerRepository.addUserToCenter({
+        ...userCenterInsertModel,
+        is_main_center: isMain
+      }, { transaction });
     });
   }
 

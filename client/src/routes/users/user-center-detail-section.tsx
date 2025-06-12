@@ -6,6 +6,8 @@ import { useAddUserToCenterMutation } from "../../hooks/api/centers/use-add-user
 import { useUserCentersQuery } from "../../hooks/api/users/use-user-centers.query";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { useDeleteUsersFromCentersMutation } from "../../hooks/api/centers/use-delete-users-from-centers.mutation";
+import { useUpdateUserMainCenterMutation } from '../../hooks/api/centers/use-update-user-main-center.mutation';
+import type { UserCenter } from '../../shared/types/center/user-center';
 
 interface AddUserToCenterSectionProps {
   id_user?: string;
@@ -19,6 +21,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
   const [selectedCenter, setSelectedCenter] = React.useState<number | undefined>();
   const { mutateAsync: addUserToCenter, status } = useAddUserToCenterMutation();
   const { mutateAsync: deleteUsersFromCenters, status: deleteStatus } = useDeleteUsersFromCentersMutation();
+  const updateUserMainCenterMutation = useUpdateUserMainCenterMutation();
   const [modal, contextHolder] = Modal.useModal();
 
   const handleAdd = async () => {
@@ -42,7 +45,19 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
     <>
       {contextHolder}
       <Table
-        dataSource={userCenters || []}
+        dataSource={((userCenters as UserCenter[] || [])
+          .slice()
+          .sort((a, b) => {
+            // Ordena por empresa y luego por nombre de centro
+            const companyA = (a.company_name || '').toLowerCase();
+            const companyB = (b.company_name || '').toLowerCase();
+            if (companyA < companyB) return -1;
+            if (companyA > companyB) return 1;
+            const centerA = (a.center_name || '').toLowerCase();
+            const centerB = (b.center_name || '').toLowerCase();
+            return centerA.localeCompare(centerB);
+          })
+        )}
         loading={isCentersLoading}
         rowKey="id_center"
         pagination={false}
@@ -54,33 +69,57 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
           {
             title: "",
             key: "actions",
-            render: (_, record) => (
-              <Button
-                danger
-                size="small"
-                icon={<DeleteOutlined />}
-                loading={deleteStatus === 'pending'}
-                onClick={async () => {
-                  modal.confirm({
-                    title: "¿Seguro que desea eliminar este centro del usuario?",
-                    content: "Esta acción no se puede deshacer.",
-                    okText: "Eliminar",
-                    okType: "danger",
-                    cancelText: "Cancelar",
-                    onOk: async () => {
-                      try {
-                        await deleteUsersFromCenters([{ id_center: record.id_center, id_user: Number(id_user) }]);
-                        message.success('Registro eliminado correctamente');
-                        refetchUserCenters();
-                      } catch {
-                        message.error('Error al eliminar el registro');
-                      }
-                    },
-                  });
-                }}
-              >
-                Eliminar
-              </Button>
+            render: (_: unknown, record: UserCenter) => (
+              <>
+                {record.is_main_center ? (
+                  <Button
+                    type="primary"
+                    size="small"
+                    style={{ marginRight: 8, minWidth: 110, cursor: 'info', pointerEvents: 'none', opacity: 0.85 }}                    
+                  >
+                    PRINCIPAL
+                  </Button>
+                ) : (
+                  <Button
+                    size="small"
+                    style={{ marginRight: 8, minWidth: 110 }}
+                    onClick={async () => {
+                      await updateUserMainCenterMutation.mutateAsync({ userId: Number(id_user), centerId: record.id_center });
+                      message.success('Centro principal actualizado');
+                      refetchUserCenters();
+                    }}
+                    loading={updateUserMainCenterMutation.isPending}
+                  >
+                    Hacer principal
+                  </Button>
+                )}
+                <Button
+                  danger
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  loading={deleteStatus === 'pending'}
+                  onClick={async () => {
+                    modal.confirm({
+                      title: "¿Seguro que desea eliminar este centro del usuario?",
+                      content: "Esta acción no se puede deshacer.",
+                      okText: "Eliminar",
+                      okType: "danger",
+                      cancelText: "Cancelar",
+                      onOk: async () => {
+                        try {
+                          await deleteUsersFromCenters([{ id_center: record.id_center, id_user: Number(id_user) }]);
+                          message.success('Registro eliminado correctamente');
+                          refetchUserCenters();
+                        } catch {
+                          message.error('Error al eliminar el registro');
+                        }
+                      },
+                    });
+                  }}
+                >
+                  Eliminar
+                </Button>
+              </>
             ),
           },
         ]}

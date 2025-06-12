@@ -12,7 +12,7 @@ import { UserGroupRepository } from "src/database/repository/group/user-group.re
 import { CenterRepository } from "src/database/repository/center/center.repository";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 
 type AddUserToGroupOptions = {id_group: number; id_user: number; id_center?: number }
@@ -58,16 +58,32 @@ export class GroupService {
 
   async addUserToGroup({ id_group, id_user, id_center }: AddUserToGroupOptions, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      // Si no se pasa id_center, buscar el main_center del usuario
+      let centerIdToUse = id_center;
+      if (typeof centerIdToUse === 'undefined') {
+        const mainCenter = await transaction
+          .select()
+          .from(userCenterTable)
+          .where(
+            and(
+              eq(userCenterTable.id_user, id_user),
+              eq(userCenterTable.is_main_center, true)
+            )
+          );
+        centerIdToUse = mainCenter[0]?.id_center ?? null;
+      }
+
+      // Añadir a user_group (si no existe)
       const result = await this.userGroupRepository.addUserToGroup(id_group, id_user, { transaction });
 
-      // Get the id_course of the group
+      // Obtener el id_course del grupo
       const group = await this.groupRepository.findById(id_group, { transaction });
       const id_course = group.id_course;
 
-      // Check if the user is already in the course
+      // Comprobar si el usuario ya está en el curso
       const userCourse = await this.userCourseRepository.findByCourseAndUserId(id_course, id_user, { transaction });
 
-      // Associate user with the corresponding course if not already in the course
+      // Asociar usuario con el curso si no está
       if (!userCourse) {
         await this.userCourseRepository.create({ 
           id_user,
@@ -78,18 +94,18 @@ export class GroupService {
          });
       }
 
-      // Associate group
+      // Asociar grupo
       const userGroup = await this.userGroupRepository.findByGroupAndUserId(id_group, id_user, { transaction });
 
       if (userGroup) {
-        if (typeof id_center !== 'undefined') {
-          await this.userGroupRepository.updateById(id_user, id_group, { id_center }, { transaction });
+        if (typeof centerIdToUse !== 'undefined') {
+          await this.userGroupRepository.updateById(id_user, id_group, { id_center: centerIdToUse }, { transaction });
         }
       } else {
         await this.userGroupRepository.create({
           id_group,
           id_user,
-          id_center,
+          id_center: centerIdToUse,
           join_date: new Date(),
           completion_percentage: "0",
           time_spent: 0,
