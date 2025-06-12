@@ -16,4 +16,27 @@ export class UserCenterRepository extends Repository {
     async updateByUserId(userId: number, data: UserCenterUpdateModel, options?: QueryOptions) {
         return await this.query(options).update(userCenterTable).set(data).where(eq(userCenterTable.id_user, userId));
     }
+
+    async findUsersInCenter(centerId: number, options?: QueryOptions) {
+        const rows = await this.query(options)
+            .select()
+            .from(userCenterTable)
+            .where(eq(userCenterTable.id_center, centerId));
+        return rows;
+    }
+
+    async updateUserInCenter(id_center: number, id_user: number, data: UserCenterUpdateModel, options?: QueryOptions) {
+        const result = await this.query(options)
+            .update(userCenterTable)
+            .set(data)
+            .where(and(eq(userCenterTable.id_center, id_center), eq(userCenterTable.id_user, id_user)));
+        return result;
+    }
+
+    async deleteUserFromCenter(id_center: number, id_user: number, options?: QueryOptions) {
+        const result = await this.query(options)
+            .delete(userCenterTable)
+            .where(and(eq(userCenterTable.id_center, id_center), eq(userCenterTable.id_user, id_user)));
+        return result;
+    }
 }

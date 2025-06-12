@@ -89,19 +89,19 @@ export class CenterService {
 
   async findUsersInCenter(centerId: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.centerRepository.findUsersInCenter(centerId, { transaction });
+      return await this.userCenterRepository.findUsersInCenter(centerId, { transaction });
     });
   }
 
   async updateUserInCenter(id_center: number, id_user: number, userCenterUpdateModel: UserCenterUpdateModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.centerRepository.updateUserInCenter(id_center, id_user, userCenterUpdateModel, { transaction });
+      return await this.userCenterRepository.updateUserInCenter(id_center, id_user, userCenterUpdateModel, { transaction });
     });
   }
 
   async deleteUserFromCenter(id_center: number, id_user: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.centerRepository.deleteUserFromCenter(id_center, id_user, { transaction });
+      return await this.userCenterRepository.deleteUserFromCenter(id_center, id_user, { transaction });
     });
   }
 
