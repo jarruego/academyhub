@@ -9,6 +9,7 @@ import { CenterInsertModel, CenterSelectModel, CenterUpdateModel } from "src/dat
 import { UserCenterInsertModel, UserCenterUpdateModel, userCenterTable } from "src/database/schema/tables/user_center.table";
 import { UpdateUsersMainCenterDTO } from "src/dto/center/update-users-main-center.dto";
 import { eq } from "drizzle-orm";
+import { UserService } from "../user/user.service"; 
 
 @Injectable()
 export class CenterService {
@@ -16,7 +17,8 @@ export class CenterService {
     private readonly centerRepository: CenterRepository,
     private readonly userCenterRepository: UserCenterRepository,
     private readonly companyRepository: CompanyRepository,
-    @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
+    private readonly userService: UserService,
+    @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
   ) { }
 
   async findById(id: number, options?: QueryOptions) {
@@ -89,7 +91,21 @@ export class CenterService {
 
   async findUsersInCenter(centerId: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.userCenterRepository.findUsersInCenter(centerId, { transaction });
+      // Obtén los registros user_center
+      const userCenters = await this.userCenterRepository.findUsersInCenter(centerId, { transaction });
+      // Para cada registro, consulta los datos completos del usuario
+      const users = await Promise.all(
+        userCenters.map(async (uc) => {
+          const user = await this.userService.findById(uc.id_user, { transaction });
+          return {
+            ...user,
+            is_main_center: uc.is_main_center,
+            start_date: uc.start_date,
+            end_date: uc.end_date
+          };
+        })
+      );
+      return users;
     });
   }
 

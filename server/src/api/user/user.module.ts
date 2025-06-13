@@ -14,6 +14,6 @@ import { UserGroupRepository } from 'src/database/repository/group/user-group.re
   providers: [UserService, UserRepository, MoodleService, CenterRepository, CompanyRepository, UserGroupRepository],
   controllers: [UserController],
   exports: [UserService, UserRepository],
-  imports: [GroupModule, CenterModule, CompanyModule]
+  imports: [GroupModule, CompanyModule]
 })
 export class UserModule {}

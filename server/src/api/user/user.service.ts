@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { UserRepository } from "src/database/repository/user/user.repository";
 import { MoodleService } from "../moodle/moodle.service";
 import { QueryOptions } from "src/database/repository/repository";
@@ -17,13 +17,13 @@ import { CompanyRepository } from "src/database/repository/company/company.repos
 @Injectable()
 export class UserService {
   constructor(
-    private readonly userRepository: UserRepository,
     private readonly MoodleService: MoodleService,
     private readonly groupService: GroupService,
     private readonly userGroupRepository: UserGroupRepository,
-    @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
+    private readonly companyRepository: CompanyRepository,
+    private readonly userRepository: UserRepository,
     private readonly centerRepository: CenterRepository,
-    private readonly companyRepository: CompanyRepository
+    @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
   ) { }
 
   async findById(id: number, options?: QueryOptions) {

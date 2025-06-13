@@ -24,7 +24,7 @@ describe('<AuthPage/>', () => {
         render(<AuthPage setInfo={() => {}}/>);
     });
 
-    it('should send login data',async () => {
+    it('should send login data', async () => {
         /* Recogemos las referencias a los componentes */
         const user = await screen.findByPlaceholderText("Username");
         const password = await screen.findByPlaceholderText("Password");
