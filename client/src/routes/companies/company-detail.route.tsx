@@ -91,7 +91,7 @@ export default function CompanyDetailRoute() {
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
             <Form.Item label="ID" name="id_company" style={{ maxWidth: '35px' }}>
-              <Controller name="id_company" control={control} render={({ field }) => <Input {...field} disabled />} />
+              <Controller name="id_company" control={control} render={({ field }) => <Input data-testid="id_company" {...field} disabled />} />
             </Form.Item>
             <Form.Item
               label="CIF"
@@ -99,7 +99,7 @@ export default function CompanyDetailRoute() {
               help={errors.cif?.message}
               validateStatus={errors.cif ? "error" : undefined}
             >
-              <Controller name="cif" control={control} render={({ field }) => <Input {...field} />} />
+              <Controller name="cif" control={control} render={({ field }) => <Input data-testid="cif" {...field} />} />
             </Form.Item>
           </div>
           <Form.Item
@@ -108,7 +108,7 @@ export default function CompanyDetailRoute() {
             help={errors.company_name?.message}
             validateStatus={errors.company_name ? "error" : undefined}
           >
-            <Controller name="company_name" control={control} render={({ field }) => <Input {...field} />} />
+            <Controller name="company_name" control={control} render={({ field }) => <Input data-testid="company_name" {...field} />} />
           </Form.Item>
           <Form.Item
             label="Razón Social"
@@ -116,12 +116,12 @@ export default function CompanyDetailRoute() {
             help={errors.corporate_name?.message}
             validateStatus={errors.corporate_name ? "error" : undefined}
           >
-            <Controller name="corporate_name" control={control} render={({ field }) => <Input {...field} />} />
+            <Controller name="corporate_name" control={control} render={({ field }) => <Input data-testid="corporate_name" {...field} />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-            <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
-            <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Empresa</Button>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">Guardar</Button>
+            <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />} data-testid="delete-company">Eliminar Empresa</Button>
           </div>
         </Form>
       ),
