@@ -50,7 +50,7 @@ export default function CreateCenterRoute() {
             help={errors.employer_number?.message}
             validateStatus={errors.employer_number ? "error" : undefined}
           >
-            <Controller name="employer_number" control={control} render={({ field }) => <Input {...field} />} />
+            <Controller name="employer_number" control={control} render={({ field }) => <Input data-testid="employer-number" {...field} />} />
           </Form.Item>
         </div>
         <Form.Item
@@ -59,7 +59,7 @@ export default function CreateCenterRoute() {
           help={errors.center_name?.message}
           validateStatus={errors.center_name ? "error" : undefined}
         >
-          <Controller name="center_name" control={control} render={({ field }) => <Input {...field} />} />
+          <Controller name="center_name" control={control} render={({ field }) => <Input data-testid="center-name" {...field} />} />
         </Form.Item>
         <Form.Item
           label="Persona de contacto"
@@ -67,7 +67,7 @@ export default function CreateCenterRoute() {
           help={errors.contact_person?.message}
           validateStatus={errors.contact_person ? "error" : undefined}
         >
-          <Controller name="contact_person" control={control} render={({ field }) => <Input {...field} />} />
+          <Controller name="contact_person" control={control} render={({ field }) => <Input data-testid="contact-person" {...field} />} />
         </Form.Item>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item
@@ -76,7 +76,7 @@ export default function CreateCenterRoute() {
             help={errors.contact_phone?.message}
             validateStatus={errors.contact_phone ? "error" : undefined}
           >
-            <Controller name="contact_phone" control={control} render={({ field }) => <Input {...field} />} />
+            <Controller name="contact_phone" control={control} render={({ field }) => <Input data-testid="contact-phone" {...field} />} />
           </Form.Item>
           <Form.Item
             label="Email de contacto"
@@ -84,14 +84,14 @@ export default function CreateCenterRoute() {
             help={errors.contact_email?.message}
             validateStatus={errors.contact_email ? "error" : undefined}
           >
-            <Controller name="contact_email" control={control} render={({ field }) => <Input {...field} />} />
+            <Controller name="contact_email" control={control} render={({ field }) => <Input data-testid="contact-email" {...field} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button onClick={() => navigate(-1)}>
             Cancelar
           </Button>
-          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
+          <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">
             Guardar
           </Button>
         </div>
