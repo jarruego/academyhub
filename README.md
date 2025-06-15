@@ -18,10 +18,10 @@ Built with modern technologies and a scalable architecture, the platform is rele
 - `server/`: Backend API built with NestJS and Drizzle ORM.
 
 ## Technologies Used
-- **Frontend:** React, TypeScript, Vite 💻
-- **Backend:** NestJS, TypeScript, Drizzle ORM 🛠️
-- **Database:** PostgreSQL 🗄️
-- **Docker:** For deployment and local development 🐳
+- 💻 **Frontend:** React, TypeScript, Vite 
+- ⚙️ **Backend:** NestJS, TypeScript, Drizzle ORM 
+- 🗄️ **Database:** PostgreSQL 
+- 🐳 **Docker:** For deployment and local development 
 
 ### Main Production Libraries
 - **Frontend:**
