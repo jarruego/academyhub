@@ -5,6 +5,13 @@ import { compareHashWithSalt } from "src/utils/crypto/password-hashing.util";
 import { AuthUserService } from "./auth_user/auth_user.service";
 import { CreateUserDTO } from "src/dto/auth/create-user.dto";
 import { hashWithSalt } from "src/utils/crypto/password-hashing.util";
+import { Role } from "src/guards/role.guard";
+
+export type JwtPayload = {
+  id: number;
+  username: string;
+  role: Role;
+}
 
 @Injectable()
 export class AuthService {
@@ -21,7 +28,7 @@ export class AuthService {
     const payload = {
       id: user.id,
       username: user.username,
-      // TODO: rol
+      role: Role.ADMIN,
     };
 
     const {password: _, ...userWithoutPassword} = user;
