@@ -17,6 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { User } from "../../shared/types/user/user";
 import { useCreateBonificationFileMutation } from "../../hooks/api/groups/use-create-bonification-file.mutation";
 import { useUpdateUserMainCenterMutation } from "../../hooks/api/centers/use-update-user-main-center.mutation";
+import UserDetail from "../../components/user/user-detail";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -51,6 +52,8 @@ export default function CourseDetailRoute() {
   const [isBonificationModalOpen, setIsBonificationModalOpen] = useState(false);
   // Estado para centros seleccionados en la modal de bonificación
   const [selectedCenters, setSelectedCenters] = useState<Record<number, number>>({}); // { [id_user]: id_center }
+
+  const [userToLookup, setUserToLookup] = useState<number | null>(null);
 
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof COURSE_DETAIL_FORM_SCHEMA>>({
     resolver: zodResolver(COURSE_DETAIL_FORM_SCHEMA),
@@ -525,8 +528,7 @@ export default function CourseDetailRoute() {
               }}
               onRow={(record) => ({
                 onDoubleClick: () => {
-                  window.open(`/users/${record.id_user}`, '_blank', 'noopener');
-                  setTimeout(() => refetchUsersByGroup(), 1000); // Refresca tras abrir la ficha
+                  setUserToLookup(record.id_user);
                 },
                 style: { cursor: 'pointer' }
               })}
@@ -547,6 +549,13 @@ export default function CourseDetailRoute() {
           <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
         </div>
       </Form>
+
+      <Modal width={'80%'} destroyOnClose open={Boolean(userToLookup)} onCancel={() => {
+        refetchUsersByGroup();
+        setUserToLookup(null);
+      }} footer={null}>
+        {userToLookup && <UserDetail userId={userToLookup}/>}
+      </Modal>
     </div>
   );
 }

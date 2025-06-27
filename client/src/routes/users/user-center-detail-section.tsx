@@ -10,11 +10,11 @@ import { useUpdateUserMainCenterMutation } from '../../hooks/api/centers/use-upd
 import type { UserCenter } from '../../shared/types/center/user-center';
 
 interface AddUserToCenterSectionProps {
-  id_user?: string;
+  id_user: number;
 }
 
 export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps) {
-  const { data: userCenters, isLoading: isCentersLoading, refetch: refetchUserCenters } = useUserCentersQuery(id_user || "");
+  const { data: userCenters, isLoading: isCentersLoading, refetch: refetchUserCenters } = useUserCentersQuery(id_user);
   const { data: companies, isLoading: isCompaniesLoading } = useCompaniesQuery();
   const [selectedCompany, setSelectedCompany] = React.useState<number | undefined>();
   const { data: centers, isLoading: isCentersLoadingAll } = useCentersQuery(selectedCompany ? String(selectedCompany) : undefined);
