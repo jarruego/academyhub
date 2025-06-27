@@ -5,7 +5,7 @@ import { compareHashWithSalt } from "src/utils/crypto/password-hashing.util";
 import { AuthUserService } from "./auth_user/auth_user.service";
 import { CreateUserDTO } from "src/dto/auth/create-user.dto";
 import { hashWithSalt } from "src/utils/crypto/password-hashing.util";
-import { Role } from "src/guards/role.guard";
+import { Role } from "src/guards/role.enum";
 
 export type JwtPayload = {
   id: number;
@@ -28,7 +28,7 @@ export class AuthService {
     const payload = {
       id: user.id,
       username: user.username,
-      role: Role.ADMIN,
+      role: user.role,
     };
 
     const {password: _, ...userWithoutPassword} = user;

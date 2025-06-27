@@ -1,10 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, mixin, Type, UnauthorizedException } from "@nestjs/common";
 import { JwtPayload } from "src/auth/auth.service";
+import { Role } from "./role.enum";
 
-export enum Role {
-    ADMIN = 'admin',
-    VIEWER = 'viewer'
-}
 
 export function RoleGuard(roles: Role[]): Type<CanActivate> {
     @Injectable()

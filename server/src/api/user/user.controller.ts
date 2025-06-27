@@ -3,16 +3,13 @@ import { CreateUserDTO } from '../../dto/user/create-user.dto';
 import { UpdateUserDTO } from '../../dto/user/update-user.dto';
 import { UserService } from './user.service';
 import { FilterUserDTO } from 'src/dto/user/filter-user.dto';
-import { MoodleService } from 'src/api/moodle/moodle.service';
-import { CenterRepository } from 'src/database/repository/center/center.repository';
-import { Role, RoleGuard } from 'src/guards/role.guard';
+import { RoleGuard } from 'src/guards/role.guard';
+import { Role } from 'src/guards/role.enum';
 
 @Controller('user')
 export class UserController {
   constructor(
     private readonly userService: UserService,
-    private readonly moodleService: MoodleService,
-    private readonly centerRepository: CenterRepository
   ) {}
 
   @UseGuards(RoleGuard([Role.ADMIN]))
