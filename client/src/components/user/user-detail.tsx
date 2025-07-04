@@ -153,13 +153,13 @@ const navigate = useNavigate();
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Form.Item label="ID" name="id_user" style={{ flex: 1 }}>
-              <Controller name="id_user" control={control} render={({ field }) => <Input {...field} disabled />} />
+              <Controller name="id_user" control={control} render={({ field }) => <Input {...field} disabled data-testid="user-id" />} />
             </Form.Item>
             <Form.Item label="Nombre" name="name" style={{ flex: 2 }} help={errors.name?.message} validateStatus={errors.name ? "error" : undefined}>
-              <Controller name="name" control={control} render={({ field }) => <Input {...field} />} />
+              <Controller name="name" control={control} render={({ field }) => <Input {...field} data-testid="user-name" />} />
             </Form.Item>
             <Form.Item label="Apellido 1" name="first_surname" style={{ flex: 2 }} help={errors.first_surname?.message} validateStatus={errors.first_surname ? "error" : undefined}>
-              <Controller name="first_surname" control={control} render={({ field }) => <Input {...field} />} />
+              <Controller name="first_surname" control={control} render={({ field }) => <Input {...field} data-testid="user-first-surname" />} />
             </Form.Item>
             <Form.Item label="Apellido 2" name="second_surname" style={{ flex: 2 }}>
               <Controller name="second_surname" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
@@ -196,10 +196,10 @@ const navigate = useNavigate();
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Form.Item label="Email" name="email" style={{ flex: 1 }}>
-              <Controller name="email" control={control} render={({ field }) => <Input {...field} />} />
+              <Controller name="email" control={control} render={({ field }) => <Input {...field} data-testid="user-email" />} />
             </Form.Item>
             <Form.Item label="Teléfono" name="phone" style={{ flex: 1 }}>
-              <Controller name="phone" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+              <Controller name="phone" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="user-phone" />} />
             </Form.Item>
             <Form.Item label="Sexo" name="gender" style={{ flex: 1 }}>
               <Controller
@@ -342,7 +342,7 @@ const navigate = useNavigate();
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-            <Button type="primary" htmlType="submit">Guardar</Button>
+            <Button type="primary" htmlType="submit" data-testid="save-user">Guardar</Button>
             <Button type="primary" danger onClick={handleDelete}>Eliminar Usuario</Button>
           </div>
         </Form>

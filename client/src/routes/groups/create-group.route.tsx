@@ -69,7 +69,7 @@ export default function CreateGroupRoute() {
           help={errors.group_name?.message}
           validateStatus={errors.group_name ? "error" : undefined}
         >
-          <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
+          <Controller name="group_name" control={control} render={({ field }) => <Input {...field} data-testid="group-name" />} />
         </Form.Item>
         <Form.Item
           label="Descripción"

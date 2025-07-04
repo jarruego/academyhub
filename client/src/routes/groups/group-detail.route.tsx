@@ -125,7 +125,7 @@ export default function EditGroupRoute() {
               help={errors.group_name?.message}
               validateStatus={errors.group_name ? "error" : undefined}
             >
-              <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
+              <Controller name="group_name" control={control} render={({ field }) => <Input {...field} data-testid="group-name" />} />
             </Form.Item>
             <Form.Item label="Fecha Inicio" name="start_date"
               help={errors.start_date?.message}
@@ -166,11 +166,11 @@ export default function EditGroupRoute() {
             help={errors.description?.message}
             validateStatus={errors.description ? "error" : undefined}
           >
-            <Controller name="description" control={control} render={({ field }) => <Input {...field} value={field.value ?? ""} />} />
+            <Controller name="description" control={control} render={({ field }) => <Input {...field} value={field.value ?? ""} data-testid="group-description" />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
-            <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-group">Guardar</Button>
             <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
           </div>
         </Form>

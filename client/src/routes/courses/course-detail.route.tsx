@@ -351,7 +351,7 @@ export default function CourseDetailRoute() {
             help={errors.course_name?.message}
             validateStatus={errors.course_name ? "error" : undefined}
           >
-            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" />} />
+            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" data-testid="course-name" />} />
           </Form.Item>
           <Form.Item
             label="Nombre corto"
@@ -361,7 +361,7 @@ export default function CourseDetailRoute() {
             help={errors.short_name?.message}
             validateStatus={errors.short_name ? "error" : undefined}
           >
-            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" />} />
+            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" data-testid="short-name" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
@@ -414,9 +414,9 @@ export default function CourseDetailRoute() {
               name="modality"
               control={control}
               render={({ field }) => (
-                <Select {...field} id="modality">
+                <Select {...field} id="modality" data-testid="modality">
                   {Object.values(CourseModality).map((modality) => (
-                    <Select.Option key={modality} value={modality}>
+                    <Select.Option key={modality} value={modality} data-testid={`modality-option-${modality}`}>
                       {modality}
                     </Select.Option>
                   ))}
@@ -545,7 +545,7 @@ export default function CourseDetailRoute() {
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button type="primary" icon={<SaveOutlined />} htmlType="submit">Guardar</Button>
+          <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-course">Guardar</Button>
           <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
         </div>
       </Form>
