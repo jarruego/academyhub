@@ -18,6 +18,7 @@ import CentersRoute from './routes/centers/centers.route';
 import ImportUsersToGroupRoute from './routes/users/import-users-to-group.route';
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
+import ToolsRoute from './routes/tools.route';
 
 const { Sider, Content } = Layout;
 
@@ -26,7 +27,8 @@ const menuItems = [
   { key: '/users', label: <Link to="/users">Usuarios</Link> },
   { key: '/courses', label: <Link to="/courses">Cursos</Link> },
   { key: '/companies', label: <Link to="/companies">Empresas</Link> },
-  { key: '/centers', label: <Link to="/centers">Centros</Link> }, 
+  { key: '/centers', label: <Link to="/centers">Centros</Link> },
+  { key: '/tools', label: <Link to="/tools">Herramientas</Link> },
 ];
 
 const Sidebar = () => {
@@ -68,7 +70,8 @@ export default function AppRouter() {
               <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} /> 
               <Route path="/centers/:id_center/edit" element={<EditCenterRoute />} /> 
               <Route path="/add-company" element={<CreateCompanyRoute />} />
-              <Route path="/centers" element={<CentersRoute />} /> // Añadir la nueva ruta de Centros
+              <Route path="/centers" element={<CentersRoute />} />
+              <Route path="/tools" element={<ToolsRoute />} />
             </Routes>
           </Content>
         </Layout>
