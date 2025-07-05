@@ -8,6 +8,8 @@ import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import dayjs from "dayjs";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const CREATE_GROUP_FORM = z.object({
   group_name: z.string({ required_error: "El nombre del grupo es obligatorio" }).min(2, "El nombre es demasiado corto"),
@@ -128,9 +130,11 @@ export default function CreateGroupRoute() {
           </Form.Item>
         </div>
         <Form.Item>
+          <AuthzHide roles={[Role.ADMIN]}>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>
             Crear Grupo
           </Button>
+          </AuthzHide>
         </Form.Item>
       </Form>
     </div>

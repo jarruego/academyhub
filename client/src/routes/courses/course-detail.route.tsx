@@ -18,6 +18,8 @@ import { User } from "../../shared/types/user/user";
 import { useCreateBonificationFileMutation } from "../../hooks/api/groups/use-create-bonification-file.mutation";
 import { useUpdateUserMainCenterMutation } from "../../hooks/api/centers/use-update-user-main-center.mutation";
 import UserDetail from "../../components/user/user-detail";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -491,7 +493,13 @@ export default function CourseDetailRoute() {
               { title: 'Nombre del grupo', dataIndex: 'group_name' },
               { title: 'Descripción', dataIndex: 'description' },
             ]}
-            footer={() => <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>Añadir Grupo al Curso</Button>}
+            footer={() => (
+              <AuthzHide roles={[Role.ADMIN]}>
+                <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>
+                  Añadir Grupo al Curso
+                </Button>
+              </AuthzHide>
+            )}
             dataSource={groupsData}
             loading={isGroupsLoading}
             rowSelection={{
@@ -533,6 +541,7 @@ export default function CourseDetailRoute() {
                 style: { cursor: 'pointer' }
               })}
             />
+            <AuthzHide roles={[Role.ADMIN]}>
             <Button
               type="default"
               icon={<SaveOutlined />}
@@ -541,12 +550,15 @@ export default function CourseDetailRoute() {
             >
               Bonificar seleccionados y crear XML FUNDAE
             </Button>
+            </AuthzHide>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+          <AuthzHide roles={[Role.ADMIN]}>
           <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-course">Guardar</Button>
           <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
+          </AuthzHide>
         </div>
       </Form>
 

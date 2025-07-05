@@ -8,6 +8,8 @@ import { useEffect } from "react";
 import dayjs from "dayjs";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const CREATE_COURSE_FORM = z.object({
   course_name: z.string({ required_error: "El nombre del curso es obligatorio" }).min(2, "El nombre es demasiado corto"),
@@ -182,7 +184,9 @@ export default function CreateCourseRoute() {
           </Form.Item>
         </div>
         <Form.Item>
+          <AuthzHide roles={[Role.ADMIN]}>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+          </AuthzHide>
           <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} style={{ marginLeft: '16px' }}>
             Refrescar
           </Button>

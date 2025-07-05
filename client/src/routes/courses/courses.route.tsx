@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
 import { useEffect, useState } from "react";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 export default function CoursesRoute() {
   const { data: coursesData, isLoading: isCoursesLoading } = useCoursesQuery();
@@ -34,7 +36,9 @@ export default function CoursesRoute() {
       value={searchText}
       onChange={handleSearch}
     />
+    <AuthzHide roles={[Role.ADMIN]}>
     <Button type="primary" onClick={() => navigate('/add-course')} icon={<PlusOutlined />}>Añadir Curso</Button>
+    </AuthzHide>
     <Table 
       rowKey="id_course" 
       columns={[

@@ -7,6 +7,8 @@ import { useEffect } from "react";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CIF_SCHEMA } from "../../schemas/cif.schema"; 
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 
 const CREATE_COMPANY_FORM = z.object({
@@ -72,9 +74,11 @@ export default function CreateCompanyRoute() {
           <Button onClick={() => navigate(-1)}>
             Cancelar
           </Button>
+          <AuthzHide roles={[Role.ADMIN]}>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">
             Guardar
           </Button>
+          </AuthzHide>
         </div>
       </Form>
     </div>

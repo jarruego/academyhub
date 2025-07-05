@@ -9,6 +9,8 @@ import { useEffect } from "react";
 import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const CENTER_FORM_SCHEMA = z.object({
   id_center: z.number(),
@@ -139,8 +141,10 @@ export default function EditCenterRoute() {
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+          <AuthzHide roles={[Role.ADMIN]}>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-center">Guardar</Button>
           <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Centro</Button>
+          </AuthzHide>
         </div>
       </Form>
     </div>

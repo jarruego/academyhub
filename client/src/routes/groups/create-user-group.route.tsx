@@ -6,6 +6,8 @@ import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.q
 import { useDeleteUserFromGroupMutation } from "../../hooks/api/groups/use-delete-user-from-group.mutation";
 import { useState, useEffect } from "react";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons"; 
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 export default function CreateUserGroupRoute() {
   const { id_group } = useParams();
@@ -75,10 +77,12 @@ export default function CreateUserGroupRoute() {
         value={searchTerm}
         onChange={e => setSearchTerm(e.target.value)}
         style={{ marginBottom: 16 }}
-      />
+      />ç
+      <AuthzHide roles={[Role.ADMIN]}>
       <Button type="primary" icon={<PlusOutlined />} onClick={handleSaveUsers}>
         Añadir al Grupo
       </Button>
+      </AuthzHide>
       <Table
         rowKey="id_user"
         columns={[
@@ -96,9 +100,11 @@ export default function CreateUserGroupRoute() {
         })}
       />
       <h2>Usuarios del Grupo</h2>
+      <AuthzHide roles={[Role.ADMIN]}>
       <Button type="primary" danger onClick={handleDeleteUsers} style={{ marginTop: '16px' }} icon={<DeleteOutlined />}>
         Eliminar del Grupo
       </Button>
+      </AuthzHide>
       <Table
         rowKey="id_user"
         columns={[

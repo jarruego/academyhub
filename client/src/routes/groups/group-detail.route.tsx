@@ -11,6 +11,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 dayjs.extend(utc);
 
 const GROUP_FORM_SCHEMA = z.object({
@@ -170,8 +172,10 @@ export default function EditGroupRoute() {
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
+            <AuthzHide roles={[Role.ADMIN]}>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-group">Guardar</Button>
             <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
+            </AuthzHide>
           </div>
         </Form>
       ),
@@ -195,12 +199,14 @@ export default function EditGroupRoute() {
           />
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
+            <AuthzHide roles={[Role.ADMIN]}>
             <Button type="primary" icon={<TeamOutlined />} onClick={handleAddUserToGroup} >
               Gestionar Usuarios del Grupo
             </Button>
             <Button type="primary" icon={<ImportOutlined />} onClick={handleImportUsers}>
               Importar Usuarios
             </Button>
+            </AuthzHide>
           </div>
         </>
       ),

@@ -10,6 +10,8 @@ import { PlusOutlined, DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CIF_SCHEMA } from "../../schemas/cif.schema";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const COMPANY_FORM_SCHEMA = z.object({
   id_company: z.number(),
@@ -120,8 +122,10 @@ export default function CompanyDetailRoute() {
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+            <AuthzHide roles={[Role.ADMIN]}>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">Guardar</Button>
             <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />} data-testid="delete-company">Eliminar Empresa</Button>
+            </AuthzHide>
           </div>
         </Form>
       ),
@@ -148,9 +152,11 @@ export default function CompanyDetailRoute() {
               style: { cursor: 'pointer' }
             })}
           />
+          <AuthzHide roles={[Role.ADMIN]}>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter}>
             Añadir Centro
           </Button>
+          </AuthzHide>
         </>
       ),
     },
