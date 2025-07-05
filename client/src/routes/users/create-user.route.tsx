@@ -10,6 +10,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import z from "zod";
 import { DNI_SCHEMA } from "../../schemas/dni.schema";
 import { detectDocumentType } from "../../utils/detect-document-type";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const CREATE_USER_FORM = z.object({
   name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
@@ -277,9 +279,11 @@ export default function CreateUserRoute() {
         </Form.Item>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">
-            Crear Usuario
-          </Button>
+          <AuthzHide roles={[Role.ADMIN]}>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">
+              Crear Usuario
+            </Button>
+          </AuthzHide>
         </div>
       </Form>
     </div>

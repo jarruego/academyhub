@@ -12,6 +12,8 @@ import { DNI_SCHEMA } from "../../schemas/dni.schema";
 import { Gender } from "../../shared/types/user/gender.enum";
 import { DocumentType } from "../../shared/types/user/document-type.enum";
 import { AddUserToCenterSection } from "../../routes/users/user-center-detail-section";
+import { AuthzHide } from "../permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 
 function nullsToUndefined<T>(obj: T): T {
@@ -342,8 +344,10 @@ const navigate = useNavigate();
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
+            <AuthzHide roles={[Role.ADMIN]}>
             <Button type="primary" htmlType="submit" data-testid="save-user">Guardar</Button>
             <Button type="primary" danger onClick={handleDelete}>Eliminar Usuario</Button>
+            </AuthzHide>
           </div>
         </Form>
       ),

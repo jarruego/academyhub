@@ -19,20 +19,25 @@ import ImportUsersToGroupRoute from './routes/users/import-users-to-group.route'
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 import ToolsRoute from './routes/tools.route';
+import { useRole } from './utils/permissions/use-role';
+import { Role } from './hooks/api/auth/use-login.mutation';
 
 const { Sider, Content } = Layout;
 
-const menuItems = [
-  { key: '/', label: <Link to="/">Home</Link> },
-  { key: '/users', label: <Link to="/users">Usuarios</Link> },
-  { key: '/courses', label: <Link to="/courses">Cursos</Link> },
-  { key: '/companies', label: <Link to="/companies">Empresas</Link> },
-  { key: '/centers', label: <Link to="/centers">Centros</Link> },
-  { key: '/tools', label: <Link to="/tools">Herramientas</Link> },
-];
-
 const Sidebar = () => {
   const { logout } = useAuthInfo();
+  const role = useRole();
+  console.log('ROL ACTUAL:', role);
+
+  const menuItems = [
+    { key: '/', label: <Link to="/">Home</Link> },
+    { key: '/users', label: <Link to="/users">Usuarios</Link> },
+    { key: '/courses', label: <Link to="/courses">Cursos</Link> },
+    { key: '/companies', label: <Link to="/companies">Empresas</Link> },
+    { key: '/centers', label: <Link to="/centers">Centros</Link> },
+    // Solo ADMIN puede ver Herramientas (ajusta los roles según tu lógica)
+    ...(role?.toLowerCase() === Role.ADMIN ? [{ key: '/tools', label: <Link to="/tools">Herramientas</Link> }] : []),
+  ];
 
   return (
     <Sider>

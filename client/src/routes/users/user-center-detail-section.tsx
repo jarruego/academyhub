@@ -8,6 +8,8 @@ import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query
 import { useDeleteUsersFromCentersMutation } from "../../hooks/api/centers/use-delete-users-from-centers.mutation";
 import { useUpdateUserMainCenterMutation } from '../../hooks/api/centers/use-update-user-main-center.mutation';
 import type { UserCenter } from '../../shared/types/center/user-center';
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 interface AddUserToCenterSectionProps {
   id_user: number;
@@ -80,104 +82,110 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
                     PRINCIPAL
                   </Button>
                 ) : (
-                  <Button
-                    size="small"
-                    style={{ marginRight: 8, minWidth: 110 }}
-                    onClick={async () => {
-                      await updateUserMainCenterMutation.mutateAsync({ userId: Number(id_user), centerId: record.id_center });
-                      message.success('Centro principal actualizado');
-                      refetchUserCenters();
-                    }}
-                    loading={updateUserMainCenterMutation.isPending}
-                  >
-                    Hacer principal
-                  </Button>
+                  <AuthzHide roles={[Role.ADMIN]}>
+                    <Button
+                      size="small"
+                      style={{ marginRight: 8, minWidth: 110 }}
+                      onClick={async () => {
+                        await updateUserMainCenterMutation.mutateAsync({ userId: Number(id_user), centerId: record.id_center });
+                        message.success('Centro principal actualizado');
+                        refetchUserCenters();
+                      }}
+                      loading={updateUserMainCenterMutation.isPending}
+                    >
+                      Hacer principal
+                    </Button>
+                  </AuthzHide>
                 )}
-                <Button
-                  danger
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  loading={deleteStatus === 'pending'}
-                  onClick={async () => {
-                    modal.confirm({
-                      title: "¿Seguro que desea eliminar este centro del usuario?",
-                      content: "Esta acción no se puede deshacer.",
-                      okText: "Eliminar",
-                      okType: "danger",
-                      cancelText: "Cancelar",
-                      onOk: async () => {
-                        try {
-                          await deleteUsersFromCenters([{ id_center: record.id_center, id_user: Number(id_user) }]);
-                          message.success('Registro eliminado correctamente');
-                          refetchUserCenters();
-                        } catch {
-                          message.error('Error al eliminar el registro');
-                        }
-                      },
-                    });
-                  }}
-                >
-                  Eliminar
-                </Button>
+                <AuthzHide roles={[Role.ADMIN]}>
+                  <Button
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    loading={deleteStatus === 'pending'}
+                    onClick={async () => {
+                      modal.confirm({
+                        title: "¿Seguro que desea eliminar este centro del usuario?",
+                        content: "Esta acción no se puede deshacer.",
+                        okText: "Eliminar",
+                        okType: "danger",
+                        cancelText: "Cancelar",
+                        onOk: async () => {
+                          try {
+                            await deleteUsersFromCenters([{ id_center: record.id_center, id_user: Number(id_user) }]);
+                            message.success('Registro eliminado correctamente');
+                            refetchUserCenters();
+                          } catch {
+                            message.error('Error al eliminar el registro');
+                          }
+                        },
+                      });
+                    }}
+                  >
+                    Eliminar
+                  </Button>
+                </AuthzHide>
               </>
             ),
           },
         ]}
         style={{ marginTop: 32 }}
       />
-      <div style={{ display: 'flex', gap: 8, marginTop: 24, alignItems: 'center' }}>
-        <Select
-          showSearch
-          style={{ minWidth: 200 }}
-          placeholder="Selecciona una empresa"
-          loading={isCompaniesLoading}
-          value={selectedCompany}
-          onChange={setSelectedCompany}
-          optionLabelProp="label"
-          optionFilterProp="children"
-          filterOption={(input, option) =>
-            (option?.children?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
-          }
-        >
-          {companies?.map(company => (
-            <Select.Option key={company.id_company} value={company.id_company} label={`${company.company_name} (${company.cif})`}>
-              {company.company_name} ({company.cif})
-            </Select.Option>
-          ))}
-        </Select>
-        <Select
-          showSearch
-          style={{ minWidth: 250 }}
-          placeholder="Selecciona un centro"
-          loading={isCentersLoadingAll}
-          value={selectedCenter}
-          onChange={setSelectedCenter}
-          optionLabelProp="label"
-          optionFilterProp="children"
-          filterOption={(input, option) =>
-            (option?.children?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
-          }
-          disabled={!selectedCompany}
-        >
-          {centers
-            ?.filter(center =>
-              !(userCenters || []).some(uc => uc.id_center === center.id_center)
-            )
-            .map(center => (
-              <Select.Option key={center.id_center} value={center.id_center} label={`${center.center_name} (${center.employer_number || 'Sin nº patronal'})`}>
-                {center.center_name} ({center.employer_number || 'Sin nº patronal'})
+      <AuthzHide roles={[Role.ADMIN]}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 24, alignItems: 'center' }}>
+          <Select
+            showSearch
+            style={{ minWidth: 200 }}
+            placeholder="Selecciona una empresa"
+            loading={isCompaniesLoading}
+            value={selectedCompany}
+            onChange={setSelectedCompany}
+            optionLabelProp="label"
+            optionFilterProp="children"
+            filterOption={(input, option) =>
+              (option?.children?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+          >
+            {companies?.map(company => (
+              <Select.Option key={company.id_company} value={company.id_company} label={`${company.company_name} (${company.cif})`}>
+                {company.company_name} ({company.cif})
               </Select.Option>
             ))}
-        </Select>
-        <Button
-          type="primary"
-          onClick={handleAdd}
-          disabled={!selectedCenter || status === 'pending'}
-          loading={status === 'pending'}
-        >
-          Añadir al centro
-        </Button>
-      </div>
+          </Select>
+          <Select
+            showSearch
+            style={{ minWidth: 250 }}
+            placeholder="Selecciona un centro"
+            loading={isCentersLoadingAll}
+            value={selectedCenter}
+            onChange={setSelectedCenter}
+            optionLabelProp="label"
+            optionFilterProp="children"
+            filterOption={(input, option) =>
+              (option?.children?.toString() ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            disabled={!selectedCompany}
+          >
+            {centers
+              ?.filter(center =>
+                !(userCenters || []).some(uc => uc.id_center === center.id_center)
+              )
+              .map(center => (
+                <Select.Option key={center.id_center} value={center.id_center} label={`${center.center_name} (${center.employer_number || 'Sin nº patronal'})`}>
+                  {center.center_name} ({center.employer_number || 'Sin nº patronal'})
+                </Select.Option>
+              ))}
+          </Select>
+          <Button
+            type="primary"
+            onClick={handleAdd}
+            disabled={!selectedCenter || status === 'pending'}
+            loading={status === 'pending'}
+          >
+            Añadir al centro
+          </Button>
+        </div>
+      </AuthzHide>
     </>
   );
 }

@@ -2,7 +2,7 @@ import { Button, Table, Input } from "antd";
 import { useState, useEffect } from "react";
 import { useUsersQuery } from "../../hooks/api/users/use-users.query";
 import { useNavigate } from 'react-router-dom';
-import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
+import { PlusOutlined } from "@ant-design/icons"; 
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 
