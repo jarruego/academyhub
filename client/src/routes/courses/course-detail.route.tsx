@@ -129,6 +129,7 @@ export default function CourseDetailRoute() {
   const handleRowClick = (record: { id_group: number }) => {
     setSelectedGroupId(record.id_group);
     setSelectedRowKeys([record.id_group]);
+    setSelectedUserIds([]); // Limpiar selección de usuarios al cambiar de grupo
   };
 
   // Collects the selected users from the table
@@ -492,6 +493,7 @@ export default function CourseDetailRoute() {
                 selectedRowKeys: selectedUserIds,
                 onChange: handleUserSelectionChange,
               }}
+              size="small"
               onRow={(record) => ({
                 onDoubleClick: () => {
                   setUserToLookup(record.id_user);

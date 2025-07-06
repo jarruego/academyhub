@@ -4,10 +4,10 @@ import React from "react";
 import { Progress } from "antd";
 
 export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
-    { title: 'ID', dataIndex: ['id_user'], sorter: {
-        compare: (a, b) =>  a.id_user > b.id_user ? 1 : -1,
-        multiple: 1,
-    },}, 
+    // { title: 'ID', dataIndex: ['id_user'], sorter: {
+    //     compare: (a, b) =>  a.id_user > b.id_user ? 1 : -1,
+    //     multiple: 1,
+    // },}, 
     { title: 'Nombre', dataIndex: ['name'], sorter: {
         compare: (a,b) => a.name.localeCompare(b.name),
         multiple: 2
@@ -15,12 +15,12 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
     { title: 'Apellidos', dataIndex: ['first_surname'], sorter: {
         compare: (a, b) => (a.first_surname || '').localeCompare(b.first_surname || ''),
     } },
-    { title: 'Email', dataIndex: ['email'], sorter: {
-        compare: (a, b) => (a.email || '').localeCompare(b.email || ''),
-    } },
-    { title: 'MOODLE USERNAME', dataIndex: ['moodle_username'], sorter: {
-        compare: (a, b) => (a.moodle_username || '').localeCompare(b.moodle_username || ''),
-    } },
+    // { title: 'Email', dataIndex: ['email'], sorter: {
+    //     compare: (a, b) => (a.email || '').localeCompare(b.email || ''),
+    // } },
+    // { title: 'MOODLE USERNAME', dataIndex: ['moodle_username'], sorter: {
+    //     compare: (a, b) => (a.moodle_username || '').localeCompare(b.moodle_username || ''),
+    // } },
     { title: 'Porcentaje', dataIndex: ['completion_percentage'], sorter: {
         compare: (a, b) => (Number(a.completion_percentage) || 0) - (Number(b.completion_percentage) || 0),
     }, render: (_: unknown, user: User) => {
