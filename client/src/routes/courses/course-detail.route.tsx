@@ -541,7 +541,7 @@ export default function CourseDetailRoute() {
                 style: { cursor: 'pointer' }
               })}
             />
-            <AuthzHide roles={[Role.ADMIN]}>
+            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
             <Button
               type="default"
               icon={<SaveOutlined />}

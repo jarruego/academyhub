@@ -36,17 +36,20 @@ export class UserController {
     return this.userService.findAll(filter);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Delete(':id')
   async delete(@Param('id') id: string) {
     const numericId = parseInt(id, 10);
     return this.userService.delete(numericId);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Post('import-moodle-users')
   async importMoodleUsers() {
     return this.userService.importMoodleUsers();
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Post('bulk-create-and-add-to-group/:id_group')
   async bulkCreateAndAddToGroup(@Param('id_group') id_group: string, @Body() users: CreateUserDTO[]) {
     const numericGroupId = parseInt(id_group, 10);

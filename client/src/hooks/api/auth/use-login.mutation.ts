@@ -9,7 +9,7 @@ type Data = {
 
 export enum Role {
     ADMIN = 'admin',
-    TUTOR = 'tutor',
+    MANAGER = 'manager',
     VIEWER = 'viewer'
 }
 
