@@ -75,7 +75,7 @@ export default function CourseDetailRoute() {
   useEffect(() => {
     if (groupsData && groupsData.length > 0) {
       setSelectedGroupId(groupsData[0].id_group);
-      setSelectedRowKeys([groupsData[0].id_group]); 
+      setSelectedRowKeys([groupsData[0].id_group]);
     }
   }, [groupsData]);
 
@@ -418,38 +418,62 @@ export default function CourseDetailRoute() {
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <Table
-            title={() => <h3>Grupos del Curso</h3>}
-            rowKey="id_group"
-            columns={[
-              { title: 'ID', dataIndex: 'id_group' },
-              { title: 'MOODLE ID', dataIndex: 'moodle_id' },
-              { title: 'Nombre del grupo', dataIndex: 'group_name' },
-              { title: 'Descripción', dataIndex: 'description' },
-            ]}
-            footer={() => (
-              <AuthzHide roles={[Role.ADMIN]}>
-                <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>
-                  Añadir Grupo al Curso
+          <div style={{ marginTop: 8, display: 'flex', width: '30%', flexDirection: 'column', gap: '8px' }}>
+            <AuthzHide roles={[Role.ADMIN]}>
+              <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>
+                Añadir Grupo al Curso
+              </Button>
+            </AuthzHide>
+            <Table
+              title={() => <h3>Grupos del Curso</h3>}
+              rowKey="id_group"
+              columns={[
+                { title: 'ID', dataIndex: 'id_group' },
+                { title: 'MOODLE ID', dataIndex: 'moodle_id' },
+                { title: 'Nombre del grupo', dataIndex: 'group_name' },
+                { title: 'Descripción', dataIndex: 'description', render: (desc: string) => desc ? <span dangerouslySetInnerHTML={{ __html: desc }} /> : '-' },
+              ]}
+              dataSource={groupsData}
+              loading={isGroupsLoading}
+              rowSelection={{
+                type: 'radio',
+                selectedRowKeys,
+                onChange: (selectedRowKeys) => setSelectedRowKeys(selectedRowKeys as number[]),
+                renderCell: () => null,
+              }}
+              onRow={(record) => ({
+                onClick: () => handleRowClick(record),
+                onDoubleClick: () => navigate(`/groups/${record.id_group}/edit`),
+                style: { cursor: 'pointer' }
+              })}
+            />
+          </div>
+          <div style={{ marginTop: 8, display: 'flex', width: '70%', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+
+              <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+                <Button
+                  type="default"
+                  onClick={() => {
+                    if (usersData) {
+                      const ids = usersData.filter(u => Number(u.completion_percentage) >= 75).map(u => u.id_user);
+                      setSelectedUserIds(ids);
+                    }
+                  }}
+                  disabled={!usersData || usersData.length === 0}
+                >
+                  Marcar ≥ 75%
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  style={{ maxWidth: '450px' }}
+                  onClick={openBonificationModal}
+                >
+                  Bonificar + XML FUNDAE
                 </Button>
               </AuthzHide>
-            )}
-            dataSource={groupsData}
-            loading={isGroupsLoading}
-            rowSelection={{
-              type: 'radio',
-              selectedRowKeys,
-              onChange: (selectedRowKeys) => setSelectedRowKeys(selectedRowKeys as number[]),
-              renderCell: () => null,
-            }}
-            onRow={(record) => ({
-              onClick: () => handleRowClick(record),
-              onDoubleClick: () => navigate(`/groups/${record.id_group}/edit`),
-              style: { cursor: 'pointer' }
-            })}
-          />
-
-          <div style={{ marginTop: 8, display: 'flex', width: '100%', flexDirection: 'column', gap: '8px' }}>
+            </div>
             <Table<User>
               title={() => <h3>Usuarios del Grupo</h3>}
               rowKey="id_user"
@@ -475,23 +499,13 @@ export default function CourseDetailRoute() {
                 style: { cursor: 'pointer' }
               })}
             />
-            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-            <Button
-              type="default"
-              icon={<SaveOutlined />}
-              style={{ maxWidth: '450px' }}
-              onClick={openBonificationModal}
-            >
-              Bonificar seleccionados y crear XML FUNDAE
-            </Button>
-            </AuthzHide>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
           <AuthzHide roles={[Role.ADMIN]}>
-          <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-course">Guardar</Button>
-          <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
+            <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-course">Guardar Curso</Button>
+            <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
           </AuthzHide>
         </div>
       </Form>
@@ -500,7 +514,7 @@ export default function CourseDetailRoute() {
         refetchUsersByGroup();
         setUserToLookup(null);
       }} footer={null}>
-        {userToLookup && <UserDetail userId={userToLookup}/>}
+        {userToLookup && <UserDetail userId={userToLookup} />}
       </Modal>
     </div>
   );
