@@ -20,6 +20,7 @@ import { useUpdateUserMainCenterMutation } from "../../hooks/api/centers/use-upd
 import UserDetail from "../../components/user/user-detail";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { BonificationModal } from '../../components/courses/BonificationModal';
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -250,91 +251,24 @@ export default function CourseDetailRoute() {
     }
   };
 
-  // Definir columnas específicas para el modal de bonificación
-  const BONIFICATION_MODAL_USER_COLUMNS = [
-    {
-      title: 'Centro (empresa)',
-      dataIndex: 'centro_select',
-      render: (_: unknown, user: User) => {
-        const selected = selectedCenters[user.id_user] ?? user.centers?.find(c => c.is_main_center)?.id_center ?? user.centers?.[0]?.id_center;
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Select
-              style={{ minWidth: 220 }}
-              value={selected}
-              placeholder={user.centers?.length ? 'Selecciona centro' : 'Sin centros'}
-              options={user.centers?.map(center => ({
-                value: center.id_center,
-                label: `${center.center_name} (${center.company_name ?? ''})${center.is_main_center ? ' (principal)' : ''}`
-              }))}
-              allowClear
-              onChange={val => setSelectedCenters(prev => ({ ...prev, [user.id_user]: val }))}
-            />
-            {selected && (
-              <Button
-                type="primary"
-                size="small"
-                loading={updateUserMainCenterMutation.isPending}
-                onClick={() => updateUserMainCenterMutation.mutate(
-                  { userId: user.id_user, centerId: selected },
-                  {
-                    onSuccess: () => {
-                      message.success('Centro principal actualizado');
-                      refetchUsersByGroup();
-                    },
-                    onError: () => message.error('Error al actualizar el centro principal')
-                  }
-                )}
-              >
-                Guardar
-              </Button>
-            )}
-          </div>
-        );
-      }
-    },
-    ...USERS_TABLE_COLUMNS.filter(col => col.title !== 'Centro' && col.title !== 'Empresa'),
-    {
-      title: 'Acciones',
-      key: 'acciones',
-      render: (_: unknown, record: User) => (
-        <Button danger size="small" onClick={() => handleRemoveUserFromModal(record.id_user)}>
-          Quitar
-        </Button>
-      ),
-    },
-  ];
-
   return (
     <div>
       {contextHolder}
       {/* Modal de bonificación */}
-      <Modal
+      <BonificationModal
         open={isBonificationModalOpen}
-        title="Bonificar usuarios seleccionados y crear XML FUNDAE"
         onCancel={() => setIsBonificationModalOpen(false)}
         onOk={handleConfirmBonification}
-        okText="Bonificar y generar XML"
-        cancelText="Cancelar"
-        width="90vw"
-        style={{ top: 20, minHeight: '90vh', maxWidth: '90vw' }}
-        styles={{ body: { minHeight: '80vh', maxHeight: '80vh', overflowY: 'auto' } }}
-      >
-        <Table<User>
-          rowKey="id_user"
-          dataSource={usersData?.filter(u => selectedUserIds.includes(u.id_user))}
-          columns={BONIFICATION_MODAL_USER_COLUMNS}
-          pagination={false}
-          size="small"
-          onRow={(record) => ({
-            onDoubleClick: () => {
-              window.open(`/users/${record.id_user}`, '_blank', 'noopener');
-            },
-            style: { cursor: 'pointer' }
-          })}
-        />
-        {selectedUserIds.length === 0 && <div style={{color: 'red', marginTop: 12}}>No hay usuarios seleccionados.</div>}
-      </Modal>
+        users={usersData || []}
+        selectedUserIds={selectedUserIds}
+        selectedCenters={selectedCenters}
+        setSelectedCenters={setSelectedCenters}
+        updateUserMainCenterMutation={updateUserMainCenterMutation}
+        refetchUsersByGroup={refetchUsersByGroup}
+        message={message}
+        onRemoveUser={handleRemoveUserFromModal}
+        contextHolder={null}
+      />
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item label="ID" name="id_course">
