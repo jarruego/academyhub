@@ -455,9 +455,9 @@ export default function CourseDetailRoute() {
               rowKey="id_user"
               columns={[
                 ...USERS_TABLE_COLUMNS,
-                {
-                  title: 'Extra'
-                },
+                // {
+                //   title: 'Extra'
+                // },
               ]}
               dataSource={usersData}
               loading={isUsersLoading}

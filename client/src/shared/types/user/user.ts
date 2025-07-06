@@ -30,6 +30,8 @@ export type User = {
     seasonalWorker?: boolean | null;
     erteLaw?: boolean | null;
     accreditationDiploma?: string | null;
+    completion_percentage?: number | null;
+    time_spent?: number | null;
     centers?: Array<{
         id_center: number;
         center_name: string;
