@@ -234,10 +234,15 @@ export default function CourseDetailRoute() {
 
     try {
       const xmlBlob = await createBonificationFile({ groupId: selectedGroupId, userIds: selectedUserIds });
+      // Obtener el nombre del grupo seleccionado
+      const selectedGroup = groupsData?.find(g => g.id_group === selectedGroupId);
+      let groupName = selectedGroup?.group_name || `grupo_${selectedGroupId}`;
+      // Limpiar el nombre para que sea válido como archivo
+      groupName = groupName.replace(/[^a-zA-Z0-9_-]/g, '_');
       const url = window.URL.createObjectURL(xmlBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `bonification_group_${selectedGroupId}.xml`;
+      a.download = `${groupName}.xml`;
       document.body.appendChild(a);
       a.click();
       a.remove();
