@@ -132,7 +132,18 @@ export class CourseService {
         // y actualizarlos o crearlos si no existen
         const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
         for (const enrolledUser of enrolledUsers) {
-          await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction });
+          // Saltar usuarios invitados
+          if (enrolledUser.username === 'guest') {
+            await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction }, null);
+            continue;
+          }
+          try {
+            const progress = await this.MoodleService.getUserProgressInCourse(enrolledUser, moodleCourse.id);
+            await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction }, progress.completion_percentage);
+          } catch (e) {
+            // Si hay error (por ejemplo, guestsarenotallowed), guardar null
+            await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction }, null);
+          }
         }
 
         // Obtener grupos asociados al curso 
