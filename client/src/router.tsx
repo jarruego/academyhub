@@ -21,6 +21,14 @@ import { useAuthInfo } from './providers/auth/auth.context';
 import ToolsRoute from './routes/tools.route';
 import { useRole } from './utils/permissions/use-role';
 import { Role } from './hooks/api/auth/use-login.mutation';
+import {
+  HomeOutlined,
+  UserOutlined,
+  BookOutlined,
+  ApartmentOutlined,
+  BankOutlined,
+  ToolOutlined
+} from '@ant-design/icons';
 
 const { Sider, Content } = Layout;
 
@@ -30,13 +38,14 @@ const Sidebar = () => {
   console.log('ROL ACTUAL:', role);
 
   const menuItems = [
-    { key: '/', label: <Link to="/">Home</Link> },
-    { key: '/users', label: <Link to="/users">Usuarios</Link> },
-    { key: '/courses', label: <Link to="/courses">Cursos</Link> },
-    { key: '/companies', label: <Link to="/companies">Empresas</Link> },
-    { key: '/centers', label: <Link to="/centers">Centros</Link> },
-    // Solo ADMIN puede ver Herramientas (ajusta los roles según tu lógica)
-    ...(role?.toLowerCase() === Role.ADMIN ? [{ key: '/tools', label: <Link to="/tools">Herramientas</Link> }] : []),
+    { key: '/', icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
+    { key: '/users', icon: <UserOutlined />, label: <Link to="/users">Usuarios</Link> },
+    { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
+    { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
+    { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers">Centros</Link> },
+    ...(role?.toLowerCase() === Role.ADMIN
+      ? [{ key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> }]
+      : []),
   ];
 
   return (
