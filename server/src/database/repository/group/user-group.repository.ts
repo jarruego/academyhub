@@ -4,6 +4,7 @@ import { and, eq, not, inArray } from "drizzle-orm";
 import { UserGroupInsertModel, userGroupTable, UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
 import { userTable } from "src/database/schema/tables/user.table";
 import { groupTable } from "src/database/schema/tables/group.table";
+import { userCourseTable } from "src/database/schema/tables/user_course.table";
 
 @Injectable()
 export class UserGroupRepository extends Repository {
@@ -19,8 +20,6 @@ export class UserGroupRepository extends Repository {
         return (await this.query(options).select().from(userGroupTable).where(and(eq(userGroupTable.id_group, groupId), eq(userGroupTable.id_user, userId))).limit(1))?.[0] ?? null;
     }
 
-    // --- FUNCIONES MOVIDAS DESDE GROUP REPOSITORY ---
-
     async addUserToGroup(id_group: number, id_user: number, options?: QueryOptions) {
         return await this.query(options)
             .insert(userGroupTable)
@@ -32,8 +31,17 @@ export class UserGroupRepository extends Repository {
             .select()
             .from(userGroupTable)
             .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
+            .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
+            .innerJoin(userCourseTable, and(
+                eq(userCourseTable.id_user, userGroupTable.id_user),
+                eq(userCourseTable.id_course, groupTable.id_course)
+            ))
             .where(eq(userGroupTable.id_group, groupId));
-        return rows.map((r) => r.users);
+        // Mezclar los datos del usuario y completion_percentage
+        return rows.map((r) => ({
+            ...r.users,
+            completion_percentage: r.user_course.completion_percentage
+        }));
     }
 
     async findUsersInGroupByIds(groupId: number, userIds: number[], options?: QueryOptions) {
