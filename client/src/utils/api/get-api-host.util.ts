@@ -1,1 +1,1 @@
-export const getApiHost = () => 'http://localhost:3000';
+export const getApiHost = () => import.meta.env.VITE_API_URL || 'http://localhost:3000';
