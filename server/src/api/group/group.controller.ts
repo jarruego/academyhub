@@ -7,6 +7,7 @@ import { UpdateUserGroupDTO } from 'src/dto/user-group/update-user-group.dto';
 import { GetBonificationFileDTO } from 'src/dto/group/get-bonification-file.dto';
 import { RoleGuard } from 'src/guards/role.guard';
 import { Role } from 'src/guards/role.enum';
+import { Response } from 'express';
 
 @Controller('group')
 export class GroupController {
@@ -15,8 +16,11 @@ export class GroupController {
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Post('bonification-file')
   @HttpCode(200)
-  async getBonificationFile(@Body() body: GetBonificationFileDTO) {
-    return await this.groupService.getBonificationFile(body.groupId, body.userIds);
+  async getBonificationFile(@Body() body: GetBonificationFileDTO, @Res() res: Response) {
+    const { xml, filename } = await this.groupService.getBonificationFile(body.groupId, body.userIds);
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(xml);
   }
   
   @UseGuards(RoleGuard([Role.ADMIN]))

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="client/public/logo.png" alt="AcademyHub Logo" width="200"/>
+</p>
+
 # 📚 AcademyHub: Open-source web platform for training management in SMEs integrating Moodle
 
 AcademyHub is an open-source web platform designed to streamline training management for small and medium-sized enterprises (SMEs) that use Moodle as their learning management system. Its main goal is to simplify the administration of courses, users, and training resources, enabling companies to optimize both in-person and online training processes while ensuring compliance with regulations such as SEPE and FUNDAE.
