@@ -100,8 +100,8 @@ export class CourseService {
         course_name: moodleCourse.fullname,
         short_name: moodleCourse.shortname,
         moodle_id: moodleCourse.id,
-        start_date: new Date(moodleCourse.startdate),
-        end_date: new Date(moodleCourse.enddate),
+        start_date: new Date(moodleCourse.startdate * 1000),
+        end_date: (moodleCourse.enddate && moodleCourse.enddate > 0) ? new Date(moodleCourse.enddate * 1000) : null,
         // Campos opcionales necesarios para la creación
         // TODO: comprobar si ya están definidos en la base de datos
         category: "",
@@ -126,13 +126,25 @@ export class CourseService {
     return await this.databaseService.db.transaction(async transaction => {
       const moodleCourses = await this.MoodleService.getAllCourses();
       for (const moodleCourse of moodleCourses) {
+        if (moodleCourse.id === 1) continue; // Saltar el curso principal de Moodle
         const course = await this.upsertMoodleCourse(moodleCourse, { transaction });
 
         // Obtener usuarios matriculados en el curso y comprobar si ya existen en la base de datos
         // y actualizarlos o crearlos si no existen
         const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
         for (const enrolledUser of enrolledUsers) {
-          await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction });
+          // Saltar usuarios invitados
+          if (enrolledUser.username === 'guest') {
+            await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction }, null);
+            continue;
+          }
+          try {
+            const progress = await this.MoodleService.getUserProgressInCourse(enrolledUser, moodleCourse.id);
+            await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction }, progress.completion_percentage);
+          } catch (e) {
+            // Si hay error (por ejemplo, guestsarenotallowed), guardar null
+            await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction }, null);
+          }
         }
 
         // Obtener grupos asociados al curso 

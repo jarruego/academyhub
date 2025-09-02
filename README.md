@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="client/public/logo.png" alt="AcademyHub Logo" width="200"/>
+</p>
+
 # 📚 AcademyHub: Open-source web platform for training management in SMEs integrating Moodle
 
 AcademyHub is an open-source web platform designed to streamline training management for small and medium-sized enterprises (SMEs) that use Moodle as their learning management system. Its main goal is to simplify the administration of courses, users, and training resources, enabling companies to optimize both in-person and online training processes while ensuring compliance with regulations such as SEPE and FUNDAE.
@@ -43,6 +47,21 @@ Built with modern technologies and a scalable architecture, the platform is rele
   - [dotenv](https://github.com/motdotla/dotenv): Environment variable management
   - [pg](https://node-postgres.com/): PostgreSQL driver
   - [xmlbuilder2](https://oozcitak.github.io/xmlbuilder2/): XML construction
+
+## Moodle Web Services Used
+
+The platform integrates with Moodle using the following official web services:
+
+| Moodle Service                                   | Description                                 |
+|--------------------------------------------------|---------------------------------------------|
+| core_completion_get_activities_completion_status | Student progress by activity                |
+| core_course_get_courses                          | List available courses                      |
+| core_enrol_get_enrolled_users                    | List enrolled users                         |
+| core_group_get_course_groups                     | List groups by course                       |
+| core_group_get_group_members                     | List group members                          |
+| core_user_get_course_user_profiles               | User profile within a course                |
+| core_user_get_users                              | General user search                         |
+| core_user_get_users_by_field                     | Search users by specific fields             |
 
 ## Installation and Usage
 

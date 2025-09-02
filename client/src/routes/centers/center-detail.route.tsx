@@ -9,6 +9,8 @@ import { useEffect } from "react";
 import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const CENTER_FORM_SCHEMA = z.object({
   id_center: z.number(),
@@ -23,7 +25,8 @@ const CENTER_FORM_SCHEMA = z.object({
 });
 
 export default function EditCenterRoute() {
-  const { message } = App.useApp();
+  // Envolvemos el uso de message con un valor por defecto seguro para evitar errores en test
+  const { message = { success: () => {}, error: () => {} } } = App.useApp?.() ?? {};
   const { id_center } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -101,19 +104,19 @@ export default function EditCenterRoute() {
             help={errors.id_center?.message}
             validateStatus={errors.id_center ? "error" : undefined}
           >
-            <Controller name="id_center" control={control} render={({ field }) => <Input {...field} disabled />} />
+            <Controller name="id_center" control={control} render={({ field }) => <Input {...field} disabled data-testid="center-id" />} />
           </Form.Item>
           <Form.Item label="Nombre del centro" name="center_name"
             help={errors.center_name?.message}
             validateStatus={errors.center_name ? "error" : undefined}
           >
-            <Controller name="center_name" control={control} render={({ field }) => <Input {...field} />} />
+            <Controller name="center_name" control={control} render={({ field }) => <Input {...field} data-testid="center-name" />} />
           </Form.Item>
           <Form.Item label="Número de patronal" name="employer_number"
             help={errors.employer_number?.message}
             validateStatus={errors.employer_number ? "error" : undefined}
           >
-            <Controller name="employer_number" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+            <Controller name="employer_number" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="employer-number" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -121,25 +124,27 @@ export default function EditCenterRoute() {
             help={errors.contact_person?.message}
             validateStatus={errors.contact_person ? "error" : undefined}
           >
-            <Controller name="contact_person" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+            <Controller name="contact_person" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="contact-person" />} />
           </Form.Item>
           <Form.Item label="Teléfono de contacto" name="contact_phone"
             help={errors.contact_phone?.message}
             validateStatus={errors.contact_phone ? "error" : undefined}
           >
-            <Controller name="contact_phone" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+            <Controller name="contact_phone" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="contact-phone" />} />
           </Form.Item>
           <Form.Item label="Email de contacto" name="contact_email"
             help={errors.contact_email?.message}
             validateStatus={errors.contact_email ? "error" : undefined}
           >
-            <Controller name="contact_email" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+            <Controller name="contact_email" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="contact-email" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+          <AuthzHide roles={[Role.ADMIN]}>
+          <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-center">Guardar</Button>
           <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Centro</Button>
+          </AuthzHide>
         </div>
       </Form>
     </div>

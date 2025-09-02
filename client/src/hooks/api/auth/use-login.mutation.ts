@@ -7,7 +7,24 @@ type Data = {
     password: string;
 }
 
-type Response = {token: string, user: object};
+export enum Role {
+    ADMIN = 'admin',
+    MANAGER = 'manager',
+    VIEWER = 'viewer'
+}
+
+export type UserModel = {
+        createdAt: Date;
+        updatedAt: Date;
+        id: number;
+        name: string;
+        lastName: string;
+        email: string;
+        username: string;
+        role: Role;
+}
+
+type Response = {token: string, user: UserModel };
 
 export const useLoginMutation = () => useMutation<AxiosResponse<Response>, AxiosError, Data>({
     mutationFn: async (data) => await axios.post<Response>(`${getApiHost()}/auth/login`, data),

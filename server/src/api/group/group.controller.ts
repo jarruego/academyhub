@@ -1,27 +1,35 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe, HttpCode, Res } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe, HttpCode, Res, UseGuards } from '@nestjs/common';
 import { CreateGroupDTO } from '../../dto/group/create-group.dto';
 import { UpdateGroupDTO } from '../../dto/group/update-group.dto';
 import { GroupService } from './group.service';
-import { CreateUserGroupDTO } from '../../dto/user-group/create-user-group.dto';
 import { FilterGroupDTO } from 'src/dto/group/filter-group.dto';
 import { UpdateUserGroupDTO } from 'src/dto/user-group/update-user-group.dto';
 import { GetBonificationFileDTO } from 'src/dto/group/get-bonification-file.dto';
+import { RoleGuard } from 'src/guards/role.guard';
+import { Role } from 'src/guards/role.enum';
+import { Response } from 'express';
 
 @Controller('group')
 export class GroupController {
   constructor(private readonly groupService: GroupService) {}
 
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Post('bonification-file')
   @HttpCode(200)
-  async getBonificationFile(@Body() body: GetBonificationFileDTO) {
-    return await this.groupService.getBonificationFile(body.groupId, body.userIds);
+  async getBonificationFile(@Body() body: GetBonificationFileDTO, @Res() res: Response) {
+    const { xml, filename } = await this.groupService.getBonificationFile(body.groupId, body.userIds);
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(xml);
   }
   
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Post()
   async create(@Body() createGroupDTO: CreateGroupDTO) {
     return this.groupService.create(createGroupDTO);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateGroupDTO: UpdateGroupDTO) {
     const numericId = parseInt(id, 10);
@@ -39,6 +47,7 @@ export class GroupController {
     return this.groupService.findAll(filter);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Post(':id/users/:userId')
   async addUserToGroup(@Param('id', new ParseIntPipe()) id: number, @Param('userId', new ParseIntPipe()) userId: number) {
     return this.groupService.addUserToGroup({id_user: userId, id_group: id});
@@ -49,11 +58,13 @@ export class GroupController {
     return this.groupService.findUsersInGroup(id);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Delete(':id')
   async deleteById(@Param('id', new ParseIntPipe()) id: number) {
     return this.groupService.deleteById(id);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Delete(':id/users/:userId')
   async deleteUserFromGroup(@Param('id') id: string, @Param('userId') userId: string) {
     const numericId = parseInt(id, 10);
@@ -61,6 +72,7 @@ export class GroupController {
     return this.groupService.deleteUserFromGroup(numericId, numericUserId);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Put(':id/users/:userId')
   async updateUserInGroup(@Param('id') id: string, @Param('userId') userId: string, @Body() updateUserGroupDTO: UpdateUserGroupDTO) {
     const numericId = parseInt(id, 10);

@@ -17,6 +17,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { User } from "../../shared/types/user/user";
 import { useCreateBonificationFileMutation } from "../../hooks/api/groups/use-create-bonification-file.mutation";
 import { useUpdateUserMainCenterMutation } from "../../hooks/api/centers/use-update-user-main-center.mutation";
+import UserDetail from "../../components/user/user-detail";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { BonificationModal } from '../../components/courses/BonificationModal';
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -52,6 +56,8 @@ export default function CourseDetailRoute() {
   // Estado para centros seleccionados en la modal de bonificación
   const [selectedCenters, setSelectedCenters] = useState<Record<number, number>>({}); // { [id_user]: id_center }
 
+  const [userToLookup, setUserToLookup] = useState<number | null>(null);
+
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof COURSE_DETAIL_FORM_SCHEMA>>({
     resolver: zodResolver(COURSE_DETAIL_FORM_SCHEMA),
   });
@@ -69,7 +75,7 @@ export default function CourseDetailRoute() {
   useEffect(() => {
     if (groupsData && groupsData.length > 0) {
       setSelectedGroupId(groupsData[0].id_group);
-      setSelectedRowKeys([groupsData[0].id_group]); 
+      setSelectedRowKeys([groupsData[0].id_group]);
     }
   }, [groupsData]);
 
@@ -123,6 +129,7 @@ export default function CourseDetailRoute() {
   const handleRowClick = (record: { id_group: number }) => {
     setSelectedGroupId(record.id_group);
     setSelectedRowKeys([record.id_group]);
+    setSelectedUserIds([]); // Limpiar selección de usuarios al cambiar de grupo
   };
 
   // Collects the selected users from the table
@@ -227,10 +234,15 @@ export default function CourseDetailRoute() {
 
     try {
       const xmlBlob = await createBonificationFile({ groupId: selectedGroupId, userIds: selectedUserIds });
+      // Obtener el nombre del grupo seleccionado
+      const selectedGroup = groupsData?.find(g => g.id_group === selectedGroupId);
+      let groupName = selectedGroup?.group_name || `grupo_${selectedGroupId}`;
+      // Limpiar el nombre para que sea válido como archivo
+      groupName = groupName.replace(/[^a-zA-Z0-9_-]/g, '_');
       const url = window.URL.createObjectURL(xmlBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `bonification_group_${selectedGroupId}.xml`;
+      a.download = `${groupName}.xml`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -245,91 +257,24 @@ export default function CourseDetailRoute() {
     }
   };
 
-  // Definir columnas específicas para el modal de bonificación
-  const BONIFICATION_MODAL_USER_COLUMNS = [
-    {
-      title: 'Centro (empresa)',
-      dataIndex: 'centro_select',
-      render: (_: unknown, user: User) => {
-        const selected = selectedCenters[user.id_user] ?? user.centers?.find(c => c.is_main_center)?.id_center ?? user.centers?.[0]?.id_center;
-        return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Select
-              style={{ minWidth: 220 }}
-              value={selected}
-              placeholder={user.centers?.length ? 'Selecciona centro' : 'Sin centros'}
-              options={user.centers?.map(center => ({
-                value: center.id_center,
-                label: `${center.center_name} (${center.company_name ?? ''})${center.is_main_center ? ' (principal)' : ''}`
-              }))}
-              allowClear
-              onChange={val => setSelectedCenters(prev => ({ ...prev, [user.id_user]: val }))}
-            />
-            {selected && (
-              <Button
-                type="primary"
-                size="small"
-                loading={updateUserMainCenterMutation.isPending}
-                onClick={() => updateUserMainCenterMutation.mutate(
-                  { userId: user.id_user, centerId: selected },
-                  {
-                    onSuccess: () => {
-                      message.success('Centro principal actualizado');
-                      refetchUsersByGroup();
-                    },
-                    onError: () => message.error('Error al actualizar el centro principal')
-                  }
-                )}
-              >
-                Guardar
-              </Button>
-            )}
-          </div>
-        );
-      }
-    },
-    ...USERS_TABLE_COLUMNS.filter(col => col.title !== 'Centro' && col.title !== 'Empresa'),
-    {
-      title: 'Acciones',
-      key: 'acciones',
-      render: (_: unknown, record: User) => (
-        <Button danger size="small" onClick={() => handleRemoveUserFromModal(record.id_user)}>
-          Quitar
-        </Button>
-      ),
-    },
-  ];
-
   return (
     <div>
       {contextHolder}
       {/* Modal de bonificación */}
-      <Modal
+      <BonificationModal
         open={isBonificationModalOpen}
-        title="Bonificar usuarios seleccionados y crear XML FUNDAE"
         onCancel={() => setIsBonificationModalOpen(false)}
         onOk={handleConfirmBonification}
-        okText="Bonificar y generar XML"
-        cancelText="Cancelar"
-        width="90vw"
-        style={{ top: 20, minHeight: '90vh', maxWidth: '90vw' }}
-        styles={{ body: { minHeight: '80vh', maxHeight: '80vh', overflowY: 'auto' } }}
-      >
-        <Table<User>
-          rowKey="id_user"
-          dataSource={usersData?.filter(u => selectedUserIds.includes(u.id_user))}
-          columns={BONIFICATION_MODAL_USER_COLUMNS}
-          pagination={false}
-          size="small"
-          onRow={(record) => ({
-            onDoubleClick: () => {
-              window.open(`/users/${record.id_user}`, '_blank', 'noopener');
-            },
-            style: { cursor: 'pointer' }
-          })}
-        />
-        {selectedUserIds.length === 0 && <div style={{color: 'red', marginTop: 12}}>No hay usuarios seleccionados.</div>}
-      </Modal>
+        users={usersData || []}
+        selectedUserIds={selectedUserIds}
+        selectedCenters={selectedCenters}
+        setSelectedCenters={setSelectedCenters}
+        updateUserMainCenterMutation={updateUserMainCenterMutation}
+        refetchUsersByGroup={refetchUsersByGroup}
+        message={message}
+        onRemoveUser={handleRemoveUserFromModal}
+        contextHolder={null}
+      />
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item label="ID" name="id_course">
@@ -348,7 +293,7 @@ export default function CourseDetailRoute() {
             help={errors.course_name?.message}
             validateStatus={errors.course_name ? "error" : undefined}
           >
-            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" />} />
+            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" data-testid="course-name" />} />
           </Form.Item>
           <Form.Item
             label="Nombre corto"
@@ -358,7 +303,7 @@ export default function CourseDetailRoute() {
             help={errors.short_name?.message}
             validateStatus={errors.short_name ? "error" : undefined}
           >
-            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" />} />
+            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" data-testid="short-name" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
@@ -411,9 +356,9 @@ export default function CourseDetailRoute() {
               name="modality"
               control={control}
               render={({ field }) => (
-                <Select {...field} id="modality">
+                <Select {...field} id="modality" data-testid="modality">
                   {Object.values(CourseModality).map((modality) => (
-                    <Select.Option key={modality} value={modality}>
+                    <Select.Option key={modality} value={modality} data-testid={`modality-option-${modality}`}>
                       {modality}
                     </Select.Option>
                   ))}
@@ -479,40 +424,70 @@ export default function CourseDetailRoute() {
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <Table
-            title={() => <h3>Grupos del Curso</h3>}
-            rowKey="id_group"
-            columns={[
-              { title: 'ID', dataIndex: 'id_group' },
-              { title: 'MOODLE ID', dataIndex: 'moodle_id' },
-              { title: 'Nombre del grupo', dataIndex: 'group_name' },
-              { title: 'Descripción', dataIndex: 'description' },
-            ]}
-            footer={() => <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>Añadir Grupo al Curso</Button>}
-            dataSource={groupsData}
-            loading={isGroupsLoading}
-            rowSelection={{
-              type: 'radio',
-              selectedRowKeys,
-              onChange: (selectedRowKeys) => setSelectedRowKeys(selectedRowKeys as number[]),
-              renderCell: () => null,
-            }}
-            onRow={(record) => ({
-              onClick: () => handleRowClick(record),
-              onDoubleClick: () => navigate(`/groups/${record.id_group}/edit`),
-              style: { cursor: 'pointer' }
-            })}
-          />
+          <div style={{ marginTop: 8, display: 'flex', width: '30%', flexDirection: 'column', gap: '8px' }}>
+            <AuthzHide roles={[Role.ADMIN]}>
+              <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>
+                Añadir Grupo al Curso
+              </Button>
+            </AuthzHide>
+            <Table
+              title={() => <h3>Grupos del Curso</h3>}
+              rowKey="id_group"
+              columns={[
+                { title: 'ID', dataIndex: 'id_group' },
+                { title: 'MOODLE ID', dataIndex: 'moodle_id' },
+                { title: 'Nombre del grupo', dataIndex: 'group_name' },
+                { title: 'Descripción', dataIndex: 'description', render: (desc: string) => desc ? <span dangerouslySetInnerHTML={{ __html: desc }} /> : '-' },
+              ]}
+              dataSource={groupsData}
+              loading={isGroupsLoading}
+              rowSelection={{
+                type: 'radio',
+                selectedRowKeys,
+                onChange: (selectedRowKeys) => setSelectedRowKeys(selectedRowKeys as number[]),
+                renderCell: () => null,
+              }}
+              onRow={(record) => ({
+                onClick: () => handleRowClick(record),
+                onDoubleClick: () => navigate(`/groups/${record.id_group}/edit`),
+                style: { cursor: 'pointer' }
+              })}
+            />
+          </div>
+          <div style={{ marginTop: 8, display: 'flex', width: '70%', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
 
-          <div style={{ marginTop: 8, display: 'flex', width: '100%', flexDirection: 'column', gap: '8px' }}>
+              <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+                <Button
+                  type="default"
+                  onClick={() => {
+                    if (usersData) {
+                      const ids = usersData.filter(u => Number(u.completion_percentage) >= 75).map(u => u.id_user);
+                      setSelectedUserIds(ids);
+                    }
+                  }}
+                  disabled={!usersData || usersData.length === 0}
+                >
+                  Marcar ≥ 75%
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<SaveOutlined />}
+                  style={{ maxWidth: '450px' }}
+                  onClick={openBonificationModal}
+                >
+                  Bonificar + XML FUNDAE
+                </Button>
+              </AuthzHide>
+            </div>
             <Table<User>
               title={() => <h3>Usuarios del Grupo</h3>}
               rowKey="id_user"
               columns={[
                 ...USERS_TABLE_COLUMNS,
-                {
-                  title: 'Extra'
-                },
+                // {
+                //   title: 'Extra'
+                // },
               ]}
               dataSource={usersData}
               loading={isUsersLoading}
@@ -523,30 +498,31 @@ export default function CourseDetailRoute() {
                 selectedRowKeys: selectedUserIds,
                 onChange: handleUserSelectionChange,
               }}
+              size="small"
               onRow={(record) => ({
                 onDoubleClick: () => {
-                  window.open(`/users/${record.id_user}`, '_blank', 'noopener');
-                  setTimeout(() => refetchUsersByGroup(), 1000); // Refresca tras abrir la ficha
+                  setUserToLookup(record.id_user);
                 },
                 style: { cursor: 'pointer' }
               })}
             />
-            <Button
-              type="default"
-              icon={<SaveOutlined />}
-              style={{ maxWidth: '450px' }}
-              onClick={openBonificationModal}
-            >
-              Bonificar seleccionados y crear XML FUNDAE
-            </Button>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-          <Button type="primary" icon={<SaveOutlined />} htmlType="submit">Guardar</Button>
-          <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
+          <AuthzHide roles={[Role.ADMIN]}>
+            <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-course">Guardar Curso</Button>
+            <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
+          </AuthzHide>
         </div>
       </Form>
+
+      <Modal width={'80%'} destroyOnClose open={Boolean(userToLookup)} onCancel={() => {
+        refetchUsersByGroup();
+        setUserToLookup(null);
+      }} footer={null}>
+        {userToLookup && <UserDetail userId={userToLookup} />}
+      </Modal>
     </div>
   );
 }

@@ -2,7 +2,9 @@ import { Button, Table, Input } from "antd";
 import { useState, useEffect } from "react";
 import { useUsersQuery } from "../../hooks/api/users/use-users.query";
 import { useNavigate } from 'react-router-dom';
-import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
+import { PlusOutlined } from "@ant-design/icons"; 
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 export default function UsersRoute() {
   const { data: usersData, isLoading: isUsersLoading } = useUsersQuery();
@@ -38,7 +40,7 @@ export default function UsersRoute() {
       value={searchText}
       onChange={handleSearch}
     />
-    <Button onClick={() => navigate('/users/create')} type="primary" icon={<PlusOutlined />}>Añadir Usuario</Button>
+    <AuthzHide roles={[Role.ADMIN]}><Button onClick={() => navigate('/users/create')} type="primary" icon={<PlusOutlined />}>Añadir Usuario</Button></AuthzHide>
     <Table 
       rowKey="id_user" 
       sortDirections={['ascend', 'descend']}

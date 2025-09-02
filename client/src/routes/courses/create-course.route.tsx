@@ -8,6 +8,8 @@ import { useEffect } from "react";
 import dayjs from "dayjs";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const CREATE_COURSE_FORM = z.object({
   course_name: z.string({ required_error: "El nombre del curso es obligatorio" }).min(2, "El nombre es demasiado corto"),
@@ -61,7 +63,7 @@ export default function CreateCourseRoute() {
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item label="ID Moodle" name="moodle_id">
-            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" disabled />} />
+            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" disabled data-testid="moodle-id" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -73,7 +75,7 @@ export default function CreateCourseRoute() {
             help={errors.course_name?.message}
             validateStatus={errors.course_name ? "error" : undefined}
           >
-            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" />} />
+            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" data-testid="course-name" />} />
           </Form.Item>
           <Form.Item
             label="Nombre corto"
@@ -83,7 +85,7 @@ export default function CreateCourseRoute() {
             help={errors.short_name?.message}
             validateStatus={errors.short_name ? "error" : undefined}
           >
-            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" />} />
+            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" data-testid="short-name" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
@@ -93,7 +95,7 @@ export default function CreateCourseRoute() {
             help={errors.start_date?.message}
             validateStatus={errors.start_date ? "error" : undefined}
           >
-            <Controller name="start_date" control={control} render={({ field }) => <DatePicker {...field} id="start_date" />} />
+            <Controller name="start_date" control={control} render={({ field }) => <DatePicker {...field} id="start_date" data-testid="start-date" />} />
           </Form.Item>
           <Form.Item
             label="Fecha Fin"
@@ -101,7 +103,7 @@ export default function CreateCourseRoute() {
             help={errors.end_date?.message}
             validateStatus={errors.end_date ? "error" : undefined}
           >
-            <Controller name="end_date" control={control} render={({ field }) => <DatePicker {...field} id="end_date" />} />
+            <Controller name="end_date" control={control} render={({ field }) => <DatePicker {...field} id="end_date" data-testid="end-date" />} />
           </Form.Item>
           <Form.Item
             label="Modalidad"
@@ -114,9 +116,9 @@ export default function CreateCourseRoute() {
               name="modality"
               control={control}
               render={({ field }) => (
-                <Select {...field} id="modality">
+                <Select {...field} id="modality" data-testid="modality">
                   {Object.values(CourseModality).map((modality) => (
-                    <Select.Option key={modality} value={modality}>
+                    <Select.Option key={modality} value={modality} data-testid={`modality-option-${modality}`}>
                       {modality}
                     </Select.Option>
                   ))}
@@ -182,7 +184,9 @@ export default function CreateCourseRoute() {
           </Form.Item>
         </div>
         <Form.Item>
+          <AuthzHide roles={[Role.ADMIN]}>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+          </AuthzHide>
           <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()} style={{ marginLeft: '16px' }}>
             Refrescar
           </Button>

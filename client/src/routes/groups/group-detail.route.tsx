@@ -11,6 +11,8 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 dayjs.extend(utc);
 
 const GROUP_FORM_SCHEMA = z.object({
@@ -125,7 +127,7 @@ export default function EditGroupRoute() {
               help={errors.group_name?.message}
               validateStatus={errors.group_name ? "error" : undefined}
             >
-              <Controller name="group_name" control={control} render={({ field }) => <Input {...field} />} />
+              <Controller name="group_name" control={control} render={({ field }) => <Input {...field} data-testid="group-name" />} />
             </Form.Item>
             <Form.Item label="Fecha Inicio" name="start_date"
               help={errors.start_date?.message}
@@ -166,12 +168,14 @@ export default function EditGroupRoute() {
             help={errors.description?.message}
             validateStatus={errors.description ? "error" : undefined}
           >
-            <Controller name="description" control={control} render={({ field }) => <Input {...field} value={field.value ?? ""} />} />
+            <Controller name="description" control={control} render={({ field }) => <Input {...field} value={field.value ?? ""} data-testid="group-description" />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
-            <Button type="primary" htmlType="submit" icon={<SaveOutlined />}>Guardar</Button>
+            <AuthzHide roles={[Role.ADMIN]}>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-group">Guardar</Button>
             <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
+            </AuthzHide>
           </div>
         </Form>
       ),
@@ -195,12 +199,14 @@ export default function EditGroupRoute() {
           />
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
+            <AuthzHide roles={[Role.ADMIN]}>
             <Button type="primary" icon={<TeamOutlined />} onClick={handleAddUserToGroup} >
               Gestionar Usuarios del Grupo
             </Button>
             <Button type="primary" icon={<ImportOutlined />} onClick={handleImportUsers}>
               Importar Usuarios
             </Button>
+            </AuthzHide>
           </div>
         </>
       ),

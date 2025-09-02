@@ -1,0 +1,1 @@
+ALTER TABLE "auth_users" ADD COLUMN "role" varchar(16) DEFAULT 'viewer' NOT NULL;

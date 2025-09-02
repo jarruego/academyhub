@@ -41,6 +41,9 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
+# Ignorar archivos de variables de entorno locales y reales
+.env*
+!*.example
 
 # temp directory
 .temp

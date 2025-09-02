@@ -3,7 +3,7 @@ import { useAuthenticatedAxios } from "../../../utils/api/use-authenticated-axio
 import { getApiHost } from "../../../utils/api/get-api-host.util";
 import { User } from "../../../shared/types/user/user";
 
-export const useUpdateUserMutation = (id_user: string) => {
+export const useUpdateUserMutation = (id_user: number) => {
   const request = useAuthenticatedAxios<User>();
   const queryClient = useQueryClient();
 

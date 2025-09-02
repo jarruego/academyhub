@@ -1,8 +1,10 @@
-import { Button, Table, Input } from "antd";
+import { Button, Table, Input, Tag } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
 import { useEffect, useState } from "react";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 export default function CoursesRoute() {
   const { data: coursesData, isLoading: isCoursesLoading } = useCoursesQuery();
@@ -25,7 +27,11 @@ export default function CoursesRoute() {
     normalize(course.course_name ?? '').includes(normalizedSearch) ||
     normalize(course.short_name ?? '').includes(normalizedSearch) ||
     normalize(course.moodle_id ? String(course.moodle_id) : '').includes(normalizedSearch)
-  )?.slice().sort((a, b) => (a.course_name ?? '').localeCompare(b.course_name ?? ''));
+  )?.slice().sort((a, b) => {
+    const aDate = a.end_date ? new Date(a.end_date).getTime() : 0;
+    const bDate = b.end_date ? new Date(b.end_date).getTime() : 0;
+    return bDate - aDate; // Descendente: más recientes primero
+  });
 
   return <div>
     <Input.Search 
@@ -34,7 +40,9 @@ export default function CoursesRoute() {
       value={searchText}
       onChange={handleSearch}
     />
+    <AuthzHide roles={[Role.ADMIN]}>
     <Button type="primary" onClick={() => navigate('/add-course')} icon={<PlusOutlined />}>Añadir Curso</Button>
+    </AuthzHide>
     <Table 
       rowKey="id_course" 
       columns={[
@@ -69,6 +77,29 @@ export default function CoursesRoute() {
           dataIndex: 'end_date',
           sorter: (a, b) => new Date(a.end_date ?? '').getTime() - new Date(b.end_date ?? '').getTime(),
           render: (date) => date ? new Date(date).toLocaleDateString('es-ES') : '',
+        },
+        {
+          title: 'Estado',
+          dataIndex: 'end_date',
+          sorter: (a, b) => {
+            const today = new Date();
+            const aActive = a.end_date ? new Date(a.end_date) >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
+            const bActive = b.end_date ? new Date(b.end_date) >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
+            // Activos primero
+            if (aActive === bActive) return 0;
+            return aActive ? -1 : 1;
+          },
+          render: (end_date) => {
+            if (!end_date) return '';
+            const today = new Date();
+            const endDate = new Date(end_date);
+            const isActive = endDate >= new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            return isActive ? (
+              <Tag color="green">Activo</Tag>
+            ) : (
+              <Tag color="red">Finalizado</Tag>
+            );
+          },
         }
       ]} 
       dataSource={filteredCourses} 

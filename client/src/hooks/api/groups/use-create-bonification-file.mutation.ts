@@ -6,7 +6,6 @@ interface BonificationFileRequest {
   groupId: number;
   userIds: number[];
 }
-//TODO: REVISAR, NO FUNCIONA.
 export const useCreateBonificationFileMutation = () => {
   const request = useAuthenticatedAxios();
   

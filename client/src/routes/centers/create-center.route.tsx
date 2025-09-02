@@ -6,6 +6,8 @@ import { SaveOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AuthzHide } from "../../components/permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const CREATE_CENTER_FORM = z.object({
   employer_number: z.string().optional(),
@@ -91,9 +93,11 @@ export default function CreateCenterRoute() {
           <Button onClick={() => navigate(-1)}>
             Cancelar
           </Button>
+          <AuthzHide roles={[Role.ADMIN]}>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">
             Guardar
           </Button>
+          </AuthzHide>
         </div>
       </Form>
     </div>

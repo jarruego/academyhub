@@ -64,7 +64,7 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async upsertMoodleUserByCourse(moodleUser: MoodleUser, id_course: number, options?: QueryOptions) {
+  async upsertMoodleUserByCourse(moodleUser: MoodleUser, id_course: number, options?: QueryOptions, completion_percentage?: number | null) {
     const existingUser = await this.findByMoodleId(moodleUser.id, options);
     const data = {
       name: moodleUser.firstname,
@@ -85,10 +85,18 @@ export class UserRepository extends Repository {
     }
 
     // Actualizar la tabla user_course
-    await this.query(options)
+    const completionStr = completion_percentage !== null && completion_percentage !== undefined ? completion_percentage.toString() : undefined;
+    const insertQuery = this.query(options)
       .insert(userCourseTable)
-      .values({ id_user: userId, id_course: id_course })
-      .onConflictDoNothing();
+      .values({ id_user: userId, id_course: id_course, completion_percentage: completionStr });
+    if (completionStr !== undefined) {
+      await insertQuery.onConflictDoUpdate({
+        target: [userCourseTable.id_user, userCourseTable.id_course],
+        set: { completion_percentage: completionStr }
+      });
+    } else {
+      await insertQuery.onConflictDoNothing();
+    }
 
     // TODO: optimize
     // Actualizar la tabla user_course_moodle_role

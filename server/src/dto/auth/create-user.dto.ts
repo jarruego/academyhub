@@ -1,5 +1,6 @@
 
-import { IsNotEmpty, IsString, IsEmail, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, IsEmail, MinLength, IsEnum, IsOptional } from 'class-validator';
+import { Role } from 'src/guards/role.enum';
 
 export class CreateUserDTO {
   @IsNotEmpty()
@@ -21,4 +22,9 @@ export class CreateUserDTO {
 
   @IsString()
   lastName?: string;
+
+  @IsString()
+  @IsEnum(Role)
+  @IsOptional()
+  role?: Role;
 }

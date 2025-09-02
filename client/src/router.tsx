@@ -18,19 +18,35 @@ import CentersRoute from './routes/centers/centers.route';
 import ImportUsersToGroupRoute from './routes/users/import-users-to-group.route';
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
+import ToolsRoute from './routes/tools.route';
+import { useRole } from './utils/permissions/use-role';
+import { Role } from './hooks/api/auth/use-login.mutation';
+import {
+  HomeOutlined,
+  UserOutlined,
+  BookOutlined,
+  ApartmentOutlined,
+  BankOutlined,
+  ToolOutlined
+} from '@ant-design/icons';
 
 const { Sider, Content } = Layout;
 
-const menuItems = [
-  { key: '/', label: <Link to="/">Home</Link> },
-  { key: '/users', label: <Link to="/users">Usuarios</Link> },
-  { key: '/courses', label: <Link to="/courses">Cursos</Link> },
-  { key: '/companies', label: <Link to="/companies">Empresas</Link> },
-  { key: '/centers', label: <Link to="/centers">Centros</Link> }, 
-];
-
 const Sidebar = () => {
   const { logout } = useAuthInfo();
+  const role = useRole();
+  console.log('ROL ACTUAL:', role);
+
+  const menuItems = [
+    { key: '/', icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
+    { key: '/users', icon: <UserOutlined />, label: <Link to="/users">Usuarios</Link> },
+    { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
+    { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
+    { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers">Centros</Link> },
+    ...(role?.toLowerCase() === Role.ADMIN
+      ? [{ key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> }]
+      : []),
+  ];
 
   return (
     <Sider>
@@ -68,7 +84,8 @@ export default function AppRouter() {
               <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} /> 
               <Route path="/centers/:id_center/edit" element={<EditCenterRoute />} /> 
               <Route path="/add-company" element={<CreateCompanyRoute />} />
-              <Route path="/centers" element={<CentersRoute />} /> // Añadir la nueva ruta de Centros
+              <Route path="/centers" element={<CentersRoute />} />
+              <Route path="/tools" element={<ToolsRoute />} />
             </Routes>
           </Content>
         </Layout>

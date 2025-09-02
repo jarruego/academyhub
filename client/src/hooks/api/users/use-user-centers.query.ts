@@ -3,7 +3,7 @@ import { useAuthenticatedAxios } from "../../../utils/api/use-authenticated-axio
 import { getApiHost } from "../../../utils/api/get-api-host.util";
 import { Center } from "../../../shared/types/center/center";
 
-export const useUserCentersQuery = (id_user: string) => {
+export const useUserCentersQuery = (id_user: number) => {
   const request = useAuthenticatedAxios<Center[]>();
   return useQuery({
     queryKey: ["user-centers", id_user],
