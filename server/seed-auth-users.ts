@@ -4,6 +4,7 @@ dotenv.config();
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Client } from "pg";
 import { authUserTable } from "./src/database/schema/tables/auth_user.table";
+import { hashWithSalt } from "./src/utils/crypto/password-hashing.util";
 
 const client = new Client({
   connectionString: process.env.DATABASE_URL || "postgresql://user:pass@127.0.0.1:5432/tfg"
@@ -14,7 +15,7 @@ async function main() {
   const db = drizzle(client);
 
   // Borra datos previos
-  //await db.delete(authUserTable);
+  await db.delete(authUserTable);
 
   // Inserta datos de ejemplo
   await db.insert(authUserTable).values([
@@ -23,21 +24,21 @@ async function main() {
       lastName: "General",
       email: "admin@demo.com",
       username: "admin",
-      password: "12345678",
+      password: hashWithSalt("12345678"),
     },
     {
       name: "Juan",
       lastName: "Pérez",
       email: "juan@demo.com",
       username: "juanperez",
-      password: "123456",
+      password: hashWithSalt("123456"),
     },
     {
       name: "Ana",
       lastName: "García",
       email: "ana@demo.com",
       username: "anagarcia",
-      password: "abcdef",
+      password: hashWithSalt("abcdef"),
     }
   ]);
 
