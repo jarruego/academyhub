@@ -8,9 +8,9 @@ AcademyHub is an open-source web platform designed to streamline training manage
 
 Developed with modern technologies and a scalable architecture, AcademyHub aims to enhance competitiveness and digitalization in the training sector, offering a flexible, customizable, and easily integrable solution.
 
-# Final Degree Project (TFG)
+## 🎓 Academic Origin
 
-This project is my Final Degree Project (Trabajo de Fin de Grado). Developed by Jose Alberto Arruego.
+This project originated as a Final Degree Project (Trabajo de Fin de Grado) and has evolved into an active open-source platform. The original academic repository can be found at [jarruego/TFG](https://github.com/jarruego/TFG) (archived).
 
 ## Description
 This project is an open-source web application designed to address the needs of small and medium-sized training companies in Spain, especially those using Moodle. Its main goal is to simplify training management—both face-to-face and online—without requiring advanced technical knowledge or experience in Moodle administration. The platform helps SMEs comply with essential regulations such as SEPE and FUNDAE, reducing barriers and improving competitiveness in the training sector.
@@ -71,8 +71,8 @@ The platform integrates with Moodle using the following official web services:
 
 ### Clone the repository
 ```bash
-git clone <repository-url>
-cd TFG
+git clone https://github.com/jarruego/academyhub.git
+cd academyhub
 ```
 
 ### Client installation
@@ -132,7 +132,61 @@ There are two seed scripts available to populate the database with sample data i
 > **Note:** Running these scripts will erase existing data in the affected tables and insert new sample data.
 
 ## Contributing
-Contributions are welcome starting in 2026, after the TFG has been submitted. Please open an issue or pull request for suggestions or improvements after that date.
+
+🎉 **Contributions are welcome!** 
+
+We encourage community participation to make AcademyHub even better. Here's how you can contribute:
+
+### Ways to Contribute
+- 🐛 **Bug Reports**: Found an issue? [Open an issue](https://github.com/jarruego/academyhub/issues)
+- 💡 **Feature Requests**: Have an idea? [Suggest a feature](https://github.com/jarruego/academyhub/issues)
+- 🔧 **Code Contributions**: Submit pull requests with improvements
+- 📖 **Documentation**: Help improve our docs and examples
+- 🌍 **Translations**: Help make AcademyHub multilingual
+
+### Getting Started
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Test your changes thoroughly
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Development Guidelines
+- Follow existing code style and conventions
+- Write clear commit messages
+- Add tests for new features when applicable
+- Update documentation as needed
+- Ensure your changes don't break existing functionality
+
+## Roadmap
+
+### 🎯 Current Focus
+- Enhanced Moodle integration capabilities
+- Improved user experience and interface
+- Performance optimizations
+- Extended SEPE/FUNDAE compliance features
+
+### 🔮 Future Plans
+- Multi-language support
+- Advanced reporting and analytics
+- Mobile application
+- Integration with other LMS platforms
+- API improvements and documentation
+
+## Community and Support
+
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/jarruego/academyhub/discussions)
+- 🐛 **Issues**: [Report bugs or request features](https://github.com/jarruego/academyhub/issues)
+- 📧 **Contact**: For direct inquiries about the project
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for more information.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
+
+---
+
+<p align="center">
+  <strong>Made with ❤️ for the training industry</strong><br>
+  <em>Empowering SMEs with better training management</em>
+</p>
