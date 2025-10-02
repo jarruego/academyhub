@@ -25,6 +25,7 @@ async function main() {
       email: "admin@demo.com",
       username: "admin",
       password: hashWithSalt("12345678"),
+      role: "admin"
     },
     {
       name: "Juan",
@@ -32,6 +33,7 @@ async function main() {
       email: "juan@demo.com",
       username: "juanperez",
       password: hashWithSalt("123456"),
+      role: "viewer"
     },
     {
       name: "Ana",
@@ -39,6 +41,7 @@ async function main() {
       email: "ana@demo.com",
       username: "anagarcia",
       password: hashWithSalt("abcdef"),
+      role: "viewer"
     }
   ]);
 
