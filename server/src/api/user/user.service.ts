@@ -11,6 +11,7 @@ import { UserInsertModel, UserSelectModel, UserUpdateModel } from "src/database/
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { CenterRepository } from "src/database/repository/center/center.repository";
+import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
 import { eq } from "drizzle-orm";
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
@@ -25,6 +26,7 @@ export class UserService {
     private readonly companyRepository: CompanyRepository,
     private readonly userRepository: UserRepository,
     private readonly centerRepository: CenterRepository,
+    private readonly userCourseRepository: UserCourseRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
   ) { }
 
@@ -241,6 +243,12 @@ export class UserService {
         })
       );
       return centers.filter(Boolean);
+    });
+  }
+
+  async findCoursesByUserId(id_user: number, options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      return await this.userCourseRepository.findCoursesByUserId(id_user, { transaction });
     });
   }
 }

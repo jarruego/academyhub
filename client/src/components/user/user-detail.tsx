@@ -2,6 +2,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useUserQuery } from "../../hooks/api/users/use-user.query";
 import { useUpdateUserMutation } from "../../hooks/api/users/use-update-user.mutation";
 import { useDeleteUserMutation } from "../../hooks/api/users/use-delete-user.mutation";
+import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
+import { useUserCoursesQuery } from "../../hooks/api/users/use-user-courses.query";
 import { Button, Form, Input, Modal, Checkbox, Select, Tabs } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
@@ -12,6 +14,8 @@ import { DNI_SCHEMA } from "../../schemas/dni.schema";
 import { Gender } from "../../shared/types/user/gender.enum";
 import { DocumentType } from "../../shared/types/user/document-type.enum";
 import { AddUserToCenterSection } from "../../routes/users/user-center-detail-section";
+import { MoodleUsersSection } from "./moodle-users-section";
+import { UserCoursesSection } from "./user-courses-section";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 
@@ -80,6 +84,12 @@ const navigate = useNavigate();
   } = useUserQuery(userId);
   const { mutateAsync: updateUser } = useUpdateUserMutation(userId);
   const { mutateAsync: deleteUser } = useDeleteUserMutation(userId);
+  const { 
+    data: moodleUsers
+  } = useMoodleUsersByUserIdQuery(userId);
+  const { 
+    data: userCourses
+  } = useUserCoursesQuery(userId);
   const { handleSubmit, control, reset, setValue, watch, formState: { errors } } = useForm({
     resolver: zodResolver(USER_FORM_SCHEMA)
   });
@@ -352,6 +362,28 @@ const navigate = useNavigate();
       ),
     },
   ];
+
+  // Agregar pestaña de Moodle condicionalmente si hay usuarios de Moodle
+  if (moodleUsers && moodleUsers.length > 0) {
+    items.push({
+      key: "3",
+      label: "Moodle",
+      children: (
+        <MoodleUsersSection userId={userId} />
+      ),
+    });
+  }
+
+  // Agregar pestaña de Cursos condicionalmente si hay cursos matriculados
+  if (userCourses && userCourses.length > 0) {
+    items.push({
+      key: "4",
+      label: "Cursos",
+      children: (
+        <UserCoursesSection userId={userId} />
+      ),
+    });
+  }
 
   return (
     <>

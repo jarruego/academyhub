@@ -1,7 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { UserCourseInsertModel, userCourseTable, UserCourseUpdateModel } from "src/database/schema/tables/user_course.table";
-import { and, eq } from "drizzle-orm";
+import { UserCourseInsertModel, userCourseTable, UserCourseUpdateModel, UserCourseSelectModel } from "src/database/schema/tables/user_course.table";
+import { courseTable, CourseSelectModel } from "src/database/schema/tables/course.table";
+import { and, eq, sql, desc } from "drizzle-orm";
+
+// Tipo para el resultado del JOIN usando los tipos base de Drizzle
+export type UserCourseWithCourse = UserCourseSelectModel & {
+    course: CourseSelectModel;
+};
 
 @Injectable()
 export class UserCourseRepository extends Repository {
@@ -54,5 +60,39 @@ export class UserCourseRepository extends Repository {
             .delete(userCourseTable)
             .where(and(eq(userCourseTable.id_course, id_course), eq(userCourseTable.id_user, id_user)));
         return result;
+    }
+
+    async findCoursesByUserId(userId: number, options?: QueryOptions): Promise<UserCourseWithCourse[]> {
+        return await this.query(options)
+            .select({
+                // Todos los campos de UserCourse
+                id_user: userCourseTable.id_user,
+                id_course: userCourseTable.id_course,
+                id_moodle_user: userCourseTable.id_moodle_user,
+                enrollment_date: userCourseTable.enrollment_date,
+                completion_percentage: userCourseTable.completion_percentage,
+                time_spent: userCourseTable.time_spent,
+                    // Course anidado usando el tipo CourseSelectModel
+                course: {
+                    id_course: courseTable.id_course,
+                    moodle_id: courseTable.moodle_id,
+                    course_name: courseTable.course_name,
+                    category: courseTable.category,
+                    short_name: courseTable.short_name,
+                    start_date: courseTable.start_date,
+                    end_date: courseTable.end_date,
+                    modality: courseTable.modality,
+                    hours: courseTable.hours,
+                    price_per_hour: courseTable.price_per_hour,
+                    active: sql<boolean>`CASE WHEN ${courseTable.end_date} > NOW() THEN true ELSE false END`, // Calcular basado en end_date
+                    fundae_id: courseTable.fundae_id,
+                    createdAt: courseTable.createdAt,
+                    updatedAt: courseTable.updatedAt,
+                }
+            })
+            .from(userCourseTable)
+            .innerJoin(courseTable, eq(userCourseTable.id_course, courseTable.id_course))
+            .where(eq(userCourseTable.id_user, userId))
+            .orderBy(desc(courseTable.end_date));
     }
 }

@@ -62,4 +62,10 @@ export class UserController {
     return this.userService.findCentersByUserId(numericId);
   }
 
+  @Get(':id/courses')
+  async findCoursesByUser(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.userService.findCoursesByUserId(numericId);
+  }
+
 }
