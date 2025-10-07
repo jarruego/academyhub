@@ -18,8 +18,6 @@ const CREATE_USER_FORM = z.object({
   first_surname: z.string({ required_error: "El primer apellido es obligatorio" }).min(1, "El primer apellido no puede estar vacío"),
   second_surname: z.string().optional(),
   email: z.string({ required_error: "El correo electrónico es obligatorio" }).email("El correo electrónico no es válido"),
-  moodle_username: z.string().optional(),
-  moodle_password: z.string().optional(),
   dni: DNI_SCHEMA,
   document_type: z.nativeEnum(DocumentType, {
     errorMap: () => ({ message: "Tipo de documento no válido" }),
@@ -81,14 +79,6 @@ export default function CreateUserRoute() {
     <div>
       {contextHolder}
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="Moodle Username" name="moodle_username" style={{ flex: 1 }}>
-            <Controller name="moodle_username" control={control} render={({ field }) => <Input data-testid="moodle-username" {...field} />} />
-          </Form.Item>
-          <Form.Item label="Contraseña Moodle" name="moodle_password" style={{ flex: 1 }}>
-            <Controller name="moodle_password" control={control} render={({ field }) => <Input.Password data-testid="moodle-password" {...field} />} />
-          </Form.Item>
-        </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Form.Item label="Tipo Doc." name="document_type" style={{ flex: 1 }}>
             <Controller

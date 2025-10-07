@@ -1,6 +1,7 @@
 import { pgTable, integer, date, decimal, doublePrecision, primaryKey } from "drizzle-orm/pg-core";
 import { userTable } from "./user.table";
 import { courseTable } from "./course.table";
+import { moodleUserTable } from "./moodle_user.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 // import { EnrollmentStatus } from "src/types/course/enrollment-status.enum";
 
@@ -9,6 +10,7 @@ import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 export const userCourseTable = pgTable("user_course", {
   id_user: integer("id_user").notNull().references(() => userTable.id_user),
   id_course: integer("id_course").notNull().references(() => courseTable.id_course),
+  id_moodle_user: integer("id_moodle_user").references(() => moodleUserTable.id_moodle_user),
   enrollment_date: date({mode: 'date'}),
   // status: enrollmentStatus("status"),
   completion_percentage: decimal({ precision: 5, scale: 2 }),

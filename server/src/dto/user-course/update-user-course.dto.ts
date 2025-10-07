@@ -15,6 +15,11 @@ export class UpdateUserCourseDTO {
   id_course?: number;
 
   @ApiPropertyOptional()
+  @IsInt()
+  @IsOptional()
+  id_moodle_user?: number;
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDate()
   @Type(() => Date)

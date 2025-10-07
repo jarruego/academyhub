@@ -33,8 +33,6 @@ const USER_FORM_SCHEMA = z.object({
   first_surname: z.string({ required_error: "El primer apellido es obligatorio" }).min(1, "El primer apellido no puede estar vacío"),
   second_surname: z.string().nullish(),
   email: z.string({ required_error: "El correo electrónico es obligatorio" }).email("El correo electrónico no es válido"),
-  moodle_username: z.string().nullish(),
-  moodle_password: z.string().nullish(),
   dni: DNI_SCHEMA.nullish(),
   document_type: z.nativeEnum(DocumentType, {
     errorMap: () => ({ message: "Tipo de documento no válido" }),
@@ -188,12 +186,6 @@ const navigate = useNavigate();
             </Form.Item>
             <Form.Item label="DNI" name="dni" style={{ flex: 1 }}>
               <Controller name="dni" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
-            </Form.Item>
-            <Form.Item label="Moodle Username" name="moodle_username" style={{ flex: 1 }}>
-              <Controller name="moodle_username" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
-            </Form.Item>
-            <Form.Item label="Contraseña Moodle" name="moodle_password" style={{ flex: 2 }}>
-              <Controller name="moodle_password" control={control} render={({ field }) => <Input.Password {...field} value={field.value ?? undefined} />} />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>

@@ -18,11 +18,20 @@ export class UserCourseRepository extends Repository {
     }
 
     async addUserToCourse(data: UserCourseInsertModel, options?: QueryOptions) {
-    const result = await this.query(options)
-      .insert(userCourseTable)
-      .values(data);
-    return result;
-  }
+        const result = await this.query(options)
+            .insert(userCourseTable)
+            .values(data)
+            .onConflictDoUpdate({
+                target: [userCourseTable.id_user, userCourseTable.id_course],
+                set: {
+                    id_moodle_user: data.id_moodle_user,
+                    completion_percentage: data.completion_percentage,
+                    enrollment_date: data.enrollment_date,
+                    time_spent: data.time_spent,
+                }
+            });
+        return result;
+    }
 
     async findUsersInCourse(courseId: number, options?: QueryOptions) {
         const rows = await this.query(options)

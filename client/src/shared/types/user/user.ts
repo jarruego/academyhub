@@ -7,9 +7,6 @@ export type User = {
     first_surname: string;
     second_surname?: string | null;
     email: string;
-    moodle_username?: string | null;
-    moodle_password?: string | null;
-    moodle_id?: number; 
     dni?: string | null;
     document_type?: DocumentType | null;
     phone?: string | null;

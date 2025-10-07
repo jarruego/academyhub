@@ -1,6 +1,7 @@
 import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { UserRepository } from "src/database/repository/user/user.repository";
 import { MoodleService } from "../moodle/moodle.service";
+import { MoodleUserService } from "../moodle-user/moodle-user.service";
 import { QueryOptions } from "src/database/repository/repository";
 import { MoodleUser } from "src/types/moodle/user";
 import { GroupRepository } from "src/database/repository/group/group.repository";
@@ -18,6 +19,7 @@ import { CompanyRepository } from "src/database/repository/company/company.repos
 export class UserService {
   constructor(
     private readonly MoodleService: MoodleService,
+    private readonly moodleUserService: MoodleUserService,
     private readonly groupService: GroupService,
     private readonly userGroupRepository: UserGroupRepository,
     private readonly companyRepository: CompanyRepository,
@@ -94,80 +96,122 @@ export class UserService {
   async importMoodleUsers(options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       const moodleUsers = await this.MoodleService.getAllUsers();
+      
       for (const moodleUser of moodleUsers) {
-        const existingUser = await this.userRepository.findByMoodleId(moodleUser.id, { transaction });
-        if (existingUser) {
-          await this.update(existingUser.id_user, {
+        // Buscar si ya existe un usuario de Moodle con este moodle_id
+        const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+        
+        let userId: number;
+        
+        if (existingMoodleUser) {
+          // Si existe el usuario de Moodle, actualizamos el usuario principal y el usuario de Moodle
+          userId = existingMoodleUser.id_user;
+          
+          // Actualizar usuario principal
+          await this.userRepository.update(userId, {
             name: moodleUser.firstname,
             first_surname: moodleUser.lastname,
             email: moodleUser.email,
-            moodle_username: moodleUser.username,
-            moodle_id: moodleUser.id,
           } as UserUpdateModel, { transaction });
+          
+          // Actualizar usuario de Moodle
+          await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
+            moodle_username: moodleUser.username,
+          }, { transaction });
+          
         } else {
-          await this.create({
+          // Crear nuevo usuario principal
+          const userResult = await this.userRepository.create({
             name: moodleUser.firstname,
             first_surname: moodleUser.lastname,
             email: moodleUser.email,
-            moodle_username: moodleUser.username,
-            moodle_id: moodleUser.id,
           } as UserInsertModel, { transaction });
+          
+          userId = userResult.insertId;
+          
+          // Crear usuario de Moodle asociado
+          await this.moodleUserService.create({
+            id_user: userId,
+            moodle_id: moodleUser.id,
+            moodle_username: moodleUser.username,
+          }, { transaction });
         }
       }
+      
       return { message: 'Usuarios importados y actualizados correctamente' };
     });
   }
 
   async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      const existingUser = await this.userRepository.findByMoodleId(moodleUser.id, { transaction });
-      const data = {
-        name: moodleUser.firstname,
-        first_surname: moodleUser.lastname,
-        email: moodleUser.email,
-        moodle_username: moodleUser.username,
-        moodle_id: moodleUser.id,
-      } as UserInsertModel;
-
+      // Buscar si ya existe un usuario de Moodle con este moodle_id
+      const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+      
       let userId: number;
 
-      if (existingUser) {
-        await this.userRepository.update(existingUser.id_user, data, { transaction });
-        userId = existingUser.id_user;
+      if (existingMoodleUser) {
+        // Si existe el usuario de Moodle, actualizamos el usuario principal
+        userId = existingMoodleUser.id_user;
+        
+        await this.userRepository.update(userId, {
+          name: moodleUser.firstname,
+          first_surname: moodleUser.lastname,
+          email: moodleUser.email,
+        } as UserUpdateModel, { transaction });
+        
+        // Actualizar usuario de Moodle
+        await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
+          moodle_username: moodleUser.username,
+        }, { transaction });
+        
       } else {
-        const result = await this.userRepository.create(data, { transaction });
-        userId = result.insertId;
+        // Crear nuevo usuario principal
+        const userResult = await this.userRepository.create({
+          name: moodleUser.firstname,
+          first_surname: moodleUser.lastname,
+          email: moodleUser.email,
+        } as UserInsertModel, { transaction });
+        
+        userId = userResult.insertId;
+        
+        // Crear usuario de Moodle asociado
+        await this.moodleUserService.create({
+          id_user: userId,
+          moodle_id: moodleUser.id,
+          moodle_username: moodleUser.username,
+        }, { transaction });
       }
 
+      // Verificar si el usuario ya está en el grupo
       const userGroupRows = await this.userGroupRepository.findUserInGroup(userId, id_group, { transaction });
 
       if (userGroupRows.length <= 0) {
         await this.groupService.addUserToGroup({id_group, id_user: userId}, { transaction });
       }
-
     });
-
   }
 
   async bulkCreateAndAddToGroup(users: UserInsertModel[], id_group: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       const createdUsers = [];
+      
       for (const user of users) {
-        const existingUser = await this.userRepository.findByMoodleId(user.moodle_id, { transaction });
         let userId: number;
-        if (existingUser) {
-          await this.userRepository.update(existingUser.id_user, user, { transaction });
-          userId = existingUser.id_user;
-        } else {
-          const result = await this.userRepository.create(user, { transaction });
-          userId = result.insertId;
-        }
+        
+        // Para now, crear usuarios sin datos de Moodle directamente
+        // TODO: Implementar lógica de Moodle cuando se defina cómo asociar cursos
+        const result = await this.userRepository.create(user, { transaction });
+        userId = result.insertId;
+        
         createdUsers.push(userId);
+        
+        // Añadir al grupo si no está ya
         const userGroupRows = await this.userGroupRepository.findUserInGroup(userId, id_group, { transaction });
         if (userGroupRows.length <= 0) {
           await this.groupService.addUserToGroup({id_group, id_user: userId }, { transaction });
         }
       }
+      
       return createdUsers;
     });
   }

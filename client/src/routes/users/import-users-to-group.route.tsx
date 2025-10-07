@@ -5,7 +5,6 @@ import * as XLSX from "xlsx";
 import { useState, useEffect } from "react";
 import { UserImportTemplate } from "../../shared/types/user/user-import-template";
 import { User } from "../../shared/types/user/user";
-import { generateEasyPassword } from "../../utils/helpers";
 import { useBulkCreateAndAddToGroupMutation } from "../../hooks/api/users/use-bulk-create-and-add-to-group.mutation";
 import { useUsersQuery } from "../../hooks/api/users/use-users.query";
 
@@ -64,8 +63,6 @@ export default function ImportUsersToGroupRoute() {
             second_surname: user.AP2,
             email: user.email,
             phone: user.movil.toString(),
-            moodle_username: user.DNI.toLowerCase(),
-            moodle_password: generateEasyPassword(),
           } as Omit<User, 'id_user'>;
         }
         return null;

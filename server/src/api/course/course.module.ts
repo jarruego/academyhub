@@ -6,12 +6,13 @@ import { CourseRepository } from 'src/database/repository/course/course.reposito
 import { MoodleService } from '../moodle/moodle.service';
 import { GroupRepository } from 'src/database/repository/group/group.repository';
 import { UserModule } from '../user/user.module';
+import { MoodleUserModule } from '../moodle-user/moodle-user.module';
 import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
 
 @Module({
   providers: [CourseService, CourseRepository, GroupRepository, MoodleService, UserCourseRepository],
   controllers: [CourseController],
   exports: [CourseService, CourseRepository],
-  imports: [UserModule]
+  imports: [UserModule, MoodleUserModule]
 })
 export class CourseModule {}

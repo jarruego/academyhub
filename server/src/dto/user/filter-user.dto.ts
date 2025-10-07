@@ -36,18 +36,6 @@ export class FilterUserDTO {
   phone?: string;
 
   @IsOptional()
-  @IsString()
-  moodle_username?: string;
-
-  @IsOptional()
-  @IsString()
-  moodle_password?: string;
-
-  @IsOptional()
-  @IsInt()
-  moodle_id?: number;
-
-  @IsOptional()
   @IsDateString()
   registration_date?: Date;
 

@@ -2,17 +2,20 @@ import { Inject, Injectable } from "@nestjs/common";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
 import { MoodleService } from "../moodle/moodle.service";
+import { MoodleUserService } from "../moodle-user/moodle-user.service";
 import { GroupRepository } from "src/database/repository/group/group.repository";
 import { UserRepository } from "src/database/repository/user/user.repository";
 import { DatabaseService } from "src/database/database.service";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { QueryOptions } from "src/database/repository/repository";
 import { MoodleCourse } from "src/types/moodle/course";
+import { MoodleUser } from "src/types/moodle/user";
 import { CourseModality } from "src/types/course/course-modality.enum";
 import { UserService } from "../user/user.service";
 import { CourseInsertModel, CourseSelectModel, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { UserCourseInsertModel, UserCourseUpdateModel } from "src/database/schema/tables/user_course.table";
 import { UserCourseRoleInsertModel } from "src/database/schema/tables/user_course_moodle_role.table";
+import { UserInsertModel } from "src/database/schema/tables/user.table";
 
 @Injectable()
 export class CourseService {
@@ -21,6 +24,7 @@ export class CourseService {
     private readonly userCourseRepository: UserCourseRepository,
     private readonly groupRepository: GroupRepository,
     private readonly MoodleService: MoodleService,
+    private readonly moodleUserService: MoodleUserService,
     private readonly userRepository: UserRepository,
     private readonly userService: UserService,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
@@ -135,15 +139,15 @@ export class CourseService {
         for (const enrolledUser of enrolledUsers) {
           // Saltar usuarios invitados
           if (enrolledUser.username === 'guest') {
-            await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction }, null);
+            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
             continue;
           }
           try {
             const progress = await this.MoodleService.getUserProgressInCourse(enrolledUser, moodleCourse.id);
-            await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction }, progress.completion_percentage);
+            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, progress.completion_percentage);
           } catch (e) {
             // Si hay error (por ejemplo, guestsarenotallowed), guardar null
-            await this.userRepository.upsertMoodleUserByCourse(enrolledUser, course.id_course, { transaction }, null);
+            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
           }
         }
 
@@ -162,6 +166,89 @@ export class CourseService {
       }
 
       return { message: 'Cursos, grupos y usuarios importados y actualizados correctamente' };
+    });
+  }
+
+  /**
+   * Método helper para reemplazar userRepository.upsertMoodleUserByCourse
+   * Crea/actualiza usuario + usuario de Moodle + inscripción al curso
+   */
+  private async upsertMoodleUserAndEnrollToCourse(
+    moodleUser: MoodleUser, 
+    courseId: number, 
+    options?: QueryOptions, 
+    completionPercentage?: number | null
+  ) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      // Buscar si ya existe un usuario de Moodle con este moodle_id
+      const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+      
+      let userId: number;
+      let moodleUserId: number;
+
+      if (existingMoodleUser) {
+        // Si existe el usuario de Moodle, actualizamos el usuario principal
+        userId = existingMoodleUser.id_user;
+        moodleUserId = existingMoodleUser.id_moodle_user;
+        
+        await this.userRepository.update(userId, {
+          name: moodleUser.firstname,
+          first_surname: moodleUser.lastname,
+          email: moodleUser.email,
+        }, { transaction });
+        
+        // Actualizar usuario de Moodle
+        await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
+          moodle_username: moodleUser.username,
+        }, { transaction });
+        
+      } else {
+        // Crear nuevo usuario principal
+        const userResult = await this.userRepository.create({
+          name: moodleUser.firstname,
+          first_surname: moodleUser.lastname,
+          email: moodleUser.email,
+        } as UserInsertModel, { transaction });
+        
+        userId = userResult.insertId;
+        
+        // Crear usuario de Moodle asociado
+        const moodleUserResult = await this.moodleUserService.create({
+          id_user: userId,
+          moodle_id: moodleUser.id,
+          moodle_username: moodleUser.username,
+        }, { transaction });
+        
+        moodleUserId = moodleUserResult.insertId;
+      }
+
+      // Crear/actualizar inscripción al curso
+      const completionStr = completionPercentage !== null && completionPercentage !== undefined 
+        ? completionPercentage.toString() 
+        : undefined;
+
+      const userCourseData: UserCourseInsertModel = {
+        id_user: userId,
+        id_course: courseId,
+        id_moodle_user: moodleUserId,
+        completion_percentage: completionStr,
+      };
+
+      await this.userCourseRepository.addUserToCourse(userCourseData, { transaction });
+
+      // Actualizar roles de Moodle para el curso
+      if (moodleUser.roles) {
+        for (const role of moodleUser.roles) {
+          await this.courseRepository.addUserRoleToCourse({
+            id_user: userId,
+            id_course: courseId,
+            id_role: role.roleid,
+            role_shortname: role.shortname
+          }, { transaction });
+        }
+      }
+
+      return await this.userRepository.findById(userId, { transaction });
     });
   }
 

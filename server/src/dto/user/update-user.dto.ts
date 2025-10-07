@@ -41,21 +41,6 @@ export class UpdateUserDTO {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
-  moodle_username?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  moodle_password?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsInt()
-  moodle_id?: number;
-
-  @ApiPropertyOptional()
-  @IsOptional()
   @IsDateString()
   registration_date?: Date;
 

@@ -26,7 +26,6 @@ export default function UsersRoute() {
   const filteredUsers = usersData?.filter(user => 
     normalize(user.name ?? '').includes(normalizedSearch) ||
     normalize(user.first_surname ?? '').includes(normalizedSearch) ||
-    normalize(user.moodle_username ?? '').includes(normalizedSearch) ||
     normalize(user.email ?? '').includes(normalizedSearch) ||
     normalize(user.dni ?? '').includes(normalizedSearch) ||
     normalize(user.centers?.find(c => c.is_main_center)?.center_name ?? user.centers?.[0]?.center_name ?? '').includes(normalizedSearch) ||
@@ -51,11 +50,6 @@ export default function UsersRoute() {
           sorter: (a, b) => a.id_user - b.id_user,
         },
         {
-          title: 'MOODLE ID',
-          dataIndex: 'moodle_id',
-          sorter: (a, b) => (a.moodle_id ?? 0) - (b.moodle_id ?? 0),
-        },
-        {
           title: 'DNI',
           dataIndex: 'dni',
           sorter: (a, b) => (a.dni ?? '').localeCompare(b.dni ?? ''),
@@ -74,11 +68,6 @@ export default function UsersRoute() {
           title: 'Email',
           dataIndex: 'email',
           sorter: (a, b) => a.email.localeCompare(b.email),
-        },
-        {
-          title: 'MOODLE USERNAME',
-          dataIndex: 'moodle_username',
-          sorter: (a, b) => (a.moodle_username ?? "").localeCompare(b.moodle_username ?? ""),
         },
         {
           title: 'Centro',
