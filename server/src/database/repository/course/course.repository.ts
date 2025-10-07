@@ -50,10 +50,26 @@ export class CourseRepository extends Repository {
   }
 
   async addUserRoleToCourse(userCourseRoleInsertModel: UserCourseRoleInsertModel, options?: QueryOptions) {
-    const result = await this.query(options)
-      .insert(userCourseMoodleRoleTable)
-      .values(userCourseRoleInsertModel);
-    return result;
+    // Verificar si ya existe el rol para evitar duplicados
+    const existingRole = await this.query(options)
+      .select()
+      .from(userCourseMoodleRoleTable)
+      .where(and(
+        eq(userCourseMoodleRoleTable.id_user, userCourseRoleInsertModel.id_user),
+        eq(userCourseMoodleRoleTable.id_course, userCourseRoleInsertModel.id_course),
+        eq(userCourseMoodleRoleTable.id_role, userCourseRoleInsertModel.id_role)
+      ));
+
+    if (existingRole.length === 0) {
+      // Solo insertar si no existe
+      const result = await this.query(options)
+        .insert(userCourseMoodleRoleTable)
+        .values(userCourseRoleInsertModel);
+      return result;
+    }
+    
+    // Si ya existe, no hacer nada o retornar el existente
+    return { insertId: null, affectedRows: 0 };
   }
 
   //TODO: mejorar, se usa ¿UserCourseRoleInsertModel? para roles
