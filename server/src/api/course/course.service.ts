@@ -211,7 +211,7 @@ export class CourseService {
           // PASO 2E3: Procesar cada usuario del grupo
           for (const moodleUser of moodleUsers) {
             console.log(`      👤 Asignando usuario ${moodleUser.username} al grupo`);
-            await this.userService.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
+            await this.MoodleService.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
           }
         }
         

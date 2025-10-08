@@ -12,7 +12,7 @@ export const useReimportMoodleMutation = () => {
         mutationFn: async () => {
             await request({
                 method: 'POST',
-                url: `${getApiHost()}/course/import-moodle-courses`
+                url: `${getApiHost()}/moodle/import-all`
             });
             queryClient.refetchQueries({ queryKey: ['users', 'get-all'] });
         },

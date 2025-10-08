@@ -1,18 +1,18 @@
 import { Button, Card, List, Typography } from "antd";
 import { ToolOutlined, DatabaseOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
-import { useReimportMoodleMutation } from "../../hooks/api/moodle/use-reimport-moodle.mutation";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const tools = [
   {
-    key: "reimport-moodle",
-    label: "Reimportar datos de Moodle",
-    description: "Sincroniza manualmente los datos desde la plataforma Moodle.",
+    key: "moodle-import",
+    label: "Importación de Moodle",
+    description: "Gestiona la importación de cursos, grupos y usuarios desde Moodle.",
     icon: <ToolOutlined style={{ fontSize: 20 }} />,
     adminOnly: true,
-    type: "action" as const,
+    type: "link" as const,
+    linkTo: "/tools/moodle-import",
   },
   {
     key: "data-cross-reference",
@@ -27,7 +27,6 @@ const tools = [
 ];
 
 const ToolList = () => {
-  const { mutateAsync: reimport, isPending: isReimporting } = useReimportMoodleMutation();
   return (
     <Card title={<span>Herramientas administrativas</span>} bordered style={{ maxWidth: 500, margin: "0 auto" }}>
       <Typography.Paragraph type="secondary" style={{ marginBottom: 24 }}>
@@ -38,13 +37,7 @@ const ToolList = () => {
         dataSource={tools}
         renderItem={tool => {
           const renderAction = () => {
-            if (tool.type === "action" && tool.key === "reimport-moodle") {
-              return (
-                <Button onClick={() => reimport()} loading={isReimporting} type="primary">
-                  Reimportar
-                </Button>
-              );
-            } else if (tool.type === "link") {
+            if (tool.type === "link") {
               return (
                 <Link to={tool.linkTo}>
                   <Button type="primary">
@@ -68,14 +61,16 @@ const ToolList = () => {
               </List.Item>
             </AuthzHide>
           ) : (
-            <List.Item>
-              <List.Item.Meta
-                avatar={tool.icon}
-                title={tool.label}
-                description={tool.description}
-              />
-              {renderAction()}
-            </List.Item>
+            <AuthzHide roles={[Role.ADMIN]}>
+              <List.Item>
+                <List.Item.Meta
+                  avatar={tool.icon}
+                  title={tool.label}
+                  description={tool.description}
+                />
+                {renderAction()}
+              </List.Item>
+            </AuthzHide>
           );
         }}
       />

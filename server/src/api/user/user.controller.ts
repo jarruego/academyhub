@@ -2,6 +2,7 @@ import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards } fro
 import { CreateUserDTO } from '../../dto/user/create-user.dto';
 import { UpdateUserDTO } from '../../dto/user/update-user.dto';
 import { UserService } from './user.service';
+import { MoodleService } from '../moodle/moodle.service';
 import { FilterUserDTO } from 'src/dto/user/filter-user.dto';
 import { RoleGuard } from 'src/guards/role.guard';
 import { Role } from 'src/guards/role.enum';
@@ -10,6 +11,7 @@ import { Role } from 'src/guards/role.enum';
 export class UserController {
   constructor(
     private readonly userService: UserService,
+    private readonly moodleService: MoodleService,
   ) {}
 
   @UseGuards(RoleGuard([Role.ADMIN]))
@@ -46,7 +48,7 @@ export class UserController {
   @UseGuards(RoleGuard([Role.ADMIN]))
   @Post('import-moodle-users')
   async importMoodleUsers() {
-    return this.userService.importMoodleUsers();
+    return this.moodleService.importMoodleUsers();
   }
 
   @UseGuards(RoleGuard([Role.ADMIN]))
