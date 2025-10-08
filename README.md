@@ -63,6 +63,19 @@ The platform integrates with Moodle using the following official web services:
 | core_user_get_users                              | General user search                         |
 | core_user_get_users_by_field                     | Search users by specific fields             |
 
+### Moodle Configuration (Optional)
+
+For enhanced user matching and data cross-referencing, AcademyHub can optionally use the following configuration in your Moodle instance:
+
+**Optional Custom User Profile Field:**
+- **Field Name**: `DNI` (Spanish National Identity Document)
+- **Field Type**: Text input
+- **Purpose**: When available, improves automatic user matching between the local database and Moodle
+- **Location**: User profile → Custom profile fields
+- **Configuration**: Should be visible and available for all users if implemented
+
+**Note**: This custom field is completely optional. The platform's user comparison tool works without it by using other matching criteria (email, name similarity). However, when the DNI field is present, it provides more accurate user identification, which can be especially useful for Spanish training companies that need precise student tracking for regulatory compliance (SEPE/FUNDAE).
+
 ## Installation and Usage
 
 ### Prerequisites
