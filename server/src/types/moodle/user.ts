@@ -26,6 +26,19 @@ export type MoodleUser = {
         name: string,
         shortname: string,
         sortorder: number
+    }>,
+    // Campos personalizados del perfil
+    customfields?: Array<{
+        type: string,
+        value: string,
+        displayvalue?: string,
+        name: string,
+        shortname: string
+    }>,
+    // Preferencias del usuario
+    preferences?: Array<{
+        name: string,
+        value: string
     }>
 };
 

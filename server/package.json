@@ -33,6 +33,7 @@
     "class-validator": "^0.14.1",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.44.2",
+    "fastest-levenshtein": "^1.0.16",
     "pg": "^8.13.1",
     "postgres": "^3.4.7",
     "reflect-metadata": "^0.2.0",

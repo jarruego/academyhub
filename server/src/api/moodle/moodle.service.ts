@@ -50,7 +50,8 @@ export class MoodleService {
 
 
     async getAllUsers(): Promise<MoodleUser[]> {
-        const data = await this.request<{ users: Array<MoodleUser> }>('core_user_get_users', {
+        // Primero obtener usuarios básicos para obtener los IDs
+        const basicData = await this.request<{ users: Array<{ id: number }> }>('core_user_get_users', {
             params: {
                 criteria: [
                     {
@@ -61,7 +62,21 @@ export class MoodleService {
             }
         });
 
-        return data.users;
+        const userIds = basicData.users.map(user => user.id);
+        
+        // Ahora obtener usuarios detallados con customfields usando core_user_get_users_by_field
+        const detailedUsers = await this.request<Array<MoodleUser>>('core_user_get_users_by_field', {
+            params: {
+                field: 'id',
+                values: userIds
+            }
+        });
+
+        
+        // Verificar si tienen customfields
+        const usersWithCustomFields = detailedUsers.filter(user => user.customfields && user.customfields.length > 0);
+        
+        return detailedUsers;
     }
 
     async getUserById(userId: number): Promise<MoodleUser> {
