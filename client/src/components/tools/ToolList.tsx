@@ -1,5 +1,6 @@
 import { Button, Card, List, Typography } from "antd";
-import { ToolOutlined } from "@ant-design/icons";
+import { ToolOutlined, DatabaseOutlined } from "@ant-design/icons";
+import { Link } from "react-router-dom";
 import { useReimportMoodleMutation } from "../../hooks/api/moodle/use-reimport-moodle.mutation";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
@@ -10,12 +11,17 @@ const tools = [
     label: "Reimportar datos de Moodle",
     description: "Sincroniza manualmente los datos desde la plataforma Moodle.",
     icon: <ToolOutlined style={{ fontSize: 20 }} />,
-    renderAction: (reimport: () => void, isReimporting: boolean) => (
-      <Button onClick={reimport} loading={isReimporting} type="primary">
-        Reimportar
-      </Button>
-    ),
     adminOnly: true,
+    type: "action" as const,
+  },
+  {
+    key: "data-cross-reference",
+    label: "Cruce de datos BD - Moodle",
+    description: "Compara y cruza datos de usuarios entre la base de datos local y Moodle.",
+    icon: <DatabaseOutlined style={{ fontSize: 20 }} />,
+    adminOnly: true,
+    type: "link" as const,
+    linkTo: "/tools/data-cross-reference",
   },
   // Aquí se pueden añadir más herramientas en el futuro
 ];
@@ -30,8 +36,27 @@ const ToolList = () => {
       <List
         itemLayout="horizontal"
         dataSource={tools}
-        renderItem={tool => (
-          tool.adminOnly ? (
+        renderItem={tool => {
+          const renderAction = () => {
+            if (tool.type === "action" && tool.key === "reimport-moodle") {
+              return (
+                <Button onClick={() => reimport()} loading={isReimporting} type="primary">
+                  Reimportar
+                </Button>
+              );
+            } else if (tool.type === "link") {
+              return (
+                <Link to={tool.linkTo}>
+                  <Button type="primary">
+                    Abrir herramienta
+                  </Button>
+                </Link>
+              );
+            }
+            return null;
+          };
+
+          return tool.adminOnly ? (
             <AuthzHide roles={[Role.ADMIN]}>
               <List.Item>
                 <List.Item.Meta
@@ -39,7 +64,7 @@ const ToolList = () => {
                   title={tool.label}
                   description={tool.description}
                 />
-                {tool.renderAction(reimport, isReimporting)}
+                {renderAction()}
               </List.Item>
             </AuthzHide>
           ) : (
@@ -49,10 +74,10 @@ const ToolList = () => {
                 title={tool.label}
                 description={tool.description}
               />
-              {tool.renderAction(reimport, isReimporting)}
+              {renderAction()}
             </List.Item>
-          )
-        )}
+          );
+        }}
       />
     </Card>
   );

@@ -18,7 +18,8 @@ import CentersRoute from './routes/centers/centers.route';
 import ImportUsersToGroupRoute from './routes/users/import-users-to-group.route';
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
-import ToolsRoute from './routes/tools.route';
+import ToolsRoute from './routes/tools/tools.route';
+import DataCrossReferenceRoute from './routes/tools/data-cross-reference.route';
 import { useRole } from './utils/permissions/use-role';
 import { Role } from './hooks/api/auth/use-login.mutation';
 import {
@@ -86,6 +87,7 @@ export default function AppRouter() {
               <Route path="/add-company" element={<CreateCompanyRoute />} />
               <Route path="/centers" element={<CentersRoute />} />
               <Route path="/tools" element={<ToolsRoute />} />
+              <Route path="/tools/data-cross-reference" element={<DataCrossReferenceRoute />} />
             </Routes>
           </Content>
         </Layout>
