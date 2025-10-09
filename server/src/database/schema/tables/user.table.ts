@@ -1,5 +1,5 @@
 import { InferSelectModel } from "drizzle-orm";
-import { pgTable, serial, text, integer, boolean, date, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, date, pgEnum, timestamp } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { Gender } from "../../../types/user/gender.enum";
 import { DocumentType } from "../../../types/user/document-type.enum";
@@ -13,8 +13,8 @@ export const userTable = pgTable("users", {
     first_surname: text("first_surname"),
     second_surname: text("second_surname"),
     email: text("email"),
-    registration_date: date("registration_date", { mode: 'date' }),
-    birth_date: date("birth_date", { mode: 'date' }),
+    registration_date: timestamp({withTimezone: true}),
+    birth_date: timestamp({withTimezone: true}),
     dni: text("dni").unique(), // TODO: DNI is not mandatory, but if provided, it must be unique
     phone: text("phone"),
     nss: text("nss").unique(),

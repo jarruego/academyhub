@@ -4,12 +4,13 @@ import { useUpdateUserMutation } from "../../hooks/api/users/use-update-user.mut
 import { useDeleteUserMutation } from "../../hooks/api/users/use-delete-user.mutation";
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
 import { useUserCoursesQuery } from "../../hooks/api/users/use-user-courses.query";
-import { Button, Form, Input, Modal, Checkbox, Select, Tabs } from "antd";
+import { Button, Form, Input, Modal, Checkbox, Select, Tabs, DatePicker } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
+import dayjs from "dayjs";
 import { DNI_SCHEMA } from "../../schemas/dni.schema";
 import { Gender } from "../../shared/types/user/gender.enum";
 import { DocumentType } from "../../shared/types/user/document-type.enum";
@@ -58,6 +59,7 @@ const USER_FORM_SCHEMA = z.object({
   country: z.string().nullish(),
   observations: z.string().nullish(),
   registration_date: z.date({ invalid_type_error: "La fecha de registro debe ser una fecha válida" }).nullish(),
+  birth_date: z.date().optional().nullable(),
   nss: z.string().nullish(),
   seasonalWorker: z.boolean().nullish().default(false),
   erteLaw: z.boolean().nullish().default(false),
@@ -109,7 +111,9 @@ const navigate = useNavigate();
       else if (userData.accreditationDiploma === "N") diploma = "N";
       const normalized = {
         ...nullsToUndefined(userData),
-        accreditationDiploma: diploma
+        accreditationDiploma: diploma,
+        birth_date: userData.birth_date ? new Date(userData.birth_date) : null,
+        registration_date: userData.registration_date ? new Date(userData.registration_date) : null,
       };
       reset(normalized);
     }
@@ -123,7 +127,11 @@ const navigate = useNavigate();
   if (isUserLoading) return <div>Cargando...</div>;
 
   const submit: SubmitHandler<z.infer<typeof USER_FORM_SCHEMA>> = async (info) => {
-    const normalizedInfo = nullsToUndefined(info);
+    const normalizedInfo = {
+      ...nullsToUndefined(info),
+      birth_date: info.birth_date ? dayjs(info.birth_date).utc().toDate() : null,
+      registration_date: info.registration_date ? dayjs(info.registration_date).utc().toDate() : null,
+    };
     try {
       await updateUser(normalizedInfo);
       navigate(location.state?.from || '/users');
@@ -205,6 +213,22 @@ const navigate = useNavigate();
             </Form.Item>
             <Form.Item label="Teléfono" name="phone" style={{ flex: 1 }}>
               <Controller name="phone" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="user-phone" />} />
+            </Form.Item>
+            <Form.Item label="Fecha de Nacimiento" name="birth_date" style={{ flex: 1 }} help={errors.birth_date?.message} validateStatus={errors.birth_date ? "error" : undefined}>
+              <Controller 
+                name="birth_date" 
+                control={control} 
+                render={({ field }) => (
+                  <DatePicker
+                    {...field}
+                    value={field.value ? dayjs(field.value) : null}
+                    onChange={(date) => field.onChange(date ? date.toDate() : null)}
+                    format="DD/MM/YYYY"
+                    placeholder="Seleccionar fecha"
+                    style={{ width: '100%' }}
+                  />
+                )}
+              />
             </Form.Item>
             <Form.Item label="Sexo" name="gender" style={{ flex: 1 }}>
               <Controller

@@ -1,0 +1,2 @@
+ALTER TABLE "users" ALTER COLUMN "registration_date" SET DATA TYPE timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "users" ALTER COLUMN "birth_date" SET DATA TYPE timestamp with time zone;

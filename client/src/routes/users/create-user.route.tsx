@@ -1,4 +1,4 @@
-import { Button, Form, Input, Checkbox, Select, Modal } from "antd";
+import { Button, Form, Input, Checkbox, Select, Modal, DatePicker } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCreateUserMutation } from "../../hooks/api/users/use-create-user.mutation";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
@@ -8,6 +8,7 @@ import { Gender } from "../../shared/types/user/gender.enum";
 import { DocumentType } from "../../shared/types/user/document-type.enum";
 import { zodResolver } from "@hookform/resolvers/zod"
 import z from "zod";
+import dayjs from "dayjs";
 import { DNI_SCHEMA } from "../../schemas/dni.schema";
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { AuthzHide } from "../../components/permissions/authz-hide";
@@ -38,7 +39,8 @@ const CREATE_USER_FORM = z.object({
   province: z.string().optional(),
   country: z.string().optional(),
   observations: z.string().optional(),
-  registration_date: z.date({ invalid_type_error: "La fecha de registro debe ser una fecha válida" }).optional(),
+  registration_date: z.date().optional().nullable(),
+  birth_date: z.date().optional().nullable(),
   nss: z.string().optional(),
   seasonalWorker: z.boolean().optional().default(false),
   erteLaw: z.boolean().optional().default(false),
@@ -66,9 +68,13 @@ export default function CreateUserRoute() {
 
   const submit: SubmitHandler<z.infer<typeof CREATE_USER_FORM>> = async (values) => {
     try {
-      await createUser(values);
+      await createUser({
+        ...values,
+        birth_date: values.birth_date ? dayjs(values.birth_date).utc().toDate() : null,
+        registration_date: values.registration_date ? dayjs(values.registration_date).utc().toDate() : null,
+      });
       navigate('/users');
-    } catch  {
+    } catch (error) {
       modal.error({
         title: "Error al crear el usuario",
         content: "Revise los datos e inténtelo de nuevo.",
@@ -137,6 +143,28 @@ export default function CreateUserRoute() {
                   <Select.Option value={Gender.FEMALE}>Femenino</Select.Option>
                   <Select.Option value={Gender.OTHER}>Otro</Select.Option>
                 </Select>
+              )}
+            />
+          </Form.Item>
+        </div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <Form.Item 
+            label="Fecha de nacimiento" 
+            name="birth_date" 
+            style={{ flex: 1 }}
+            help={errors.birth_date?.message}
+            validateStatus={errors.birth_date ? "error" : undefined}
+          >
+            <Controller 
+              name="birth_date" 
+              control={control} 
+              render={({ field }) => (
+                <DatePicker 
+                  {...field} 
+                  value={field.value ? dayjs(field.value) : null}
+                  onChange={(date) => field.onChange(date ? date.toDate() : null)}
+                  data-testid="birth-date" 
+                />
               )}
             />
           </Form.Item>
