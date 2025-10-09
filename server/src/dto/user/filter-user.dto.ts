@@ -40,6 +40,10 @@ export class FilterUserDTO {
   registration_date?: Date;
 
   @IsOptional()
+  @IsDateString()
+  birth_date?: Date;
+
+  @IsOptional()
   @IsString()
   nss?: string;
 

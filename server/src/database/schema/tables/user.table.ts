@@ -14,6 +14,7 @@ export const userTable = pgTable("users", {
     second_surname: text("second_surname"),
     email: text("email"),
     registration_date: date("registration_date", { mode: 'date' }),
+    birth_date: date("birth_date", { mode: 'date' }),
     dni: text("dni").unique(), // TODO: DNI is not mandatory, but if provided, it must be unique
     phone: text("phone"),
     nss: text("nss").unique(),

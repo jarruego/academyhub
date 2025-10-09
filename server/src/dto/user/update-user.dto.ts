@@ -46,6 +46,11 @@ export class UpdateUserDTO {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsDateString()
+  birth_date?: Date;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   nss?: string;
 

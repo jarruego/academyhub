@@ -13,6 +13,7 @@ export type User = {
     address?: string | null;
     professional_category?: string | null;
     salary_group?: number | null;
+    birth_date?: Date | null;
     disability?: boolean | null;
     terrorism_victim?: boolean | null;
     gender_violence_victim?: boolean | null;
