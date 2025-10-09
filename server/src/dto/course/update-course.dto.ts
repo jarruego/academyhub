@@ -27,13 +27,13 @@ export class UpdateCourseDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsDate()
-    @Type(() => Date)
+  @Type(() => Date)
   start_date: Date;
 
   @ApiPropertyOptional()
   @IsOptional()
-    @IsDate()
-    @Type(() => Date)
+  @IsDate()
+  @Type(() => Date)
   end_date: Date;
 
   @ApiPropertyOptional()

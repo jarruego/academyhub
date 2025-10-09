@@ -1,4 +1,5 @@
-import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty } from "class-validator";
+import { Type } from "class-transformer";
+import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty, IsDate } from "class-validator";
 import { DocumentType } from "src/types/user/document-type.enum";
 import { Gender } from "src/types/user/gender.enum";
 
@@ -36,11 +37,13 @@ export class FilterUserDTO {
   phone?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsDate()
+  @Type(() => Date)
   registration_date?: Date;
 
   @IsOptional()
-  @IsDateString()
+  @IsDate()
+  @Type(() => Date)
   birth_date?: Date;
 
   @IsOptional()
@@ -109,5 +112,5 @@ export class FilterUserDTO {
 
   @IsOptional()
   @IsString()
-  accreditationDiploma: string;  
+  accreditationDiploma: string;
 }

@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty } from "class-validator";
+import { Type } from "class-transformer";
+import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty, IsDate } from "class-validator";
 import { DocumentType } from "src/types/user/document-type.enum";
 import { Gender } from "src/types/user/gender.enum";
 
@@ -41,12 +42,14 @@ export class UpdateUserDTO {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsDateString()
+  @IsDate()
+  @Type(() => Date)
   registration_date?: Date;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsDateString()
+  @IsDate()
+  @Type(() => Date)
   birth_date?: Date;
 
   @ApiPropertyOptional()
@@ -132,5 +135,5 @@ export class UpdateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  accreditationDiploma: string;  
+  accreditationDiploma: string;
 }
