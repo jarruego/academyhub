@@ -19,4 +19,10 @@ export class UpdateCompanyDTO {
   @IsString()
   @MaxLength(9)
   cif?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  import_id?: string;
 }

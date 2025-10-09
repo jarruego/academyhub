@@ -7,6 +7,7 @@ export const companyTable = pgTable('companies', {
     company_name: varchar({length: 128}).notNull(),
     corporate_name: varchar({length: 256}).notNull(),
     cif: varchar({length: 12}).notNull().unique(),
+    import_id: varchar({length: 128}),
     //...TIMESTAMPS,
 });
 

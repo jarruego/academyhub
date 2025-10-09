@@ -21,4 +21,9 @@ export class FilterCompanyDTO {
   @IsString()
   @MaxLength(9)
   cif?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  import_id?: string;
 }

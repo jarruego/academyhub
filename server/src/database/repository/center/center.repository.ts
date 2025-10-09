@@ -21,6 +21,7 @@ export class CenterRepository extends Repository {
         if (filter.contact_phone) where.push(eq(centerTable.contact_phone, filter.contact_phone));
         if (filter.employer_number) where.push(eq(centerTable.employer_number, filter.employer_number));
         if (filter.id_company) where.push(eq(centerTable.id_company, filter.id_company));
+        if (filter.import_id) where.push(eq(centerTable.import_id, filter.import_id));
 
         return await this.query(options).select().from(centerTable).where(and(...where));
     }

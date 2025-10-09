@@ -38,6 +38,7 @@ export class CompanyRepository extends Repository {
         if (filter.cif) where.push(ilike(companyTable.cif, `%${filter.cif}%`));
         if (filter.company_name) where.push(ilike(companyTable.company_name, `%${filter.company_name}%`));
         if (filter.corporate_name) where.push(ilike(companyTable.corporate_name, `%${filter.corporate_name}%`));
+        if (filter.import_id) where.push(eq(companyTable.import_id, filter.import_id));
 
         return await this.query(options).select().from(companyTable).where(and(...where));
         

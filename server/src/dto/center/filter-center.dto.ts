@@ -36,4 +36,9 @@ export class FilterCenterDTO implements Partial<CenterSelectModel> {
     @IsOptional()
     @MaxLength(128)
     contact_email: string;
+
+    @IsString()
+    @IsOptional()
+    @MaxLength(128)
+    import_id: string;
 }

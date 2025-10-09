@@ -11,6 +11,7 @@ export const centerTable = pgTable('centers', {
     contact_person: varchar({length: 64}),
     contact_phone: varchar({length: 32}),
     contact_email: varchar({length: 128}),
+    import_id: varchar({length: 128}),
     // ...TIMESTAMPS,
 });
 

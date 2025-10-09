@@ -1,5 +1,5 @@
 import { Button, Card, List, Typography } from "antd";
-import { ToolOutlined, DatabaseOutlined } from "@ant-design/icons";
+import { ToolOutlined, DatabaseOutlined, FileTextOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
@@ -22,6 +22,15 @@ const tools = [
     adminOnly: true,
     type: "link" as const,
     linkTo: "/tools/data-cross-reference",
+  },
+  {
+    key: "sage-import",
+    label: "Importación CSV SAGE",
+    description: "Importa datos desde archivos CSV generados por SAGE.",
+    icon: <FileTextOutlined style={{ fontSize: 20 }} />,
+    adminOnly: true,
+    type: "link" as const,
+    linkTo: "/tools/sage-import",
   },
   // Aquí se pueden añadir más herramientas en el futuro
 ];

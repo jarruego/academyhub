@@ -31,4 +31,9 @@ export class UpdateCenterDTO {
   @IsOptional()
   @IsEmail()
   contact_email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  import_id?: string;
 }

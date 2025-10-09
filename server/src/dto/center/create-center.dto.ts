@@ -31,4 +31,9 @@ export class CreateCenterDTO {
   @IsOptional()
   @IsEmail()
   contact_email: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  import_id: string;
 }
