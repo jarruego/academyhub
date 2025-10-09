@@ -14,7 +14,8 @@ import {
   Tooltip,
   Progress,
   Empty,
-  App
+  App,
+  Input
 } from "antd";
 const { TabPane } = Tabs;
 import { 
@@ -25,7 +26,8 @@ import {
   CloseOutlined,
   UserAddOutlined,
   SyncOutlined,
-  DisconnectOutlined
+  DisconnectOutlined,
+  SearchOutlined
 } from "@ant-design/icons";
 import { useUserComparison, UserMatch, UserComparison, LinkedUserPair } from "../../hooks/api/users/tools/use-user-comparison.query";
 import { useLinkUsersMutation } from "../../hooks/api/users/tools/use-link-users.mutation";
@@ -71,6 +73,11 @@ const UserMatchTable: React.FC<UserMatchTableProps> = ({
     {
       title: 'Usuario BD',
       key: 'bdUser',
+      sorter: (a: UserMatch, b: UserMatch) => {
+        const nameA = `${a.bdUser.name} ${a.bdUser.first_surname}`.toLowerCase();
+        const nameB = `${b.bdUser.name} ${b.bdUser.first_surname}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      },
       render: (record: UserMatch) => (
         <div>
           <div><strong>{record.bdUser.name} {record.bdUser.first_surname} {record.bdUser.second_surname}</strong></div>
@@ -82,6 +89,11 @@ const UserMatchTable: React.FC<UserMatchTableProps> = ({
     {
       title: 'Usuario Moodle',
       key: 'moodleUser',
+      sorter: (a: UserMatch, b: UserMatch) => {
+        const nameA = `${a.moodleUser.firstname} ${a.moodleUser.lastname}`.toLowerCase();
+        const nameB = `${b.moodleUser.firstname} ${b.moodleUser.lastname}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      },
       render: (record: UserMatch) => (
         <div>
           <div><strong>{record.moodleUser.firstname} {record.moodleUser.lastname}</strong></div>
@@ -93,6 +105,7 @@ const UserMatchTable: React.FC<UserMatchTableProps> = ({
     {
       title: 'Coincidencia',
       key: 'match',
+      sorter: (a: UserMatch, b: UserMatch) => b.similarity - a.similarity,
       render: (record: UserMatch) => (
         <div>
           <Tag color={getConfidenceColor(record.confidence)}>
@@ -147,7 +160,8 @@ const UserMatchTable: React.FC<UserMatchTableProps> = ({
       dataSource={matches}
       rowKey={(record) => `${record.bdUser.id_user}-${record.moodleUser.id}`}
       loading={loading}
-      pagination={{ pageSize: 10 }}
+      pagination={{ pageSize: 50 }}
+      size="small"
       locale={{
         emptyText: <Empty description="No se encontraron coincidencias" />
       }}
@@ -170,6 +184,11 @@ const LinkedUsersTable: React.FC<LinkedUsersTableProps> = ({
     {
       title: 'Usuario BD',
       key: 'bdUser',
+      sorter: (a: LinkedUserPair, b: LinkedUserPair) => {
+        const nameA = `${a.bdUser.name} ${a.bdUser.first_surname}`.toLowerCase();
+        const nameB = `${b.bdUser.name} ${b.bdUser.first_surname}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      },
       render: (record: LinkedUserPair) => (
         <div>
           <div><strong>{record.bdUser.name} {record.bdUser.first_surname} {record.bdUser.second_surname}</strong></div>
@@ -181,6 +200,11 @@ const LinkedUsersTable: React.FC<LinkedUsersTableProps> = ({
     {
       title: 'Usuario Moodle',
       key: 'moodleUser',
+      sorter: (a: LinkedUserPair, b: LinkedUserPair) => {
+        const nameA = `${a.moodleUser.firstname} ${a.moodleUser.lastname}`.toLowerCase();
+        const nameB = `${b.moodleUser.firstname} ${b.moodleUser.lastname}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      },
       render: (record: LinkedUserPair) => (
         <div>
           <div><strong>{record.moodleUser.firstname} {record.moodleUser.lastname}</strong></div>
@@ -192,6 +216,12 @@ const LinkedUsersTable: React.FC<LinkedUsersTableProps> = ({
     {
       title: 'Fecha vinculación',
       key: 'linkedAt',
+      sorter: (a: LinkedUserPair, b: LinkedUserPair) => {
+        if (!a.linkedAt && !b.linkedAt) return 0;
+        if (!a.linkedAt) return 1;
+        if (!b.linkedAt) return -1;
+        return new Date(b.linkedAt).getTime() - new Date(a.linkedAt).getTime();
+      },
       render: (record: LinkedUserPair) => (
         <div>
           {record.linkedAt ? (
@@ -238,7 +268,8 @@ const LinkedUsersTable: React.FC<LinkedUsersTableProps> = ({
       dataSource={linkedUsers}
       rowKey={(record) => `linked-${record.bdUser.id_user}-${record.moodleUser.id}`}
       loading={loading}
-      pagination={{ pageSize: 10 }}
+      pagination={{ pageSize: 50 }}
+      size="small"
       locale={{
         emptyText: <Empty description="No hay usuarios vinculados" />
       }}
@@ -253,6 +284,83 @@ const DataCrossReference = () => {
   const unlinkUsersMutation = useUnlinkUsersMutation();
   const [selectedMatch, setSelectedMatch] = useState<UserMatch | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  
+  // Estados para los filtros de búsqueda
+  const [exactSearchTerm, setExactSearchTerm] = useState('');
+  const [probableSearchTerm, setProbableSearchTerm] = useState('');
+  const [linkedSearchTerm, setLinkedSearchTerm] = useState('');
+  const [bdSearchTerm, setBdSearchTerm] = useState('');
+  const [moodleSearchTerm, setMoodleSearchTerm] = useState('');
+
+  // Funciones de filtrado
+  const filterUserMatches = (matches: UserMatch[], searchTerm: string) => {
+    if (!searchTerm.trim()) return matches;
+    
+    const term = searchTerm.toLowerCase();
+    return matches.filter(match => {
+      const bdUser = match.bdUser;
+      const moodleUser = match.moodleUser;
+      
+      return (
+        (bdUser.name?.toLowerCase().includes(term)) ||
+        (bdUser.first_surname?.toLowerCase().includes(term)) ||
+        (bdUser.second_surname?.toLowerCase().includes(term)) ||
+        (bdUser.email?.toLowerCase().includes(term)) ||
+        (bdUser.dni?.toLowerCase().includes(term)) ||
+        (moodleUser.firstname?.toLowerCase().includes(term)) ||
+        (moodleUser.lastname?.toLowerCase().includes(term)) ||
+        (moodleUser.email?.toLowerCase().includes(term)) ||
+        (moodleUser.username?.toLowerCase().includes(term))
+      );
+    });
+  };
+
+  const filterLinkedUsers = (linkedUsers: LinkedUserPair[], searchTerm: string) => {
+    if (!searchTerm.trim()) return linkedUsers;
+    
+    const term = searchTerm.toLowerCase();
+    return linkedUsers.filter(pair => {
+      const bdUser = pair.bdUser;
+      const moodleUser = pair.moodleUser;
+      
+      return (
+        (bdUser.name?.toLowerCase().includes(term)) ||
+        (bdUser.first_surname?.toLowerCase().includes(term)) ||
+        (bdUser.second_surname?.toLowerCase().includes(term)) ||
+        (bdUser.email?.toLowerCase().includes(term)) ||
+        (bdUser.dni?.toLowerCase().includes(term)) ||
+        (moodleUser.firstname?.toLowerCase().includes(term)) ||
+        (moodleUser.lastname?.toLowerCase().includes(term)) ||
+        (moodleUser.email?.toLowerCase().includes(term)) ||
+        (moodleUser.username?.toLowerCase().includes(term))
+      );
+    });
+  };
+
+  const filterBdUsers = (users: any[], searchTerm: string) => {
+    if (!searchTerm.trim()) return users;
+    
+    const term = searchTerm.toLowerCase();
+    return users.filter(user => (
+      (user.name?.toLowerCase().includes(term)) ||
+      (user.first_surname?.toLowerCase().includes(term)) ||
+      (user.second_surname?.toLowerCase().includes(term)) ||
+      (user.email?.toLowerCase().includes(term)) ||
+      (user.dni?.toLowerCase().includes(term))
+    ));
+  };
+
+  const filterMoodleUsers = (users: any[], searchTerm: string) => {
+    if (!searchTerm.trim()) return users;
+    
+    const term = searchTerm.toLowerCase();
+    return users.filter(user => (
+      (user.firstname?.toLowerCase().includes(term)) ||
+      (user.lastname?.toLowerCase().includes(term)) ||
+      (user.email?.toLowerCase().includes(term)) ||
+      (user.username?.toLowerCase().includes(term))
+    ));
+  };
 
   const handleLink = async (bdUserId: number, moodleUserId: number) => {
     try {
@@ -387,8 +495,20 @@ const DataCrossReference = () => {
                     showIcon
                   />
                 </div>
+                
+                <div style={{ marginBottom: "16px" }}>
+                  <Input
+                    placeholder="Buscar por nombre, apellido, email, DNI o usuario..."
+                    prefix={<SearchOutlined />}
+                    value={exactSearchTerm}
+                    onChange={(e) => setExactSearchTerm(e.target.value)}
+                    allowClear
+                    style={{ maxWidth: 400 }}
+                  />
+                </div>
+                
                 <UserMatchTable
-                  matches={comparison.exactMatches}
+                  matches={filterUserMatches(comparison.exactMatches, exactSearchTerm)}
                   onLink={handleLink}
                   onEdit={handleEdit}
                   onIgnore={handleIgnore}
@@ -413,8 +533,20 @@ const DataCrossReference = () => {
                     showIcon
                   />
                 </div>
+                
+                <div style={{ marginBottom: "16px" }}>
+                  <Input
+                    placeholder="Buscar por nombre, apellido, email, DNI o usuario..."
+                    prefix={<SearchOutlined />}
+                    value={probableSearchTerm}
+                    onChange={(e) => setProbableSearchTerm(e.target.value)}
+                    allowClear
+                    style={{ maxWidth: 400 }}
+                  />
+                </div>
+                
                 <UserMatchTable
-                  matches={comparison.probableMatches}
+                  matches={filterUserMatches(comparison.probableMatches, probableSearchTerm)}
                   onLink={handleLink}
                   onEdit={handleEdit}
                   onIgnore={handleIgnore}
@@ -439,8 +571,20 @@ const DataCrossReference = () => {
                     showIcon
                   />
                 </div>
+                
+                <div style={{ marginBottom: "16px" }}>
+                  <Input
+                    placeholder="Buscar por nombre, apellido, email, DNI o usuario..."
+                    prefix={<SearchOutlined />}
+                    value={linkedSearchTerm}
+                    onChange={(e) => setLinkedSearchTerm(e.target.value)}
+                    allowClear
+                    style={{ maxWidth: 400 }}
+                  />
+                </div>
+                
                 <LinkedUsersTable
-                  linkedUsers={comparison.linkedUsers}
+                  linkedUsers={filterLinkedUsers(comparison.linkedUsers, linkedSearchTerm)}
                   loading={unlinkUsersMutation.isPending}
                   onUnlinkWithConfirmation={handleUnlinkWithConfirmation}
                 />
@@ -465,20 +609,40 @@ const DataCrossReference = () => {
                 
                 <div style={{ marginBottom: "24px" }}>
                   <Title level={4}>Usuarios solo en BD ({counts.unmatchedBd})</Title>
+                  
+                  <div style={{ marginBottom: "16px" }}>
+                    <Input
+                      placeholder="Buscar usuarios BD por nombre, apellido, email o DNI..."
+                      prefix={<SearchOutlined />}
+                      value={bdSearchTerm}
+                      onChange={(e) => setBdSearchTerm(e.target.value)}
+                      allowClear
+                      style={{ maxWidth: 400 }}
+                    />
+                  </div>
+                  
                   <Table
                     size="small"
                     columns={[
                       {
                         title: 'Nombre',
+                        key: 'name',
+                        sorter: (a: any, b: any) => {
+                          const nameA = `${a.name} ${a.first_surname || ''}`.toLowerCase();
+                          const nameB = `${b.name} ${b.first_surname || ''}`.toLowerCase();
+                          return nameA.localeCompare(nameB);
+                        },
                         render: (record: any) => `${record.name} ${record.first_surname || ''} ${record.second_surname || ''}`,
                       },
                       {
                         title: 'Email',
                         dataIndex: 'email',
+                        sorter: (a: any, b: any) => (a.email || '').localeCompare(b.email || ''),
                       },
                       {
                         title: 'DNI',
                         dataIndex: 'dni',
+                        sorter: (a: any, b: any) => (a.dni || '').localeCompare(b.dni || ''),
                       },
                       {
                         title: 'Acciones',
@@ -493,28 +657,48 @@ const DataCrossReference = () => {
                         ),
                       },
                     ]}
-                    dataSource={comparison.unmatched.bdUsers}
+                    dataSource={filterBdUsers(comparison.unmatched.bdUsers, bdSearchTerm)}
                     rowKey="id_user"
-                    pagination={{ pageSize: 5 }}
+                    pagination={{ pageSize: 50 }}
                   />
                 </div>
 
                 <div>
                   <Title level={4}>Usuarios solo en Moodle ({counts.unmatchedMoodle})</Title>
+                  
+                  <div style={{ marginBottom: "16px" }}>
+                    <Input
+                      placeholder="Buscar usuarios Moodle por nombre, email o usuario..."
+                      prefix={<SearchOutlined />}
+                      value={moodleSearchTerm}
+                      onChange={(e) => setMoodleSearchTerm(e.target.value)}
+                      allowClear
+                      style={{ maxWidth: 400 }}
+                    />
+                  </div>
+                  
                   <Table
                     size="small"
                     columns={[
                       {
                         title: 'Nombre',
+                        key: 'name',
+                        sorter: (a: any, b: any) => {
+                          const nameA = `${a.firstname} ${a.lastname}`.toLowerCase();
+                          const nameB = `${b.firstname} ${b.lastname}`.toLowerCase();
+                          return nameA.localeCompare(nameB);
+                        },
                         render: (record: any) => `${record.firstname} ${record.lastname}`,
                       },
                       {
                         title: 'Email',
                         dataIndex: 'email',
+                        sorter: (a: any, b: any) => (a.email || '').localeCompare(b.email || ''),
                       },
                       {
                         title: 'Username',
                         dataIndex: 'username',
+                        sorter: (a: any, b: any) => (a.username || '').localeCompare(b.username || ''),
                       },
                       {
                         title: 'Acciones',
@@ -529,9 +713,9 @@ const DataCrossReference = () => {
                         ),
                       },
                     ]}
-                    dataSource={comparison.unmatched.moodleUsers}
+                    dataSource={filterMoodleUsers(comparison.unmatched.moodleUsers, moodleSearchTerm)}
                     rowKey="id"
-                    pagination={{ pageSize: 5 }}
+                    pagination={{ pageSize: 50 }}
                   />
                 </div>
               </TabPane>
