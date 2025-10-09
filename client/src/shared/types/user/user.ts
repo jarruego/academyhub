@@ -12,6 +12,7 @@ export type User = {
     phone?: string | null;
     address?: string | null;
     professional_category?: string | null;
+    salary_group?: number | null;
     disability?: boolean | null;
     terrorism_victim?: boolean | null;
     gender_violence_victim?: boolean | null;

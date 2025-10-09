@@ -62,6 +62,11 @@ export class CreateUserDTO {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsInt()
+  salary_group: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsBoolean()
   disability: boolean;
 

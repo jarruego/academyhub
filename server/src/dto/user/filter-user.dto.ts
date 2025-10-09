@@ -52,6 +52,10 @@ export class FilterUserDTO {
   professional_category?: string;
 
   @IsOptional()
+  @IsInt()
+  salary_group?: number;
+
+  @IsOptional()
   @IsBoolean()
   disability?: boolean;
 

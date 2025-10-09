@@ -44,6 +44,7 @@ const USER_FORM_SCHEMA = z.object({
   phone: z.string({ required_error: "El teléfono es obligatorio" }).nullish(),
   address: z.string().nullish(),
   professional_category: z.string().nullish(),
+  salary_group: z.number().int().positive().nullish(),
   disability: z.boolean().nullish().default(false),
   terrorism_victim: z.boolean().nullish().default(false),
   gender_violence_victim: z.boolean().nullish().default(false),
@@ -248,6 +249,16 @@ const navigate = useNavigate();
             </Form.Item>
             <Form.Item label="Categoría Profesional" name="professional_category" style={{ flex: 1 }}>
               <Controller name="professional_category" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />
+            </Form.Item>
+            <Form.Item label="Grupo de Cotización" name="salary_group" style={{ flex: 1 }}>
+              <Controller name="salary_group" control={control} render={({ field }) => (
+                <Input 
+                  type="number" 
+                  {...field} 
+                  value={field.value ?? undefined}
+                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)}
+                />
+              )} />
             </Form.Item>
             <Form.Item label="Nivel Educativo" name="education_level" style={{ flex: 1 }}>
               <Controller name="education_level" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} />} />

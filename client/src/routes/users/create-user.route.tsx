@@ -25,6 +25,7 @@ const CREATE_USER_FORM = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   professional_category: z.string().optional(),
+  salary_group: z.number().int().positive().optional(),
   disability: z.boolean().optional().default(false),
   terrorism_victim: z.boolean().optional().default(false),
   gender_violence_victim: z.boolean().optional().default(false),
@@ -160,6 +161,16 @@ export default function CreateUserRoute() {
         <div style={{ display: 'flex', gap: '16px' }}>
           <Form.Item label="Categoría Profesional" name="professional_category" style={{ flex: 1 }}>
             <Controller name="professional_category" control={control} render={({ field }) => <Input data-testid="professional-category" {...field} />} />
+          </Form.Item>
+          <Form.Item label="Grupo de Cotización" name="salary_group" style={{ flex: 1 }}>
+            <Controller name="salary_group" control={control} render={({ field }) => (
+              <Input 
+                type="number" 
+                data-testid="salary-group" 
+                {...field} 
+                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+              />
+            )} />
           </Form.Item>
           <Form.Item label="Nivel Educativo" name="education_level" style={{ flex: 1 }}>
             <Controller name="education_level" control={control} render={({ field }) => <Input data-testid="education-level" {...field} />} />

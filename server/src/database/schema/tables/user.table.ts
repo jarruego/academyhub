@@ -20,6 +20,7 @@ export const userTable = pgTable("users", {
     document_type: documentType("document_type").default(DocumentType.DNI),
     gender: gender("gender").default('Other'), 
     professional_category: text("professional_category"),
+    salary_group: integer("salary_group"),
     disability: boolean("disability"),
     terrorism_victim: boolean("terrorism_victim"),
     gender_violence_victim: boolean("gender_violence_victim"),
