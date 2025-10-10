@@ -35,10 +35,12 @@ export default function CoursesRoute() {
 
   return <div>
     <Input.Search 
+      id="courses-search"
       placeholder="Buscar cursos" 
       style={{ marginBottom: 16 }} 
       value={searchText}
       onChange={handleSearch}
+      aria-label="Buscar cursos"
     />
     <AuthzHide roles={[Role.ADMIN]}>
     <Button type="primary" onClick={() => navigate('/add-course')} icon={<PlusOutlined />}>Añadir Curso</Button>

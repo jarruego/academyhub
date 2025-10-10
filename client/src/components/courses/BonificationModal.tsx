@@ -44,6 +44,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Select
+              id={`center-select-${user.id_user}`}
               style={{ minWidth: 220 }}
               value={selected}
               placeholder={user.centers?.length ? 'Selecciona centro' : 'Sin centros'}

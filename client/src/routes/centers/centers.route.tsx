@@ -31,10 +31,12 @@ export default function CentersRoute() {
   return (
     <div>
       <Input.Search
+        id="centers-search"
         placeholder="Buscar centros"
         style={{ marginBottom: 16 }}
         value={searchText}
         onChange={handleSearch}
+        aria-label="Buscar centros"
       />
       <Table
         rowKey="id_center"

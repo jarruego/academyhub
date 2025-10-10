@@ -17,7 +17,6 @@ import {
   App,
   Input
 } from "antd";
-const { TabPane } = Tabs;
 import { 
   DatabaseOutlined, 
   LinkOutlined, 
@@ -477,249 +476,272 @@ const DataCrossReference = () => {
               </div>
             </div>
           ) : comparison ? (
-            <Tabs defaultActiveKey="exact" size="large">
-              <TabPane 
-                tab={
-                  <span>
-                    <CheckOutlined />
-                    Coincidencias seguras ({counts.exact})
-                  </span>
-                } 
-                key="exact"
-              >
-                <div style={{ marginBottom: "16px" }}>
-                  <Alert
-                    message="Coincidencias con alta confianza"
-                    description="Usuarios que coinciden por email o tienen una alta similitud en nombres."
-                    type="success"
-                    showIcon
-                  />
-                </div>
-                
-                <div style={{ marginBottom: "16px" }}>
-                  <Input
-                    placeholder="Buscar por nombre, apellido, email, DNI o usuario..."
-                    prefix={<SearchOutlined />}
-                    value={exactSearchTerm}
-                    onChange={(e) => setExactSearchTerm(e.target.value)}
-                    allowClear
-                    style={{ maxWidth: 400 }}
-                  />
-                </div>
-                
-                <UserMatchTable
-                  matches={filterUserMatches(comparison.exactMatches, exactSearchTerm)}
-                  onLink={handleLink}
-                  onEdit={handleEdit}
-                  onIgnore={handleIgnore}
-                  loading={linkUsersMutation.isPending}
-                />
-              </TabPane>
+            <Tabs 
+              defaultActiveKey="exact" 
+              size="large"
+              items={[
+                {
+                  key: "exact",
+                  label: (
+                    <span>
+                      <CheckOutlined />
+                      Coincidencias seguras ({counts.exact})
+                    </span>
+                  ),
+                  children: (
+                    <>
+                      <div style={{ marginBottom: "16px" }}>
+                        <Alert
+                          message="Coincidencias con alta confianza"
+                          description="Usuarios que coinciden por email o tienen una alta similitud en nombres."
+                          type="success"
+                          showIcon
+                        />
+                      </div>
+                      
+                      <div style={{ marginBottom: "16px" }}>
+                        <Input
+                          id="exact-search"
+                          placeholder="Buscar por nombre, apellido, email, DNI o usuario..."
+                          prefix={<SearchOutlined />}
+                          value={exactSearchTerm}
+                          onChange={(e) => setExactSearchTerm(e.target.value)}
+                          allowClear
+                          style={{ maxWidth: 400 }}
+                          aria-label="Buscar coincidencias exactas"
+                        />
+                      </div>
+                      
+                      <UserMatchTable
+                        matches={filterUserMatches(comparison.exactMatches, exactSearchTerm)}
+                        onLink={handleLink}
+                        onEdit={handleEdit}
+                        onIgnore={handleIgnore}
+                        loading={linkUsersMutation.isPending}
+                      />
+                    </>
+                  )
+                },
+                {
+                  key: "probable",
+                  label: (
+                    <span>
+                      <EditOutlined />
+                      Coincidencias dudosas ({counts.probable})
+                    </span>
+                  ),
+                  children: (
+                    <>
+                      <div style={{ marginBottom: "16px" }}>
+                        <Alert
+                          message="Coincidencias que requieren revisión"
+                          description="Usuarios con similitud media en nombres que requieren verificación manual."
+                          type="warning"
+                          showIcon
+                        />
+                      </div>
+                      
+                      <div style={{ marginBottom: "16px" }}>
+                        <Input
+                          id="probable-search"
+                          placeholder="Buscar por nombre, apellido, email, DNI o usuario..."
+                          prefix={<SearchOutlined />}
+                          value={probableSearchTerm}
+                          onChange={(e) => setProbableSearchTerm(e.target.value)}
+                          allowClear
+                          style={{ maxWidth: 400 }}
+                          aria-label="Buscar coincidencias probables"
+                        />
+                      </div>
+                      
+                      <UserMatchTable
+                        matches={filterUserMatches(comparison.probableMatches, probableSearchTerm)}
+                        onLink={handleLink}
+                        onEdit={handleEdit}
+                        onIgnore={handleIgnore}
+                        loading={linkUsersMutation.isPending}
+                      />
+                    </>
+                  )
+                },
+                {
+                  key: "linked",
+                  label: (
+                    <span>
+                      <LinkOutlined />
+                      Usuarios vinculados ({counts.linked})
+                    </span>
+                  ),
+                  children: (
+                    <>
+                      <div style={{ marginBottom: "16px" }}>
+                        <Alert
+                          message="Usuarios ya vinculados"
+                          description="Usuarios de BD que ya tienen asociados usuarios de Moodle. Puedes desvincularlos si es necesario."
+                          type="info"
+                          showIcon
+                        />
+                      </div>
+                      
+                      <div style={{ marginBottom: "16px" }}>
+                        <Input
+                          id="linked-search"
+                          placeholder="Buscar por nombre, apellido, email, DNI o usuario..."
+                          prefix={<SearchOutlined />}
+                          value={linkedSearchTerm}
+                          onChange={(e) => setLinkedSearchTerm(e.target.value)}
+                          allowClear
+                          style={{ maxWidth: 400 }}
+                          aria-label="Buscar usuarios vinculados"
+                        />
+                      </div>
+                      
+                      <LinkedUsersTable
+                        linkedUsers={filterLinkedUsers(comparison.linkedUsers, linkedSearchTerm)}
+                        loading={unlinkUsersMutation.isPending}
+                        onUnlinkWithConfirmation={handleUnlinkWithConfirmation}
+                      />
+                    </>
+                  )
+                },
+                {
+                  key: "unmatched",
+                  label: (
+                    <span>
+                      <CloseOutlined />
+                      Sin coincidencia ({counts.unmatchedBd + counts.unmatchedMoodle})
+                    </span>
+                  ),
+                  children: (
+                    <>
+                      <Alert
+                        message="Usuarios sin coincidencias"
+                        description="Usuarios que no tienen correspondencia entre sistemas."
+                        type="info"
+                        showIcon
+                        style={{ marginBottom: "16px" }}
+                      />
+                      
+                      <div style={{ marginBottom: "24px" }}>
+                        <Title level={4}>Usuarios solo en BD ({counts.unmatchedBd})</Title>
+                        
+                        <div style={{ marginBottom: "16px" }}>
+                          <Input
+                            id="bd-search"
+                            placeholder="Buscar usuarios BD por nombre, apellido, email o DNI..."
+                            prefix={<SearchOutlined />}
+                            value={bdSearchTerm}
+                            onChange={(e) => setBdSearchTerm(e.target.value)}
+                            allowClear
+                            style={{ maxWidth: 400 }}
+                            aria-label="Buscar usuarios solo en BD"
+                          />
+                        </div>
+                        
+                        <Table
+                          size="small"
+                          columns={[
+                            {
+                              title: 'Nombre',
+                              key: 'name',
+                              sorter: (a: any, b: any) => {
+                                const nameA = `${a.name} ${a.first_surname || ''}`.toLowerCase();
+                                const nameB = `${b.name} ${b.first_surname || ''}`.toLowerCase();
+                                return nameA.localeCompare(nameB);
+                              },
+                              render: (record: any) => `${record.name} ${record.first_surname || ''} ${record.second_surname || ''}`,
+                            },
+                            {
+                              title: 'Email',
+                              dataIndex: 'email',
+                              sorter: (a: any, b: any) => (a.email || '').localeCompare(b.email || ''),
+                            },
+                            {
+                              title: 'DNI',
+                              dataIndex: 'dni',
+                              sorter: (a: any, b: any) => (a.dni || '').localeCompare(b.dni || ''),
+                            },
+                            {
+                              title: 'Acciones',
+                              render: () => (
+                                <Button 
+                                  size="small" 
+                                  icon={<UserAddOutlined />}
+                                  onClick={handleCreateNew}
+                                >
+                                  Crear en Moodle
+                                </Button>
+                              ),
+                            },
+                          ]}
+                          dataSource={filterBdUsers(comparison.unmatched.bdUsers, bdSearchTerm)}
+                          rowKey="id_user"
+                          pagination={{ pageSize: 50 }}
+                        />
+                      </div>
 
-              <TabPane 
-                tab={
-                  <span>
-                    <EditOutlined />
-                    Coincidencias dudosas ({counts.probable})
-                  </span>
-                } 
-                key="probable"
-              >
-                <div style={{ marginBottom: "16px" }}>
-                  <Alert
-                    message="Coincidencias que requieren revisión"
-                    description="Usuarios con similitud media en nombres que requieren verificación manual."
-                    type="warning"
-                    showIcon
-                  />
-                </div>
-                
-                <div style={{ marginBottom: "16px" }}>
-                  <Input
-                    placeholder="Buscar por nombre, apellido, email, DNI o usuario..."
-                    prefix={<SearchOutlined />}
-                    value={probableSearchTerm}
-                    onChange={(e) => setProbableSearchTerm(e.target.value)}
-                    allowClear
-                    style={{ maxWidth: 400 }}
-                  />
-                </div>
-                
-                <UserMatchTable
-                  matches={filterUserMatches(comparison.probableMatches, probableSearchTerm)}
-                  onLink={handleLink}
-                  onEdit={handleEdit}
-                  onIgnore={handleIgnore}
-                  loading={linkUsersMutation.isPending}
-                />
-              </TabPane>
-
-              <TabPane 
-                tab={
-                  <span>
-                    <LinkOutlined />
-                    Usuarios vinculados ({counts.linked})
-                  </span>
-                } 
-                key="linked"
-              >
-                <div style={{ marginBottom: "16px" }}>
-                  <Alert
-                    message="Usuarios ya vinculados"
-                    description="Usuarios de BD que ya tienen asociados usuarios de Moodle. Puedes desvincularlos si es necesario."
-                    type="info"
-                    showIcon
-                  />
-                </div>
-                
-                <div style={{ marginBottom: "16px" }}>
-                  <Input
-                    placeholder="Buscar por nombre, apellido, email, DNI o usuario..."
-                    prefix={<SearchOutlined />}
-                    value={linkedSearchTerm}
-                    onChange={(e) => setLinkedSearchTerm(e.target.value)}
-                    allowClear
-                    style={{ maxWidth: 400 }}
-                  />
-                </div>
-                
-                <LinkedUsersTable
-                  linkedUsers={filterLinkedUsers(comparison.linkedUsers, linkedSearchTerm)}
-                  loading={unlinkUsersMutation.isPending}
-                  onUnlinkWithConfirmation={handleUnlinkWithConfirmation}
-                />
-              </TabPane>
-
-              <TabPane 
-                tab={
-                  <span>
-                    <CloseOutlined />
-                    Sin coincidencia ({counts.unmatchedBd + counts.unmatchedMoodle})
-                  </span>
-                } 
-                key="unmatched"
-              >
-                <Alert
-                  message="Usuarios sin coincidencias"
-                  description="Usuarios que no tienen correspondencia entre sistemas."
-                  type="info"
-                  showIcon
-                  style={{ marginBottom: "16px" }}
-                />
-                
-                <div style={{ marginBottom: "24px" }}>
-                  <Title level={4}>Usuarios solo en BD ({counts.unmatchedBd})</Title>
-                  
-                  <div style={{ marginBottom: "16px" }}>
-                    <Input
-                      placeholder="Buscar usuarios BD por nombre, apellido, email o DNI..."
-                      prefix={<SearchOutlined />}
-                      value={bdSearchTerm}
-                      onChange={(e) => setBdSearchTerm(e.target.value)}
-                      allowClear
-                      style={{ maxWidth: 400 }}
-                    />
-                  </div>
-                  
-                  <Table
-                    size="small"
-                    columns={[
-                      {
-                        title: 'Nombre',
-                        key: 'name',
-                        sorter: (a: any, b: any) => {
-                          const nameA = `${a.name} ${a.first_surname || ''}`.toLowerCase();
-                          const nameB = `${b.name} ${b.first_surname || ''}`.toLowerCase();
-                          return nameA.localeCompare(nameB);
-                        },
-                        render: (record: any) => `${record.name} ${record.first_surname || ''} ${record.second_surname || ''}`,
-                      },
-                      {
-                        title: 'Email',
-                        dataIndex: 'email',
-                        sorter: (a: any, b: any) => (a.email || '').localeCompare(b.email || ''),
-                      },
-                      {
-                        title: 'DNI',
-                        dataIndex: 'dni',
-                        sorter: (a: any, b: any) => (a.dni || '').localeCompare(b.dni || ''),
-                      },
-                      {
-                        title: 'Acciones',
-                        render: () => (
-                          <Button 
-                            size="small" 
-                            icon={<UserAddOutlined />}
-                            onClick={handleCreateNew}
-                          >
-                            Crear en Moodle
-                          </Button>
-                        ),
-                      },
-                    ]}
-                    dataSource={filterBdUsers(comparison.unmatched.bdUsers, bdSearchTerm)}
-                    rowKey="id_user"
-                    pagination={{ pageSize: 50 }}
-                  />
-                </div>
-
-                <div>
-                  <Title level={4}>Usuarios solo en Moodle ({counts.unmatchedMoodle})</Title>
-                  
-                  <div style={{ marginBottom: "16px" }}>
-                    <Input
-                      placeholder="Buscar usuarios Moodle por nombre, email o usuario..."
-                      prefix={<SearchOutlined />}
-                      value={moodleSearchTerm}
-                      onChange={(e) => setMoodleSearchTerm(e.target.value)}
-                      allowClear
-                      style={{ maxWidth: 400 }}
-                    />
-                  </div>
-                  
-                  <Table
-                    size="small"
-                    columns={[
-                      {
-                        title: 'Nombre',
-                        key: 'name',
-                        sorter: (a: any, b: any) => {
-                          const nameA = `${a.firstname} ${a.lastname}`.toLowerCase();
-                          const nameB = `${b.firstname} ${b.lastname}`.toLowerCase();
-                          return nameA.localeCompare(nameB);
-                        },
-                        render: (record: any) => `${record.firstname} ${record.lastname}`,
-                      },
-                      {
-                        title: 'Email',
-                        dataIndex: 'email',
-                        sorter: (a: any, b: any) => (a.email || '').localeCompare(b.email || ''),
-                      },
-                      {
-                        title: 'Username',
-                        dataIndex: 'username',
-                        sorter: (a: any, b: any) => (a.username || '').localeCompare(b.username || ''),
-                      },
-                      {
-                        title: 'Acciones',
-                        render: () => (
-                          <Button 
-                            size="small" 
-                            icon={<UserAddOutlined />}
-                            onClick={handleCreateNew}
-                          >
-                            Crear en BD
-                          </Button>
-                        ),
-                      },
-                    ]}
-                    dataSource={filterMoodleUsers(comparison.unmatched.moodleUsers, moodleSearchTerm)}
-                    rowKey="id"
-                    pagination={{ pageSize: 50 }}
-                  />
-                </div>
-              </TabPane>
-            </Tabs>
+                      <div>
+                        <Title level={4}>Usuarios solo en Moodle ({counts.unmatchedMoodle})</Title>
+                        
+                        <div style={{ marginBottom: "16px" }}>
+                          <Input
+                            id="moodle-search"
+                            placeholder="Buscar usuarios Moodle por nombre, email o usuario..."
+                            prefix={<SearchOutlined />}
+                            value={moodleSearchTerm}
+                            onChange={(e) => setMoodleSearchTerm(e.target.value)}
+                            allowClear
+                            style={{ maxWidth: 400 }}
+                            aria-label="Buscar usuarios solo en Moodle"
+                          />
+                        </div>
+                        
+                        <Table
+                          size="small"
+                          columns={[
+                            {
+                              title: 'Nombre',
+                              key: 'name',
+                              sorter: (a: any, b: any) => {
+                                const nameA = `${a.firstname} ${a.lastname}`.toLowerCase();
+                                const nameB = `${b.firstname} ${b.lastname}`.toLowerCase();
+                                return nameA.localeCompare(nameB);
+                              },
+                              render: (record: any) => `${record.firstname} ${record.lastname}`,
+                            },
+                            {
+                              title: 'Email',
+                              dataIndex: 'email',
+                              sorter: (a: any, b: any) => (a.email || '').localeCompare(b.email || ''),
+                            },
+                            {
+                              title: 'Username',
+                              dataIndex: 'username',
+                              sorter: (a: any, b: any) => (a.username || '').localeCompare(b.username || ''),
+                            },
+                            {
+                              title: 'Acciones',
+                              render: () => (
+                                <Button 
+                                  size="small" 
+                                  icon={<UserAddOutlined />}
+                                  onClick={handleCreateNew}
+                                >
+                                  Crear en BD
+                                </Button>
+                              ),
+                            },
+                          ]}
+                          dataSource={filterMoodleUsers(comparison.unmatched.moodleUsers, moodleSearchTerm)}
+                          rowKey="id"
+                          pagination={{ pageSize: 50 }}
+                        />
+                      </div>
+                    </>
+                  )
+                }
+              ]}
+            />
           ) : null}
         </Space>
       </Card>

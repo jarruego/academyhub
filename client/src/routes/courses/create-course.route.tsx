@@ -63,7 +63,7 @@ export default function CreateCourseRoute() {
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item label="ID Moodle" name="moodle_id">
-            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" disabled data-testid="moodle-id" />} />
+            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" disabled data-testid="moodle-id" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -75,7 +75,7 @@ export default function CreateCourseRoute() {
             help={errors.course_name?.message}
             validateStatus={errors.course_name ? "error" : undefined}
           >
-            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" data-testid="course-name" />} />
+            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" />} />
           </Form.Item>
           <Form.Item
             label="Nombre corto"
@@ -85,7 +85,7 @@ export default function CreateCourseRoute() {
             help={errors.short_name?.message}
             validateStatus={errors.short_name ? "error" : undefined}
           >
-            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" data-testid="short-name" />} />
+            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
@@ -159,7 +159,7 @@ export default function CreateCourseRoute() {
             <Controller
               name="hours"
               control={control}
-              render={({ field }) => <Input type="number" min={0} {...field} id="hours" style={{ width: 80 }} />}
+              render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" style={{ width: 80 }} />}
             />
           </Form.Item>
           <Form.Item
@@ -171,7 +171,7 @@ export default function CreateCourseRoute() {
             <Controller
               name="price_per_hour"
               control={control}
-              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" style={{ width: 100 }} />}
+              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" style={{ width: 100 }} />}
             />
           </Form.Item>
           <Form.Item
@@ -183,7 +183,7 @@ export default function CreateCourseRoute() {
             <Controller
               name="fundae_id"
               control={control}
-              render={({ field }) => <Input {...field} id="fundae_id" style={{ width: 120 }} />}
+              render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} />}
             />
           </Form.Item>
           <Form.Item
@@ -199,6 +199,7 @@ export default function CreateCourseRoute() {
               render={({ field }) => (
                 <Checkbox
                   {...field}
+                  id="active"
                   checked={!!field.value}
                 >
                   {""}

@@ -94,6 +94,7 @@ export default function CreateUserRoute() {
               render={({ field }) => (
                 <Select
                   {...field}
+                  id="document_type"
                   value={field.value ?? undefined}
                   disabled
                   placeholder="Auto"
@@ -106,24 +107,24 @@ export default function CreateUserRoute() {
             />
           </Form.Item>
           <Form.Item help={errors.dni?.message} validateStatus={errors.dni ? "error" : undefined} label="DNI" name="dni" style={{ flex: 1 }} required={true}>
-            <Controller name="dni" control={control} render={({ field }) => <Input data-testid="dni" {...field} />} />
+            <Controller name="dni" control={control} render={({ field }) => <Input data-testid="dni" id="dni" autoComplete="off" {...field} />} />
           </Form.Item>
           <Form.Item label="Nombre" name="name" style={{ flex: 2 }} required={true}>
-            <Controller name="name" control={control} render={({ field }) => <Input data-testid="name" {...field} />} />
+            <Controller name="name" control={control} render={({ field }) => <Input data-testid="name" id="name" autoComplete="given-name" {...field} />} />
           </Form.Item>
           <Form.Item label="Apellido 1" name="first_surname" style={{ flex: 2 }} required={true}>
-            <Controller name="first_surname" control={control} render={({ field }) => <Input data-testid="first-surname" {...field} />} />
+            <Controller name="first_surname" control={control} render={({ field }) => <Input data-testid="first-surname" id="first_surname" autoComplete="family-name" {...field} />} />
           </Form.Item>
           <Form.Item label="Apellido 2" name="second_surname" style={{ flex: 2 }}>
-            <Controller name="second_surname" control={control} render={({ field }) => <Input data-testid="second-surname" {...field} />} />
+            <Controller name="second_surname" control={control} render={({ field }) => <Input data-testid="second-surname" id="second_surname" autoComplete="additional-name" {...field} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Form.Item label="Email" name="email" style={{ flex: 1 }} required={true}>
-            <Controller name="email" control={control} render={({ field }) => <Input data-testid="email" {...field} />} />
+            <Controller name="email" control={control} render={({ field }) => <Input data-testid="email" id="email" autoComplete="email" {...field} />} />
           </Form.Item>
           <Form.Item label="Teléfono" name="phone" style={{ flex: 1 }}>
-            <Controller name="phone" control={control} render={({ field }) => <Input data-testid="phone" {...field} />} />
+            <Controller name="phone" control={control} render={({ field }) => <Input data-testid="phone" id="phone" autoComplete="tel" {...field} />} />
           </Form.Item>
           <Form.Item label="Sexo" name="gender" style={{ flex: 1 }}>
             <Controller
@@ -134,6 +135,7 @@ export default function CreateUserRoute() {
                 <Select
                   data-testid="gender"
                   {...field}
+                  id="gender"
                   value={field.value}
                   onChange={field.onChange}
                   placeholder="Seleccione sexo"
@@ -161,6 +163,7 @@ export default function CreateUserRoute() {
               render={({ field }) => (
                 <DatePicker 
                   {...field} 
+                  id="birth_date"
                   value={field.value ? dayjs(field.value) : null}
                   onChange={(date) => field.onChange(date ? date.toDate() : null)}
                   data-testid="birth-date" 
@@ -171,42 +174,44 @@ export default function CreateUserRoute() {
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Form.Item label="Dirección" name="address">
-            <Controller name="address" control={control} render={({ field }) => <Input data-testid="address" {...field} />} />
+            <Controller name="address" control={control} render={({ field }) => <Input data-testid="address" id="address" autoComplete="street-address" {...field} />} />
           </Form.Item>
           <Form.Item label="País" name="country" style={{ flex: 1 }}>
-            <Controller name="country" control={control} render={({ field }) => <Input data-testid="country" {...field} />} />
+            <Controller name="country" control={control} render={({ field }) => <Input data-testid="country" id="country" autoComplete="country-name" {...field} />} />
           </Form.Item>
           <Form.Item label="Provincia" name="province" style={{ flex: 1 }}>
-            <Controller name="province" control={control} render={({ field }) => <Input data-testid="province" {...field} />} />
+            <Controller name="province" control={control} render={({ field }) => <Input data-testid="province" id="province" autoComplete="address-level1" {...field} />} />
           </Form.Item>
           <Form.Item label="Ciudad" name="city" style={{ flex: 1 }}>
-            <Controller name="city" control={control} render={({ field }) => <Input data-testid="city" {...field} />} />
+            <Controller name="city" control={control} render={({ field }) => <Input data-testid="city" id="city" autoComplete="address-level2" {...field} />} />
           </Form.Item>
           <Form.Item label="Código Postal" name="postal_code" style={{ flex: 1 }}>
-            <Controller name="postal_code" control={control} render={({ field }) => <Input data-testid="postal-code" {...field} />} />
+            <Controller name="postal_code" control={control} render={({ field }) => <Input data-testid="postal-code" id="postal_code" autoComplete="postal-code" {...field} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Form.Item label="Categoría Profesional" name="professional_category" style={{ flex: 1 }}>
-            <Controller name="professional_category" control={control} render={({ field }) => <Input data-testid="professional-category" {...field} />} />
+            <Controller name="professional_category" control={control} render={({ field }) => <Input data-testid="professional-category" id="professional_category" autoComplete="organization-title" {...field} />} />
           </Form.Item>
           <Form.Item label="Grupo de Cotización" name="salary_group" style={{ flex: 1 }}>
             <Controller name="salary_group" control={control} render={({ field }) => (
               <Input 
                 type="number" 
                 data-testid="salary-group" 
+                id="salary_group"
+                autoComplete="off" 
                 {...field} 
                 onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
               />
             )} />
           </Form.Item>
           <Form.Item label="Nivel Educativo" name="education_level" style={{ flex: 1 }}>
-            <Controller name="education_level" control={control} render={({ field }) => <Input data-testid="education-level" {...field} />} />
+            <Controller name="education_level" control={control} render={({ field }) => <Input data-testid="education-level" id="education_level" autoComplete="off" {...field} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Form.Item label="NSS (Seguridad Social)" name="nss" style={{ flex: 1 }}>
-            <Controller name="nss" control={control} render={({ field }) => <Input data-testid="nss" {...field} />} />
+            <Controller name="nss" control={control} render={({ field }) => <Input data-testid="nss" id="nss" autoComplete="off" {...field} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -218,6 +223,7 @@ export default function CreateUserRoute() {
                 <Checkbox
                   data-testid="disability"
                   {...field}
+                  id="disability"
                   checked={field.value}
                 >
                   Discapacidad
@@ -233,6 +239,7 @@ export default function CreateUserRoute() {
                 <Checkbox
                   data-testid="terrorism-victim"
                   {...field}
+                  id="terrorism_victim"
                   checked={field.value}
                 >
                   Víctima de Terrorismo
@@ -248,6 +255,7 @@ export default function CreateUserRoute() {
                 <Checkbox
                   data-testid="gender-violence-victim"
                   {...field}
+                  id="gender_violence_victim"
                   checked={field.value}
                 >
                   Víctima de Violencia de Género
@@ -265,6 +273,7 @@ export default function CreateUserRoute() {
                 <Checkbox
                   data-testid="seasonal-worker"
                   {...field}
+                  id="seasonalWorker"
                   checked={field.value}
                 >
                   Trabajador fijo-discontinuo
@@ -280,6 +289,7 @@ export default function CreateUserRoute() {
                 <Checkbox
                   data-testid="erte-law"
                   {...field}
+                  id="erteLaw"
                   checked={field.value}
                 >
                   ERTE RD Ley
@@ -294,6 +304,7 @@ export default function CreateUserRoute() {
               render={({ field }) => (
                 <Checkbox
                   data-testid="accreditation-diploma"
+                  id="accreditationDiploma"
                   checked={field.value === "S"}
                   onChange={e => field.onChange(e.target.checked ? "S" : "N")}
                 >
@@ -304,7 +315,7 @@ export default function CreateUserRoute() {
           </Form.Item>
         </div>
         <Form.Item label="Observaciones" name="observations">
-          <Controller name="observations" control={control} render={({ field }) => <Input.TextArea data-testid="observations" {...field} rows={3} />} />
+          <Controller name="observations" control={control} render={({ field }) => <Input.TextArea data-testid="observations" id="observations" autoComplete="off" {...field} rows={3} />} />
         </Form.Item>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>

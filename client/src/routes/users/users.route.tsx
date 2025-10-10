@@ -34,10 +34,12 @@ export default function UsersRoute() {
 
   return <div>
     <Input.Search 
+      id="users-search"
       placeholder="Buscar usuarios" 
       style={{ marginBottom: 16 }} 
       value={searchText}
       onChange={handleSearch}
+      aria-label="Buscar usuarios"
     />
     <AuthzHide roles={[Role.ADMIN]}><Button onClick={() => navigate('/users/create')} type="primary" icon={<PlusOutlined />}>Añadir Usuario</Button></AuthzHide>
     <Table 

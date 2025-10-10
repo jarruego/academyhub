@@ -87,8 +87,16 @@ export default function EditCenterRoute() {
     <div>
       {contextHolder}
       {companyData && (
-        <Form.Item label="Empresa:" style={{ marginBottom: 0, display: 'flex', gap: 8 }}>
-          <Input value={companyData.corporate_name} disabled style={{ width: 400, flex: 1 }} />
+        <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label htmlFor="company_name_display" style={{ marginRight: 8, fontWeight: 500 }}>
+            Empresa:
+          </label>
+          <Input 
+            id="company_name_display" 
+            value={companyData.corporate_name} 
+            disabled 
+            style={{ width: 400, flex: 1 }} 
+          />
           <Button
             type="link"
             onClick={() => navigate(`/companies/${companyData.id_company}`)}
@@ -96,7 +104,7 @@ export default function EditCenterRoute() {
           >
             Ver
           </Button>
-        </Form.Item>
+        </div>
       )}
       <Form layout="vertical" onFinish={handleSubmit(submit)} style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -104,19 +112,19 @@ export default function EditCenterRoute() {
             help={errors.id_center?.message}
             validateStatus={errors.id_center ? "error" : undefined}
           >
-            <Controller name="id_center" control={control} render={({ field }) => <Input {...field} disabled data-testid="center-id" />} />
+            <Controller name="id_center" control={control} render={({ field }) => <Input id="id_center" {...field} disabled data-testid="center-id" />} />
           </Form.Item>
           <Form.Item label="Nombre del centro" name="center_name"
             help={errors.center_name?.message}
             validateStatus={errors.center_name ? "error" : undefined}
           >
-            <Controller name="center_name" control={control} render={({ field }) => <Input {...field} data-testid="center-name" />} />
+            <Controller name="center_name" control={control} render={({ field }) => <Input id="center_name" autoComplete="organization" {...field} data-testid="center-name" />} />
           </Form.Item>
           <Form.Item label="Número de patronal" name="employer_number"
             help={errors.employer_number?.message}
             validateStatus={errors.employer_number ? "error" : undefined}
           >
-            <Controller name="employer_number" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="employer-number" />} />
+            <Controller name="employer_number" control={control} render={({ field }) => <Input id="employer_number" autoComplete="off" {...field} value={field.value ?? undefined} data-testid="employer-number" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -124,19 +132,19 @@ export default function EditCenterRoute() {
             help={errors.contact_person?.message}
             validateStatus={errors.contact_person ? "error" : undefined}
           >
-            <Controller name="contact_person" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="contact-person" />} />
+            <Controller name="contact_person" control={control} render={({ field }) => <Input id="contact_person" autoComplete="name" {...field} value={field.value ?? undefined} data-testid="contact-person" />} />
           </Form.Item>
           <Form.Item label="Teléfono de contacto" name="contact_phone"
             help={errors.contact_phone?.message}
             validateStatus={errors.contact_phone ? "error" : undefined}
           >
-            <Controller name="contact_phone" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="contact-phone" />} />
+            <Controller name="contact_phone" control={control} render={({ field }) => <Input id="contact_phone" autoComplete="tel" {...field} value={field.value ?? undefined} data-testid="contact-phone" />} />
           </Form.Item>
           <Form.Item label="Email de contacto" name="contact_email"
             help={errors.contact_email?.message}
             validateStatus={errors.contact_email ? "error" : undefined}
           >
-            <Controller name="contact_email" control={control} render={({ field }) => <Input {...field} value={field.value ?? undefined} data-testid="contact-email" />} />
+            <Controller name="contact_email" control={control} render={({ field }) => <Input id="contact_email" autoComplete="email" {...field} value={field.value ?? undefined} data-testid="contact-email" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>

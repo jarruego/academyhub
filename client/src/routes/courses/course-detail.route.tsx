@@ -278,10 +278,10 @@ export default function CourseDetailRoute() {
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item label="ID" name="id_course">
-            <Controller name="id_course" control={control} render={({ field }) => <Input {...field} id="id_course" disabled />} />
+            <Controller name="id_course" control={control} render={({ field }) => <Input {...field} id="id_course" autoComplete="off" disabled />} />
           </Form.Item>
           <Form.Item label="ID Moodle" name="moodle_id">
-            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" disabled value={field.value ?? undefined} />} />
+            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" disabled value={field.value ?? undefined} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -293,7 +293,7 @@ export default function CourseDetailRoute() {
             help={errors.course_name?.message}
             validateStatus={errors.course_name ? "error" : undefined}
           >
-            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" data-testid="course-name" />} />
+            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" />} />
           </Form.Item>
           <Form.Item
             label="Nombre corto"
@@ -303,7 +303,7 @@ export default function CourseDetailRoute() {
             help={errors.short_name?.message}
             validateStatus={errors.short_name ? "error" : undefined}
           >
-            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" data-testid="short-name" />} />
+            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
@@ -375,7 +375,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="hours"
               control={control}
-              render={({ field }) => <Input type="number" min={0} {...field} id="hours" style={{ width: 80 }} value={field.value ?? undefined} />}
+              render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" style={{ width: 80 }} value={field.value ?? undefined} />}
             />
           </Form.Item>
           <Form.Item
@@ -387,7 +387,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="price_per_hour"
               control={control}
-              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" style={{ width: 100 }} value={field.value ?? undefined} />}
+              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" style={{ width: 100 }} value={field.value ?? undefined} />}
             />
           </Form.Item>
           <Form.Item
@@ -399,7 +399,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="fundae_id"
               control={control}
-              render={({ field }) => <Input {...field} id="fundae_id" style={{ width: 120 }} value={field.value ?? undefined} />}
+              render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} value={field.value ?? undefined} />}
             />
           </Form.Item>
           <Form.Item
@@ -415,6 +415,7 @@ export default function CourseDetailRoute() {
               render={({ field }) => (
                 <Checkbox
                   {...field}
+                  id="active"
                   checked={!!field.value}
                 >
                   {""}
@@ -447,6 +448,7 @@ export default function CourseDetailRoute() {
                 onChange: (selectedRowKeys) => setSelectedRowKeys(selectedRowKeys as number[]),
                 renderCell: () => null,
               }}
+              id="groups-table"
               onRow={(record) => ({
                 onClick: () => handleRowClick(record),
                 onDoubleClick: () => navigate(`/groups/${record.id_group}/edit`),
@@ -497,8 +499,27 @@ export default function CourseDetailRoute() {
                 type: 'checkbox',
                 selectedRowKeys: selectedUserIds,
                 onChange: handleUserSelectionChange,
+                getCheckboxProps: (record) => ({
+                  id: `user-checkbox-${record.id_user}`,
+                  name: `user-checkbox-${record.id_user}`,
+                }),
+                columnTitle: (
+                  <Checkbox
+                    id="select-all-users"
+                    indeterminate={selectedUserIds.length > 0 && selectedUserIds.length < (usersData?.length || 0)}
+                    checked={selectedUserIds.length === (usersData?.length || 0) && usersData && usersData.length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        handleUserSelectionChange(usersData?.map(user => user.id_user) || []);
+                      } else {
+                        handleUserSelectionChange([]);
+                      }
+                    }}
+                  />
+                ),
               }}
               size="small"
+              id="users-group-table"
               onRow={(record) => ({
                 onDoubleClick: () => {
                   setUserToLookup(record.id_user);

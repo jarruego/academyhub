@@ -38,7 +38,6 @@ const { Sider, Content } = Layout;
 const Sidebar = () => {
   const { logout } = useAuthInfo();
   const role = useRole();
-  console.log('ROL ACTUAL:', role);
 
   const menuItems = [
     { key: '/', icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
