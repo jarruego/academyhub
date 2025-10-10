@@ -95,7 +95,19 @@ export default function CreateCourseRoute() {
             help={errors.start_date?.message}
             validateStatus={errors.start_date ? "error" : undefined}
           >
-            <Controller name="start_date" control={control} render={({ field }) => <DatePicker {...field} id="start_date" data-testid="start-date" />} />
+            <Controller 
+              name="start_date" 
+              control={control} 
+              render={({ field }) => (
+                <DatePicker 
+                  {...field} 
+                  value={field.value ? dayjs(field.value) : null}
+                  onChange={(date) => field.onChange(date ? date.toDate() : null)}
+                  id="start_date" 
+                  data-testid="start-date" 
+                />
+              )}
+            />
           </Form.Item>
           <Form.Item
             label="Fecha Fin"
@@ -103,7 +115,19 @@ export default function CreateCourseRoute() {
             help={errors.end_date?.message}
             validateStatus={errors.end_date ? "error" : undefined}
           >
-            <Controller name="end_date" control={control} render={({ field }) => <DatePicker {...field} id="end_date" data-testid="end-date" />} />
+            <Controller 
+              name="end_date" 
+              control={control} 
+              render={({ field }) => (
+                <DatePicker 
+                  {...field} 
+                  value={field.value ? dayjs(field.value) : null}
+                  onChange={(date) => field.onChange(date ? date.toDate() : null)}
+                  id="end_date" 
+                  data-testid="end-date" 
+                />
+              )}
+            />
           </Form.Item>
           <Form.Item
             label="Modalidad"
