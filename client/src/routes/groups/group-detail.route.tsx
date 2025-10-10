@@ -111,7 +111,7 @@ export default function EditGroupRoute() {
               help={errors.id_group?.message}
               validateStatus={errors.id_group ? "error" : undefined}
             >
-              <Controller name="id_group" control={control} render={({ field }) => <Input {...field} disabled />} />
+              <Controller name="id_group" control={control} render={({ field }) => <Input id="id_group" {...field} disabled />} />
             </Form.Item>
             <Form.Item label="ID FUNDAE" name="fundae_id"
               help={errors.fundae_id?.message}
@@ -120,14 +120,14 @@ export default function EditGroupRoute() {
               <Controller
                 name="fundae_id"
                 control={control}
-                render={({ field }) => <Input {...field} value={field.value ?? ""} />}
+                render={({ field }) => <Input id="fundae_id" autoComplete="off" {...field} value={field.value ?? ""} />}
               />
             </Form.Item>
             <Form.Item label="Nombre del grupo" name="group_name"
               help={errors.group_name?.message}
               validateStatus={errors.group_name ? "error" : undefined}
             >
-              <Controller name="group_name" control={control} render={({ field }) => <Input {...field} data-testid="group-name" />} />
+              <Controller name="group_name" control={control} render={({ field }) => <Input id="group_name" autoComplete="off" {...field} data-testid="group-name" />} />
             </Form.Item>
             <Form.Item label="Fecha Inicio" name="start_date"
               help={errors.start_date?.message}
@@ -168,7 +168,7 @@ export default function EditGroupRoute() {
             help={errors.description?.message}
             validateStatus={errors.description ? "error" : undefined}
           >
-            <Controller name="description" control={control} render={({ field }) => <Input {...field} value={field.value ?? ""} data-testid="group-description" />} />
+            <Controller name="description" control={control} render={({ field }) => <Input id="description" autoComplete="off" {...field} value={field.value ?? ""} data-testid="group-description" />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>

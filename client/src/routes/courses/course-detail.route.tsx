@@ -503,20 +503,6 @@ export default function CourseDetailRoute() {
                   id: `user-checkbox-${record.id_user}`,
                   name: `user-checkbox-${record.id_user}`,
                 }),
-                columnTitle: (
-                  <Checkbox
-                    id="select-all-users"
-                    indeterminate={selectedUserIds.length > 0 && selectedUserIds.length < (usersData?.length || 0)}
-                    checked={selectedUserIds.length === (usersData?.length || 0) && usersData && usersData.length > 0}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        handleUserSelectionChange(usersData?.map(user => user.id_user) || []);
-                      } else {
-                        handleUserSelectionChange([]);
-                      }
-                    }}
-                  />
-                ),
               }}
               size="small"
               id="users-group-table"

@@ -73,10 +73,12 @@ export default function CreateUserGroupRoute() {
     <div>
       <h2>Todos los Usuarios</h2>
       <Input
+        id="user-search"
         placeholder="Buscar usuarios"
         value={searchTerm}
         onChange={e => setSearchTerm(e.target.value)}
         style={{ marginBottom: 16 }}
+        aria-label="Buscar usuarios"
       />
       <AuthzHide roles={[Role.ADMIN]}>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleSaveUsers}>
@@ -84,6 +86,7 @@ export default function CreateUserGroupRoute() {
         </Button>
       </AuthzHide>
       <Table
+        id="all-users-table"
         rowKey="id_user"
         columns={[
           { title: 'ID', dataIndex: 'id_user' },
@@ -93,7 +96,13 @@ export default function CreateUserGroupRoute() {
         ]}
         dataSource={filteredUsersData}
         loading={isUsersLoading}
-        rowSelection={rowSelection}
+        rowSelection={{
+          ...rowSelection,
+          getCheckboxProps: (record) => ({
+            id: `add-user-checkbox-${record.id_user}`,
+            name: `add-user-checkbox-${record.id_user}`,
+          }),
+        }}
         onRow={(record) => ({
           onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
           style: { cursor: 'pointer' }
@@ -106,6 +115,7 @@ export default function CreateUserGroupRoute() {
         </Button>
       </AuthzHide>
       <Table
+        id="group-users-table"
         rowKey="id_user"
         columns={[
           { title: 'ID', dataIndex: 'id_user' },
@@ -115,7 +125,13 @@ export default function CreateUserGroupRoute() {
         ]}
         dataSource={groupUsersData}
         loading={isGroupUsersLoading}
-        rowSelection={groupUserRowSelection}
+        rowSelection={{
+          ...groupUserRowSelection,
+          getCheckboxProps: (record) => ({
+            id: `remove-user-checkbox-${record.id_user}`,
+            name: `remove-user-checkbox-${record.id_user}`,
+          }),
+        }}
         onRow={(record) => ({
           onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
           style: { cursor: 'pointer' }

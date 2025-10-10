@@ -92,6 +92,7 @@ export default function ImportUsersToGroupRoute() {
         <Button icon={<UploadOutlined />}>Seleccionar Archivo</Button>
       </Upload>
       <Table
+        id="import-users-table"
         rowKey="DNI" //TODO: Cambiar por el identificador único
         sortDirections={['ascend', 'descend']}
         columns={[
@@ -107,7 +108,13 @@ export default function ImportUsersToGroupRoute() {
           { title: "Apellido 2 BD", dataIndex: ["dbUser", "second_surname"], render: (text) => text || '-' },
         ]}
         dataSource={users}
-        rowSelection={rowSelection}
+        rowSelection={{
+          ...rowSelection,
+          getCheckboxProps: (record) => ({
+            id: `user-checkbox-${record.DNI}`,
+            name: `user-checkbox-${record.DNI}`,
+          }),
+        }}
         rowClassName={(record) => record.existsInDB ? '' : 'ant-table-placeholder'}
         style={{ marginTop: "16px" }}
       />

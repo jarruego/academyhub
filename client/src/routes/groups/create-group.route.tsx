@@ -63,7 +63,7 @@ export default function CreateGroupRoute() {
           help={errors.id_course?.message}
           validateStatus={errors.id_course ? "error" : undefined}
         >
-          <Controller name="id_course" control={control} render={({ field }) => <Input {...field} value={id_course} disabled />} />
+          <Controller name="id_course" control={control} render={({ field }) => <Input id="id_course" {...field} value={id_course} disabled />} />
         </Form.Item>
         <Form.Item
           label="Nombre del grupo"
@@ -71,7 +71,7 @@ export default function CreateGroupRoute() {
           help={errors.group_name?.message}
           validateStatus={errors.group_name ? "error" : undefined}
         >
-          <Controller name="group_name" control={control} render={({ field }) => <Input {...field} data-testid="group-name" />} />
+          <Controller name="group_name" control={control} render={({ field }) => <Input id="group_name" autoComplete="off" {...field} data-testid="group-name" />} />
         </Form.Item>
         <Form.Item
           label="Descripción"
@@ -79,7 +79,7 @@ export default function CreateGroupRoute() {
           help={errors.description?.message}
           validateStatus={errors.description ? "error" : undefined}
         >
-          <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
+          <Controller name="description" control={control} render={({ field }) => <Input id="description" autoComplete="off" {...field} />} />
         </Form.Item>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
           <Form.Item
@@ -126,7 +126,7 @@ export default function CreateGroupRoute() {
             help={errors.fundae_id?.message}
             validateStatus={errors.fundae_id ? "error" : undefined}
           >
-            <Controller name="fundae_id" control={control} render={({ field }) => <Input {...field} />} />
+            <Controller name="fundae_id" control={control} render={({ field }) => <Input id="fundae_id" autoComplete="off" {...field} />} />
           </Form.Item>
         </div>
         <Form.Item>
