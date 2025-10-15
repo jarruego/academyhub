@@ -207,8 +207,8 @@ export const ProcessedDecisionsComponent: React.FC = () => {
     };
 
     const canRevertDecision = (decision: ProcessedDecision) => {
-        // Solo permitir revertir decisiones de tipo "skip"
-        return decision.decisionAction === 'skip';
+        // Permitir revertir decisiones de tipo "skip" y "link"
+        return decision.decisionAction === 'skip' || decision.decisionAction === 'link';
     };
 
     const columns = [
@@ -315,7 +315,9 @@ export const ProcessedDecisionsComponent: React.FC = () => {
         return true;
     });
 
-    const skippedCount = processedDecisions?.filter((d: ProcessedDecision) => d.decisionAction === 'skip').length || 0;
+    const revertibleCount = processedDecisions?.filter((d: ProcessedDecision) => 
+        d.decisionAction === 'skip' || d.decisionAction === 'link'
+    ).length || 0;
 
     return (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -336,11 +338,11 @@ export const ProcessedDecisionsComponent: React.FC = () => {
                         <Button onClick={() => refetch()}>Refrescar</Button>
                     </Space>
                 </div>
-                {skippedCount > 0 && (
+                {revertibleCount > 0 && (
                     <Alert
                         style={{ marginTop: 16 }}
-                        message={`${skippedCount} decisiones omitidas pueden ser revertidas`}
-                        description="Las decisiones omitidas pueden ser devueltas a la lista de pendientes haciendo clic en el botón de revertir."
+                        message={`${revertibleCount} decisiones pueden ser revertidas`}
+                        description="Las decisiones omitidas y vinculadas pueden ser devueltas a la lista de pendientes haciendo clic en el botón de revertir."
                         type="info"
                         showIcon
                     />

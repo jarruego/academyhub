@@ -1625,7 +1625,7 @@ export class ImportService {
     }
 
     /**
-     * Ejecuta el enlace con un usuario existente
+     * Ejecuta el enlace con un usuario existente procesando todos los datos del CSV
      */
     private async executeLinkUser(decision: any, selectedUserId?: number): Promise<void> {
         try {
@@ -1635,16 +1635,19 @@ export class ImportService {
                 throw new Error('No se proporcionó ID de usuario para vincular');
             }
 
-            // Recrear ProcessedUserData para obtener datos de empresa/centro
-            const userData: ProcessedUserData = this.normalizeCSVRow(decision.csvRowData, decision.id);
+            // Recrear ProcessedUserData para obtener TODOS los datos del CSV
+            const userData: ProcessedUserData = this.normalizeCSVRow(decision.csv_row_data, decision.id);
             
             this.logger.log(`🔗 Vinculando usuario ${userId} con datos del CSV`);
             this.logger.log(`🏢 Procesando empresa y centro para vinculación:`, {
                 company_name: userData.company_name,
-                center_name: userData.center_name
+                center_name: userData.center_name,
+                start_date: userData.start_date,
+                end_date: userData.end_date,
+                additional_data: userData
             });
             
-            // Obtener datos del usuario existente
+            // Verificar que el usuario existe
             const [existingUser] = await this.databaseService.db
                 .select()
                 .from(users)
@@ -1655,24 +1658,22 @@ export class ImportService {
                 throw new Error(`Usuario con ID ${userId} no encontrado`);
             }
 
-            // Configurar userData para que coincida con el usuario existente
-            // Esto garantiza que processUserRecord lo encuentre y no cree uno nuevo
-            userData.dni = existingUser.dni;
-            userData.name = existingUser.name;
-            userData.first_surname = existingUser.first_surname;
-            userData.second_surname = existingUser.second_surname;
-            
-            // Usar processUserRecord existente que maneja todo el flujo completo
-            const result = await this.processUserRecord(userData);
+            // Usar linkUserToCSVData que procesa todos los datos del CSV sin sobrescribir datos del usuario
+            const result = await this.linkUserToCSVData(userId, userData);
             
             if (result.success) {
-                this.logger.log(`✅ Usuario ${userId} vinculado exitosamente usando processUserRecord:`, {
+                this.logger.log(`✅ Usuario ${userId} vinculado exitosamente con datos del CSV procesados:`, {
                     action: result.action,
                     company_id: result.company_id,
-                    center_id: result.center_id
+                    center_id: result.center_id,
+                    user_data_preserved: {
+                        dni: existingUser.dni,
+                        name: existingUser.name,
+                        surnames: `${existingUser.first_surname} ${existingUser.second_surname}`
+                    }
                 });
             } else {
-                throw new Error(result.error_message || 'Error en processUserRecord para vinculación');
+                throw new Error(result.error_message || 'Error vinculando usuario con datos CSV');
             }
             
         } catch (error) {
@@ -1682,18 +1683,30 @@ export class ImportService {
     }
 
     /**
-     * Vincula un usuario existente con datos del CSV (empresa/centro)
+     * Vincula un usuario existente con datos del CSV (empresa/centro/fechas)
      */
     private async linkUserToCSVData(userId: number, data: ProcessedUserData): Promise<ProcessingResult> {
         try {
+            this.logger.log(`🔗 Procesando vinculación de usuario ${userId} con datos del CSV:`, {
+                company: data.company_name,
+                center: data.center_name,
+                start_date: data.start_date?.toISOString().split('T')[0],
+                end_date: data.end_date?.toISOString().split('T')[0],
+                import_id: data.import_id,
+                nss: data.nss
+            });
+
             // 1. Buscar o crear empresa (reutilizar lógica existente)
             const company = await this.findOrCreateCompany(data);
+            this.logger.log(`🏢 Empresa procesada: ${company.company_name} (ID: ${company.id_company})`);
             
             // 2. Buscar o crear centro (reutilizar lógica existente)
             const center = await this.findOrCreateCenter(data, company.id_company);
+            this.logger.log(`🏬 Centro procesado: ${center.center_name} (ID: ${center.id_center})`);
             
-            // 3. Crear/actualizar relación usuario-centro (reutilizar lógica existente)
+            // 3. Crear/actualizar relación usuario-centro con fechas del CSV (reutilizar lógica existente)
             await this.processUserCenterRelation(userId, center.id_center, data);
+            this.logger.log(`📅 Relación usuario-centro procesada con fechas del CSV`);
 
             // 4. Verificar centro principal (reutilizar lógica existente)
             await this.ensureMainCenter(userId);
@@ -1914,9 +1927,9 @@ export class ImportService {
                 throw new Error('La decisión no está procesada');
             }
 
-            // Solo permitir revertir decisiones de tipo "skip"
-            if (decisionRecord.decision_action !== 'skip') {
-                throw new Error('Solo se pueden revertir decisiones omitidas (skip)');
+            // Solo permitir revertir decisiones de tipo "skip" y "link"
+            if (decisionRecord.decision_action !== 'skip' && decisionRecord.decision_action !== 'link') {
+                throw new Error('Solo se pueden revertir decisiones omitidas (skip) o vinculadas (link)');
             }
 
             // Revertir la decisión
