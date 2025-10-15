@@ -6,6 +6,7 @@ import { MoodleService } from '../moodle/moodle.service';
 import { FilterUserDTO } from 'src/dto/user/filter-user.dto';
 import { RoleGuard } from 'src/guards/role.guard';
 import { Role } from 'src/guards/role.enum';
+import { PaginatedUsersResult, UserWithCenters } from 'src/types/user/paginated-users.interface';
 
 @Controller('user')
 export class UserController {
@@ -34,7 +35,17 @@ export class UserController {
   }
 
   @Get()
-  async findAll(@Query() filter: FilterUserDTO) {
+  async findAll(@Query() filter: FilterUserDTO): Promise<PaginatedUsersResult | UserWithCenters[]> {
+    // Si hay parámetros de paginación, usar el método paginado
+    if (filter.page !== undefined || filter.limit !== undefined || filter.search) {
+      return this.userService.findAllPaginated(filter);
+    }
+    // Método legacy para compatibilidad
+    return this.userService.findAll(filter);
+  }
+
+  @Get('all')
+  async findAllWithoutPagination(@Query() filter: FilterUserDTO) {
     return this.userService.findAll(filter);
   }
 

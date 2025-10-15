@@ -45,8 +45,10 @@ const Sidebar = () => {
     { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
     { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
     { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers">Centros</Link> },
-    ...(role?.toLowerCase() === Role.ADMIN
-      ? [{ key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> }]
+    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER
+      ? [
+          { key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> }
+        ]
       : []),
   ];
 

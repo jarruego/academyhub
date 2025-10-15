@@ -68,6 +68,18 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
           { title: "Nombre", dataIndex: "center_name", key: "center_name" },
           { title: "Nº Patronal", dataIndex: "employer_number", key: "employer_number" },
           { title: "Empresa", dataIndex: "company_name", key: "company_name" },
+          { 
+            title: "Fecha de alta", 
+            dataIndex: "start_date", 
+            key: "start_date",
+            render: (date: string | Date | null) => date ? new Date(date).toLocaleDateString('es-ES') : '-'
+          },
+          { 
+            title: "Fecha de baja", 
+            dataIndex: "end_date", 
+            key: "end_date",
+            render: (date: string | Date | null) => date ? new Date(date).toLocaleDateString('es-ES') : '-'
+          },
           {
             title: "",
             key: "actions",

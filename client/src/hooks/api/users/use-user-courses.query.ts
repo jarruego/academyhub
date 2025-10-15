@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuthenticatedAxios } from "../../../utils/api/use-authenticated-axios.util";
 import { getApiHost } from "../../../utils/api/get-api-host.util";
-import { UserCourseWithCourse } from "../../../shared/types/user-course.types";
+import { UserCourseWithCourse } from "../../../shared/types/user-course/user-course.types";
 
 export const useUserCoursesQuery = (userId: number) => {
   const request = useAuthenticatedAxios();

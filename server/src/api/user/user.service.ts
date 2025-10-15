@@ -6,13 +6,17 @@ import { GroupRepository } from "src/database/repository/group/group.repository"
 import { GroupService } from "../group/group.service";
 import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
 import { UserInsertModel, UserSelectModel, UserUpdateModel } from "src/database/schema/tables/user.table";
+import { UserCenterSelectModel } from "src/database/schema/tables/user_center.table";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { CenterRepository } from "src/database/repository/center/center.repository";
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
-import { eq } from "drizzle-orm";
+import { eq, ilike, or, sql, and, count } from "drizzle-orm";
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
+import { users } from "src/database/schema";
+import { FilterUserDTO } from "src/dto/user/filter-user.dto";
+import { PaginatedUsersResult, UserWithCenters } from "src/types/user/paginated-users.interface";
 
 @Injectable()
 export class UserService {
@@ -46,13 +50,13 @@ export class UserService {
     });
   }
 
-  async findAll(userSelectModel: UserSelectModel, options?: QueryOptions) {
+  async findAll(userSelectModel: UserSelectModel, options?: QueryOptions): Promise<UserWithCenters[]> {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       // Obtener todos los usuarios
       const users = await this.userRepository.findAll(userSelectModel, { transaction });
       // Para cada usuario, obtener todos sus centros y el main_center
       const usersWithCenters = await Promise.all(
-        users.map(async (user: any) => {
+        users.map(async (user: UserSelectModel) => {
           const userCenters = await transaction
             .select()
             .from(userCenterTable)
@@ -60,7 +64,7 @@ export class UserService {
 
           // Array de centros completos
           const centers = await Promise.all(
-            userCenters.map(async (uc: any) => {
+            userCenters.map(async (uc: UserCenterSelectModel) => {
               const center = await this.centerRepository.findById(uc.id_center, { transaction });
               if (!center) return null;
               const company = await this.companyRepository.findOne(center.id_company, { transaction });
@@ -74,7 +78,7 @@ export class UserService {
             })
           );
           // main_center para compatibilidad
-          const mainUserCenter = centers.find((c: any) => c && c.is_main_center === true) || null;
+          const mainUserCenter = centers.find(c => c && c.is_main_center === true) || null;
           return {
             ...user,
             centers: centers.filter(Boolean),
@@ -83,6 +87,124 @@ export class UserService {
         })
       );
       return usersWithCenters;
+    });
+  }
+
+  async findAllPaginated(filter: FilterUserDTO, options?: QueryOptions): Promise<PaginatedUsersResult> {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const page = filter.page || 1;
+      const limit = filter.limit || 100;
+      const offset = (page - 1) * limit;
+
+      // Construir condiciones de filtrado
+      const conditions = [];
+      
+      if (filter.search) {
+        // Normalizar el término de búsqueda: eliminar espacios extras
+        const normalizedSearch = filter.search.trim().replace(/\s+/g, ' ');
+        const searchTerm = `%${normalizedSearch}%`;
+        
+        // Crear condiciones para buscar con espacios normalizados
+        const searchWords = normalizedSearch.split(' ').filter(word => word.length > 0);
+        
+        if (searchWords.length === 1) {
+          // Búsqueda simple con un término
+          conditions.push(
+            or(
+              ilike(users.name, searchTerm),
+              ilike(users.first_surname, searchTerm),
+              ilike(users.second_surname, searchTerm),
+              ilike(users.email, searchTerm),
+              ilike(users.dni, searchTerm)
+            )
+          );
+        } else {
+          // Búsqueda con múltiples palabras - permite encontrar "Juan Pérez" aunque se busque "juan perez"
+          const multiWordConditions = [];
+          
+          // Buscar cada palabra individualmente en cualquier campo
+          searchWords.forEach(word => {
+            const wordTerm = `%${word}%`;
+            multiWordConditions.push(
+              or(
+                ilike(users.name, wordTerm),
+                ilike(users.first_surname, wordTerm),
+                ilike(users.second_surname, wordTerm),
+                ilike(users.email, wordTerm),
+                ilike(users.dni, wordTerm)
+              )
+            );
+          });
+          
+          // Todas las palabras deben encontrarse (AND)
+          conditions.push(and(...multiWordConditions));
+        }
+      }
+
+      // Agregar otros filtros específicos si existen
+      if (filter.dni) conditions.push(ilike(users.dni, `%${filter.dni}%`));
+      if (filter.name) conditions.push(ilike(users.name, `%${filter.name}%`));
+      if (filter.first_surname) conditions.push(ilike(users.first_surname, `%${filter.first_surname}%`));
+      if (filter.email) conditions.push(ilike(users.email, `%${filter.email}%`));
+
+      const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+      // Contar total de registros
+      const totalResult = await transaction
+        .select({ count: count() })
+        .from(users)
+        .where(whereCondition);
+      
+      const total = totalResult[0]?.count || 0;
+
+      // Obtener usuarios paginados
+      const usersList = await transaction
+        .select()
+        .from(users)
+        .where(whereCondition)
+        .orderBy(users.id_user)
+        .limit(limit)
+        .offset(offset);
+
+      // Para cada usuario, obtener todos sus centros
+      const usersWithCenters = await Promise.all(
+        usersList.map(async (user: UserSelectModel) => {
+          const userCenters = await transaction
+            .select()
+            .from(userCenterTable)
+            .where(eq(userCenterTable.id_user, user.id_user));
+
+          const centers = await Promise.all(
+            userCenters.map(async (uc: UserCenterSelectModel) => {
+              const center = await this.centerRepository.findById(uc.id_center, { transaction });
+              if (!center) return null;
+              const company = await this.companyRepository.findOne(center.id_company, { transaction });
+              return {
+                ...center,
+                company_name: company?.company_name || null,
+                is_main_center: uc.is_main_center,
+                start_date: uc.start_date,
+                end_date: uc.end_date
+              };
+            })
+          );
+
+          const mainUserCenter = centers.find(c => c && c.is_main_center === true) || null;
+          return {
+            ...user,
+            centers: centers.filter(Boolean),
+            main_center: mainUserCenter
+          };
+        })
+      );
+
+      return {
+        data: usersWithCenters,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      };
     });
   }
 
@@ -127,7 +249,7 @@ export class UserService {
       if (!userCenters.length) return [];
       // For each user_center, get the center and add is_main_center and dates
       const centers = await Promise.all(
-        userCenters.map(async (uc: any) => {
+        userCenters.map(async (uc: UserCenterSelectModel) => {
           const center = await this.centerRepository.findById(uc.id_center, { transaction });
           if (!center) return null;
           // Get the company name

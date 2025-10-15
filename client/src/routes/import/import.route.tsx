@@ -11,11 +11,11 @@ import {
     PendingDecisionsComponent,
     ProcessedDecisionsComponent,
     ImportJobsHistoryComponent
-} from '../import';
+} from '../../components/import';
 
 const { Title } = Typography;
 
-const SageImport: React.FC = () => {
+export const ImportPage: React.FC = () => {
     const tabItems = [
         {
             key: 'upload',
@@ -64,7 +64,8 @@ const SageImport: React.FC = () => {
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <Card>
                     <Title level={2}>
-                        Importación CSV SAGE
+                        <UploadOutlined style={{ marginRight: 8 }} />
+                        Gestión de Importaciones
                     </Title>
                     <p style={{ color: '#666', marginBottom: 0 }}>
                         Importa usuarios, empresas y centros de trabajo desde archivos CSV de SAGE.
@@ -83,5 +84,3 @@ const SageImport: React.FC = () => {
         </div>
     );
 };
-
-export default SageImport;

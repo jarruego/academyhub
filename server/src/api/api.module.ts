@@ -6,8 +6,9 @@ import { GroupModule } from "src/api/group/group.module";
 import { UserModule } from "src/api/user/user.module";
 import { MoodleModule } from './moodle/moodle.module';
 import { MoodleUserModule } from './moodle-user/moodle-user.module';
+import { ImportModule } from './import/import.module';
 
 @Module({
-  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, MoodleUserModule],
+  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, MoodleUserModule, ImportModule],
 })
 export class ApiModule {}

@@ -113,4 +113,20 @@ export class FilterUserDTO {
   @IsOptional()
   @IsString()
   accreditationDiploma: string;
+
+  // Campos para paginación
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  limit?: number;
+
+  // Campo para búsqueda general
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

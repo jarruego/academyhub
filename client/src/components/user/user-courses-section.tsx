@@ -2,7 +2,7 @@ import React from 'react';
 import { Table, Tag, Spin, Empty } from 'antd';
 import type { ColumnType } from 'antd/es/table';
 import { useUserCoursesQuery } from '../../hooks/api/users/use-user-courses.query';
-import { UserCourseWithCourse } from '../../shared/types/user-course.types';
+import { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
 
 interface UserCoursesSectionProps {
   userId: number;

@@ -9,6 +9,7 @@ import { userGroupTable } from "./schema/tables/user_group.table";
 import { userCenterTable } from "./schema/tables/user_center.table";
 import { userCourseTable } from "./schema/tables/user_course.table";
 import { userCourseMoodleRoleTable } from "./schema/tables/user_course_moodle_role.table";
+import { importJobTable, importDecisionsTable } from "./schema/tables/import.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality } from "./schema/tables/course.table";
@@ -24,6 +25,8 @@ export const user_groups = userGroupTable;
 export const user_center = userCenterTable;
 export const user_course = userCourseTable;
 export const user_course_role = userCourseMoodleRoleTable;
+export const import_jobs = importJobTable;
+export const import_decisions = importDecisionsTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
