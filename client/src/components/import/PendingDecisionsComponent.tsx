@@ -90,6 +90,29 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
         );
     };
 
+    // Función para normalizar strings para comparación (sin acentos, minúsculas, sin espacios extra)
+    const normalizeForComparison = (text: string | null | undefined): string => {
+        if (!text) return '';
+        return text.toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    };
+
+    // Función para comparar dos valores y devolver estilos si son diferentes
+    const compareFields = (csvValue: string | null | undefined, dbValue: string | null | undefined) => {
+        const csvNormalized = normalizeForComparison(csvValue);
+        const dbNormalized = normalizeForComparison(dbValue);
+        
+        const isDifferent = csvNormalized !== dbNormalized && csvNormalized !== '' && dbNormalized !== '';
+        
+        return {
+            isDifferent,
+            style: isDifferent ? { color: 'red', fontWeight: 'bold' } : {}
+        };
+    };
+
+    // Obtener valores para comparación
+    const csvNss = decision.csvRowData?.['Personas.ProvNumSoe'] || decision.csvRowData?.['NSS'];
+    const csvEmail = decision.csvRowData?.['email'] || decision.csvRowData?.['Email'] || decision.csvRowData?.['mail'];
+
     return (
         <Modal
             title={`Decisión Manual - Similitud ${(decision.similarityScore * 100).toFixed(1)}%`}
@@ -126,35 +149,74 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         <Card size="small" title="Datos del CSV" extra={<Tag color="blue">Nuevo</Tag>}>
                             <Descriptions size="small" column={1}>
-                                <Descriptions.Item label="DNI">{decision.dniCsv}</Descriptions.Item>
-                                <Descriptions.Item label="Nombre">{decision.nameCSV}</Descriptions.Item>
-                                <Descriptions.Item label="Primer Apellido">{decision.firstSurnameCSV}</Descriptions.Item>
+                                <Descriptions.Item label="DNI">
+                                    <span style={compareFields(decision.dniCsv, decision.dniDb).style}>
+                                        {decision.dniCsv}
+                                    </span>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Nombre">
+                                    <span style={compareFields(decision.nameCSV, decision.nameDb).style}>
+                                        {decision.nameCSV}
+                                    </span>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Primer Apellido">
+                                    <span style={compareFields(decision.firstSurnameCSV, decision.firstSurnameDb).style}>
+                                        {decision.firstSurnameCSV}
+                                    </span>
+                                </Descriptions.Item>
                                 {decision.secondSurnameCSV && (
-                                    <Descriptions.Item label="Segundo Apellido">{decision.secondSurnameCSV}</Descriptions.Item>
+                                    <Descriptions.Item label="Segundo Apellido">
+                                        <span style={compareFields(decision.secondSurnameCSV, decision.secondSurnameDb).style}>
+                                            {decision.secondSurnameCSV}
+                                        </span>
+                                    </Descriptions.Item>
                                 )}
+                                <Descriptions.Item label="NSS">
+                                    <span style={compareFields(csvNss, decision.nssDb).style}>
+                                        {csvNss || 'Vacío'}
+                                    </span>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Email">
+                                    <span style={compareFields(csvEmail, decision.emailDb).style}>
+                                        {csvEmail || 'Vacío'}
+                                    </span>
+                                </Descriptions.Item>
                             </Descriptions>
                         </Card>
 
                         <Card size="small" title="Usuario en BD" extra={<Tag color="green">Existente</Tag>}>
                             <Descriptions size="small" column={1}>
-                                {decision.dniDb && (
-                                    <Descriptions.Item label="DNI">{decision.dniDb}</Descriptions.Item>
-                                )}
-                                <Descriptions.Item label="Nombre">{decision.nameDb}</Descriptions.Item>
-                                <Descriptions.Item label="Primer Apellido">{decision.firstSurnameDb}</Descriptions.Item>
+                                <Descriptions.Item label="DNI">
+                                    <span style={compareFields(decision.dniCsv, decision.dniDb).style}>
+                                        {decision.dniDb || 'Vacío'}
+                                    </span>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Nombre">
+                                    <span style={compareFields(decision.nameCSV, decision.nameDb).style}>
+                                        {decision.nameDb}
+                                    </span>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Primer Apellido">
+                                    <span style={compareFields(decision.firstSurnameCSV, decision.firstSurnameDb).style}>
+                                        {decision.firstSurnameDb}
+                                    </span>
+                                </Descriptions.Item>
                                 {decision.secondSurnameDb && (
-                                    <Descriptions.Item label="Segundo Apellido">{decision.secondSurnameDb}</Descriptions.Item>
+                                    <Descriptions.Item label="Segundo Apellido">
+                                        <span style={compareFields(decision.secondSurnameCSV, decision.secondSurnameDb).style}>
+                                            {decision.secondSurnameDb}
+                                        </span>
+                                    </Descriptions.Item>
                                 )}
-                                {decision.emailDb && (
-                                    <Descriptions.Item label="Email">{decision.emailDb}</Descriptions.Item>
-                                )}
-                                {decision.nssDb && (
-                                    <Descriptions.Item label="NSS">{decision.nssDb}</Descriptions.Item>
-                                )}
-                                <Descriptions.Item label="Similitud">
-                                    <Tag color={decision.similarityScore >= 0.95 ? 'green' : 'orange'}>
-                                        {(decision.similarityScore * 100).toFixed(1)}%
-                                    </Tag>
+                                <Descriptions.Item label="NSS">
+                                    <span style={compareFields(csvNss, decision.nssDb).style}>
+                                        {decision.nssDb || 'Vacío'}
+                                    </span>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="Email">
+                                    <span style={compareFields(csvEmail, decision.emailDb).style}>
+                                        {decision.emailDb || 'Vacío'}
+                                    </span>
                                 </Descriptions.Item>
                             </Descriptions>
                         </Card>
