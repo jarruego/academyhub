@@ -124,5 +124,13 @@ export interface SimilarityMatch {
 export const SIMILARITY_CONFIG = {
     THRESHOLD: 0.9,
     MIN_NAME_LENGTH: 3,
-    EXACT_MATCH_FIELDS: ['dni', 'nss', 'email']
+    EXACT_MATCH_FIELDS: ['dni', 'nss', 'email'],
+    
+    /** 
+     * REGLA DE FILTRADO AUTOMÁTICO:
+     * Si tanto DNI como NSS del CSV son diferentes a los de un usuario en BD,
+     * se omite ese match y se crea un usuario nuevo automáticamente.
+     * Esto evita decisiones manuales innecesarias cuando claramente son personas diferentes.
+     */
+    AUTO_CREATE_ON_DIFFERENT_IDS: true
 } as const;

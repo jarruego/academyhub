@@ -885,14 +885,15 @@ export class ImportService {
             }
         }
 
-        // 4. Crear nuevo usuario
+        // 4. Crear nuevo usuario (no hay similitudes válidas o DNI/NSS son diferentes)
+        this.logger.log(`✅ Creando nuevo usuario para ${data.name} ${data.first_surname} - No hay similitudes válidas o se filtraron por DNI/NSS diferentes`);
         const newUser = await this.createNewUser(data);
         
         return { success: true, action: 'created', user_id: newUser.id_user };
     }
 
     /**
-     * Busca usuarios similares por nombre y apellidos
+     * Busca usuarios similares por nombre y apellidos, excluyendo aquellos con DNI y NSS diferentes
      */
     private async findSimilarUsers(data: ProcessedUserData): Promise<SimilarityMatch[]> {
         // Buscar usuarios con nombres similares
@@ -902,7 +903,8 @@ export class ImportService {
                 name: users.name,
                 first_surname: users.first_surname,
                 second_surname: users.second_surname,
-                dni: users.dni
+                dni: users.dni,
+                nss: users.nss
             })
             .from(users)
             .where(
@@ -922,6 +924,24 @@ export class ImportService {
                 const similarity = 1 - (distance(targetName, userName) / Math.max(targetName.length, userName.length));
                 
                 if (similarity >= SIMILARITY_CONFIG.THRESHOLD) {
+                    // FILTRO CRUCIAL: Si tanto DNI como NSS son diferentes y ambos existen, omitir este match
+                    // porque claramente es una persona diferente
+                    const csvHasDni = data.dni && data.dni.trim() !== '';
+                    const csvHasNss = data.nss && data.nss.trim() !== '';
+                    const userHasDni = user.dni && user.dni.trim() !== '';
+                    const userHasNss = user.nss && user.nss.trim() !== '';
+                    
+                    // Si ambos tienen DNI y NSS, y ambos son diferentes, skip este match
+                    if (csvHasDni && csvHasNss && userHasDni && userHasNss) {
+                        const dniDifferent = data.dni.trim().toLowerCase() !== user.dni.trim().toLowerCase();
+                        const nssDifferent = data.nss.trim().toLowerCase() !== user.nss.trim().toLowerCase();
+                        
+                        if (dniDifferent && nssDifferent) {
+                            this.logger.log(`🚫 Omitiendo match por DNI y NSS diferentes: CSV(${data.dni}/${data.nss}) vs BD(${user.dni}/${user.nss}) para usuario ${user.name} ${user.first_surname}`);
+                            continue; // Saltar este usuario, es claramente diferente
+                        }
+                    }
+                    
                     matches.push({
                         user_id: user.id_user,
                         name: user.name!,
