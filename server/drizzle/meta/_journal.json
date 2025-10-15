@@ -134,6 +134,13 @@
       "when": 1760519781231,
       "tag": "0018_pale_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1760527022426,
+      "tag": "0019_cool_captain_flint",
+      "breakpoints": true
     }
   ]
 }

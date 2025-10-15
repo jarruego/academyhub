@@ -41,6 +41,9 @@ export interface PendingDecision {
     nameDb: string;
     firstSurnameDb: string;
     secondSurnameDb?: string;
+    dniDb?: string;
+    emailDb?: string;
+    nssDb?: string;
     similarityScore: number;
     csvRowData: any;
 }
@@ -61,6 +64,9 @@ export interface ProcessedDecision {
     nameDb?: string;
     firstSurnameDb?: string;
     secondSurnameDb?: string;
+    dniDb?: string;
+    emailDb?: string;
+    nssDb?: string;
     similarityScore?: number;
     csvRowData: any;
     selectedUserId?: number;

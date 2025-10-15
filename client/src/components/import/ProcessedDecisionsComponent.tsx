@@ -111,10 +111,19 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
                     <div>
                         <Title level={5}>Usuario en Base de Datos</Title>
                         <Descriptions size="small" column={2}>
+                            {decision.dniDb && (
+                                <Descriptions.Item label="DNI">{decision.dniDb}</Descriptions.Item>
+                            )}
                             <Descriptions.Item label="Nombre">{decision.nameDb}</Descriptions.Item>
                             <Descriptions.Item label="Primer Apellido">{decision.firstSurnameDb}</Descriptions.Item>
                             {decision.secondSurnameDb && (
                                 <Descriptions.Item label="Segundo Apellido">{decision.secondSurnameDb}</Descriptions.Item>
+                            )}
+                            {decision.emailDb && (
+                                <Descriptions.Item label="Email">{decision.emailDb}</Descriptions.Item>
+                            )}
+                            {decision.nssDb && (
+                                <Descriptions.Item label="NSS">{decision.nssDb}</Descriptions.Item>
                             )}
                             {decision.similarityScore && (
                                 <Descriptions.Item label="Similitud">

@@ -47,6 +47,9 @@ class PendingDecisionDto {
     nameDb: string;
     firstSurnameDb: string;
     secondSurnameDb?: string;
+    dniDb?: string;
+    emailDb?: string;
+    nssDb?: string;
     similarityScore: number;
     csvRowData: any;
 }
@@ -73,6 +76,9 @@ class ProcessedDecisionDto {
     nameDb?: string;
     firstSurnameDb?: string;
     secondSurnameDb?: string;
+    dniDb?: string;
+    emailDb?: string;
+    nssDb?: string;
     similarityScore?: number;
     csvRowData: any;
     selectedUserId?: number;
@@ -293,6 +299,9 @@ export class ImportController {
             nameDb: decision.nameDb || '',
             firstSurnameDb: decision.firstSurnameDb || '',
             secondSurnameDb: decision.secondSurnameDb || undefined,
+            dniDb: decision.dniDb || undefined,
+            emailDb: decision.emailDb || undefined,
+            nssDb: decision.nssDb || undefined,
             similarityScore: parseFloat(decision.similarityScore?.toString() || '0'),
             csvRowData: decision.csvRowData
         }));
@@ -371,6 +380,9 @@ export class ImportController {
                 nameDb: decision.name_db || undefined,
                 firstSurnameDb: decision.first_surname_db || undefined,
                 secondSurnameDb: decision.second_surname_db || undefined,
+                dniDb: decision.dni_db || undefined,
+                emailDb: decision.email_db || undefined,
+                nssDb: decision.nss_db || undefined,
                 similarityScore: decision.similarity_score ? parseFloat(decision.similarity_score.toString()) : undefined,
                 csvRowData: decision.csv_row_data,
                 selectedUserId: decision.selected_user_id || undefined,

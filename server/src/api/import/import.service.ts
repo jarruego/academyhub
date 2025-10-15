@@ -1038,6 +1038,9 @@ export class ImportService {
                     name_db: match.name || null,
                     first_surname_db: match.first_surname || null,
                     second_surname_db: match.second_surname || null,
+                    dni_db: userInDb.dni || null,
+                    email_db: userInDb.email || null,
+                    nss_db: userInDb.nss || null,
                     // Metadatos
                     similarity_score: (match.similarity_score || 0).toString(),
                     csv_row_data: data.original_row || {},
@@ -1438,6 +1441,9 @@ export class ImportService {
                 nameDb: import_decisions.name_db,
                 firstSurnameDb: import_decisions.first_surname_db,
                 secondSurnameDb: import_decisions.second_surname_db,
+                dniDb: import_decisions.dni_db,
+                emailDb: import_decisions.email_db,
+                nssDb: import_decisions.nss_db,
                 similarityScore: import_decisions.similarity_score,
                 csvRowData: import_decisions.csv_row_data,
                 // Campos adicionales

@@ -137,10 +137,19 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
 
                         <Card size="small" title="Usuario en BD" extra={<Tag color="green">Existente</Tag>}>
                             <Descriptions size="small" column={1}>
+                                {decision.dniDb && (
+                                    <Descriptions.Item label="DNI">{decision.dniDb}</Descriptions.Item>
+                                )}
                                 <Descriptions.Item label="Nombre">{decision.nameDb}</Descriptions.Item>
                                 <Descriptions.Item label="Primer Apellido">{decision.firstSurnameDb}</Descriptions.Item>
                                 {decision.secondSurnameDb && (
                                     <Descriptions.Item label="Segundo Apellido">{decision.secondSurnameDb}</Descriptions.Item>
+                                )}
+                                {decision.emailDb && (
+                                    <Descriptions.Item label="Email">{decision.emailDb}</Descriptions.Item>
+                                )}
+                                {decision.nssDb && (
+                                    <Descriptions.Item label="NSS">{decision.nssDb}</Descriptions.Item>
                                 )}
                                 <Descriptions.Item label="Similitud">
                                     <Tag color={decision.similarityScore >= 0.95 ? 'green' : 'orange'}>
