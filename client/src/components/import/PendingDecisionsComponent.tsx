@@ -46,7 +46,7 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
     onProcess,
     loading
 }) => {
-    const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip' | 'update_and_link'>('create_new');
+    const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip' | 'update_and_link'>('link');
     const { modal } = App.useApp();
 
     if (!decision) return null;
@@ -59,7 +59,7 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
             onOk: () => {
                 onProcess(decision.id, { action: selectedAction });
                 onClose();
-                setSelectedAction('create_new');
+                setSelectedAction('link');
             },
         });
     };
