@@ -34,9 +34,10 @@ export const importDecisionsTable = pgTable('import_decisions', {
     nss_db: varchar('nss_db', { length: 20 }),
     similarity_score: numeric('similarity_score', { precision: 5, scale: 4 }).notNull(),
     csv_row_data: jsonb('csv_row_data').notNull(),
+    change_metadata: jsonb('change_metadata'), // Metadatos de cambios para update_and_link y reversión
     selected_user_id: integer('selected_user_id').references(() => userTable.id_user),
     processed: boolean('processed').default(false),
-    decision_action: varchar('decision_action', { length: 20 }), // 'link', 'create_new', 'skip'
+    decision_action: varchar('decision_action', { length: 20 }), // 'link', 'create_new', 'skip', 'update_and_link'
     notes: varchar('notes', { length: 500 }),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -72,5 +73,6 @@ export enum ImportType {
 export enum DecisionAction {
     LINK = 'link',
     CREATE_NEW = 'create_new',
-    SKIP = 'skip'
+    SKIP = 'skip',
+    UPDATE_AND_LINK = 'update_and_link'
 }

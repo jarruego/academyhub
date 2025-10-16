@@ -746,7 +746,7 @@ export class ImportService {
                     first_surname: user.first_surname,
                     second_surname: user.second_surname,
                     dni: user.dni,
-                    similarity_score: 0.95
+                    similarity_score: 0.99
                 };
 
                 // PRIMERO: Verificar si ya existe una decisión procesada para NSS duplicado
@@ -785,7 +785,7 @@ export class ImportService {
                     return {
                         success: true,
                         action: 'decision_required',
-                        similarity_score: 0.95,
+                        similarity_score: 0.99,
                         decision_id: existingDecisionId
                     };
                 }
@@ -800,7 +800,7 @@ export class ImportService {
                     return {
                         success: true,
                         action: 'decision_required',
-                        similarity_score: 0.95,
+                        similarity_score: 0.99,
                         decision_id: decisionId
                     };
                 }
@@ -1520,6 +1520,11 @@ export class ImportService {
                 this.logger.log(`🔗 Ejecutando vinculación de usuario para decisión ${decisionId}`);
                 await this.executeLinkUser(decision, selectedUserId);
                 break;
+            case 'update_and_link':
+                this.logger.log(`🔄 Ejecutando actualización y vinculación para decisión ${decisionId}`);
+                await this.executeUpdateAndLink(decision, selectedUserId);
+                // NOTA: executeUpdateAndLink ya actualiza el estado de la decisión
+                return; // Salir temprano para evitar doble actualización
             case 'skip':
                 this.logger.log(`⏭️ Omitiendo registro para decisión ${decisionId}`);
                 // Para skip, solo marcamos como procesado
@@ -1599,6 +1604,214 @@ export class ImportService {
         } catch (error) {
             this.logger.error(`❌ Error ejecutando creación de usuario para decisión ${decision.id}:`, error);
             throw error;
+        }
+    }
+
+    /**
+     * Ejecuta update_and_link: actualiza datos del usuario BD y procesa empresa/centro del CSV
+     */
+    private async executeUpdateAndLink(decision: any, selectedUserId?: number): Promise<void> {
+        try {
+            const userId = selectedUserId || decision.selected_user_id;
+            
+            if (!userId) {
+                throw new Error('No se proporcionó ID de usuario para update_and_link');
+            }
+
+            this.logger.log(`🔄 Ejecutando update_and_link para usuario ${userId} con decisión ${decision.id}`);
+            
+            // Recrear ProcessedUserData del CSV
+            const csvData: ProcessedUserData = this.normalizeCSVRow(decision.csv_row_data, decision.id);
+            
+            // 1. Obtener datos actuales del usuario en BD
+            const [existingUser] = await this.databaseService.db
+                .select()
+                .from(users)
+                .where(eq(users.id_user, userId))
+                .limit(1);
+
+            if (!existingUser) {
+                throw new Error(`Usuario con ID ${userId} no encontrado`);
+            }
+
+            this.logger.log(`📋 Datos actuales del usuario en BD:`, {
+                dni: existingUser.dni,
+                name: existingUser.name,
+                first_surname: existingUser.first_surname,
+                second_surname: existingUser.second_surname,
+                email: existingUser.email
+            });
+
+            this.logger.log(`📋 Datos del CSV para actualizar:`, {
+                dni: csvData.dni,
+                name: csvData.name,
+                first_surname: csvData.first_surname,
+                second_surname: csvData.second_surname,
+                email: csvData.email
+            });
+
+            // 2. Preparar metadatos de cambio para reversión
+            const changeMetadata = {
+                action: "update_and_link",
+                change_date: new Date().toISOString(),
+                
+                // Datos CSV originales
+                original_csv: {
+                    dni: csvData.dni,
+                    name: csvData.name,
+                    first_surname: csvData.first_surname,
+                    second_surname: csvData.second_surname,
+                    email: csvData.email
+                },
+                
+                // Datos BD antes del cambio (para reversión)
+                original_bd: {
+                    dni: existingUser.dni,
+                    name: existingUser.name,
+                    first_surname: existingUser.first_surname,
+                    second_surname: existingUser.second_surname,
+                    email: existingUser.email
+                },
+                
+                // Datos BD después del cambio
+                updated_bd: {
+                    dni: csvData.dni,
+                    name: csvData.name,
+                    first_surname: csvData.first_surname,
+                    second_surname: csvData.second_surname,
+                    email: csvData.email || existingUser.email
+                },
+                
+                updated_fields: ["dni", "name", "first_surname", "second_surname", "email"],
+                can_revert: true
+            };
+
+            // 3. Actualizar usuario en BD con datos del CSV
+            await this.databaseService.db
+                .update(users)
+                .set({
+                    dni: csvData.dni,
+                    name: csvData.name,
+                    first_surname: csvData.first_surname,
+                    second_surname: csvData.second_surname,
+                    email: csvData.email || existingUser.email, // Usar email CSV o mantener BD
+                    updatedAt: new Date()
+                })
+                .where(eq(users.id_user, userId));
+
+            this.logger.log(`✅ Usuario actualizado en BD con datos del CSV`);
+
+            // 4. Actualizar registro import_decisions para futuras comparaciones
+            await this.databaseService.db
+                .update(import_decisions)
+                .set({
+                    // Actualizar campos de comparación con datos BD actuales (para evitar futuras decisiones)
+                    dni_csv: existingUser.dni,           // DNI que ESTABA en BD
+                    name_csv: existingUser.name,         // Nombre que ESTABA en BD  
+                    first_surname_csv: existingUser.first_surname,
+                    second_surname_csv: existingUser.second_surname,
+                    
+                    // Guardar metadatos del cambio
+                    change_metadata: changeMetadata,
+                    
+                    // Marcar como procesado
+                    processed: true,
+                    decision_action: 'update_and_link',
+                    updated_at: new Date()
+                })
+                .where(eq(import_decisions.id, decision.id));
+
+            this.logger.log(`✅ Registro import_decisions actualizado para futuras comparaciones`);
+
+            // 5. Procesar empresa/centro del CSV (reutilizar lógica existente)
+            const result = await this.linkUserToCSVData(userId, csvData);
+            
+            if (!result.success) {
+                throw new Error(result.error_message || 'Error procesando empresa/centro del CSV');
+            }
+
+            this.logger.log(`✅ Update_and_link completado exitosamente:`, {
+                user_id: userId,
+                company_id: result.company_id,
+                center_id: result.center_id,
+                updated_fields: changeMetadata.updated_fields
+            });
+
+        } catch (error) {
+            this.logger.error(`❌ Error ejecutando update_and_link para decisión ${decision.id}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Revierte un update_and_link restaurando los datos originales del usuario
+     */
+    private async revertUpdateAndLink(decisionRecord: any, reason?: string): Promise<void> {
+        try {
+            const metadata = decisionRecord.change_metadata;
+            
+            if (!metadata || !metadata.original_bd) {
+                throw new Error('No se puede revertir update_and_link: faltan metadatos de cambio originales');
+            }
+
+            const userId = decisionRecord.selected_user_id;
+            if (!userId) {
+                throw new Error('No se puede revertir update_and_link: falta selected_user_id');
+            }
+
+            this.logger.log(`🔄 Revirtiendo update_and_link para usuario ${userId}, decisión ${decisionRecord.id}`);
+            this.logger.log(`📋 Restaurando datos originales de BD:`, metadata.original_bd);
+
+            // 1. Restaurar datos originales del usuario en BD
+            await this.databaseService.db
+                .update(users)
+                .set({
+                    dni: metadata.original_bd.dni,
+                    name: metadata.original_bd.name,
+                    first_surname: metadata.original_bd.first_surname,
+                    second_surname: metadata.original_bd.second_surname,
+                    email: metadata.original_bd.email,
+                    updatedAt: new Date()
+                })
+                .where(eq(users.id_user, userId));
+
+            this.logger.log(`✅ Datos del usuario restaurados en BD`);
+
+            // 2. Restaurar campos de comparación originales en import_decisions
+            await this.databaseService.db
+                .update(import_decisions)
+                .set({
+                    processed: false,
+                    decision_action: null,
+                    
+                    // Restaurar campos de comparación originales del CSV
+                    dni_csv: metadata.original_csv.dni,
+                    name_csv: metadata.original_csv.name,
+                    first_surname_csv: metadata.original_csv.first_surname,
+                    second_surname_csv: metadata.original_csv.second_surname,
+                    
+                    // Limpiar metadatos
+                    change_metadata: null,
+                    
+                    // Agregar nota de reversión
+                    notes: reason ? 
+                        `${decisionRecord.notes || ''}\n[REVERTIDA UPDATE_AND_LINK] ${reason}`.trim() : 
+                        `${decisionRecord.notes || ''}\n[REVERTIDA UPDATE_AND_LINK] ${new Date().toISOString()}`.trim(),
+                    
+                    updated_at: new Date()
+                })
+                .where(eq(import_decisions.id, decisionRecord.id));
+
+            this.logger.log(`✅ Registro import_decisions restaurado a estado pendiente`);
+
+            // 3. NOTA: No revertir relaciones empresa/centro por seguridad
+            // Las relaciones laborales se mantienen ya que podrían afectar otros datos
+
+            this.logger.log(`✅ Update_and_link revertido exitosamente. Datos personales restaurados, relaciones laborales mantenidas.`);
+
+        } catch (error: any) {
+            this.logger.error(`❌ Error revirtiendo update_and_link:`, error.message);
+            throw new Error(`Error revirtiendo update_and_link: ${error.message}`);
         }
     }
 
@@ -1947,12 +2160,18 @@ export class ImportService {
                 throw new Error('La decisión no está procesada');
             }
 
-            // Solo permitir revertir decisiones de tipo "skip" y "link"
-            if (decisionRecord.decision_action !== 'skip' && decisionRecord.decision_action !== 'link') {
-                throw new Error('Solo se pueden revertir decisiones omitidas (skip) o vinculadas (link)');
+            // Solo permitir revertir decisiones de tipo "skip", "link" y "update_and_link"
+            if (!['skip', 'link', 'update_and_link'].includes(decisionRecord.decision_action)) {
+                throw new Error('Solo se pueden revertir decisiones omitidas (skip), vinculadas (link) o actualizadas (update_and_link)');
             }
 
-            // Revertir la decisión
+            // Manejar reversión especial para update_and_link
+            if (decisionRecord.decision_action === 'update_and_link') {
+                await this.revertUpdateAndLink(decisionRecord, reason);
+                return;
+            }
+
+            // Revertir la decisión normal (skip/link)
             await this.databaseService.db
                 .update(import_decisions)
                 .set({

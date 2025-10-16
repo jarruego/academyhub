@@ -1,0 +1,1 @@
+ALTER TABLE "import_decisions" ADD COLUMN "change_metadata" jsonb;

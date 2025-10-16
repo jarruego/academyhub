@@ -22,7 +22,8 @@ import {
     UserAddOutlined,
     LinkOutlined,
     ExclamationCircleOutlined,
-    InfoCircleOutlined
+    InfoCircleOutlined,
+    SyncOutlined
 } from '@ant-design/icons';
 import { usePendingDecisions, useProcessDecision } from '../../hooks/api/import/usePendingDecisions';
 import { PendingDecision, ProcessDecisionRequest } from '../../types/import.types';
@@ -44,7 +45,7 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
     onProcess,
     loading
 }) => {
-    const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip'>('create_new');
+    const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip' | 'update_and_link'>('create_new');
     const { modal } = App.useApp();
 
     if (!decision) return null;
@@ -129,9 +130,11 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                     loading={loading}
                     onClick={handleProcess}
                     icon={selectedAction === 'link' ? <LinkOutlined /> : 
+                          selectedAction === 'update_and_link' ? <SyncOutlined /> :
                           selectedAction === 'create_new' ? <UserAddOutlined /> : <CloseOutlined />}
                 >
                     {selectedAction === 'link' ? 'Vincular' :
+                     selectedAction === 'update_and_link' ? 'Actualizar y Vincular' :
                      selectedAction === 'create_new' ? 'Crear Nuevo' : 'Omitir'}
                 </Button>
             ]}
@@ -234,6 +237,13 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                                     <Text type="secondary">- Los datos del CSV se asociarán al usuario existente</Text>
                                 </Space>
                             </Radio>
+                            <Radio value="update_and_link">
+                                <Space>
+                                    <SyncOutlined />
+                                    <strong>Actualizar y vincular usuario existente</strong>
+                                    <Text type="secondary">- Se actualizarán los datos del usuario y se vinculará (ej: cambio NIE → DNI)</Text>
+                                </Space>
+                            </Radio>
                             <Radio value="create_new">
                                 <Space>
                                     <UserAddOutlined />
@@ -286,7 +296,7 @@ export const PendingDecisionsComponent: React.FC = () => {
         }
     };
 
-    const handleBulkProcess = (action: 'link' | 'create_new' | 'skip') => {
+    const handleBulkProcess = (action: 'link' | 'create_new' | 'skip' | 'update_and_link') => {
         if (!pendingDecisions?.length) return;
 
         modal.confirm({

@@ -55,7 +55,7 @@ class PendingDecisionDto {
 }
 
 class ProcessDecisionDto {
-    @IsEnum(DecisionAction, { message: 'Action must be one of: link, create_new, skip' })
+    @IsEnum(DecisionAction, { message: 'Action must be one of: link, create_new, skip, update_and_link' })
     action: DecisionAction;
     
     @IsOptional()

@@ -58,6 +58,7 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
     const getActionColor = (action: string) => {
         switch (action) {
             case 'link': return 'blue';
+            case 'update_and_link': return 'purple';
             case 'create_new': return 'green';
             case 'skip': return 'orange';
             default: return 'default';
@@ -67,6 +68,7 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
     const getActionText = (action: string) => {
         switch (action) {
             case 'link': return 'Vinculado';
+            case 'update_and_link': return 'Actualizado y Vinculado';
             case 'create_new': return 'Usuario Creado';
             case 'skip': return 'Omitido';
             default: return action;
@@ -93,6 +95,15 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
                     </Tag>
                 </div>
 
+                {decision.decisionAction === 'update_and_link' && (
+                    <Alert
+                        message="Decisión con Actualización de Datos"
+                        description="Los datos del usuario en la base de datos fueron actualizados con la información del CSV. Los campos en rojo muestran los valores originales y los campos en verde muestran los valores actualizados."
+                        type="info"
+                        showIcon
+                    />
+                )}
+
                 <div>
                     <Title level={5}>Datos del CSV</Title>
                     <Descriptions size="small" column={2}>
@@ -109,27 +120,136 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
 
                 {decision.nameDb && (
                     <div>
-                        <Title level={5}>Usuario en Base de Datos</Title>
+                        <Title level={5}>
+                            {decision.decisionAction === 'update_and_link' 
+                                ? 'Usuario en Base de Datos (antes del cambio)' 
+                                : 'Usuario en Base de Datos'
+                            }
+                        </Title>
                         <Descriptions size="small" column={2}>
-                            {decision.dniDb && (
-                                <Descriptions.Item label="DNI">{decision.dniDb}</Descriptions.Item>
-                            )}
-                            <Descriptions.Item label="Nombre">{decision.nameDb}</Descriptions.Item>
-                            <Descriptions.Item label="Primer Apellido">{decision.firstSurnameDb}</Descriptions.Item>
-                            {decision.secondSurnameDb && (
-                                <Descriptions.Item label="Segundo Apellido">{decision.secondSurnameDb}</Descriptions.Item>
-                            )}
-                            {decision.emailDb && (
-                                <Descriptions.Item label="Email">{decision.emailDb}</Descriptions.Item>
-                            )}
-                            {decision.nssDb && (
-                                <Descriptions.Item label="NSS">{decision.nssDb}</Descriptions.Item>
-                            )}
-                            {decision.similarityScore && (
-                                <Descriptions.Item label="Similitud">
-                                    {(decision.similarityScore * 100).toFixed(1)}%
-                                </Descriptions.Item>
-                            )}
+                            {(() => {
+                                // Si es update_and_link y hay change_metadata, usar datos originales
+                                if (decision.decisionAction === 'update_and_link' && decision.changeMetadata?.original_bd) {
+                                    const originalData = decision.changeMetadata.original_bd;
+                                    return (
+                                        <>
+                                            {originalData.dni && (
+                                                <Descriptions.Item 
+                                                    label="DNI"
+                                                    style={{ color: originalData.dni !== decision.dniCsv ? 'red' : 'inherit' }}
+                                                >
+                                                    {originalData.dni}
+                                                </Descriptions.Item>
+                                            )}
+                                            <Descriptions.Item 
+                                                label="Nombre"
+                                                style={{ color: originalData.name !== decision.nameCSV ? 'red' : 'inherit' }}
+                                            >
+                                                {originalData.name}
+                                            </Descriptions.Item>
+                                            <Descriptions.Item 
+                                                label="Primer Apellido"
+                                                style={{ color: originalData.first_surname !== decision.firstSurnameCSV ? 'red' : 'inherit' }}
+                                            >
+                                                {originalData.first_surname}
+                                            </Descriptions.Item>
+                                            {(originalData.second_surname || decision.secondSurnameCSV) && (
+                                                <Descriptions.Item 
+                                                    label="Segundo Apellido"
+                                                    style={{ color: originalData.second_surname !== decision.secondSurnameCSV ? 'red' : 'inherit' }}
+                                                >
+                                                    {originalData.second_surname || '-'}
+                                                </Descriptions.Item>
+                                            )}
+                                            {originalData.email && (
+                                                <Descriptions.Item 
+                                                    label="Email"
+                                                    style={{ color: originalData.email !== decision.csvRowData?.email ? 'red' : 'inherit' }}
+                                                >
+                                                    {originalData.email}
+                                                </Descriptions.Item>
+                                            )}
+                                        </>
+                                    );
+                                } else {
+                                    // Comportamiento normal para otras acciones
+                                    return (
+                                        <>
+                                            {decision.dniDb && (
+                                                <Descriptions.Item label="DNI">{decision.dniDb}</Descriptions.Item>
+                                            )}
+                                            <Descriptions.Item label="Nombre">{decision.nameDb}</Descriptions.Item>
+                                            <Descriptions.Item label="Primer Apellido">{decision.firstSurnameDb}</Descriptions.Item>
+                                            {decision.secondSurnameDb && (
+                                                <Descriptions.Item label="Segundo Apellido">{decision.secondSurnameDb}</Descriptions.Item>
+                                            )}
+                                            {decision.emailDb && (
+                                                <Descriptions.Item label="Email">{decision.emailDb}</Descriptions.Item>
+                                            )}
+                                            {decision.nssDb && (
+                                                <Descriptions.Item label="NSS">{decision.nssDb}</Descriptions.Item>
+                                            )}
+                                            {decision.similarityScore && (
+                                                <Descriptions.Item label="Similitud">
+                                                    {(decision.similarityScore * 100).toFixed(1)}%
+                                                </Descriptions.Item>
+                                            )}
+                                        </>
+                                    );
+                                }
+                            })()}
+                        </Descriptions>
+                    </div>
+                )}
+
+                {decision.decisionAction === 'update_and_link' && decision.changeMetadata?.updated_bd && (
+                    <div>
+                        <Title level={5}>Usuario en Base de Datos (después del cambio)</Title>
+                        <Descriptions size="small" column={2}>
+                            {(() => {
+                                const updatedData = decision.changeMetadata.updated_bd;
+                                const originalData = decision.changeMetadata.original_bd;
+                                return (
+                                    <>
+                                        {updatedData.dni && (
+                                            <Descriptions.Item 
+                                                label="DNI"
+                                                style={{ color: originalData?.dni !== updatedData.dni ? 'green' : 'inherit', fontWeight: originalData?.dni !== updatedData.dni ? 'bold' : 'normal' }}
+                                            >
+                                                {updatedData.dni}
+                                            </Descriptions.Item>
+                                        )}
+                                        <Descriptions.Item 
+                                            label="Nombre"
+                                            style={{ color: originalData?.name !== updatedData.name ? 'green' : 'inherit', fontWeight: originalData?.name !== updatedData.name ? 'bold' : 'normal' }}
+                                        >
+                                            {updatedData.name}
+                                        </Descriptions.Item>
+                                        <Descriptions.Item 
+                                            label="Primer Apellido"
+                                            style={{ color: originalData?.first_surname !== updatedData.first_surname ? 'green' : 'inherit', fontWeight: originalData?.first_surname !== updatedData.first_surname ? 'bold' : 'normal' }}
+                                        >
+                                            {updatedData.first_surname}
+                                        </Descriptions.Item>
+                                        {(updatedData.second_surname || originalData?.second_surname) && (
+                                            <Descriptions.Item 
+                                                label="Segundo Apellido"
+                                                style={{ color: originalData?.second_surname !== updatedData.second_surname ? 'green' : 'inherit', fontWeight: originalData?.second_surname !== updatedData.second_surname ? 'bold' : 'normal' }}
+                                            >
+                                                {updatedData.second_surname || '-'}
+                                            </Descriptions.Item>
+                                        )}
+                                        {updatedData.email && (
+                                            <Descriptions.Item 
+                                                label="Email"
+                                                style={{ color: originalData?.email !== updatedData.email ? 'green' : 'inherit', fontWeight: originalData?.email !== updatedData.email ? 'bold' : 'normal' }}
+                                            >
+                                                {updatedData.email}
+                                            </Descriptions.Item>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </Descriptions>
                     </div>
                 )}
@@ -169,10 +289,17 @@ export const ProcessedDecisionsComponent: React.FC = () => {
     };
 
     const handleRevertDecision = (decision: ProcessedDecision) => {
+        const isUpdateAndLink = decision.decisionAction === 'update_and_link';
+        const warningMessage = isUpdateAndLink 
+            ? `¿Estás seguro de que quieres revertir la decisión "${getActionText(decision.decisionAction)}" para ${decision.nameCSV} ${decision.firstSurnameCSV}? 
+            
+            ATENCIÓN: Esto revertirá tanto la vinculación como las actualizaciones realizadas en los datos del usuario, restaurando los valores originales y devolviendo la decisión a pendientes.`
+            : `¿Estás seguro de que quieres revertir la decisión "${getActionText(decision.decisionAction)}" para ${decision.nameCSV} ${decision.firstSurnameCSV}? Esto la devolverá a decisiones pendientes.`;
+
         modal.confirm({
             title: 'Revertir Decisión',
             icon: <ExclamationCircleOutlined />,
-            content: `¿Estás seguro de que quieres revertir la decisión "${getActionText(decision.decisionAction)}" para ${decision.nameCSV} ${decision.firstSurnameCSV}? Esto la devolverá a decisiones pendientes.`,
+            content: warningMessage,
             onOk: async () => {
                 try {
                     await revertDecisionMutation.mutateAsync({
@@ -191,6 +318,7 @@ export const ProcessedDecisionsComponent: React.FC = () => {
     const getActionColor = (action: string) => {
         switch (action) {
             case 'link': return 'blue';
+            case 'update_and_link': return 'purple';
             case 'create_new': return 'green';
             case 'skip': return 'orange';
             default: return 'default';
@@ -200,6 +328,7 @@ export const ProcessedDecisionsComponent: React.FC = () => {
     const getActionText = (action: string) => {
         switch (action) {
             case 'link': return 'Vinculado';
+            case 'update_and_link': return 'Actualizado y Vinculado';
             case 'create_new': return 'Usuario Creado';
             case 'skip': return 'Omitido';
             default: return action;
@@ -207,8 +336,8 @@ export const ProcessedDecisionsComponent: React.FC = () => {
     };
 
     const canRevertDecision = (decision: ProcessedDecision) => {
-        // Permitir revertir decisiones de tipo "skip" y "link"
-        return decision.decisionAction === 'skip' || decision.decisionAction === 'link';
+        // Permitir revertir decisiones de tipo "skip", "link" y "update_and_link"
+        return decision.decisionAction === 'skip' || decision.decisionAction === 'link' || decision.decisionAction === 'update_and_link';
     };
 
     const columns = [

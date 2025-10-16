@@ -49,7 +49,7 @@ export interface PendingDecision {
 }
 
 export interface ProcessDecisionRequest {
-    action: 'link' | 'create_new' | 'skip';
+    action: 'link' | 'create_new' | 'skip' | 'update_and_link';
     selectedUserId?: number;
     notes?: string;
 }
@@ -70,10 +70,11 @@ export interface ProcessedDecision {
     similarityScore?: number;
     csvRowData: any;
     selectedUserId?: number;
-    decisionAction: 'link' | 'create_new' | 'skip';
+    decisionAction: 'link' | 'create_new' | 'skip' | 'update_and_link';
     notes?: string;
     createdAt: string;
     updatedAt: string;
+    changeMetadata?: any;
 }
 
 export interface RevertDecisionRequest {
