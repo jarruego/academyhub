@@ -37,29 +37,29 @@ const tools = [
 
 const ToolList = () => {
   return (
-    <Card title={<span>Herramientas administrativas</span>} bordered style={{ maxWidth: 500, margin: "0 auto" }}>
-      <Typography.Paragraph type="secondary" style={{ marginBottom: 24 }}>
-        Accede a utilidades administrativas. Pronto habrá más herramientas disponibles.
-      </Typography.Paragraph>
-      <List
-        itemLayout="horizontal"
-        dataSource={tools}
-        renderItem={tool => {
-          const renderAction = () => {
-            if (tool.type === "link") {
-              return (
-                <Link to={tool.linkTo}>
-                  <Button type="primary">
-                    Abrir herramienta
-                  </Button>
-                </Link>
-              );
-            }
-            return null;
-          };
+    <AuthzHide roles={[Role.ADMIN]}>
+      <Card title={<span>Herramientas administrativas</span>} bordered style={{ maxWidth: 500, margin: "0 auto" }}>
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 24 }}>
+          Accede a utilidades administrativas. Pronto habrá más herramientas disponibles.
+        </Typography.Paragraph>
+        <List
+          itemLayout="horizontal"
+          dataSource={tools}
+          renderItem={tool => {
+            const renderAction = () => {
+              if (tool.type === "link") {
+                return (
+                  <Link to={tool.linkTo}>
+                    <Button type="primary">
+                      Abrir herramienta
+                    </Button>
+                  </Link>
+                );
+              }
+              return null;
+            };
 
-          return tool.adminOnly ? (
-            <AuthzHide roles={[Role.ADMIN]}>
+            return tool.adminOnly ? (
               <List.Item>
                 <List.Item.Meta
                   avatar={tool.icon}
@@ -68,9 +68,7 @@ const ToolList = () => {
                 />
                 {renderAction()}
               </List.Item>
-            </AuthzHide>
-          ) : (
-            <AuthzHide roles={[Role.ADMIN]}>
+            ) : (
               <List.Item>
                 <List.Item.Meta
                   avatar={tool.icon}
@@ -79,11 +77,11 @@ const ToolList = () => {
                 />
                 {renderAction()}
               </List.Item>
-            </AuthzHide>
-          );
-        }}
-      />
-    </Card>
+            );
+          }}
+        />
+      </Card>
+    </AuthzHide>
   );
 };
 

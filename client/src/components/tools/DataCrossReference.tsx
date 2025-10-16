@@ -31,6 +31,8 @@ import {
 import { useUserComparison, UserMatch, UserComparison, LinkedUserPair } from "../../hooks/api/users/tools/use-user-comparison.query";
 import { useLinkUsersMutation } from "../../hooks/api/users/tools/use-link-users.mutation";
 import { useUnlinkUsersMutation } from "../../hooks/api/users/tools/use-unlink-users.mutation";
+import { AuthzHide } from "../permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -450,7 +452,8 @@ const DataCrossReference = () => {
   // Datos de debug eliminados
 
   return (
-    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
+    <AuthzHide roles={[Role.ADMIN]}>
+      <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
       <Card>
         <Space direction="vertical" size="large" style={{ width: "100%" }}>
           <div style={{ textAlign: "center" }}>
@@ -792,7 +795,8 @@ const DataCrossReference = () => {
           </div>
         )}
       </Modal>
-    </div>
+      </div>
+    </AuthzHide>
   );
 };
 

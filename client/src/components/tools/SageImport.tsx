@@ -12,6 +12,8 @@ import {
     ProcessedDecisionsComponent,
     ImportJobsHistoryComponent
 } from '../import';
+import { AuthzHide } from '../permissions/authz-hide';
+import { Role } from '../../hooks/api/auth/use-login.mutation';
 
 const { Title } = Typography;
 
@@ -60,7 +62,8 @@ const SageImport: React.FC = () => {
     ];
 
     return (
-        <div style={{ padding: '24px' }}>
+        <AuthzHide roles={[Role.ADMIN]}>
+            <div style={{ padding: '24px' }}>
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <Card>
                     <Title level={2}>
@@ -80,7 +83,8 @@ const SageImport: React.FC = () => {
                     />
                 </Card>
             </Space>
-        </div>
+            </div>
+        </AuthzHide>
     );
 };
 

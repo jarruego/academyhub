@@ -7,6 +7,8 @@ import { useImportMoodleCourseMutation } from '../../hooks/api/moodle/use-import
 import { useImportMoodleGroupMutation } from '../../hooks/api/moodle/use-import-moodle-group.mutation';
 import { useReimportMoodleMutation } from '../../hooks/api/moodle/use-reimport-moodle.mutation';
 import { MoodleCourseWithImportStatus, MoodleGroupWithImportStatus } from '../../shared/types/moodle-import';
+import { AuthzHide } from '../permissions/authz-hide';
+import { Role } from '../../hooks/api/auth/use-login.mutation';
 
 const { Title, Text } = Typography;
 
@@ -321,7 +323,8 @@ export const MoodleImportManager: React.FC = () => {
   }
 
   return (
-    <div>
+    <AuthzHide roles={[Role.ADMIN]}>
+      <div>
       <Card>
         <div style={{ marginBottom: 24 }}>
           <Title level={2} style={{ marginBottom: 8 }}>Importación desde Moodle</Title>
@@ -401,6 +404,7 @@ export const MoodleImportManager: React.FC = () => {
           </Text>
         </div>
       </Modal>
-    </div>
+      </div>
+    </AuthzHide>
   );
 };
