@@ -886,7 +886,7 @@ export class ImportService {
         }
 
         // 4. Crear nuevo usuario (no hay similitudes válidas o DNI/NSS son diferentes)
-        this.logger.log(`✅ Creando nuevo usuario para ${data.name} ${data.first_surname} - No hay similitudes válidas o se filtraron por DNI/NSS diferentes`);
+    // Eliminado log de creación de nuevo usuario para acelerar el proceso
         const newUser = await this.createNewUser(data);
         
         return { success: true, action: 'created', user_id: newUser.id_user };
@@ -1145,12 +1145,7 @@ export class ImportService {
      * Crea un nuevo usuario
      */
     private async createNewUser(data: ProcessedUserData) {
-        this.logger.log(`🔨 Iniciando createNewUser con datos:`, {
-            name: data.name,
-            dni: data.dni,
-            email: data.email,
-            nss: data.nss
-        });
+        // Eliminado log de inicio de createNewUser para acelerar el proceso
         
         const newUser: UserInsertModel = {
             name: data.name!,
@@ -1181,11 +1176,7 @@ export class ImportService {
             accreditationDiploma: 'N'
         };
 
-        this.logger.log(`💾 Insertando usuario en BD:`, {
-            name: newUser.name,
-            dni: newUser.dni,
-            email: newUser.email
-        });
+
 
         try {
             const [created] = await this.databaseService.db
@@ -1193,11 +1184,7 @@ export class ImportService {
                 .values(newUser)
                 .returning();
 
-            this.logger.log(`✅ Usuario insertado exitosamente:`, {
-                id_user: created.id_user,
-                name: created.name,
-                dni: created.dni
-            });
+
 
             return created;
         } catch (error: any) {

@@ -27,6 +27,7 @@ import {
 } from '@ant-design/icons';
 import { usePendingDecisions, useProcessDecision } from '../../hooks/api/import/usePendingDecisions';
 import { PendingDecision, ProcessDecisionRequest } from '../../types/import.types';
+import { detectDocumentType, validateNSS } from '../../utils/detect-document-type';
 
 const { Title, Text } = Typography;
 
@@ -155,6 +156,9 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                                 <Descriptions.Item label="DNI">
                                     <span style={compareFields(decision.dniCsv, decision.dniDb).style}>
                                         {decision.dniCsv}
+                                        {detectDocumentType(decision.dniCsv) === undefined && (
+                                            <Tag color="red" style={{ marginLeft: 6 }}>DNI/NIE inválido</Tag>
+                                        )}
                                     </span>
                                 </Descriptions.Item>
                                 <Descriptions.Item label="Nombre">
@@ -177,6 +181,9 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                                 <Descriptions.Item label="NSS">
                                     <span style={compareFields(csvNss, decision.nssDb).style}>
                                         {csvNss || 'Vacío'}
+                                        {csvNss && !validateNSS(csvNss) && (
+                                            <Tag color="red" style={{ marginLeft: 6 }}>NSS inválido</Tag>
+                                        )}
                                     </span>
                                 </Descriptions.Item>
                                 <Descriptions.Item label="Email">
@@ -192,6 +199,9 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                                 <Descriptions.Item label="DNI">
                                     <span style={compareFields(decision.dniCsv, decision.dniDb).style}>
                                         {decision.dniDb || 'Vacío'}
+                                        {decision.dniDb && detectDocumentType(decision.dniDb) === undefined && (
+                                            <Tag color="red" style={{ marginLeft: 6 }}>DNI/NIE inválido</Tag>
+                                        )}
                                     </span>
                                 </Descriptions.Item>
                                 <Descriptions.Item label="Nombre">
@@ -214,6 +224,9 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                                 <Descriptions.Item label="NSS">
                                     <span style={compareFields(csvNss, decision.nssDb).style}>
                                         {decision.nssDb || 'Vacío'}
+                                        {decision.nssDb && !validateNSS(decision.nssDb) && (
+                                            <Tag color="red" style={{ marginLeft: 6 }}>NSS inválido</Tag>
+                                        )}
                                     </span>
                                 </Descriptions.Item>
                                 <Descriptions.Item label="Email">
