@@ -1,4 +1,4 @@
-import { InferSelectModel } from "drizzle-orm";
+import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { pgTable, serial, text, integer, boolean, date, pgEnum, timestamp } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { Gender } from "../../../types/user/gender.enum";
@@ -39,6 +39,10 @@ export const userTable = pgTable("users", {
 });
 
 // Modelos generados por Drizzle
-export type UserSelectModel = Partial<InferSelectModel<typeof userTable>>; 
-export type UserInsertModel = Omit<InferSelectModel<typeof userTable>, 'id_user' | 'createdAt' | 'updatedAt'>;
-export type UserUpdateModel = Partial<InferSelectModel<typeof userTable>>;
+// export type UserSelectModel = Partial<InferSelectModel<typeof userTable>>; 
+// export type UserInsertModel = Omit<InferSelectModel<typeof userTable>, 'id_user' | 'createdAt' | 'updatedAt'>;
+// export type UserUpdateModel = Partial<InferSelectModel<typeof userTable>>;
+
+export type UserSelectModel = Partial<InferSelectModel<typeof userTable>>;
+export type UserInsertModel = InferInsertModel<typeof userTable>;
+export type UserUpdateModel = Partial<UserInsertModel>;

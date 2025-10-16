@@ -6,7 +6,7 @@ export type User = {
     name: string;
     first_surname: string;
     second_surname?: string | null;
-    email: string;
+    email?: string;
     dni?: string | null;
     document_type?: DocumentType | null;
     phone?: string | null;

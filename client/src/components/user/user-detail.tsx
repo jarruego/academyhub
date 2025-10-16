@@ -37,7 +37,7 @@ const USER_FORM_SCHEMA = z.object({
   name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
   first_surname: z.string({ required_error: "El primer apellido es obligatorio" }).min(1, "El primer apellido no puede estar vacío"),
   second_surname: z.string().nullish(),
-  email: z.string({ required_error: "El correo electrónico es obligatorio" }).email("El correo electrónico no es válido"),
+  email: z.string().email("El correo electrónico no es válido").optional().or(z.literal("")),
   dni: DNI_SCHEMA.nullish(),
   document_type: z.nativeEnum(DocumentType, {
     errorMap: () => ({ message: "Tipo de documento no válido" }),
@@ -131,6 +131,7 @@ const navigate = useNavigate();
       ...nullsToUndefined(info),
       birth_date: info.birth_date ? dayjs(info.birth_date).utc().toDate() : null,
       registration_date: info.registration_date ? dayjs(info.registration_date).utc().toDate() : null,
+      email: info.email ?? "",
     };
     try {
       await updateUser(normalizedInfo);

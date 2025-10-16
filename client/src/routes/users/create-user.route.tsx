@@ -18,7 +18,7 @@ const CREATE_USER_FORM = z.object({
   name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
   first_surname: z.string({ required_error: "El primer apellido es obligatorio" }).min(1, "El primer apellido no puede estar vacío"),
   second_surname: z.string().optional(),
-  email: z.string({ required_error: "El correo electrónico es obligatorio" }).email("El correo electrónico no es válido"),
+  email: z.string().email("El correo electrónico no es válido").optional().or(z.literal("")),
   dni: DNI_SCHEMA,
   document_type: z.nativeEnum(DocumentType, {
     errorMap: () => ({ message: "Tipo de documento no válido" }),
@@ -120,7 +120,7 @@ export default function CreateUserRoute() {
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="Email" name="email" style={{ flex: 1 }} required={true}>
+          <Form.Item label="Email" name="email" style={{ flex: 1 }}>
             <Controller name="email" control={control} render={({ field }) => <Input data-testid="email" id="email" autoComplete="email" {...field} />} />
           </Form.Item>
           <Form.Item label="Teléfono" name="phone" style={{ flex: 1 }}>

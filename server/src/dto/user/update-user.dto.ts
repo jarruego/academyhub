@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty, IsDate } from "class-validator";
+import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty, IsDate, ValidateIf } from "class-validator";
 import { DocumentType } from "src/types/user/document-type.enum";
 import { Gender } from "src/types/user/gender.enum";
 
@@ -30,10 +30,14 @@ export class UpdateUserDTO {
   @IsIn(Object.values(DocumentType))
   document_type?: DocumentType;
 
+
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  @ValidateIf((o) => o.email !== "")
   @IsEmail()
   email?: string;
+
 
   @ApiPropertyOptional()
   @IsOptional()
