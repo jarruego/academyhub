@@ -91,7 +91,7 @@ export class GroupService {
           enrollment_date: new Date(),
           completion_percentage: "0",
           time_spent: 0,
-         });
+         }, { transaction });
       }
 
       // Asociar grupo

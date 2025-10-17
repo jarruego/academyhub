@@ -6,7 +6,7 @@ import { MoodleUser, ExtendedMoodleUser } from 'src/types/moodle/user';
 import { MoodleCourseWithImportStatus, MoodleGroupWithImportStatus, ImportResult } from 'src/dto/moodle/import.dto';
 import { DatabaseService } from 'src/database/database.service';
 import { DATABASE_PROVIDER } from 'src/database/database.module';
-import { QueryOptions } from 'src/database/repository/repository';
+import { QueryOptions, Transaction } from 'src/database/repository/repository';
 import { CourseRepository } from 'src/database/repository/course/course.repository';
 import { GroupRepository } from 'src/database/repository/group/group.repository';
 import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
@@ -313,7 +313,7 @@ export class MoodleService {
      * HELPER: Crear/actualizar curso de Moodle en BD local
      */
     private async upsertMoodleCourse(moodleCourse: MoodleCourse, options?: QueryOptions) {
-        return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+        const run = async (transaction: Transaction) => {
             const data = {
                 course_name: moodleCourse.fullname,
                 short_name: moodleCourse.shortname,
@@ -336,7 +336,10 @@ export class MoodleService {
                 const [{ id }] = await this.courseRepository.create(data, { transaction });
                 return await this.courseRepository.findById(id, { transaction });
             }
-        });
+        };
+
+        if (options?.transaction) return await run(options.transaction);
+        return await this.databaseService.db.transaction(async transaction => await run(transaction));
     }
 
     /**
@@ -348,7 +351,7 @@ export class MoodleService {
         options?: QueryOptions, 
         completionPercentage?: number | null
     ) {
-        return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+        const run = async (transaction: Transaction) => {
             // Buscar si ya existe un usuario de Moodle con este moodle_id
             const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
             
@@ -418,7 +421,10 @@ export class MoodleService {
             }
 
             return await this.userRepository.findById(userId, { transaction });
-        });
+        };
+
+        if (options?.transaction) return await run(options.transaction);
+        return await this.databaseService.db.transaction(async transaction => await run(transaction));
     }
 
     /**
@@ -718,7 +724,7 @@ export class MoodleService {
     }
 
     async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number, options?: QueryOptions) {
-        return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+        const run = async (transaction: Transaction) => {
             // Buscar si ya existe un usuario de Moodle con este moodle_id
             const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
             
@@ -763,6 +769,9 @@ export class MoodleService {
             if (userGroupRows.length <= 0) {
                 await this.groupService.addUserToGroup({id_group, id_user: userId}, { transaction });
             }
-        });
+        };
+
+        if (options?.transaction) return await run(options.transaction);
+        return await this.databaseService.db.transaction(async transaction => await run(transaction));
     }
 }
