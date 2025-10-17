@@ -188,18 +188,19 @@ export class MoodleService {
         });
 
         const activities = completionData.statuses || [];
-        const completed = activities.filter((activity: any) => activity.state === 1).length;
-        const total = activities.length;
+        const usedActivities = activities.filter((activity: any) => activity.valueused === true);
+        const completed = usedActivities.filter((activity: any) => activity.state !== 0).length;
+        const total = usedActivities.length;
         const completion_percentage = total > 0 ? Math.round((completed / total) * 100) : null;
 
         return {
             ...user,
-            roles: user.roles.map(role => ({
+            roles: Array.isArray(user.roles) ? user.roles.map(role => ({
                 roleid: role.roleid,
                 name: role.name,
                 shortname: role.shortname,
                 sortorder: role.sortorder
-            })),
+            })) : [],
             completion_percentage,
             time_spent: null // Moodle estándar no lo proporciona, hace falta un plugin como block_dedication
         };
@@ -223,7 +224,7 @@ export class MoodleService {
      */
     async getMoodleCoursesWithImportStatus(): Promise<MoodleCourseWithImportStatus[]> {
         return await this.databaseService.db.transaction(async transaction => {
-            console.log('🔍 Obteniendo cursos de Moodle con estado de importación...');
+            
             
             // Obtener todos los cursos de Moodle
             const moodleCourses = await this.getAllCourses();
@@ -257,7 +258,7 @@ export class MoodleService {
                     };
                 });
                 
-            console.log(`📚 Encontrados ${coursesWithStatus.length} cursos (${coursesWithStatus.filter(c => c.isImported).length} importados)`);
+            
             return coursesWithStatus;
         });
     }
@@ -267,7 +268,7 @@ export class MoodleService {
      */
     async getMoodleGroupsWithImportStatus(moodleCourseId: number): Promise<MoodleGroupWithImportStatus[]> {
         return await this.databaseService.db.transaction(async transaction => {
-            console.log(`🔍 Obteniendo grupos del curso ${moodleCourseId} con estado de importación...`);
+            
             
             // Obtener grupos del curso desde Moodle
             const moodleGroups = await this.getCourseGroups(moodleCourseId);
@@ -304,7 +305,7 @@ export class MoodleService {
                 };
             });
             
-            console.log(`🏷️ Encontrados ${groupsWithStatus.length} grupos (${groupsWithStatus.filter(g => g.isImported).length} importados)`);
+            
             return groupsWithStatus;
         });
     }
@@ -354,7 +355,7 @@ export class MoodleService {
         const run = async (transaction: Transaction) => {
             // Buscar si ya existe un usuario de Moodle con este moodle_id
             const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
-            
+
             let userId: number;
             let moodleUserId: number;
 
@@ -362,18 +363,18 @@ export class MoodleService {
                 // Si existe el usuario de Moodle, actualizamos el usuario principal
                 userId = existingMoodleUser.id_user;
                 moodleUserId = existingMoodleUser.id_moodle_user;
-                
+
                 await this.userRepository.update(userId, {
                     name: moodleUser.firstname,
                     first_surname: moodleUser.lastname,
                     email: moodleUser.email,
                 }, { transaction });
-                
+
                 // Actualizar usuario de Moodle
                 await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
                     moodle_username: moodleUser.username,
                 }, { transaction });
-                
+
             } else {
                 // Crear nuevo usuario principal
                 const userResult = await this.userRepository.create({
@@ -381,16 +382,16 @@ export class MoodleService {
                     first_surname: moodleUser.lastname,
                     email: moodleUser.email,
                 } as UserInsertModel, { transaction });
-                
+
                 userId = userResult.insertId;
-                
+
                 // Crear usuario de Moodle asociado
                 const moodleUserResult = await this.moodleUserService.create({
                     id_user: userId,
                     moodle_id: moodleUser.id,
                     moodle_username: moodleUser.username,
                 }, { transaction });
-                
+
                 moodleUserId = moodleUserResult.insertId;
             }
 
@@ -405,6 +406,8 @@ export class MoodleService {
                 id_moodle_user: moodleUserId,
                 completion_percentage: completionStr,
             };
+
+            
 
             await this.userCourseRepository.addUserToCourse(userCourseData, { transaction });
 
@@ -435,7 +438,7 @@ export class MoodleService {
     async importSpecificMoodleCourse(moodleCourseId: number): Promise<ImportResult> {
         return await this.databaseService.db.transaction(async transaction => {
             try {
-                console.log(`🎯 Iniciando importación específica del curso Moodle ID: ${moodleCourseId}`);
+                
                 
                 // Obtener datos del curso desde Moodle
                 const moodleCourses = await this.getAllCourses();
@@ -445,13 +448,13 @@ export class MoodleService {
                     throw new Error(`Curso con ID ${moodleCourseId} no encontrado en Moodle`);
                 }
                 
-                console.log(`📖 Importando curso: "${moodleCourse.fullname}"`);
+                
                 
                 // Crear/actualizar el curso
                 const course = await this.upsertMoodleCourse(moodleCourse, { transaction });
                 
                 // Importar usuarios del curso
-                console.log('👥 Importando usuarios del curso...');
+                
                 const enrolledUsers = await this.getEnrolledUsers(moodleCourse.id);
                 let usersImported = 0;
                 
@@ -461,7 +464,12 @@ export class MoodleService {
                     } else {
                         try {
                             const progress = await this.getUserProgressInCourse(enrolledUser, moodleCourse.id);
-                            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, progress.completion_percentage);
+                               // Log exhaustivo antes de guardar
+                               
+                               // Forzar que nunca sea undefined
+                               let completionPercentage = progress.completion_percentage;
+                               if (completionPercentage === undefined) completionPercentage = null;
+                               await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, completionPercentage);
                         } catch (e) {
                             await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
                         }
@@ -470,7 +478,7 @@ export class MoodleService {
                 }
                 
                 // Importar grupos del curso
-                console.log('🏷️ Importando grupos del curso...');
+                
                 const moodleGroups = await this.getCourseGroups(moodleCourse.id);
                 
                 for (const moodleGroup of moodleGroups) {
@@ -482,7 +490,7 @@ export class MoodleService {
                     }
                 }
                 
-                console.log(`✅ Curso "${moodleCourse.fullname}" importado exitosamente`);
+                
                 
                 return {
                     success: true,
@@ -512,7 +520,7 @@ export class MoodleService {
     async importSpecificMoodleGroup(moodleGroupId: number): Promise<ImportResult> {
         return await this.databaseService.db.transaction(async transaction => {
             try {
-                console.log(`🎯 Iniciando importación específica del grupo Moodle ID: ${moodleGroupId}`);
+                
                 
                 // Obtener información del grupo desde Moodle
                 const moodleCourses = await this.getAllCourses();
@@ -537,7 +545,7 @@ export class MoodleService {
                     throw new Error(`Grupo con ID ${moodleGroupId} no encontrado en Moodle`);
                 }
                 
-                console.log(`🏷️ Importando grupo: "${moodleGroup.name}" del curso "${parentCourse.fullname}"`);
+                
                 
                 // Asegurarse de que el curso padre esté importado
                 const course = await this.upsertMoodleCourse(parentCourse, { transaction });
@@ -546,16 +554,27 @@ export class MoodleService {
                 const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, { transaction });
                 
                 // Importar usuarios del grupo
-                console.log('👥 Importando usuarios del grupo...');
+                
                 const moodleUsers = await this.getGroupUsers(moodleGroup.id);
                 let usersImported = 0;
                 
                 for (const moodleUser of moodleUsers) {
                     await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
+                    let completionPercentage = null;
+                    if (moodleUser.username !== 'guest') {
+                        try {
+                            const progress = await this.getUserProgressInCourse(moodleUser, parentCourse.id);
+                            completionPercentage = progress.completion_percentage != null ? parseInt(progress.completion_percentage as any) : null;
+                        } catch (e) {
+                            completionPercentage = null;
+                        }
+                    }
+                    if (completionPercentage === undefined) completionPercentage = null;
+                    await this.upsertMoodleUserAndEnrollToCourse(moodleUser, course.id_course, { transaction }, completionPercentage);
                     usersImported++;
                 }
                 
-                console.log(`✅ Grupo "${moodleGroup.name}" importado exitosamente`);
+                
                 
                 return {
                     success: true,
@@ -592,84 +611,84 @@ export class MoodleService {
         return await this.databaseService.db.transaction(async transaction => {
             
             // PASO 1: Obtener TODOS los cursos que existen en Moodle
-            console.log('🔍 PASO 1: Obteniendo lista de cursos desde Moodle...');
+            
             const moodleCourses = await this.getAllCourses();
-            console.log(`📚 Encontrados ${moodleCourses.length} cursos en Moodle`);
+            
             
             // PASO 2: Procesar cada curso uno por uno
             for (const moodleCourse of moodleCourses) {
-                console.log(`\n📖 Procesando curso: "${moodleCourse.fullname}" (ID: ${moodleCourse.id})`);
+                
                 
                 // Saltarse el curso principal de Moodle (es un curso del sistema, no real)
                 if (moodleCourse.id === 1) {
-                    console.log('⏭️ Saltando curso principal del sistema Moodle');
+                    
                     continue;
                 }
                 
                 // PASO 2A: Crear o actualizar el curso en nuestra base de datos
-                console.log('💾 Guardando/actualizando curso en base de datos...');
+                
                 const course = await this.upsertMoodleCourse(moodleCourse, { transaction });
 
                 // PASO 2B: Obtener TODOS los usuarios matriculados en este curso
-                console.log('👥 Obteniendo usuarios matriculados en el curso...');
+                
                 const enrolledUsers = await this.getEnrolledUsers(moodleCourse.id);
-                console.log(`👤 Encontrados ${enrolledUsers.length} usuarios matriculados`);
+                // log eliminado
                 
                 // PASO 2C: Procesar cada usuario matriculado
                 for (const enrolledUser of enrolledUsers) {
-                    console.log(`  👤 Procesando usuario: ${enrolledUser.username}`);
+                    
                     
                     // Los usuarios "guest" son especiales (invitados), no tienen progreso
                     if (enrolledUser.username === 'guest') {
-                        console.log('  👻 Usuario invitado - guardando sin progreso');
+                        
                         await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
                         continue;
                     }
                     
                     try {
                         // PASO 2C1: Intentar obtener el progreso del usuario en el curso
-                        console.log(`  📊 Obteniendo progreso del usuario en el curso...`);
+                        
                         const progress = await this.getUserProgressInCourse(enrolledUser, moodleCourse.id);
-                        console.log(`  ✅ Progreso obtenido: ${progress.completion_percentage}%`);
+                        
                         
                         // PASO 2C2: Guardar usuario + progreso en nuestra BD
                         await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, progress.completion_percentage);
                         
                     } catch (e) {
                         // Si no se puede obtener progreso (ej: permisos), guardar sin progreso
-                        console.log(`  ⚠️ No se pudo obtener progreso - guardando sin progreso`);
+                        
                         await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
                     }
                 }
 
                 // PASO 2D: Obtener TODOS los grupos asociados a este curso
-                console.log('👥 Obteniendo grupos del curso...');
+                
                 const moodleGroups = await this.getCourseGroups(moodleCourse.id);
-                console.log(`🏷️ Encontrados ${moodleGroups.length} grupos`);
+                
                 
                 // PASO 2E: Procesar cada grupo del curso
                 for (const moodleGroup of moodleGroups) {
-                    console.log(`  🏷️ Procesando grupo: ${moodleGroup.name}`);
+                    
                     
                     // PASO 2E1: Crear/actualizar el grupo en nuestra BD
                     const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, { transaction });
 
                     // PASO 2E2: Obtener usuarios que pertenecen a este grupo
-                    console.log(`    👥 Obteniendo usuarios del grupo...`);
+                    
                     const moodleUsers = await this.getGroupUsers(moodleGroup.id);
-                    console.log(`    👤 Encontrados ${moodleUsers.length} usuarios en el grupo`);
+                    // log eliminado
                     
                     // PASO 2E3: Procesar cada usuario del grupo
                     for (const moodleUser of moodleUsers) {
-                        console.log(`      👤 Asignando usuario ${moodleUser.username} al grupo`);
+                        
                         await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
                     }
                 }
                 
-                console.log(`✅ Curso "${moodleCourse.fullname}" procesado completamente`);
+                
             }
 
-            console.log('\n🎉 ¡IMPORTACIÓN COMPLETADA! Todos los datos de Moodle han sido sincronizados');
+            
             return { message: 'Cursos, grupos y usuarios importados y actualizados correctamente' };
         });
     }
