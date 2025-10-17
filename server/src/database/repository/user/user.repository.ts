@@ -3,8 +3,16 @@ import { QueryOptions, Repository } from "../repository";
 import { UserInsertModel, UserSelectModel, userTable, UserUpdateModel } from "src/database/schema/tables/user.table";
 import { eq, ilike, and } from "drizzle-orm";
 
+
 @Injectable()
 export class UserRepository extends Repository {
+  /**
+   * Buscar usuario por DNI
+   */
+  async findByDni(dni: string, options?: QueryOptions) {
+    const rows = await this.query(options).select().from(userTable).where(eq(userTable.dni, dni));
+    return rows?.[0] || null;
+  }
   async findById(id: number, options?: QueryOptions) {
     const rows = await this.query(options).select().from(userTable).where(eq(userTable.id_user, id));
     return rows?.[0];
@@ -56,4 +64,5 @@ export class UserRepository extends Repository {
         
         return await this.query(options).select().from(userTable).where(and(...where));
   }
+
 }

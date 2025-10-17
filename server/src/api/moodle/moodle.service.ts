@@ -353,77 +353,136 @@ export class MoodleService {
         completionPercentage?: number | null
     ) {
         const run = async (transaction: Transaction) => {
-            // Buscar si ya existe un usuario de Moodle con este moodle_id
-            const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
-
             let userId: number;
             let moodleUserId: number;
-
-            if (existingMoodleUser) {
-                // Si existe el usuario de Moodle, actualizamos el usuario principal
-                userId = existingMoodleUser.id_user;
-                moodleUserId = existingMoodleUser.id_moodle_user;
-
-                await this.userRepository.update(userId, {
-                    name: moodleUser.firstname,
-                    first_surname: moodleUser.lastname,
-                    email: moodleUser.email,
-                }, { transaction });
-
-                // Actualizar usuario de Moodle
-                await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
-                    moodle_username: moodleUser.username,
-                }, { transaction });
-
-            } else {
-                // Crear nuevo usuario principal
-                const userResult = await this.userRepository.create({
-                    name: moodleUser.firstname,
-                    first_surname: moodleUser.lastname,
-                    email: moodleUser.email,
-                } as UserInsertModel, { transaction });
-
-                userId = userResult.insertId;
-
-                // Crear usuario de Moodle asociado
-                const moodleUserResult = await this.moodleUserService.create({
-                    id_user: userId,
-                    moodle_id: moodleUser.id,
-                    moodle_username: moodleUser.username,
-                }, { transaction });
-
-                moodleUserId = moodleUserResult.insertId;
-            }
-
-            // Crear/actualizar inscripción al curso
-            const completionStr = completionPercentage !== null && completionPercentage !== undefined 
-                ? completionPercentage.toString() 
-                : undefined;
-
-            const userCourseData: UserCourseInsertModel = {
-                id_user: userId,
-                id_course: courseId,
-                id_moodle_user: moodleUserId,
-                completion_percentage: completionStr,
-            };
-
-            
-
-            await this.userCourseRepository.addUserToCourse(userCourseData, { transaction });
-
-            // Actualizar roles de Moodle para el curso
-            if (moodleUser.roles) {
-                for (const role of moodleUser.roles) {
-                    await this.courseRepository.addUserRoleToCourse({
-                        id_user: userId,
-                        id_course: courseId,
-                        id_role: role.roleid,
-                        role_shortname: role.shortname
-                    }, { transaction });
+            try {
+                // Buscar si ya existe un usuario de Moodle con este moodle_id
+                let existingMoodleUser = null;
+                try {
+                    existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+                    // Logger.log({ existingMoodleUser }, 'findByMoodleId OK');
+                } catch (err) {
+                    Logger.error({ err, moodleUser }, 'findByMoodleId ERROR');
+                    throw err;
                 }
-            }
 
-            return await this.userRepository.findById(userId, { transaction });
+                if (existingMoodleUser) {
+                    // Solo actualizar el username de Moodle
+                    userId = existingMoodleUser.id_user;
+                    moodleUserId = existingMoodleUser.id_moodle_user;
+                    try {
+                        await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
+                            moodle_username: moodleUser.username,
+                        }, { transaction });
+                        // Logger.log({ userId, moodleUserId }, 'update MoodleUser OK');
+                    } catch (err) {
+                        Logger.error({ err, userId, moodleUser }, 'update MoodleUser ERROR');
+                        throw err;
+                    }
+                } else {
+                    // Intentar buscar usuario por DNI en customfields de Moodle
+                    let foundUserByDni = null;
+                    const dniField = moodleUser.customfields?.find(f => (f.shortname && f.shortname.toLowerCase() === 'dni') || (f.name && f.name.toLowerCase() === 'dni'));
+                    if (dniField && dniField.value) {
+                        try {
+                            foundUserByDni = await this.userRepository.findByDni(dniField.value, { transaction });
+                            // Logger.log({ foundUserByDni }, 'findByDni OK');
+                        } catch (err) {
+                            Logger.error({ err, dniField, moodleUser }, 'findByDni ERROR');
+                            throw err;
+                        }
+                    }
+                    if (foundUserByDni) {
+                        // Asociar usuario de Moodle al usuario existente por DNI
+                        userId = foundUserByDni.id_user;
+                        try {
+                            const moodleUserResult = await this.moodleUserService.create({
+                                id_user: userId,
+                                moodle_id: moodleUser.id,
+                                moodle_username: moodleUser.username,
+                            }, { transaction });
+                            moodleUserId = moodleUserResult.insertId;
+                            // Logger.log({ userId, moodleUserId }, 'create MoodleUser by DNI OK');
+                        } catch (err) {
+                            Logger.error({ err, userId, moodleUser }, 'create MoodleUser by DNI ERROR');
+                            throw err;
+                        }
+                    } else {
+                        // Crear nuevo usuario principal y usuario de Moodle asociado
+
+                        // TODO: Decidir si crear usuario local o no al no encontrar por DNI
+                        // Si se decide crear el usuario local, descomentar el siguiente bloque
+                        // Todo esto solo sirve para preparar la app, después deberían existir siempre el usuario local
+
+                        // try {
+                        //     const userResult = await this.userRepository.create({
+                        //         name: moodleUser.firstname,
+                        //         first_surname: moodleUser.lastname,
+                        //         email: moodleUser.email,
+                        //     } as UserInsertModel, { transaction });
+                        //     userId = userResult.insertId;
+                        //     Logger.log({ userId }, 'create User OK');
+                        // } catch (err) {
+                        //     Logger.error({ err, moodleUser }, 'create User ERROR');
+                        //     throw err;
+                        // }
+                        // try {
+                        //     const moodleUserResult = await this.moodleUserService.create({
+                        //         id_user: userId,
+                        //         moodle_id: moodleUser.id,
+                        //         moodle_username: moodleUser.username,
+                        //     }, { transaction });
+                        //     moodleUserId = moodleUserResult.insertId;
+                        //     Logger.log({ userId, moodleUserId }, 'create MoodleUser for new user OK');
+                        // } catch (err) {
+                        //     Logger.error({ err, userId, moodleUser }, 'create MoodleUser for new user ERROR');
+                        //     throw err;
+                        // }
+                    }
+                }
+
+                // Crear/actualizar inscripción al curso
+                const completionStr = completionPercentage !== null && completionPercentage !== undefined 
+                    ? completionPercentage.toString() 
+                    : undefined;
+
+                const userCourseData: UserCourseInsertModel = {
+                    id_user: userId,
+                    id_course: courseId,
+                    id_moodle_user: moodleUserId,
+                    completion_percentage: completionStr,
+                };
+                try {
+                    await this.userCourseRepository.addUserToCourse(userCourseData, { transaction });
+                    // Logger.log({ userCourseData }, 'addUserToCourse OK');
+                } catch (err) {
+                    Logger.error({ err, userCourseData }, 'addUserToCourse ERROR');
+                    throw err;
+                }
+
+                // Actualizar roles de Moodle para el curso
+                if (moodleUser.roles) {
+                    for (const role of moodleUser.roles) {
+                        try {
+                            await this.courseRepository.addUserRoleToCourse({
+                                id_user: userId,
+                                id_course: courseId,
+                                id_role: role.roleid,
+                                role_shortname: role.shortname
+                            }, { transaction });
+                            // Logger.log({ userId, courseId, role }, 'addUserRoleToCourse OK');
+                        } catch (err) {
+                            Logger.error({ err, userId, courseId, role }, 'addUserRoleToCourse ERROR');
+                            throw err;
+                        }
+                    }
+                }
+
+                return await this.userRepository.findById(userId, { transaction });
+            } catch (error) {
+                Logger.error({ error, moodleUser }, 'upsertMoodleUserAndEnrollToCourse:ERROR');
+                throw error;
+            }
         };
 
         if (options?.transaction) return await run(options.transaction);
