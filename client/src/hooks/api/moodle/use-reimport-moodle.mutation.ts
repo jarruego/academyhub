@@ -9,10 +9,13 @@ export const useReimportMoodleMutation = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async () => {
+        mutationFn: async (skipUsers?: boolean) => {
+            const url = skipUsers
+                ? `${getApiHost()}/moodle/import-all?skipUsers=true`
+                : `${getApiHost()}/moodle/import-all`;
             await request({
                 method: 'POST',
-                url: `${getApiHost()}/moodle/import-all`
+                url
             });
             queryClient.refetchQueries({ queryKey: ['users', 'get-all'] });
         },

@@ -666,89 +666,54 @@ export class MoodleService {
      * 
      * Es como hacer una "foto" completa del estado actual de Moodle
      */
-    async importMoodleCourses() {
+    async importMoodleCourses(skipUsers = false) {
         return await this.databaseService.db.transaction(async transaction => {
-            
             // PASO 1: Obtener TODOS los cursos que existen en Moodle
-            
             const moodleCourses = await this.getAllCourses();
-            
-            
+            console.log(`\n[MOODLE IMPORT] Iniciando importación de ${moodleCourses.length} cursos...`);
             // PASO 2: Procesar cada curso uno por uno
             for (const moodleCourse of moodleCourses) {
-                
-                
-                // Saltarse el curso principal de Moodle (es un curso del sistema, no real)
-                if (moodleCourse.id === 1) {
-                    
-                    continue;
-                }
-                
-                // PASO 2A: Crear o actualizar el curso en nuestra base de datos
-                
+                if (moodleCourse.id === 1) continue;
+                console.log(`[MOODLE IMPORT] Importando curso: ${moodleCourse.fullname} (ID: ${moodleCourse.id})`);
                 const course = await this.upsertMoodleCourse(moodleCourse, { transaction });
-
-                // PASO 2B: Obtener TODOS los usuarios matriculados en este curso
-                
-                const enrolledUsers = await this.getEnrolledUsers(moodleCourse.id);
-                // log eliminado
-                
-                // PASO 2C: Procesar cada usuario matriculado
-                for (const enrolledUser of enrolledUsers) {
-                    
-                    
-                    // Los usuarios "guest" son especiales (invitados), no tienen progreso
-                    if (enrolledUser.username === 'guest') {
-                        
-                        await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
-                        continue;
-                    }
-                    
-                    try {
-                        // PASO 2C1: Intentar obtener el progreso del usuario en el curso
-                        
-                        const progress = await this.getUserProgressInCourse(enrolledUser, moodleCourse.id);
-                        
-                        
-                        // PASO 2C2: Guardar usuario + progreso en nuestra BD
-                        await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, progress.completion_percentage);
-                        
-                    } catch (e) {
-                        // Si no se puede obtener progreso (ej: permisos), guardar sin progreso
-                        
-                        await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
+                if (!skipUsers) {
+                    const enrolledUsers = await this.getEnrolledUsers(moodleCourse.id);
+                    console.log(`  [MOODLE IMPORT]   Usuarios matriculados: ${enrolledUsers.length}`);
+                    let userCount = 0;
+                    for (const enrolledUser of enrolledUsers) {
+                        userCount++;
+                        if (enrolledUser.username === 'guest') {
+                            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
+                            continue;
+                        }
+                        try {
+                            const progress = await this.getUserProgressInCourse(enrolledUser, moodleCourse.id);
+                            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, progress.completion_percentage);
+                        } catch (e) {
+                            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
+                        }
+                        if (userCount % 10 === 0) {
+                            console.log(`    [MOODLE IMPORT]     Procesados ${userCount} usuarios...`);
+                        }
                     }
                 }
-
-                // PASO 2D: Obtener TODOS los grupos asociados a este curso
-                
                 const moodleGroups = await this.getCourseGroups(moodleCourse.id);
-                
-                
-                // PASO 2E: Procesar cada grupo del curso
+                console.log(`  [MOODLE IMPORT]   Grupos encontrados: ${moodleGroups.length}`);
+                let groupCount = 0;
                 for (const moodleGroup of moodleGroups) {
-                    
-                    
-                    // PASO 2E1: Crear/actualizar el grupo en nuestra BD
+                    groupCount++;
+                    console.log(`    [MOODLE IMPORT]     Importando grupo: ${moodleGroup.name} (ID: ${moodleGroup.id})`);
                     const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, { transaction });
-
-                    // PASO 2E2: Obtener usuarios que pertenecen a este grupo
-                    
-                    const moodleUsers = await this.getGroupUsers(moodleGroup.id);
-                    // log eliminado
-                    
-                    // PASO 2E3: Procesar cada usuario del grupo
-                    for (const moodleUser of moodleUsers) {
-                        
-                        await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
+                    if (!skipUsers) {
+                        const moodleUsers = await this.getGroupUsers(moodleGroup.id);
+                        for (const moodleUser of moodleUsers) {
+                            await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
+                        }
                     }
                 }
-                
-                
             }
-
-            
-            return { message: 'Cursos, grupos y usuarios importados y actualizados correctamente' };
+            console.log(`[MOODLE IMPORT] Importación finalizada.`);
+            return { message: skipUsers ? 'Cursos y grupos importados correctamente (sin usuarios)' : 'Cursos, grupos y usuarios importados y actualizados correctamente' };
         });
     }
 

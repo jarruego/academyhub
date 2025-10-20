@@ -80,7 +80,9 @@ export class MoodleController {
 
     @UseGuards(RoleGuard([Role.ADMIN]))
     @Post('import-all')
-    async importMoodleCourses() {
-        return await this.moodleService.importMoodleCourses();
+    async importMoodleCourses(@Query('skipUsers') skipUsers?: string) {
+        // Accepts skipUsers as query param (e.g., /import-all?skipUsers=true)
+        const skip = skipUsers === 'true';
+        return await this.moodleService.importMoodleCourses(skip);
     }
 }

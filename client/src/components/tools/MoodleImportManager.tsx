@@ -102,6 +102,7 @@ const GroupsTable: React.FC<{
 };
 
 export const MoodleImportManager: React.FC = () => {
+  const [importingAll, setImportingAll] = useState<'all' | 'allNoUsers' | null>(null);
   const { data: coursesData, isLoading, error, refetch } = useMoodleCoursesQuery();
   const importCourseMutation = useImportMoodleCourseMutation();
   const importGroupMutation = useImportMoodleGroupMutation();
@@ -218,13 +219,30 @@ export const MoodleImportManager: React.FC = () => {
   };
 
   const handleImportAll = async () => {
+    setImportingAll('all');
     try {
-      await importAllMutation.mutateAsync();
+      await importAllMutation.mutateAsync(false);
       message.success('Importación completa realizada exitosamente');
       refetch();
     } catch (error) {
       message.error('Error durante la importación completa');
       console.error('Error durante la importación completa:', error);
+    } finally {
+      setImportingAll(null);
+    }
+  };
+
+  const handleImportAllNoUsers = async () => {
+    setImportingAll('allNoUsers');
+    try {
+      await importAllMutation.mutateAsync(true);
+      message.success('Importación de cursos y grupos realizada exitosamente (sin usuarios)');
+      refetch();
+    } catch (error) {
+      message.error('Error durante la importación de cursos y grupos (sin usuarios)');
+      console.error('Error durante la importación sin usuarios:', error);
+    } finally {
+      setImportingAll(null);
     }
   };
 
@@ -304,107 +322,129 @@ export const MoodleImportManager: React.FC = () => {
     );
   };
 
-  if (error) {
-    return (
-      <Card>
-        <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Text type="danger">Error al cargar los cursos de Moodle</Text>
-          <br />
-          <Button 
-            type="primary" 
-            onClick={() => refetch()}
-            style={{ marginTop: 16 }}
-          >
-            Reintentar
-          </Button>
-        </div>
-      </Card>
-    );
-  }
-
   return (
-    <AuthzHide roles={[Role.ADMIN]}>
-      <div>
-      <Card>
-        <div style={{ marginBottom: 24 }}>
-          <Title level={2} style={{ marginBottom: 8 }}>Importación desde Moodle</Title>
-          <Text type="secondary">
-            {courses.length} cursos encontrados ({importedCount} importados)
-          </Text>
-        </div>
-
-        <Space style={{ marginBottom: 16 }}>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => refetch()}
-            loading={isLoading}
-          >
-            Actualizar Lista
-          </Button>
-          <Button
-            type="primary"
-            danger
-            icon={<CloudDownloadOutlined />}
-            onClick={handleImportAll}
-            loading={importAllMutation.isPending}
-          >
-            Importar Todo
-          </Button>
-        </Space>
-
-        <Table
-          columns={columns}
-          dataSource={courses}
-          rowKey="id"
-          loading={isLoading}
-          expandable={{
-            expandedRowRender,
-            expandIcon: ({ expanded, onExpand, record }) => (
-              <Button
-                type="text"
-                size="small"
-                icon={<ExpandAltOutlined style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }} />}
-                onClick={(e) => onExpand(record, e)}
-              />
-            ),
-          }}
-          locale={{
-            emptyText: 'No se encontraron cursos en Moodle',
-          }}
-        />
-      </Card>
-
+    <div>
       <Modal
-        title={`Confirmar importación de ${confirmModal.type === 'course' ? 'curso' : 'grupo'}`}
-        open={confirmModal.open}
-        onOk={handleConfirmImport}
-        onCancel={() => setConfirmModal({ open: false, type: 'course', item: null })}
-        confirmLoading={importCourseMutation.isPending || importGroupMutation.isPending}
-        okText={`Importar ${confirmModal.type === 'course' ? 'curso' : 'grupo'}`}
-        cancelText="Cancelar"
+        open={!!importingAll}
+        footer={null}
+        closable={false}
+        centered
+        maskClosable={false}
+        styles={{ body: { textAlign: 'center', padding: 32 } }}
       >
-        <p>
-          ¿Estás seguro de que quieres importar el {confirmModal.type === 'course' ? 'curso' : 'grupo'}{' '}
-          <strong>
-            "{confirmModal.type === 'course' 
-              ? (confirmModal.item as MoodleCourseWithImportStatus)?.fullname 
-              : (confirmModal.item as MoodleGroupWithImportStatus)?.name}"
-          </strong> desde Moodle?
-        </p>
-        <div style={{ 
-          background: '#fff7e6', 
-          border: '1px solid #ffd591', 
-          borderRadius: '6px', 
-          padding: '12px', 
-          marginTop: '12px' 
-        }}>
-          <Text type="warning">
-            ⚠️ Esta acción importará todos los usuarios y datos asociados. 
-            Los datos existentes se actualizarán.
-          </Text>
+        <Spin size="large" style={{ marginBottom: 16 }} />
+        <div style={{ marginTop: 16, fontSize: 18 }}>
+          {importingAll === 'all'
+            ? 'Importando cursos, grupos y usuarios desde Moodle...'
+            : 'Importando cursos y grupos (sin usuarios) desde Moodle...'}
         </div>
       </Modal>
-      </div>
-    </AuthzHide>
+      <AuthzHide roles={[Role.ADMIN]}>
+        {error ? (
+          <Card>
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <Text type="danger">Error al cargar los cursos de Moodle</Text>
+              <br />
+              <Button
+                type="primary"
+                onClick={() => refetch()}
+                style={{ marginTop: 16 }}
+              >
+                Reintentar
+              </Button>
+            </div>
+          </Card>
+        ) : (
+          <>
+            <Card>
+              <div style={{ marginBottom: 24 }}>
+                <Title level={2} style={{ marginBottom: 8 }}>Importación desde Moodle</Title>
+                <Text type="secondary">
+                  {courses.length} cursos encontrados ({importedCount} importados)
+                </Text>
+              </div>
+
+              <Space style={{ marginBottom: 16 }}>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => refetch()}
+                  loading={isLoading}
+                >
+                  Actualizar Lista
+                </Button>
+                <Button
+                  type="primary"
+                  danger
+                  icon={<CloudDownloadOutlined />}
+                  onClick={handleImportAll}
+                  loading={importAllMutation.isPending}
+                >
+                  Importar Todo
+                </Button>
+                <Button
+                  type="default"
+                  icon={<CloudDownloadOutlined />}
+                  onClick={handleImportAllNoUsers}
+                  loading={importAllMutation.isPending}
+                >
+                  Importar Todo (sin usuarios)
+                </Button>
+              </Space>
+
+              <Table
+                columns={columns}
+                dataSource={courses}
+                rowKey="id"
+                loading={isLoading}
+                expandable={{
+                  expandedRowRender,
+                  expandIcon: ({ expanded, onExpand, record }) => (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<ExpandAltOutlined style={{ transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }} />}
+                      onClick={(e) => onExpand(record, e)}
+                    />
+                  ),
+                }}
+                locale={{
+                  emptyText: 'No se encontraron cursos en Moodle',
+                }}
+              />
+            </Card>
+          </>
+        )}
+        <Modal
+          title={`Confirmar importación de ${confirmModal.type === 'course' ? 'curso' : 'grupo'}`}
+          open={confirmModal.open}
+          onOk={handleConfirmImport}
+          onCancel={() => setConfirmModal({ open: false, type: 'course', item: null })}
+          confirmLoading={importCourseMutation.isPending || importGroupMutation.isPending}
+          okText={`Importar ${confirmModal.type === 'course' ? 'curso' : 'grupo'}`}
+          cancelText="Cancelar"
+        >
+          <p>
+            ¿Estás seguro de que quieres importar el {confirmModal.type === 'course' ? 'curso' : 'grupo'}{' '}
+            <strong>
+              "{confirmModal.type === 'course'
+                ? (confirmModal.item as MoodleCourseWithImportStatus)?.fullname
+                : (confirmModal.item as MoodleGroupWithImportStatus)?.name}"
+            </strong> desde Moodle?
+          </p>
+          <div style={{
+            background: '#fff7e6',
+            border: '1px solid #ffd591',
+            borderRadius: '6px',
+            padding: '12px',
+            marginTop: '12px'
+          }}>
+            <Text type="warning">
+              ⚠️ Esta acción importará todos los usuarios y datos asociados.
+              Los datos existentes se actualizarán.
+            </Text>
+          </div>
+        </Modal>
+      </AuthzHide>
+    </div>
   );
-};
+}
