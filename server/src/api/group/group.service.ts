@@ -73,12 +73,13 @@ export class GroupService {
         centerIdToUse = mainCenter[0]?.id_center ?? null;
       }
 
-      // Añadir a user_group (si no existe)
-      const result = await this.userGroupRepository.addUserToGroup(id_group, id_user, { transaction });
+  // Comprobar existencia previa en user_group para evitar duplicate inserts
+  // (antes hacíamos un insert directo que lanzaba unique violations si ya existía)
+  const existingUserGroup = await this.userGroupRepository.findByGroupAndUserId(id_group, id_user, { transaction });
 
-      // Obtener el id_course del grupo
-      const group = await this.groupRepository.findById(id_group, { transaction });
-      const id_course = group.id_course;
+  // Obtener el id_course del grupo
+  const group = await this.groupRepository.findById(id_group, { transaction });
+  const id_course = group.id_course;
 
       // Comprobar si el usuario ya está en el curso
       const userCourse = await this.userCourseRepository.findByCourseAndUserId(id_course, id_user, { transaction });
@@ -94,26 +95,26 @@ export class GroupService {
          }, { transaction });
       }
 
-      // Asociar grupo
-      const userGroup = await this.userGroupRepository.findByGroupAndUserId(id_group, id_user, { transaction });
-
-      if (userGroup) {
+      // Si ya existe la asociación user-group, actualizamos centro si procede
+      if (existingUserGroup) {
         if (typeof centerIdToUse !== 'undefined') {
           await this.userGroupRepository.updateById(id_user, id_group, { id_center: centerIdToUse }, { transaction });
         }
-      } else {
-        await this.userGroupRepository.create({
-          id_group,
-          id_user,
-          id_center: centerIdToUse,
-          join_date: new Date(),
-          completion_percentage: "0",
-          time_spent: 0,
-          last_access: null,
-        }, { transaction });
+        return existingUserGroup;
       }
 
-      return result;
+      // No existía: crear la asociación incluyendo centro/join_date
+      const created = await this.userGroupRepository.create({
+        id_group,
+        id_user,
+        id_center: centerIdToUse,
+        join_date: new Date(),
+        completion_percentage: "0",
+        time_spent: 0,
+        last_access: null,
+      }, { transaction });
+
+      return created;
     });
   }
 

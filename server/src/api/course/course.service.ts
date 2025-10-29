@@ -55,6 +55,12 @@ export class CourseService {
     });
   }
 
+  async findByMoodleId(moodleId: number, options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      return await this.courseRepository.findByMoodleId(moodleId, { transaction });
+    });
+  }
+
   async addUserToCourse(userCourseInsertModel: UserCourseInsertModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.userCourseRepository.addUserToCourse(userCourseInsertModel, { transaction });
@@ -106,22 +112,70 @@ export class CourseService {
         moodle_id: moodleCourse.id,
         start_date: new Date(moodleCourse.startdate * 1000),
         end_date: (moodleCourse.enddate && moodleCourse.enddate > 0) ? new Date(moodleCourse.enddate * 1000) : null,
-        // Campos opcionales necesarios para la creación
-        // TODO: comprobar si ya están definidos en la base de datos
         category: "",
         modality: CourseModality.ONLINE,
         hours: 0,
         price_per_hour: null,
         active: true,
         fundae_id: "",
-      };
-      const existingCourse = await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
-      if (existingCourse) {
-        await this.courseRepository.update(existingCourse.id_course, data, { transaction });
+      } as Partial<CourseInsertModel>;
+
+      // Business-layer upsert: try find -> update -> create -> fallback fetch
+      const existing = await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
+      if (existing) {
+        await this.courseRepository.update(existing.id_course, data as CourseUpdateModel, { transaction });
+        return await this.courseRepository.findById(existing.id_course, { transaction });
+      }
+
+      try {
+        const created = await this.courseRepository.create(data as CourseInsertModel, { transaction });
+        const anyCreated: any = created;
+        const newId = Array.isArray(anyCreated) ? (anyCreated[0]?.id || anyCreated[0]?.id_course || anyCreated[0]?.insertId || anyCreated[0]?.insert_id) : (anyCreated?.id || anyCreated?.id_course || anyCreated?.insertId || anyCreated?.insert_id);
+        if (newId) return await this.courseRepository.findById(Number(newId), { transaction });
         return await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
-      } else {
-        const [{ id }] = await this.courseRepository.create(data, { transaction });
-        return await this.courseRepository.findById(id, { transaction });
+      } catch (e) {
+        // likely a duplicate/race: try to fetch existing
+        try {
+          const found = await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
+          if (found) return found;
+        } catch (ee) {}
+        throw e;
+      }
+    });
+  }
+
+  // Upsert a course from a generic payload (used by importers). This avoids assumptions
+  // about Moodle-specific fields (startdate/enddate) and delegates to repository logic.
+  async upsertCourse(payload: Partial<CourseInsertModel>, options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const moodleId = payload?.moodle_id as number | undefined;
+
+      // If moodle_id present try find -> update
+      if (moodleId) {
+        const existing = await this.courseRepository.findByMoodleId(moodleId, { transaction });
+        if (existing) {
+          await this.courseRepository.update(existing.id_course, payload as CourseUpdateModel, { transaction });
+          return await this.courseRepository.findById(existing.id_course, { transaction });
+        }
+      }
+
+      // Try create and resolve persisted row
+      try {
+        const created = await this.courseRepository.create(payload as CourseInsertModel, { transaction });
+        const anyCreated: any = created;
+        const newId = Array.isArray(anyCreated) ? (anyCreated[0]?.id || anyCreated[0]?.id_course || anyCreated[0]?.insertId || anyCreated[0]?.insert_id) : (anyCreated?.id || anyCreated?.id_course || anyCreated?.insertId || anyCreated?.insert_id);
+        if (newId) return await this.courseRepository.findById(Number(newId), { transaction });
+        if (moodleId) return await this.courseRepository.findByMoodleId(moodleId, { transaction });
+        return Array.isArray(created) ? created[0] : created;
+      } catch (e) {
+        // fallback: try fetch by moodle id if available, else rethrow
+        if (moodleId) {
+          try {
+            const found = await this.courseRepository.findByMoodleId(moodleId, { transaction });
+            if (found) return found;
+          } catch (ee) {}
+        }
+        throw e;
       }
     });
   }

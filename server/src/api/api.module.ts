@@ -7,8 +7,9 @@ import { UserModule } from "src/api/user/user.module";
 import { MoodleModule } from './moodle/moodle.module';
 import { MoodleUserModule } from './moodle-user/moodle-user.module';
 import { ImportModule } from './import/import.module';
+import { ImportVelneoModule } from './import-velneo/import-velneo.module';
 
 @Module({
-  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, MoodleUserModule, ImportModule],
+  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, MoodleUserModule, ImportModule, ImportVelneoModule],
 })
 export class ApiModule {}

@@ -148,6 +148,13 @@
       "when": 1760601986910,
       "tag": "0020_green_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1761044334698,
+      "tag": "0021_short_maverick",
+      "breakpoints": true
     }
   ]
 }

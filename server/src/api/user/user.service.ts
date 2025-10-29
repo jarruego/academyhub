@@ -272,4 +272,14 @@ export class UserService {
       return await this.userCourseRepository.findCoursesByUserId(id_user, { transaction });
     });
   }
+  /**
+   * Buscar usuario por DNI
+   */
+  async findByDni(dni: string, options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const result = await this.userRepository.findByDni(dni, { transaction });
+      // El repositorio devuelve un array, pero por si acaso, forzamos array vacío si no hay resultado
+      return Array.isArray(result) ? result : (result ? [result] : []);
+    });
+  }
 }

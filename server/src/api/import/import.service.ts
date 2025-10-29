@@ -400,6 +400,27 @@ export class ImportService {
     }
 
     /**
+     * Normaliza el nombre del centro para matching/almacenamiento.
+     * - descompone acentos
+     * - elimina diacríticos
+     * - colapsa espacios
+     * - trim y lower-case
+     */
+    private normalizeCenter(s?: string): string {
+        if (!s) return '';
+        try {
+            return String(s)
+                .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        } catch (e) {
+            return String(s).trim().toLowerCase();
+        }
+    }
+
+    /**
      * Normaliza una fila del CSV a datos procesables
      */
     private normalizeCSVRow(row: SageCSVRow, rowNumber: number): ProcessedUserData {
@@ -606,41 +627,87 @@ export class ImportService {
      * Busca o crea un centro
      */
     private async findOrCreateCenter(data: ProcessedUserData, companyId: number) {
-        // Si no hay center_name, usar "DESCONOCIDO" 
+        // Si no hay center_name, usar "DESCONOCIDO"
         const centerName = data.center_name?.trim() || 'DESCONOCIDO';
-        
-        // Crear un import_id único combinando empresa + centro
-        // Esto evita conflictos entre empresas que tengan centros "DESCONOCIDO"
-        const importId = `${companyId}_${centerName}`;
 
-        // Buscar SOLO por import_id único
-        const existing = await this.databaseService.db
-            .select()
-            .from(centers)
-            .where(eq(centers.import_id, importId))
-            .limit(1);
+        // Normalizar el nombre para matching/almacenamiento
+        const normalizedCenter = this.normalizeCenter(centerName);
 
-        if (existing.length > 0) {
-            return existing[0];
+        // Siempre usamos import_id prefijado con companyId: `${companyId}_${normalizedCenter}`
+        const expectedImportId = `${companyId}_${normalizedCenter}`;
+
+        // Si es DESCONOCIDO mantenemos el patrón companyId_desconocido
+        if (centerName === 'DESCONOCIDO') {
+            const importId = `${companyId}_desconocido`;
+            const existing = await this.databaseService.db
+                .select()
+                .from(centers)
+                .where(eq(centers.import_id, importId))
+                .limit(1);
+
+            if (existing.length > 0) return existing[0];
+
+            const newCenter: CenterInsertModel = {
+                center_name: centerName,
+                employer_number: data.employer_number || null,
+                id_company: companyId,
+                import_id: importId
+            };
+
+            const [created] = await this.databaseService.db
+                .insert(centers)
+                .values(newCenter)
+                .returning();
+
+            this.logger.warn(`🏢 Centro DESCONOCIDO creado para empresa ID ${companyId} (usuario sin centro definido)`);
+            return created;
         }
 
-        // Crear nuevo centro (incluyendo centro "DESCONOCIDO" si es necesario)
+        // Para centros normales: intentar matching por import_id prefijado (exacto), prefijo sobre la parte normalized y fallback por nombre
+        // 1) exact match por import_id completo (companyId_normalizedCenter)
+        let existing = await this.databaseService.db
+            .select()
+            .from(centers)
+            .where(eq(centers.import_id, expectedImportId))
+            .limit(1);
+
+        if (existing.length > 0) return existing[0];
+
+        // 2) prefix match: import_id comienza por companyId_normalizedCenter (esto permite GUADALQUIV -> GUADALQUIVIR)
+        existing = await this.databaseService.db
+            .select()
+            .from(centers)
+            .where(sql`${centers.import_id} LIKE ${expectedImportId + '%'}`)
+            .limit(1);
+
+        if (existing.length > 0) return existing[0];
+
+        // 3) fallback: comparar el center_name de la BD normalizado contra el CSV normalizado (sin prefijo)
+        existing = await this.databaseService.db
+            .select()
+            .from(centers)
+            .where(
+                and(
+                    eq(centers.id_company, companyId),
+                    sql`lower(trim(${centers.center_name})) = ${normalizedCenter}`
+                )
+            )
+            .limit(1);
+
+        if (existing.length > 0) return existing[0];
+
+        // No encontrado -> crear nuevo centro con import_id = `${companyId}_${normalizedCenter}`
         const newCenter: CenterInsertModel = {
             center_name: centerName,
             employer_number: data.employer_number || null,
             id_company: companyId,
-            import_id: importId  // Clave única: empresa_centro
+            import_id: expectedImportId
         };
 
         const [created] = await this.databaseService.db
             .insert(centers)
             .values(newCenter)
             .returning();
-
-        // Log cuando se crea un centro DESCONOCIDO
-        if (centerName === 'DESCONOCIDO') {
-            this.logger.warn(`🏢 Centro DESCONOCIDO creado para empresa ID ${companyId} (usuario sin centro definido)`);
-        }
 
         return created;
     }
@@ -753,7 +820,7 @@ export class ImportService {
                 const processedDecision = await this.checkProcessedDecision(data, matchForNSS);
                 
                 if (processedDecision.exists) {
-                    this.logger.log(`Decisión NSS ya tomada anteriormente para ${data.name} ${data.first_surname} (NSS: ${data.nss}). Acción: ${processedDecision.action}`);
+                            this.logger.debug(`Decisión NSS ya tomada anteriormente para ${data.name} ${data.first_surname} (NSS: ${data.nss}). Acción: ${processedDecision.action}`);
                     
                     // Aplicar la decisión anterior automáticamente (misma lógica que para similitud)
                     switch (processedDecision.action) {
@@ -773,7 +840,7 @@ export class ImportService {
                             return { success: true, action: 'created', user_id: newUser.id_user };
                             
                         case 'skip':
-                            this.logger.log(`Registro NSS omitido según decisión anterior para ${data.name} ${data.first_surname}`);
+                            this.logger.debug(`Registro NSS omitido según decisión anterior para ${data.name} ${data.first_surname}`);
                             return { success: true, action: 'skipped' };
                     }
                 }
@@ -818,7 +885,7 @@ export class ImportService {
                 const processedDecision = await this.checkProcessedDecision(data, bestMatch);
                 
                 if (processedDecision.exists) {
-                    this.logger.log(`Decisión ya tomada anteriormente para ${data.name} ${data.first_surname} (DNI: ${data.dni}). Acción: ${processedDecision.action}`);
+                    this.logger.debug(`Decisión ya tomada anteriormente para ${data.name} ${data.first_surname} (DNI: ${data.dni}). Acción: ${processedDecision.action}`);
                     
                     // Aplicar la decisión anterior automáticamente
                     switch (processedDecision.action) {
@@ -851,7 +918,7 @@ export class ImportService {
                             
                         case 'skip':
                             // Omitir (la decisión anterior fue omitir este registro)
-                            this.logger.log(`Registro omitido según decisión anterior para ${data.name} ${data.first_surname}`);
+                            this.logger.debug(`Registro omitido según decisión anterior para ${data.name} ${data.first_surname}`);
                             return { success: true, action: 'skipped' };
                     }
                 }
@@ -937,7 +1004,7 @@ export class ImportService {
                         const nssDifferent = data.nss.trim().toLowerCase() !== user.nss.trim().toLowerCase();
                         
                         if (dniDifferent && nssDifferent) {
-                            this.logger.log(`🚫 Omitiendo match por DNI y NSS diferentes: CSV(${data.dni}/${data.nss}) vs BD(${user.dni}/${user.nss}) para usuario ${user.name} ${user.first_surname}`);
+                            this.logger.warn(`🚫 Omitiendo match por DNI y NSS diferentes: CSV(${data.dni}/${data.nss}) vs BD(${user.dni}/${user.nss}) para usuario ${user.name} ${user.first_surname}`);
                             continue; // Saltar este usuario, es claramente diferente
                         }
                     }
@@ -976,7 +1043,7 @@ export class ImportService {
 
             if ((result as any).rows && (result as any).rows.length > 0) {
                 const existingDecisionId = (result as any).rows[0].id;
-                this.logger.log(`Decisión pendiente encontrada (ID: ${existingDecisionId}) para DNI: ${data.dni} o usuario: ${match.user_id}`);
+                this.logger.debug(`Decisión pendiente encontrada (ID: ${existingDecisionId}) para DNI: ${data.dni} o usuario: ${match.user_id}`);
                 return existingDecisionId;
             }
 
@@ -1006,7 +1073,7 @@ export class ImportService {
 
             if ((result as any).rows && (result as any).rows.length > 0) {
                 const processedDecision = (result as any).rows[0];
-                this.logger.log(`Decisión ya procesada encontrada para DNI: ${data.dni} y usuario: ${match.user_id}. Acción anterior: ${processedDecision.decision_action}`);
+                this.logger.debug(`Decisión ya procesada encontrada para DNI: ${data.dni} y usuario: ${match.user_id}. Acción anterior: ${processedDecision.decision_action}`);
                 
                 return {
                     exists: true,
@@ -1223,6 +1290,20 @@ export class ImportService {
             )
             .limit(1);
 
+        // Recuperar el centro principal actual para este usuario (si existe)
+        const currentMain = await this.databaseService.db
+            .select()
+            .from(user_center)
+            .where(
+                and(
+                    eq(user_center.id_user, userId),
+                    eq(user_center.is_main_center, true)
+                )
+            )
+            .limit(1);
+
+        const currentMainStart: Date | undefined = currentMain.length > 0 ? currentMain[0].start_date : undefined;
+
         if (existing.length > 0) {
             // Actualizar fechas si es necesario
             const relation = existing[0];
@@ -1240,7 +1321,7 @@ export class ImportService {
                 if (data.start_date && (!relation.start_date || data.start_date > relation.start_date)) {
                     updates.start_date = data.start_date;
                 }
-                
+
                 // 2b. Actualizar end_date solo si es más reciente
                 if (data.end_date && (!relation.end_date || data.end_date > relation.end_date)) {
                     updates.end_date = data.end_date;
@@ -1251,6 +1332,43 @@ export class ImportService {
             if (data.start_date && data.end_date && data.start_date > data.end_date) {
                 updates.end_date = null; // Limpiar end_date inconsistente
                 this.logger.warn(`⚠️ Inconsistencia detectada: start_date (${data.start_date.toISOString().split('T')[0]}) > end_date (${data.end_date.toISOString().split('T')[0]}) para usuario ${userId} en centro ${centerId}. Limpiando end_date.`);
+            }
+
+            // 4. Lógica para is_main_center según fecha de alta comparada con el main actual
+            // Determinar la fecha efectiva de inicio tras las actualizaciones
+            const effectiveStart: Date | undefined = (updates.start_date as Date) || relation.start_date || undefined;
+
+            if (effectiveStart) {
+                // Si no hay centro principal actual, este registro se convierte en principal
+                if (!currentMainStart) {
+                    updates.is_main_center = true;
+                    // Poner a false cualquier otro (por seguridad)
+                    await this.databaseService.db
+                        .update(user_center)
+                        .set({ is_main_center: false })
+                        .where(eq(user_center.id_user, userId));
+                } else {
+                    // Si la fecha efectiva es más reciente que la del main actual y el main actual es distinto
+                    if ((!currentMainStart || effectiveStart > currentMainStart) && !(currentMain.length > 0 && currentMain[0].id_center === centerId)) {
+                        // Poner a false el main actual
+                        await this.databaseService.db
+                            .update(user_center)
+                            .set({ is_main_center: false })
+                            .where(
+                                and(
+                                    eq(user_center.id_user, userId),
+                                    eq(user_center.is_main_center, true)
+                                )
+                            );
+
+                        updates.is_main_center = true;
+                    } else {
+                        // Si este registro era main y ahora su fecha es menor o igual, asegurarse de marcar false
+                        if (relation.is_main_center && currentMain.length > 0 && currentMain[0].id_center !== centerId && effectiveStart <= currentMainStart) {
+                            updates.is_main_center = false;
+                        }
+                    }
+                }
             }
 
             if (Object.keys(updates).length > 0) {
@@ -1266,12 +1384,35 @@ export class ImportService {
             }
         } else {
             // Crear nueva relación
+            // Determinar is_main_center basándonos en la fecha de alta y el main actual
+            let shouldBeMain = false;
+            if (data.start_date) {
+                if (!currentMainStart) {
+                    shouldBeMain = true;
+                } else if (data.start_date > currentMainStart) {
+                    shouldBeMain = true;
+                }
+            }
+
+            // Si debe ser main, limpiar el main anterior
+            if (shouldBeMain) {
+                await this.databaseService.db
+                    .update(user_center)
+                    .set({ is_main_center: false })
+                    .where(
+                        and(
+                            eq(user_center.id_user, userId),
+                            eq(user_center.is_main_center, true)
+                        )
+                    );
+            }
+
             const newRelation: UserCenterInsertModel = {
                 id_user: userId,
                 id_center: centerId,
                 start_date: data.start_date,
                 end_date: data.end_date,
-                is_main_center: false // Se establece en ensureMainCenter
+                is_main_center: shouldBeMain
             };
 
             await this.databaseService.db
@@ -1473,7 +1614,8 @@ export class ImportService {
     }
 
     async processDecision(decisionId: number, action: DecisionAction, selectedUserId?: number): Promise<void> {
-        this.logger.log(`🔄 Procesando decisión ${decisionId} con acción: ${action}`);
+        // Mensaje reducido a debug para evitar logs verbosos en producción
+        this.logger.debug(`🔄 Procesando decisión ${decisionId} con acción: ${action}`);
         
         // Primero obtener los datos de la decisión
         const [decision] = await this.databaseService.db
@@ -1487,7 +1629,8 @@ export class ImportService {
             throw new Error(`Decision with ID ${decisionId} not found`);
         }
 
-        this.logger.log(`📋 Datos de la decisión encontrada:`, {
+    // Datos completos de la decisión solo en debug
+    this.logger.debug(`📋 Datos de la decisión encontrada:`, {
             id: decision.id,
             name_csv: decision.name_csv,
             dni_csv: decision.dni_csv,
@@ -1500,20 +1643,20 @@ export class ImportService {
         // Ejecutar la acción correspondiente
         switch (action) {
             case 'create_new':
-                this.logger.log(`🆕 Ejecutando creación de nuevo usuario para decisión ${decisionId}`);
+                this.logger.debug(`🆕 Ejecutando creación de nuevo usuario para decisión ${decisionId}`);
                 await this.executeCreateNewUser(decision);
                 break;
             case 'link':
-                this.logger.log(`🔗 Ejecutando vinculación de usuario para decisión ${decisionId}`);
+                this.logger.debug(`🔗 Ejecutando vinculación de usuario para decisión ${decisionId}`);
                 await this.executeLinkUser(decision, selectedUserId);
                 break;
             case 'update_and_link':
-                this.logger.log(`🔄 Ejecutando actualización y vinculación para decisión ${decisionId}`);
+                this.logger.debug(`🔄 Ejecutando actualización y vinculación para decisión ${decisionId}`);
                 await this.executeUpdateAndLink(decision, selectedUserId);
                 // NOTA: executeUpdateAndLink ya actualiza el estado de la decisión
                 return; // Salir temprano para evitar doble actualización
             case 'skip':
-                this.logger.log(`⏭️ Omitiendo registro para decisión ${decisionId}`);
+                this.logger.debug(`⏭️ Omitiendo registro para decisión ${decisionId}`);
                 // Para skip, solo marcamos como procesado
                 break;
         }
@@ -1529,13 +1672,13 @@ export class ImportService {
             updates.selected_user_id = selectedUserId;
         }
 
-        this.logger.log(`💾 Actualizando estado de la decisión ${decisionId}`);
+    this.logger.debug(`💾 Actualizando estado de la decisión ${decisionId}`);
         await this.databaseService.db
             .update(import_decisions)
             .set(updates)
             .where(eq(import_decisions.id, decisionId));
             
-        this.logger.log(`✅ Decisión ${decisionId} procesada exitosamente con acción: ${action}`);
+    this.logger.debug(`✅ Decisión ${decisionId} procesada exitosamente con acción: ${action}`);
     }
 
     /**
@@ -1543,8 +1686,8 @@ export class ImportService {
      */
     private async executeCreateNewUser(decision: any): Promise<void> {
         try {
-            this.logger.log(`🔨 Creando nuevo usuario desde decisión ${decision.id}`);
-            this.logger.log(`📋 CSV Row Data completo:`, decision.csv_row_data);
+            this.logger.debug(`🔨 Creando nuevo usuario desde decisión ${decision.id}`);
+            this.logger.debug(`📋 CSV Row Data completo:`, decision.csv_row_data);
             
             // Validar que csv_row_data existe
             if (!decision.csv_row_data) {
@@ -1554,7 +1697,7 @@ export class ImportService {
             // Recrear ProcessedUserData a partir del CSV row data original
             const userData: ProcessedUserData = this.normalizeCSVRow(decision.csv_row_data, decision.id);
             
-            this.logger.log(`👤 Datos del usuario a crear (completos):`, {
+            this.logger.debug(`👤 Datos del usuario a crear (completos):`, {
                 name: userData.name,
                 dni: userData.dni,
                 email: userData.email,
@@ -1581,7 +1724,7 @@ export class ImportService {
             // 5. Verificar centro principal
             await this.ensureMainCenter(newUser.id_user);
             
-            this.logger.log(`✅ Usuario creado exitosamente:`, {
+            this.logger.debug(`✅ Usuario creado exitosamente:`, {
                 id_user: newUser.id_user,
                 dni: newUser.dni,
                 company_id: company.id_company,
@@ -1605,7 +1748,7 @@ export class ImportService {
                 throw new Error('No se proporcionó ID de usuario para update_and_link');
             }
 
-            this.logger.log(`🔄 Ejecutando update_and_link para usuario ${userId} con decisión ${decision.id}`);
+            this.logger.debug(`🔄 Ejecutando update_and_link para usuario ${userId} con decisión ${decision.id}`);
             
             // Recrear ProcessedUserData del CSV
             const csvData: ProcessedUserData = this.normalizeCSVRow(decision.csv_row_data, decision.id);
@@ -1621,7 +1764,7 @@ export class ImportService {
                 throw new Error(`Usuario con ID ${userId} no encontrado`);
             }
 
-            this.logger.log(`📋 Datos actuales del usuario en BD:`, {
+            this.logger.debug(`📋 Datos actuales del usuario en BD:`, {
                 dni: existingUser.dni,
                 name: existingUser.name,
                 first_surname: existingUser.first_surname,
@@ -1629,7 +1772,7 @@ export class ImportService {
                 email: existingUser.email
             });
 
-            this.logger.log(`📋 Datos del CSV para actualizar:`, {
+            this.logger.debug(`📋 Datos del CSV para actualizar:`, {
                 dni: csvData.dni,
                 name: csvData.name,
                 first_surname: csvData.first_surname,
@@ -1645,6 +1788,7 @@ export class ImportService {
                 // Datos CSV originales
                 original_csv: {
                     dni: csvData.dni,
+                    nss: csvData.nss,
                     name: csvData.name,
                     first_surname: csvData.first_surname,
                     second_surname: csvData.second_surname,
@@ -1654,6 +1798,7 @@ export class ImportService {
                 // Datos BD antes del cambio (para reversión)
                 original_bd: {
                     dni: existingUser.dni,
+                    nss: existingUser.nss,
                     name: existingUser.name,
                     first_surname: existingUser.first_surname,
                     second_surname: existingUser.second_surname,
@@ -1663,13 +1808,15 @@ export class ImportService {
                 // Datos BD después del cambio
                 updated_bd: {
                     dni: csvData.dni,
+                    nss: csvData.nss || existingUser.nss,
                     name: csvData.name,
                     first_surname: csvData.first_surname,
                     second_surname: csvData.second_surname,
                     email: csvData.email || existingUser.email
                 },
                 
-                updated_fields: ["dni", "name", "first_surname", "second_surname", "email"],
+                // Incluir 'nss' porque en la acción manual actualizamos NSS desde el CSV
+                updated_fields: ["dni", "nss", "name", "first_surname", "second_surname", "email"],
                 can_revert: true
             };
 
@@ -1678,6 +1825,8 @@ export class ImportService {
                 .update(users)
                 .set({
                     dni: csvData.dni,
+                    // Sobrescribir NSS con el valor del CSV si existe, en caso contrario mantener el existente
+                    nss: csvData.nss || existingUser.nss,
                     name: csvData.name,
                     first_surname: csvData.first_surname,
                     second_surname: csvData.second_surname,
@@ -1686,7 +1835,7 @@ export class ImportService {
                 })
                 .where(eq(users.id_user, userId));
 
-            this.logger.log(`✅ Usuario actualizado en BD con datos del CSV`);
+            this.logger.debug(`✅ Usuario actualizado en BD con datos del CSV`);
 
             // 4. Actualizar registro import_decisions para futuras comparaciones
             await this.databaseService.db
@@ -1708,7 +1857,7 @@ export class ImportService {
                 })
                 .where(eq(import_decisions.id, decision.id));
 
-            this.logger.log(`✅ Registro import_decisions actualizado para futuras comparaciones`);
+            this.logger.debug(`✅ Registro import_decisions actualizado para futuras comparaciones`);
 
             // 5. Procesar empresa/centro del CSV (reutilizar lógica existente)
             const result = await this.linkUserToCSVData(userId, csvData);
@@ -1717,7 +1866,7 @@ export class ImportService {
                 throw new Error(result.error_message || 'Error procesando empresa/centro del CSV');
             }
 
-            this.logger.log(`✅ Update_and_link completado exitosamente:`, {
+            this.logger.debug(`✅ Update_and_link completado exitosamente:`, {
                 user_id: userId,
                 company_id: result.company_id,
                 center_id: result.center_id,
@@ -1746,8 +1895,8 @@ export class ImportService {
                 throw new Error('No se puede revertir update_and_link: falta selected_user_id');
             }
 
-            this.logger.log(`🔄 Revirtiendo update_and_link para usuario ${userId}, decisión ${decisionRecord.id}`);
-            this.logger.log(`📋 Restaurando datos originales de BD:`, metadata.original_bd);
+            this.logger.debug(`🔄 Revirtiendo update_and_link para usuario ${userId}, decisión ${decisionRecord.id}`);
+            this.logger.debug(`📋 Restaurando datos originales de BD:`, metadata.original_bd);
 
             // 1. Restaurar datos originales del usuario en BD
             await this.databaseService.db
@@ -1762,7 +1911,7 @@ export class ImportService {
                 })
                 .where(eq(users.id_user, userId));
 
-            this.logger.log(`✅ Datos del usuario restaurados en BD`);
+            this.logger.debug(`✅ Datos del usuario restaurados en BD`);
 
             // 2. Restaurar campos de comparación originales en import_decisions
             await this.databaseService.db
@@ -1789,12 +1938,12 @@ export class ImportService {
                 })
                 .where(eq(import_decisions.id, decisionRecord.id));
 
-            this.logger.log(`✅ Registro import_decisions restaurado a estado pendiente`);
+            this.logger.debug(`✅ Registro import_decisions restaurado a estado pendiente`);
 
             // 3. NOTA: No revertir relaciones empresa/centro por seguridad
             // Las relaciones laborales se mantienen ya que podrían afectar otros datos
 
-            this.logger.log(`✅ Update_and_link revertido exitosamente. Datos personales restaurados, relaciones laborales mantenidas.`);
+            this.logger.debug(`✅ Update_and_link revertido exitosamente. Datos personales restaurados, relaciones laborales mantenidas.`);
 
         } catch (error: any) {
             this.logger.error(`❌ Error revirtiendo update_and_link:`, error.message);
@@ -1858,13 +2007,12 @@ export class ImportService {
             // Recrear ProcessedUserData para obtener TODOS los datos del CSV
             const userData: ProcessedUserData = this.normalizeCSVRow(decision.csv_row_data, decision.id);
             
-            this.logger.log(`🔗 Vinculando usuario ${userId} con datos del CSV`);
-            this.logger.log(`🏢 Procesando empresa y centro para vinculación:`, {
+            this.logger.debug(`🔗 Vinculando usuario ${userId} con datos del CSV`);
+            this.logger.debug(`🏢 Procesando empresa y centro para vinculación:`, {
                 company_name: userData.company_name,
                 center_name: userData.center_name,
                 start_date: userData.start_date,
-                end_date: userData.end_date,
-                additional_data: userData
+                end_date: userData.end_date
             });
             
             // Verificar que el usuario existe
@@ -1882,15 +2030,10 @@ export class ImportService {
             const result = await this.linkUserToCSVData(userId, userData);
             
             if (result.success) {
-                this.logger.log(`✅ Usuario ${userId} vinculado exitosamente con datos del CSV procesados:`, {
+                this.logger.debug(`✅ Usuario ${userId} vinculado exitosamente con datos del CSV procesados:`, {
                     action: result.action,
                     company_id: result.company_id,
-                    center_id: result.center_id,
-                    user_data_preserved: {
-                        dni: existingUser.dni,
-                        name: existingUser.name,
-                        surnames: `${existingUser.first_surname} ${existingUser.second_surname}`
-                    }
+                    center_id: result.center_id
                 });
             } else {
                 throw new Error(result.error_message || 'Error vinculando usuario con datos CSV');
@@ -1907,26 +2050,24 @@ export class ImportService {
      */
     private async linkUserToCSVData(userId: number, data: ProcessedUserData): Promise<ProcessingResult> {
         try {
-            this.logger.log(`🔗 Procesando vinculación de usuario ${userId} con datos del CSV:`, {
+            this.logger.debug(`🔗 Procesando vinculación de usuario ${userId} con datos del CSV:`, {
                 company: data.company_name,
                 center: data.center_name,
                 start_date: data.start_date?.toISOString().split('T')[0],
-                end_date: data.end_date?.toISOString().split('T')[0],
-                import_id: data.import_id,
-                nss: data.nss
+                end_date: data.end_date?.toISOString().split('T')[0]
             });
 
             // 1. Buscar o crear empresa (reutilizar lógica existente)
             const company = await this.findOrCreateCompany(data);
-            this.logger.log(`🏢 Empresa procesada: ${company.company_name} (ID: ${company.id_company})`);
+            this.logger.debug(`🏢 Empresa procesada: ${company.company_name} (ID: ${company.id_company})`);
             
             // 2. Buscar o crear centro (reutilizar lógica existente)
             const center = await this.findOrCreateCenter(data, company.id_company);
-            this.logger.log(`🏬 Centro procesado: ${center.center_name} (ID: ${center.id_center})`);
+            this.logger.debug(`🏬 Centro procesado: ${center.center_name} (ID: ${center.id_center})`);
             
             // 3. Crear/actualizar relación usuario-centro con fechas del CSV (reutilizar lógica existente)
             await this.processUserCenterRelation(userId, center.id_center, data);
-            this.logger.log(`📅 Relación usuario-centro procesada con fechas del CSV`);
+            this.logger.debug(`📅 Relación usuario-centro procesada con fechas del CSV`);
 
             // 4. Verificar centro principal (reutilizar lógica existente)
             await this.ensureMainCenter(userId);
@@ -2169,7 +2310,7 @@ export class ImportService {
                 })
                 .where(eq(import_decisions.id, decisionId));
 
-            this.logger.log(`Decisión ${decisionId} revertida a pendiente. Razón: ${reason || 'No especificada'}`);
+            this.logger.debug(`Decisión ${decisionId} revertida a pendiente. Razón: ${reason || 'No especificada'}`);
 
         } catch (error: any) {
             this.logger.error('Error revirtiendo decisión:', error.message);

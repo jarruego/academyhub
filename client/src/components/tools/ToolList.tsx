@@ -32,6 +32,15 @@ const tools = [
     type: "link" as const,
     linkTo: "/tools/sage-import",
   },
+  {
+    key: "import-velneo",
+    label: "Importación Velneo",
+    description: "Importa usuarios, cursos y grupos desde CSV Velneo.",
+    icon: <FileTextOutlined style={{ fontSize: 20 }} />,
+    adminOnly: true,
+    type: "link" as const,
+    linkTo: "/tools/import-velneo",
+  },
   // Aquí se pueden añadir más herramientas en el futuro
 ];
 
