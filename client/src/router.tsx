@@ -23,6 +23,7 @@ import DataCrossReferenceRoute from './routes/tools/data-cross-reference.route';
 import MoodleImportRoute from './routes/tools/moodle-import.route';
 import SageImportRoute from './routes/tools/sage-import.route';
 import ImportVelneoRoute from './routes/tools/import-velneo.route';
+import UserManagementRoute from './routes/auth-users/auth-user-management.route';
 import { useRole } from './utils/permissions/use-role';
 import { Role } from './hooks/api/auth/use-login.mutation';
 import {
@@ -92,6 +93,7 @@ export default function AppRouter() {
               <Route path="/centers" element={<CentersRoute />} />
               <Route path="/tools" element={<ToolsRoute />} />
               <Route path="/tools/data-cross-reference" element={<DataCrossReferenceRoute />} />
+              <Route path="/tools/user-management" element={<UserManagementRoute />} />
               <Route path="/tools/moodle-import" element={<MoodleImportRoute />} />
               <Route path="/tools/sage-import" element={<SageImportRoute />} />
               <Route path="/tools/import-velneo" element={ImportVelneoRoute.element} />

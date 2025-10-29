@@ -1,5 +1,5 @@
-import { Button, Card, List, Typography } from "antd";
-import { ToolOutlined, DatabaseOutlined, FileTextOutlined } from "@ant-design/icons";
+import { Button, Card, List } from "antd";
+import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
@@ -41,6 +41,15 @@ const tools = [
     type: "link" as const,
     linkTo: "/tools/import-velneo",
   },
+  {
+    key: "user-management",
+    label: "Gestión de usuarios",
+    description: "Administra usuarios de la app y sus roles de acceso.",
+    icon: <UserOutlined style={{ fontSize: 20 }} />,
+    adminOnly: true,
+    type: "link" as const,
+    linkTo: "/tools/user-management",
+  },
   // Aquí se pueden añadir más herramientas en el futuro
 ];
 
@@ -48,9 +57,6 @@ const ToolList = () => {
   return (
     <AuthzHide roles={[Role.ADMIN]}>
       <Card title={<span>Herramientas administrativas</span>} bordered style={{ maxWidth: 500, margin: "0 auto" }}>
-        <Typography.Paragraph type="secondary" style={{ marginBottom: 24 }}>
-          Accede a utilidades administrativas. Pronto habrá más herramientas disponibles.
-        </Typography.Paragraph>
         <List
           itemLayout="horizontal"
           dataSource={tools}
