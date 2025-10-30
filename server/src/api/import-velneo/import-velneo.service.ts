@@ -385,6 +385,13 @@ export class ImportVelneoService {
         education_level: row.education_level || null, address: null, postal_code: null, city: null, province: null, country: null,
         observations: null, seasonalWorker: false, erteLaw: false, accreditationDiploma: 'N'
       };
+        // last-resort safety: if payload is essentially empty (no name/dni/nss/email/surname), do not create
+        try {
+          const meaningful = (!!(payload.name && String(payload.name).trim())) || (!!payload.dni) || (!!payload.nss) || (!!(payload.email && String(payload.email).trim())) || (!!(payload.first_surname && String(payload.first_surname).trim()));
+      if (!meaningful) {
+        return null;
+      }
+        } catch (e) { /* ignore and proceed to create as a fallback */ }
       const insertResult = await this.userService.create(payload as any) as any;
       let created: any = null;
       try {
@@ -1070,12 +1077,49 @@ export class ImportVelneoService {
   // (debug logs removed)
   if (user) { try { markSeen(user); } catch (ee) {} }
   if (!user && padded) { try { const found = await this.userService.findByDni(padded); if (found && found.length) user = Array.isArray(found) ? found[0] : found; if (user) { try { markSeen(user); } catch (ee) {} matched_by = matched_by || 'dni_found'; candidate_count = candidate_count || 1; } } catch (e) {} }
-  if (!user) { user = await createUserFromRow(row); matched_by = 'created'; candidate_count = 0; }
+  if (!user) {
+    // don't create completely empty users: require at least one *valid* identifier or a sensible name/surname
+    const rawName = (row.name || row.NAME || row.Nombre || row.NOMBRE || '').toString().trim();
+    const rawEmail = (row.email || row.EMAIL || '').toString().trim();
+    const { first_surname: rawFirstSurname } = extractSurnamesFromRow(row);
+    // stronger heuristics: validate DNI format, require reasonable NSS length, moodle_id numeric, email contains @, or name contains letters
+    const hasValidDni = !!(padded && isValidDniNie(padded));
+    const hasValidNss = !!(nss && nss.length >= 6);
+    const hasValidMoodleId = !!(moodleIdRaw && /^\d+$/.test(moodleIdRaw));
+    const hasValidEmail = !!(rawEmail && /@/.test(rawEmail));
+    const hasValidName = !!(rawName && /[A-Za-zÀ-ÿ\u00C0-\u017F]/.test(rawName));
+    const hasFirstSurname = !!(rawFirstSurname && /[A-Za-zÀ-ÿ]/.test(rawFirstSurname));
+    const hasIdentifier = hasValidDni || hasValidNss || hasValidMoodleId || hasValidEmail || hasValidName || hasFirstSurname;
+    if (!hasIdentifier) {
+      this.logger.warn(`[import] row=${idx} users: insufficient data to create user; skipping`);
+      results.push({ row: idx, phase: 'users', status: 'skipped', reason: 'insufficient_user_data' });
+      try { this.appendBadRow(`${idx},users,"insufficient_user_data","${JSON.stringify(row).replace(/"/g,'""')}"\n`); } catch (_) {}
+      return;
+    }
+    user = await createUserFromRow(row); matched_by = 'created'; candidate_count = 0;
+    // createUserFromRow may return null if it decides the payload is still insufficient
+    if (!user) {
+      results.push({ row: idx, phase: 'users', status: 'skipped', reason: 'create_failed_insufficient_payload' });
+      try { this.appendBadRow(`${idx},users,"create_failed_insufficient_payload","${JSON.stringify(row).replace(/"/g,'""')}"\n`); } catch (_) {}
+      return;
+    }
+  }
   let mu: any = null;
   try {
     if (user) try { markSeen(user); } catch (ee) {}
     mu = await ensureMoodleUser(user, row);
   } catch (e) {}
+  // If education_level in CSV is present and user in DB has no education_level, fill it
+  try {
+    const csvEdu = (row.education_level || row.EDUCATION_LEVEL || row.educationLevel || '').toString().trim();
+    if (csvEdu && user && (!user.education_level || String(user.education_level).trim() === '')) {
+      try {
+        await this.userService.update(user.id_user, { education_level: csvEdu } as any);
+        // update local object so later processing sees the new value
+        try { user.education_level = csvEdu; } catch (ee) {}
+      } catch (ue) { /* non-fatal, continue */ }
+    }
+  } catch (e) { /* ignore */ }
   // (debug logs removed)
     results.push({ row: idx, phase: 'users', status: 'ok', id_user: user?.id_user, matched_by, candidate_count });
   } catch (e) { errors.push({ row: idx, phase: 'users', error: String(e) }); try { this.appendBadRow(`${idx},users,"create_user_failed","${JSON.stringify(row).replace(/"/g,'""')}"\n`); } catch (_) {} }
