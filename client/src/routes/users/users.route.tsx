@@ -78,9 +78,19 @@ export default function UsersRoute() {
       setTableScrollY(tableBody);
     };
 
+    // Run an initial compute and then schedule a second pass after layout settles.
+    // This helps when the page is fully reloaded (F5) and some elements or fonts
+    // haven't been measured yet — the delayed runs catch the final sizes.
     compute();
+
+    // Also recompute when the full window load event fires (images/fonts/layout done)
+    window.addEventListener('load', compute);
     window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
+
+    return () => {
+      window.removeEventListener('resize', compute);
+      window.removeEventListener('load', compute);
+    };
   }, []);
 
   useEffect(() => {
