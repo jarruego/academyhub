@@ -28,7 +28,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
-import { useRecentJobs } from '../../hooks/api/import/useImportJobs';
+import { useRecentJobs } from '../../hooks/api/import-sage/useImportJobs';
 import { JobInfo } from '../../types/import.types';
 
 dayjs.extend(isBetween);

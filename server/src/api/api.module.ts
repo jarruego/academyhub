@@ -6,7 +6,7 @@ import { GroupModule } from "src/api/group/group.module";
 import { UserModule } from "src/api/user/user.module";
 import { MoodleModule } from './moodle/moodle.module';
 import { MoodleUserModule } from './moodle-user/moodle-user.module';
-import { ImportModule } from './import/import.module';
+import { ImportModule } from './import-sage/import.module';
 import { ImportVelneoModule } from './import-velneo/import-velneo.module';
 
 @Module({

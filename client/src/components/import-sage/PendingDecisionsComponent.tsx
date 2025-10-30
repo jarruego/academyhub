@@ -13,7 +13,6 @@ import {
     Spin,
     Empty,
     Badge,
-    Divider,
     App
 } from 'antd';
 import {
@@ -25,7 +24,7 @@ import {
     InfoCircleOutlined,
     SyncOutlined
 } from '@ant-design/icons';
-import { usePendingDecisions, useProcessDecision } from '../../hooks/api/import/usePendingDecisions';
+import { usePendingDecisions, useProcessDecision } from '../../hooks/api/import-sage/usePendingDecisions';
 import { PendingDecision, ProcessDecisionRequest } from '../../types/import.types';
 import { detectDocumentType, validateNSS } from '../../utils/detect-document-type';
 
@@ -289,7 +288,7 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
 export const PendingDecisionsComponent: React.FC = () => {
     const [selectedDecision, setSelectedDecision] = useState<PendingDecision | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
-    const { modal, message } = App.useApp();
+    const { message } = App.useApp();
 
     const { data: pendingDecisions, isLoading, error, refetch } = usePendingDecisions();
     const processDecisionMutation = useProcessDecision();
@@ -309,29 +308,7 @@ export const PendingDecisionsComponent: React.FC = () => {
         }
     };
 
-    const handleBulkProcess = (action: 'link' | 'create_new' | 'skip' | 'update_and_link') => {
-        if (!pendingDecisions?.length) return;
-
-        modal.confirm({
-            title: `Procesar ${pendingDecisions.length} decisiones`,
-            icon: <ExclamationCircleOutlined />,
-            content: `¿Estás seguro de que quieres ${action === 'link' ? 'vincular' : action === 'create_new' ? 'crear nuevos usuarios para' : 'omitir'} todas las decisiones pendientes?`,
-            onOk: async () => {
-                try {
-                    for (const decision of pendingDecisions) {
-                        await processDecisionMutation.mutateAsync({
-                            decisionId: decision.id,
-                            data: { action }
-                        });
-                    }
-                    message.success(`${pendingDecisions.length} decisiones procesadas exitosamente`);
-                    refetch();
-                } catch (error: any) {
-                    message.error(`Error en procesamiento masivo: ${error?.message || 'Error desconocido'}`);
-                }
-            },
-        });
-    };
+    // Se eliminó la función de procesamiento masivo (handleBulkProcess) porque la sección de "Acciones Masivas" fue retirada.
 
     const columns = [
         {
@@ -440,35 +417,7 @@ export const PendingDecisionsComponent: React.FC = () => {
                 </Card>
             ) : (
                 <>
-                    {pendingDecisions.length > 1 && (
-                        <Card size="small">
-                            <Title level={5}>Acciones Masivas</Title>
-                            <Space>
-                                <Button
-                                    icon={<LinkOutlined />}
-                                    onClick={() => handleBulkProcess('link')}
-                                    loading={processDecisionMutation.isPending}
-                                >
-                                    Vincular Todas
-                                </Button>
-                                <Button
-                                    icon={<UserAddOutlined />}
-                                    onClick={() => handleBulkProcess('create_new')}
-                                    loading={processDecisionMutation.isPending}
-                                >
-                                    Crear Nuevas Todas
-                                </Button>
-                                <Button
-                                    icon={<CloseOutlined />}
-                                    onClick={() => handleBulkProcess('skip')}
-                                    loading={processDecisionMutation.isPending}
-                                >
-                                    Omitir Todas
-                                </Button>
-                            </Space>
-                            <Divider />
-                        </Card>
-                    )}
+                    {/* Se eliminó el bloque 'Acciones Masivas' según solicitud del usuario */}
 
                     <Card>
                         <Table

@@ -11,7 +11,7 @@ import {
     PendingDecisionsComponent,
     ProcessedDecisionsComponent,
     ImportJobsHistoryComponent
-} from '../import';
+} from '../import-sage';
 import { AuthzHide } from '../permissions/authz-hide';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 

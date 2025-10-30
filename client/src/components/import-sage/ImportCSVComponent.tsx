@@ -24,8 +24,8 @@ import {
     ReloadOutlined
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
-import { useImportUpload } from '../../hooks/api/import/useImportUpload';
-import { useJobStatus } from '../../hooks/api/import/useJobStatus';
+import { useImportUpload } from '../../hooks/api/import-sage/useImportUpload';
+import { useJobStatus } from '../../hooks/api/import-sage/useJobStatus';
 import { ImportSummary, JobStatus } from '../../types/import.types';
 
 const { Title, Text } = Typography;

@@ -22,7 +22,7 @@ import {
     FilterOutlined
 } from '@ant-design/icons';
 import { ProcessedDecision } from '../../types/import.types';
-import { useProcessedDecisions, useRevertDecision } from '../../hooks/api/import';
+import { useProcessedDecisions, useRevertDecision } from '../../hooks/api/import-sage';
 import { App } from 'antd';
 
 const { Title, Text } = Typography;

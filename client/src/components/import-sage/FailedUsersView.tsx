@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Table, Card, Pagination, Tag, Typography, Alert, Descriptions, Modal, Tooltip, Space, Statistic, Row, Col } from 'antd'
 import { ExclamationCircleOutlined, EyeOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import { useFailedUsers, useFailedUsersStats } from '../../hooks/api/import'
+import { useFailedUsers, useFailedUsersStats } from '../../hooks/api/import-sage'
 
 const { Title, Text } = Typography
 

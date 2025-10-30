@@ -30,7 +30,7 @@ const tools = [
     icon: <FileTextOutlined style={{ fontSize: 20 }} />,
     adminOnly: true,
     type: "link" as const,
-    linkTo: "/tools/sage-import",
+    linkTo: "/tools/import-sage",
   },
   {
     key: "import-velneo",
