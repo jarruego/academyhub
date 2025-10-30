@@ -69,6 +69,10 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
           setLoading(false);
         }
       }}>
+        {/* Hidden native submit button so pressing Enter inside inputs submits the form
+            Antd's Modal places the OK button outside the form; adding this hidden
+            button ensures Enter triggers the form submit handler (onFinish). */}
+        <button type="submit" style={{ display: 'none' }} aria-hidden />
         <Form.Item name="username" label="Usuario" rules={[{ required: true, message: 'El nombre de usuario es obligatorio' }]}>
           <Input autoComplete="username" />
         </Form.Item>
