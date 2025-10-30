@@ -7,6 +7,7 @@ import {
   MoodleUserUpdateModel 
 } from "src/database/schema/tables/moodle_user.table";
 import { eq, ilike, and } from "drizzle-orm";
+import { DbCondition } from "src/database/types/db-expression";
 
 @Injectable()
 export class MoodleUserRepository extends Repository {
@@ -43,7 +44,7 @@ export class MoodleUserRepository extends Repository {
   }
 
   async findAll(filter: Partial<MoodleUserSelectModel>, options?: QueryOptions) {
-    const where = [];
+  const where: DbCondition[] = [];
 
     if (filter.id_moodle_user) where.push(eq(moodleUserTable.id_moodle_user, filter.id_moodle_user));
     if (filter.id_user) where.push(eq(moodleUserTable.id_user, filter.id_user));
@@ -94,7 +95,7 @@ export class MoodleUserRepository extends Repository {
    * Verificar si ya existe un usuario de Moodle con el mismo moodle_id o username
    */
   async checkDuplicates(moodleId: number, username: string, excludeId?: number, options?: QueryOptions) {
-    const whereConditions = [
+    const whereConditions: DbCondition[] = [
       eq(moodleUserTable.moodle_id, moodleId),
       eq(moodleUserTable.moodle_username, username)
     ];

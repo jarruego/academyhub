@@ -129,4 +129,14 @@ export class FilterUserDTO {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  id_company?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  id_center?: number;
 }

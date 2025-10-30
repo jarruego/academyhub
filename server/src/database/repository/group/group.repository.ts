@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { GroupInsertModel, GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { eq, ilike, and } from "drizzle-orm";
+import { DbCondition } from "src/database/types/db-expression";
 import { MoodleGroup } from "src/types/moodle/group";
 
 @Injectable()
@@ -32,7 +33,7 @@ export class GroupRepository extends Repository {
   }
 
   async findAll(filter: Partial<GroupSelectModel>, options?: QueryOptions) {
-    const where = [];
+  const where: DbCondition[] = [];
     if (filter.moodle_id) where.push(eq(groupTable.moodle_id, filter.moodle_id));
     if (filter.group_name) where.push(ilike(groupTable.group_name, `%${filter.group_name}%`));
     if (filter.id_course) where.push(eq(groupTable.id_course, filter.id_course));

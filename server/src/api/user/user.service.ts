@@ -13,6 +13,7 @@ import { CenterRepository } from "src/database/repository/center/center.reposito
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
 import { eq, ilike, or, sql, and, count } from "drizzle-orm";
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
+import { centers } from "src/database/schema";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 import { users } from "src/database/schema";
 import { FilterUserDTO } from "src/dto/user/filter-user.dto";
@@ -91,92 +92,13 @@ export class UserService {
   }
 
   async findAllPaginated(filter: FilterUserDTO, options?: QueryOptions): Promise<PaginatedUsersResult> {
+    // Delegate DB work to repository; repository returns raw users (no centers enrichment)
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      const page = filter.page || 1;
-      const limit = filter.limit || 100;
-      const offset = (page - 1) * limit;
+      const result = await this.userRepository.findAllPaginated(filter, { transaction });
 
-      // Construir condiciones de filtrado
-      const conditions = [];
-      
-      if (filter.search) {
-        // Normalizar el término de búsqueda: eliminar espacios extras
-        // NOTE: usamos la extensión Postgres `unaccent` para que la búsqueda ignore
-        // tildes y la 'ñ' (por ejemplo 'CARREÑO' <-> 'CARRENO'). Asegúrate de tener
-        // la extensión instalada: `CREATE EXTENSION IF NOT EXISTS unaccent;`
-        const normalizedSearch = filter.search.trim().replace(/\s+/g, ' ');
-        const searchTerm = `%${normalizedSearch}%`;
-
-        // Helper para comparar usando unaccent + lower
-        const unaccentLike = (col: any, term: string) => sql`unaccent(lower(${col})) LIKE unaccent(lower(${term}))`;
-
-        // Crear condiciones para buscar con espacios normalizados
-        const searchWords = normalizedSearch.split(' ').filter(word => word.length > 0);
-
-        if (searchWords.length === 1) {
-          // Búsqueda simple con un término
-          conditions.push(
-            or(
-              // Usar unaccent + lower para hacer la comparación insensible a diacríticos
-              unaccentLike(users.name, searchTerm),
-              unaccentLike(users.first_surname, searchTerm),
-              unaccentLike(users.second_surname, searchTerm),
-              unaccentLike(users.email, searchTerm),
-              unaccentLike(users.dni, searchTerm)
-            )
-          );
-        } else {
-          // Búsqueda con múltiples palabras - permite encontrar "Juan Pérez" aunque se busque "juan perez"
-          const multiWordConditions: any[] = [];
-
-          // Buscar cada palabra individualmente en cualquier campo
-          searchWords.forEach(word => {
-            const wordTerm = `%${word}%`;
-            multiWordConditions.push(
-              or(
-                unaccentLike(users.name, wordTerm),
-                unaccentLike(users.first_surname, wordTerm),
-                unaccentLike(users.second_surname, wordTerm),
-                unaccentLike(users.email, wordTerm),
-                unaccentLike(users.dni, wordTerm)
-              )
-            );
-          });
-
-          // Todas las palabras deben encontrarse (AND)
-          conditions.push(and(...multiWordConditions));
-        }
-      }
-
-      // Agregar otros filtros específicos si existen
-  // Comparaciones específicas también usando unaccent + lower
-  if (filter.dni) conditions.push(sql`unaccent(lower(${users.dni})) LIKE unaccent(lower(${`%${filter.dni}%`}))`);
-  if (filter.name) conditions.push(sql`unaccent(lower(${users.name})) LIKE unaccent(lower(${`%${filter.name}%`}))`);
-  if (filter.first_surname) conditions.push(sql`unaccent(lower(${users.first_surname})) LIKE unaccent(lower(${`%${filter.first_surname}%`}))`);
-  if (filter.email) conditions.push(sql`unaccent(lower(${users.email})) LIKE unaccent(lower(${`%${filter.email}%`}))`);
-
-      const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
-
-      // Contar total de registros
-      const totalResult = await transaction
-        .select({ count: count() })
-        .from(users)
-        .where(whereCondition);
-      
-      const total = totalResult[0]?.count || 0;
-
-      // Obtener usuarios paginados
-      const usersList = await transaction
-        .select()
-        .from(users)
-        .where(whereCondition)
-        .orderBy(users.id_user)
-        .limit(limit)
-        .offset(offset);
-
-      // Para cada usuario, obtener todos sus centros
+      // Enriquecer cada usuario con sus centros (igual que antes)
       const usersWithCenters = await Promise.all(
-        usersList.map(async (user: UserSelectModel) => {
+        (result.data || []).map(async (user: UserSelectModel) => {
           const userCenters = await transaction
             .select()
             .from(userCenterTable)
@@ -208,11 +130,11 @@ export class UserService {
 
       return {
         data: usersWithCenters,
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
-      };
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages
+      } as PaginatedUsersResult;
     });
   }
 

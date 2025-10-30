@@ -7,17 +7,21 @@ import { PaginationParams, PaginationResult } from "../../../shared/types/pagina
 // Tipo específico para la respuesta de usuarios paginados
 type PaginatedUsersResult = PaginationResult<User>;
 
-export const useUsersQuery = (params: PaginationParams = {}) => {
-    const { page = 1, limit = 100, search = "" } = params;
+export type UsersQueryParams = PaginationParams & { id_company?: string; id_center?: string };
+
+export const useUsersQuery = (params: UsersQueryParams = {}) => {
+    const { page = 1, limit = 100, search = "", id_company, id_center } = params;
     const request = useAuthenticatedAxios<PaginatedUsersResult>();
 
     return useQuery({
-        queryKey: ['users', 'paginated', page, limit, search],
+        queryKey: ['users', 'paginated', page, limit, search, id_company || null, id_center || null],
         queryFn: async () => {
             const queryParams = new URLSearchParams({
                 page: page.toString(),
                 limit: limit.toString(),
-                ...(search && { search })
+                ...(search && { search }),
+                ...(id_company && { id_company }),
+                ...(id_center && { id_center }),
             });
 
             return (await request({

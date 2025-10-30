@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { CompanyInsertModel, CompanySelectModel, companyTable, CompanyUpdateModel } from "src/database/schema/tables/company.table";
 import { eq, ilike, and } from "drizzle-orm";
+import { DbCondition } from "src/database/types/db-expression";
 
 @Injectable()
 export class CompanyRepository extends Repository {
@@ -33,7 +34,7 @@ export class CompanyRepository extends Repository {
 
     async findAll(filter: Partial<CompanySelectModel>, options?: QueryOptions) {
         
-        const where = [];
+    const where: DbCondition[] = [];
 
         if (filter.cif) where.push(ilike(companyTable.cif, `%${filter.cif}%`));
         if (filter.company_name) where.push(ilike(companyTable.company_name, `%${filter.company_name}%`));

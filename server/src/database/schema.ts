@@ -33,3 +33,10 @@ export const courseModailitySchema = courseModality;
 export const genderSchema = gender;
 export const document_type = documentType;
 // export const enrollment_status = enrollmentStatus;
+
+// Re-export types for convenience
+export type UsersColumns = typeof users;
+export type CentersColumns = typeof centers;
+export type CompaniesColumns = typeof companies;
+export type CoursesColumns = typeof courses;
+export type GroupsColumns = typeof groups;

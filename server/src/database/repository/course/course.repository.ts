@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { eq, ilike, and } from "drizzle-orm";
+import { DbCondition } from "src/database/types/db-expression";
 import { userCourseMoodleRoleTable, UserCourseRoleInsertModel } from "src/database/schema/tables/user_course_moodle_role.table";
 
 @Injectable()
@@ -28,7 +29,7 @@ export class CourseRepository extends Repository {
   }
 
   async findAll(filter: Partial<CourseSelectModel>, options?: QueryOptions) {
-        const where = [];
+  const where: DbCondition[] = [];
 
         if (filter.course_name) where.push(ilike(courseTable.course_name, `%${filter.course_name}%`));
         if (filter.short_name) where.push(ilike(courseTable.short_name, `%${filter.short_name}%`));

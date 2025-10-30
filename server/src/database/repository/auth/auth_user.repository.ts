@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { authUserTable, AuthUserSelectModel, AuthUserInsertModel, AuthUserUpdateModel } from "src/database/schema/tables/auth_user.table";
 import { eq, ilike, and } from "drizzle-orm";
+import { DbCondition } from "src/database/types/db-expression";
 
 @Injectable()
 export class AuthUserRepository extends Repository {
@@ -17,7 +18,7 @@ export class AuthUserRepository extends Repository {
     }
 
     async findAll(filter: Partial<AuthUserSelectModel> = {}, options?: QueryOptions) {
-        const where = [];
+    const where: DbCondition[] = [];
 
         if (filter.name) where.push(ilike(authUserTable.name, `%${filter.name}%`));
         if (filter.lastName) where.push(ilike(authUserTable.lastName, `%${filter.lastName}%`));

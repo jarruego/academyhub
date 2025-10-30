@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { CenterInsertModel, CenterSelectModel, centerTable, CenterUpdateModel } from "src/database/schema/tables/center.table";
 import { eq, ilike, and } from "drizzle-orm"; 
+import { DbCondition } from "src/database/types/db-expression";
 import { UserCenterInsertModel, userCenterTable, UserCenterUpdateModel } from "src/database/schema/tables/user_center.table";
 
 @Injectable()
@@ -13,7 +14,7 @@ export class CenterRepository extends Repository {
     }
 
     async findAll(filter: Partial<CenterSelectModel>, options?: QueryOptions) {
-        const where = [];
+    const where: DbCondition[] = [];
 
         if (filter.center_name) where.push(ilike(centerTable.center_name, `%${filter.center_name}%`));
         if (filter.contact_email) where.push(eq(centerTable.contact_email, filter.contact_email));
