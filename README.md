@@ -102,6 +102,26 @@ npm install
 npm run start:dev
 ```
 
+### Database setup (PostgreSQL)
+
+Before running the server or applying migrations on a new PostgreSQL instance, make sure the database has the required extensions. AcademyHub uses the `unaccent` extension to make user searches tolerant to diacritics (e.g. `CARREÑO` vs `CARRENO`).
+
+Run the following (as a superuser / a role with permission to create extensions):
+
+```powershell
+psql "postgresql://SUPERUSER:PW@HOST:PORT/DATABASE" -c "CREATE EXTENSION IF NOT EXISTS unaccent;"
+```
+
+If you also plan to enable trigram indexes for faster LIKE '%term%' searches, enable `pg_trgm` as well:
+
+```powershell
+psql "postgresql://SUPERUSER:PW@HOST:PORT/DATABASE" -c "CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+```
+
+Notes:
+- Creating extensions requires sufficient privileges (usually superuser). If your CI/CD or deploy user lacks those privileges, run these commands once using a privileged account or ask your DBA to enable the extensions.
+- The project includes a migration file that will attempt to create `unaccent` on new databases, but the account that runs migrations must have permission to create extensions.
+
 ### Using Docker
 ```bash
 cd server

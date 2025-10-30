@@ -1,21 +1,30 @@
+-- Habilita la extensión `unaccent` si no existe (necesita permisos de superuser)
+DO $$
+BEGIN
+	IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'unaccent') THEN
+		CREATE EXTENSION unaccent;
+	END IF;
+END$$;
+--> statement-breakpoint
+
 -- Solo crea el tipo si no existe
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'course_modality') THEN
-    CREATE TYPE "public"."course_modality" AS ENUM('Online', 'Presencial', 'Mixta');
-  END IF;
+	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'course_modality') THEN
+		CREATE TYPE "public"."course_modality" AS ENUM('Online', 'Presencial', 'Mixta');
+	END IF;
 END$$;
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'gender') THEN
-    CREATE TYPE "public"."gender" AS ENUM('Male', 'Female', 'Other');
-  END IF;
+	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'gender') THEN
+		CREATE TYPE "public"."gender" AS ENUM('Male', 'Female', 'Other');
+	END IF;
 END$$;
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'document_type') THEN
-    CREATE TYPE "public"."document_type" AS ENUM('DNI', 'NIE');
-  END IF;
+	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'document_type') THEN
+		CREATE TYPE "public"."document_type" AS ENUM('DNI', 'NIE');
+	END IF;
 END$$;
 --> statement-breakpoint
 

@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 
-const ImportVelneoScreen = lazy(() => import('../../components/import-velneo/ImportVelneoScreen'));
+const ImportVelneoScreen = lazy(() => import('../../components/tools/ImportVelneoScreen'));
 
 export default {
   path: '/tools/import-velneo',

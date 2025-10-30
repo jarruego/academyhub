@@ -101,51 +101,59 @@ export class UserService {
       
       if (filter.search) {
         // Normalizar el término de búsqueda: eliminar espacios extras
+        // NOTE: usamos la extensión Postgres `unaccent` para que la búsqueda ignore
+        // tildes y la 'ñ' (por ejemplo 'CARREÑO' <-> 'CARRENO'). Asegúrate de tener
+        // la extensión instalada: `CREATE EXTENSION IF NOT EXISTS unaccent;`
         const normalizedSearch = filter.search.trim().replace(/\s+/g, ' ');
         const searchTerm = `%${normalizedSearch}%`;
-        
+
+        // Helper para comparar usando unaccent + lower
+        const unaccentLike = (col: any, term: string) => sql`unaccent(lower(${col})) LIKE unaccent(lower(${term}))`;
+
         // Crear condiciones para buscar con espacios normalizados
         const searchWords = normalizedSearch.split(' ').filter(word => word.length > 0);
-        
+
         if (searchWords.length === 1) {
           // Búsqueda simple con un término
           conditions.push(
             or(
-              ilike(users.name, searchTerm),
-              ilike(users.first_surname, searchTerm),
-              ilike(users.second_surname, searchTerm),
-              ilike(users.email, searchTerm),
-              ilike(users.dni, searchTerm)
+              // Usar unaccent + lower para hacer la comparación insensible a diacríticos
+              unaccentLike(users.name, searchTerm),
+              unaccentLike(users.first_surname, searchTerm),
+              unaccentLike(users.second_surname, searchTerm),
+              unaccentLike(users.email, searchTerm),
+              unaccentLike(users.dni, searchTerm)
             )
           );
         } else {
           // Búsqueda con múltiples palabras - permite encontrar "Juan Pérez" aunque se busque "juan perez"
-          const multiWordConditions = [];
-          
+          const multiWordConditions: any[] = [];
+
           // Buscar cada palabra individualmente en cualquier campo
           searchWords.forEach(word => {
             const wordTerm = `%${word}%`;
             multiWordConditions.push(
               or(
-                ilike(users.name, wordTerm),
-                ilike(users.first_surname, wordTerm),
-                ilike(users.second_surname, wordTerm),
-                ilike(users.email, wordTerm),
-                ilike(users.dni, wordTerm)
+                unaccentLike(users.name, wordTerm),
+                unaccentLike(users.first_surname, wordTerm),
+                unaccentLike(users.second_surname, wordTerm),
+                unaccentLike(users.email, wordTerm),
+                unaccentLike(users.dni, wordTerm)
               )
             );
           });
-          
+
           // Todas las palabras deben encontrarse (AND)
           conditions.push(and(...multiWordConditions));
         }
       }
 
       // Agregar otros filtros específicos si existen
-      if (filter.dni) conditions.push(ilike(users.dni, `%${filter.dni}%`));
-      if (filter.name) conditions.push(ilike(users.name, `%${filter.name}%`));
-      if (filter.first_surname) conditions.push(ilike(users.first_surname, `%${filter.first_surname}%`));
-      if (filter.email) conditions.push(ilike(users.email, `%${filter.email}%`));
+  // Comparaciones específicas también usando unaccent + lower
+  if (filter.dni) conditions.push(sql`unaccent(lower(${users.dni})) LIKE unaccent(lower(${`%${filter.dni}%`}))`);
+  if (filter.name) conditions.push(sql`unaccent(lower(${users.name})) LIKE unaccent(lower(${`%${filter.name}%`}))`);
+  if (filter.first_surname) conditions.push(sql`unaccent(lower(${users.first_surname})) LIKE unaccent(lower(${`%${filter.first_surname}%`}))`);
+  if (filter.email) conditions.push(sql`unaccent(lower(${users.email})) LIKE unaccent(lower(${`%${filter.email}%`}))`);
 
       const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
