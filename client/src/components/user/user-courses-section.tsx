@@ -119,6 +119,20 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
           `${range[0]}-${range[1]} de ${total} cursos`,
       }}
       scroll={{ x: 1200 }}
+      rowClassName={(record: UserCourseWithCourse) => {
+        const pct = Number(record.completion_percentage ?? 0);
+        if (isNaN(pct)) return 'user-course-row incomplete';
+        return `user-course-row ${pct >= 75 ? 'completed' : 'incomplete'}`;
+      }}
+      onRow={(record: UserCourseWithCourse) => ({
+        onDoubleClick: () => {
+          const courseId = record.course?.id_course;
+          if (courseId) {
+            const url = `${window.location.origin}/courses/${courseId}`;
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }
+        },
+      })}
     />
   );
 };

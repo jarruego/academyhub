@@ -120,8 +120,15 @@ const navigate = useNavigate();
   }, [userData, reset]);
 
   useEffect(() => {
-    document.title = `Detalles del Usuario ${userId}`;
-  }, [userId]);
+    const prevTitle = document.title;
+    if (userData) {
+      const fullName = `${userData.name ?? ''} ${userData.first_surname ?? ''}${userData.second_surname ? ' ' + userData.second_surname : ''}`.trim();
+      document.title = fullName || `Detalles del Usuario ${userId}`;
+    } else {
+      document.title = `Usuario ${userId}`;
+    }
+    return () => { document.title = prevTitle; };
+  }, [userData, userId]);
 
   if (!userData) return <div>Usuario no encontrado</div>;
   if (isUserLoading) return <div>Cargando...</div>;

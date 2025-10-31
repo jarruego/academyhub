@@ -95,4 +95,39 @@ export class UserCourseRepository extends Repository {
             .where(eq(userCourseTable.id_user, userId))
             .orderBy(desc(courseTable.end_date));
     }
+
+    /**
+     * Buscar cursos asociados a un usuario de Moodle (id_moodle_user)
+     */
+    async findCoursesByMoodleUserId(moodleUserId: number, options?: QueryOptions): Promise<UserCourseWithCourse[]> {
+        return await this.query(options)
+            .select({
+                id_user: userCourseTable.id_user,
+                id_course: userCourseTable.id_course,
+                id_moodle_user: userCourseTable.id_moodle_user,
+                enrollment_date: userCourseTable.enrollment_date,
+                completion_percentage: userCourseTable.completion_percentage,
+                time_spent: userCourseTable.time_spent,
+                course: {
+                    id_course: courseTable.id_course,
+                    moodle_id: courseTable.moodle_id,
+                    course_name: courseTable.course_name,
+                    category: courseTable.category,
+                    short_name: courseTable.short_name,
+                    start_date: courseTable.start_date,
+                    end_date: courseTable.end_date,
+                    modality: courseTable.modality,
+                    hours: courseTable.hours,
+                    price_per_hour: courseTable.price_per_hour,
+                    active: sql<boolean>`CASE WHEN ${courseTable.end_date} > NOW() THEN true ELSE false END`,
+                    fundae_id: courseTable.fundae_id,
+                    createdAt: courseTable.createdAt,
+                    updatedAt: courseTable.updatedAt,
+                }
+            })
+            .from(userCourseTable)
+            .innerJoin(courseTable, eq(userCourseTable.id_course, courseTable.id_course))
+            .where(eq(userCourseTable.id_moodle_user, moodleUserId))
+            .orderBy(desc(courseTable.end_date));
+    }
 }

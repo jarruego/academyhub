@@ -49,6 +49,14 @@ export class MoodleUserController {
     return this.moodleUserService.findAll(filter);
   }
 
+  @Get(':id/courses')
+  @ApiOperation({ summary: 'Obtener cursos asociados a un usuario de Moodle (id_moodle_user)' })
+  @ApiResponse({ status: 200, description: 'Lista de cursos asociados' })
+  async findCoursesByMoodleUser(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.moodleUserService.findCoursesByMoodleUserId(numericId);
+  }
+
   @UseGuards(RoleGuard([Role.ADMIN]))
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar usuario de Moodle' })

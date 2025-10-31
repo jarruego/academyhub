@@ -80,8 +80,16 @@ export default function CourseDetailRoute() {
   }, [groupsData]);
 
   useEffect(() => {
-    document.title = `Detalle del Curso ${id_course}`;
-  }, [id_course]);
+    const previousTitle = document.title;
+    if (courseData && courseData.short_name) {
+      document.title = String(courseData.short_name);
+    } else {
+      document.title = `Curso ${id_course}`;
+    }
+    return () => {
+      document.title = previousTitle;
+    };
+  }, [courseData, id_course]);
 
   if (!courseData) return <div>Curso no encontrado</div>;
   if (isCourseLoading || isGroupsLoading) return <div>Cargando...</div>;

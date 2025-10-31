@@ -26,3 +26,27 @@ a {
 ul, ol {
     list-style: none;
 }
+
+/* Show pointer cursor when hovering rows in the user courses table */
+.ant-table-row.user-course-row:hover,
+.ant-table-row.user-course-row:hover > td {
+    cursor: pointer;
+}
+
+/* Completed rows: green (>=75) */
+.ant-table-row.user-course-row.completed > td {
+    background-color: lightgreen !important; /* antd green-6 / darker green */
+    }
+
+/* Incomplete rows: black background with white text */
+.ant-table-row.user-course-row.incomplete > td {
+    background-color: lightgray !important;
+}
+
+/* Prevent any hover effect from changing background/color */
+.ant-table-row.user-course-row.completed:hover > td,
+.ant-table-row.user-course-row.incomplete:hover > td,
+.ant-table-row.user-course-row.completed:hover,
+.ant-table-row.user-course-row.incomplete:hover {
+    background-color: none !important;
+}

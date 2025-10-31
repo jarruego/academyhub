@@ -242,7 +242,11 @@ export default function UsersRoute() {
         }
       ]} 
       onRow={(record: User) => ({
-        onDoubleClick: () => navigate(`/users/${record.id_user}`),
+        onDoubleClick: () => {
+          const url = `${window.location.origin}/users/${record.id_user}`;
+          // Open the user detail in a new tab/window
+          window.open(url, '_blank', 'noopener,noreferrer');
+        },
         style: { cursor: 'pointer' }
       })}
     />

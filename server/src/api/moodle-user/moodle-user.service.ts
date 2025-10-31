@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { MoodleUserRepository } from "src/database/repository/moodle-user/moodle-user.repository";
+import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
 import { QueryOptions } from "src/database/repository/repository";
 import { 
   MoodleUserInsertModel, 
@@ -14,6 +15,7 @@ import { MoodleUser } from "src/types/moodle/user";
 export class MoodleUserService {
   constructor(
     private readonly moodleUserRepository: MoodleUserRepository,
+    private readonly userCourseRepository: UserCourseRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
   ) { }
 
@@ -141,6 +143,15 @@ export class MoodleUserService {
   async unlinkUserFromMoodle(moodleUserId: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.moodleUserRepository.delete(moodleUserId, { transaction });
+    });
+  }
+
+  /**
+   * Obtener cursos asociados a un usuario de Moodle (id_moodle_user)
+   */
+  async findCoursesByMoodleUserId(moodleUserId: number, options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      return await this.userCourseRepository.findCoursesByMoodleUserId(moodleUserId, { transaction });
     });
   }
 
