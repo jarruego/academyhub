@@ -50,7 +50,11 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
         dataSource={((userCenters as UserCenter[] || [])
           .slice()
           .sort((a, b) => {
-            // Ordena por empresa y luego por nombre de centro
+            // Ordena por Fecha de alta (start_date) de mayor a menor
+            const ta = a.start_date ? new Date(a.start_date).getTime() : 0;
+            const tb = b.start_date ? new Date(b.start_date).getTime() : 0;
+            if (tb !== ta) return tb - ta; // descending
+            // Fallback: ordena por empresa y luego por nombre de centro
             const companyA = (a.company_name || '').toLowerCase();
             const companyB = (b.company_name || '').toLowerCase();
             if (companyA < companyB) return -1;
