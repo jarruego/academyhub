@@ -96,7 +96,9 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
       title: 'Username Moodle',
       dataIndex: 'moodle_username',
       key: 'moodle_username',
-      render: (username: string) => <Tag color="blue">{username}</Tag>,
+      render: (username: string, record: MoodleUserSelectModel) => (
+        <Tag color={(record as any).is_main_user ? 'green' : 'blue'}>{username}</Tag>
+      ),
     },
     {
       title: 'Fecha Creación',

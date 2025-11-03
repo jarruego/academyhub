@@ -290,6 +290,7 @@ const DataCrossReference = () => {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [initLoading, setInitLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
+  const [setMainLoading, setSetMainLoading] = useState(false);
   
   // Estados para los filtros de búsqueda
   const [exactSearchTerm, setExactSearchTerm] = useState('');
@@ -537,6 +538,34 @@ const DataCrossReference = () => {
                 danger
               >
                 Inicializar usernames
+              </Button>
+              <Button
+                icon={<CheckOutlined />}
+                onClick={async () => {
+                  modal.confirm({
+                    title: 'Marcar main users por moodle_id',
+                    content: 'Para cada usuario local se marcará como is_main_user el registro con mayor moodle_id. ¿Deseas continuar?',
+                    okText: 'Sí, ejecutar',
+                    okType: 'primary',
+                    cancelText: 'Cancelar',
+                    async onOk() {
+                      try {
+                        setSetMainLoading(true);
+                        const resp = await authRequest({ method: 'post', url: `${getApiHost()}/moodle-user/set-main-by-moodle-id` });
+                        const data: any = resp.data;
+                        message.success(data?.message || `Procesados ${data?.totalLocalUsers ?? 0} usuarios locales, actualizados ${data?.updated ?? 0} filas`);
+                      } catch (error: any) {
+                        console.error('Error estableciendo main users:', error);
+                        message.error(error.response?.data?.message || 'Error al establecer main users');
+                      } finally {
+                        setSetMainLoading(false);
+                      }
+                    }
+                  });
+                }}
+                loading={setMainLoading}
+              >
+                Normalizar main
               </Button>
               <Button
                 icon={<SyncOutlined />}

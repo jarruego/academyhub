@@ -112,6 +112,15 @@ export class MoodleUserController {
   }
 
   @UseGuards(RoleGuard([Role.ADMIN]))
+  @Post('/set-main-by-moodle-id')
+  @ApiOperation({ summary: 'Por cada usuario local, marcar como is_main_user el registro con mayor moodle_id' })
+  @ApiResponse({ status: 200, description: 'Operación completada' })
+  @ApiResponse({ status: 500, description: 'Error interno' })
+  async setMainUserByHighestMoodleId() {
+    return this.moodleUserService.setMainUserByHighestMoodleId();
+  }
+
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Post('/init-usernames')
   @ApiOperation({ summary: 'Inicializar moodle_username para todos los moodle_users' })
   @ApiResponse({ status: 200, description: 'Inicialización completada' })

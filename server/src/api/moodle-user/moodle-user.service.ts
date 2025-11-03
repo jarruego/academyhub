@@ -182,6 +182,41 @@ export class MoodleUserService {
   }
 
   /**
+   * Para cada usuario local, marcar solo un registro de moodle_users como is_main_user = true.
+   * Criterio: el registro con mayor moodle_id será el main; el resto quedarán a false.
+   */
+  async setMainUserByHighestMoodleId(options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const allMoodleUsers = await this.moodleUserRepository.findAll({}, { transaction });
+
+      // Agrupar por id_user
+      const groups = allMoodleUsers.reduce((acc, mu) => {
+        const key = mu.id_user;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(mu);
+        return acc;
+      }, {} as Record<number, typeof allMoodleUsers>);
+
+      let updated = 0;
+
+      for (const [userIdStr, rows] of Object.entries(groups)) {
+        // encontrar el moodle_id máximo
+        const maxRow = rows.reduce((prev, cur) => (cur.moodle_id > prev.moodle_id ? cur : prev), rows[0]);
+
+        for (const row of rows) {
+          const shouldBeMain = row.id_moodle_user === maxRow.id_moodle_user;
+          if (row.is_main_user !== shouldBeMain) {
+            await this.moodleUserRepository.update(row.id_moodle_user, { is_main_user: shouldBeMain }, { transaction });
+            updated++;
+          }
+        }
+      }
+
+      return { totalLocalUsers: Object.keys(groups).length, totalMoodleRows: allMoodleUsers.length, updated };
+    });
+  }
+
+  /**
    * Inicializar todos los moodle_usernames a formato `user_<id_moodle_user>`
    */
   async initializeUsernames(options?: QueryOptions) {
