@@ -1,0 +1,1 @@
+ALTER TABLE "moodle_users" ADD COLUMN "is_main_user" boolean DEFAULT false NOT NULL;

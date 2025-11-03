@@ -1,5 +1,5 @@
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import { pgTable, serial, text, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean } from "drizzle-orm/pg-core";
 import { userTable } from "./user.table";
 import { TIMESTAMPS } from "./timestamps";
 
@@ -9,6 +9,7 @@ export const moodleUserTable = pgTable("moodle_users", {
     moodle_id: integer("moodle_id").notNull().unique(),
     moodle_username: text("moodle_username").notNull().unique(),
     moodle_password: text("moodle_password"),
+    is_main_user: boolean("is_main_user").notNull().default(false),
     ...TIMESTAMPS
 });
 
