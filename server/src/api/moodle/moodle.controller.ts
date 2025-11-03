@@ -85,4 +85,10 @@ export class MoodleController {
         const skip = skipUsers === 'true';
         return await this.moodleService.importMoodleCourses(skip);
     }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('users/sync-usernames')
+    async syncUsernamesFromMoodle() {
+        return await this.moodleService.syncUsernamesFromMoodle();
+    }
 }

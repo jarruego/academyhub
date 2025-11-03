@@ -112,6 +112,15 @@ export class MoodleUserController {
   }
 
   @UseGuards(RoleGuard([Role.ADMIN]))
+  @Post('/init-usernames')
+  @ApiOperation({ summary: 'Inicializar moodle_username para todos los moodle_users' })
+  @ApiResponse({ status: 200, description: 'Inicialización completada' })
+  @ApiResponse({ status: 500, description: 'Error interno' })
+  async initializeUsernames() {
+    return this.moodleUserService.initializeUsernames();
+  }
+
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Delete('/unlink/:moodleUserId')
   @ApiOperation({ summary: 'Desvincular usuario de cuenta de Moodle' })
   @ApiResponse({ status: 200, description: 'Usuario desvinculado exitosamente' })

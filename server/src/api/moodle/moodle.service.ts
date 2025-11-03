@@ -62,14 +62,51 @@ export class MoodleService {
         };
 
         try {
+            // If method is POST, send params in the request body as form-encoded to avoid URL length limits (414)
+            if (method === 'post') {
+                const body = new URLSearchParams();
+                for (const [k, v] of Object.entries(params as Record<string, any>)) {
+                    if (Array.isArray(v)) {
+                        for (const item of v) {
+                            body.append(`${k}[]`, (item && typeof item === 'object') ? JSON.stringify(item) : String(item));
+                        }
+                    } else if (v && typeof v === 'object') {
+                        body.append(k, JSON.stringify(v));
+                    } else if (v !== undefined && v !== null) {
+                        body.append(k, String(v));
+                    }
+                }
+
+                const response = await axios.request({
+                    url: this.MOODLE_URL,
+                    method,
+                    data: body.toString(),
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                });
+
+                if ((response as any).data?.exception) throw (response as any).data;
+                return response.data as R;
+            }
+
             const response = await axios.request({ url: this.MOODLE_URL, params, method });
 
             if (response.data.exception) throw response.data;
 
             return response.data as R;
         } catch (moodleError) {
-            Logger.error({ moodleError, params, url: this.MOODLE_URL }, "Moodle");
-            throw new InternalServerErrorException();
+            const me: any = moodleError;
+            // Log detailed response data when available to help debugging (avoid logging tokens)
+            Logger.error({
+                message: me?.message,
+                status: me?.response?.status,
+                responseData: me?.response?.data,
+                params,
+                url: this.MOODLE_URL,
+            }, "MoodleService:request");
+
+            // Include the original error message when throwing so caller/logs get more context
+            const message = me?.message || (me?.response && JSON.stringify(me.response)) || 'Error calling Moodle API';
+            throw new InternalServerErrorException(message);
         }
     }
 
@@ -90,17 +127,34 @@ export class MoodleService {
         const userIds = basicData.users.map(user => user.id);
         
         // Ahora obtener usuarios detallados con customfields usando core_user_get_users_by_field
-        const detailedUsers = await this.request<Array<MoodleUser>>('core_user_get_users_by_field', {
-            params: {
-                field: 'id',
-                values: userIds
-            }
-        });
+        // Para evitar URIs o bodies demasiado grandes, procesamos en lotes (chunks)
+        const chunkSize = 200; // tamaño razonable por petición
+        const detailedUsers: MoodleUser[] = [];
 
-        
-        // Verificar si tienen customfields
+        const chunks: number[][] = [];
+        for (let i = 0; i < userIds.length; i += chunkSize) {
+            chunks.push(userIds.slice(i, i + chunkSize));
+        }
+
+        for (const chunk of chunks) {
+            try {
+                const batch = await this.request<Array<MoodleUser>>('core_user_get_users_by_field', {
+                    params: {
+                        field: 'id',
+                        values: chunk
+                    },
+                    method: 'post'
+                });
+                if (Array.isArray(batch)) detailedUsers.push(...batch);
+            } catch (err) {
+                // Log and continue with next chunk
+                Logger.error({ err, chunkLength: chunk.length }, 'MoodleService:getAllUsers - chunk failed');
+            }
+        }
+
+        // Verificar si tienen customfields (puede ser útil en callers)
         const usersWithCustomFields = detailedUsers.filter(user => user.customfields && user.customfields.length > 0);
-        
+
         return detailedUsers;
     }
 
@@ -214,6 +268,58 @@ export class MoodleService {
         });
 
         return data;
+    }
+
+    /**
+     * Descarga todos los usuarios desde Moodle y actualiza los moodle_usernames
+     * locales cuando existe coinicidencia por moodle_id.
+     */
+    async syncUsernamesFromMoodle(options?: QueryOptions) {
+        // Validate Moodle configuration early
+        if (!this.MOODLE_URL || !this.MOODLE_TOKEN) {
+            throw new InternalServerErrorException('Moodle URL or token not configured');
+        }
+
+        // First, download users from Moodle (may throw a Moodle-related error)
+        let moodleUsers: MoodleUser[];
+        try {
+            moodleUsers = await this.getAllUsers();
+        } catch (err) {
+            Logger.error({ err }, 'MoodleService:syncUsernamesFromMoodle');
+            throw new InternalServerErrorException('Error descargando usuarios desde Moodle');
+        }
+
+        // Now update local records inside a single transaction but tolerate per-record failures
+        return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+            let updated = 0;
+            const updatedIds: number[] = [];
+            const errors: Array<{ moodleId?: number; id_moodle_user?: number; error: string }> = [];
+
+            for (const mu of moodleUsers) {
+                try {
+                    const local = await this.moodleUserService.findByMoodleId(mu.id, { transaction });
+                    if (!local) continue;
+
+                    const newUsername = mu.username;
+                    if (local.moodle_username === newUsername) continue;
+
+                    try {
+                        await this.moodleUserService.update(local.id_moodle_user, { moodle_username: newUsername }, { transaction });
+                        updated++;
+                        updatedIds.push(local.id_moodle_user);
+                    } catch (err: any) {
+                        Logger.error({ err, moodleId: mu.id, localId: local.id_moodle_user }, 'MoodleService:syncUsernamesFromMoodle - update failed');
+                        errors.push({ moodleId: mu.id, id_moodle_user: local.id_moodle_user, error: err.message || String(err) });
+                        // continue with next user
+                    }
+                } catch (err: any) {
+                    Logger.error({ err, moodleId: mu.id }, 'MoodleService:syncUsernamesFromMoodle - find failed');
+                    errors.push({ moodleId: mu.id, error: err.message || String(err) });
+                }
+            }
+
+            return { totalMoodleUsers: moodleUsers.length, updated, updatedIds, errors };
+        });
     }
 
     /**

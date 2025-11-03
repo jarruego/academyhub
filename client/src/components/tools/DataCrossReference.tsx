@@ -28,6 +28,8 @@ import {
   DisconnectOutlined,
   SearchOutlined
 } from "@ant-design/icons";
+import { getApiHost } from "../../utils/api/get-api-host.util";
+import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { useUserComparison, UserMatch, UserComparison, LinkedUserPair } from "../../hooks/api/users/tools/use-user-comparison.query";
 import { useLinkUsersMutation } from "../../hooks/api/users/tools/use-link-users.mutation";
 import { useUnlinkUsersMutation } from "../../hooks/api/users/tools/use-unlink-users.mutation";
@@ -286,6 +288,8 @@ const DataCrossReference = () => {
   const unlinkUsersMutation = useUnlinkUsersMutation();
   const [selectedMatch, setSelectedMatch] = useState<UserMatch | null>(null);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [initLoading, setInitLoading] = useState(false);
+  const [syncLoading, setSyncLoading] = useState(false);
   
   // Estados para los filtros de búsqueda
   const [exactSearchTerm, setExactSearchTerm] = useState('');
@@ -367,9 +371,7 @@ const DataCrossReference = () => {
   const handleLink = async (bdUserId: number, moodleUserId: number) => {
     try {
       await linkUsersMutation.mutateAsync({ bdUserId, moodleUserId });
-      message.success('Usuarios vinculados correctamente');
-      // Refrescar los datos después de vincular
-      await refetch();
+        message.success('Usuarios vinculados correctamente');
     } catch (error: any) {
       message.error(error.response?.data?.message || 'Error al vincular usuarios');
     }
@@ -378,9 +380,7 @@ const DataCrossReference = () => {
   const handleUnlink = async (bdUserId: number, moodleUserId: number) => {
     try {
       await unlinkUsersMutation.mutateAsync({ bdUserId, moodleUserId });
-      message.success('Usuarios desvinculados correctamente');
-      // Refrescar los datos después de desvincular
-      await refetch();
+  message.success('Usuarios desvinculados correctamente');
     } catch (error: any) {
       console.error('🔧 Error in handleUnlink:', error);
       message.error(error.response?.data?.message || 'Error al desvincular usuarios');
@@ -419,6 +419,64 @@ const DataCrossReference = () => {
   const handleCreateNew = () => {
     message.info('Funcionalidad de crear nuevo usuario en desarrollo');
     // Aquí podrías redirigir a la página de crear usuario
+  };
+
+  const authRequest = useAuthenticatedAxios();
+
+  const handleInitUsernames = () => {
+    modal.confirm({
+      title: 'Inicializar usernames de Moodle',
+      content: 'Se establecerán todos los moodle_usernames a `user_<id_moodle_user>`. ¿Deseas continuar?',
+      okText: 'Sí, inicializar',
+      okType: 'danger',
+      cancelText: 'Cancelar',
+      async onOk() {
+        try {
+          setInitLoading(true);
+          const resp = await authRequest({ method: 'post', url: `${getApiHost()}/moodle-user/init-usernames` });
+          const initData: any = resp.data;
+          message.success(initData?.message || 'Inicialización completada');
+          // Notificar al usuario que puede recargar manualmente si quiere ver los cambios
+          message.info('Inicialización realizada. Pulsa "Actualizar datos" para ver los cambios.');
+        } catch (error: any) {
+          console.error('Error inicializando usernames:', error);
+          message.error(error.response?.data?.message || 'Error al inicializar usernames');
+        } finally {
+          setInitLoading(false);
+        }
+      }
+    });
+  };
+
+  const handleSyncUsernames = () => {
+    modal.confirm({
+      title: 'Sincronizar usernames desde Moodle',
+      content: 'Se descargarán los usuarios desde Moodle y se actualizarán los usernames locales cuando coincida moodle_id. ¿Deseas continuar?',
+      okText: 'Sí, sincronizar',
+      okType: 'primary',
+      cancelText: 'Cancelar',
+      async onOk() {
+        try {
+          setSyncLoading(true);
+          const resp = await authRequest({ method: 'post', url: `${getApiHost()}/moodle/users/sync-usernames` });
+          const syncData: any = resp.data;
+          message.success(syncData?.message || `Sincronizados ${syncData?.updated ?? 0} de ${syncData?.totalMoodleUsers ?? 0}`);
+          // Only automatically refresh the comparison if at least one record was updated.
+          // This avoids triggering the "Actualizar datos" flow when nothing changed.
+          if (syncData?.updated && syncData.updated > 0) {
+            // No recargamos automáticamente: informar al usuario para recargar manualmente
+            message.info('Sincronización completada. Pulsa "Actualizar datos" para ver los cambios.');
+          } else {
+            message.info('No se actualizaron usuarios. Pulsa "Actualizar datos" si quieres forzar una recarga.');
+          }
+        } catch (error: any) {
+          console.error('Error sincronizando usernames:', error);
+          message.error(error.response?.data?.message || 'Error al sincronizar usernames');
+        } finally {
+          setSyncLoading(false);
+        }
+      }
+    });
   };
 
   if (error) {
@@ -463,13 +521,31 @@ const DataCrossReference = () => {
             <Paragraph type="secondary">
               Herramienta para cruzar y comparar datos de usuarios entre la base de datos local y la plataforma Moodle.
             </Paragraph>
-            <Button 
-              icon={<SyncOutlined />} 
-              onClick={() => refetch()}
-              loading={isLoading || isFetching}
-            >
-              Actualizar datos
-            </Button>
+            <Space>
+              <Button 
+                icon={<SyncOutlined />} 
+                onClick={() => refetch()}
+                loading={isLoading || isFetching}
+              >
+                Actualizar datos
+              </Button>
+
+              <Button
+                icon={<UserAddOutlined />}
+                onClick={handleInitUsernames}
+                loading={initLoading}
+                danger
+              >
+                Inicializar usernames
+              </Button>
+              <Button
+                icon={<SyncOutlined />}
+                onClick={handleSyncUsernames}
+                loading={syncLoading}
+              >
+                Sincronizar desde Moodle
+              </Button>
+            </Space>
           </div>
           
           {(isLoading || isFetching) ? (

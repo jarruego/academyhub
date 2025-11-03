@@ -180,4 +180,23 @@ export class MoodleUserService {
       };
     });
   }
+
+  /**
+   * Inicializar todos los moodle_usernames a formato `user_<id_moodle_user>`
+   */
+  async initializeUsernames(options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const allMoodleUsers = await this.moodleUserRepository.findAll({}, { transaction });
+
+      for (const mu of allMoodleUsers) {
+        const newUsername = `user_${mu.id_moodle_user}`;
+        // Actualizar solo si es diferente (evita llamadas innecesarias)
+        if (mu.moodle_username !== newUsername) {
+          await this.moodleUserRepository.update(mu.id_moodle_user, { moodle_username: newUsername }, { transaction });
+        }
+      }
+
+      return { updated: allMoodleUsers.length };
+    });
+  }
 }
