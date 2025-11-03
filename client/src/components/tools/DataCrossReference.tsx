@@ -280,7 +280,8 @@ const LinkedUsersTable: React.FC<LinkedUsersTableProps> = ({
 
 const DataCrossReference = () => {
   const { modal } = App.useApp();
-  const { data: comparison, isLoading, error, refetch } = useUserComparison();
+  // No ejecutar automáticamente al montar: el usuario debe pulsar "Actualizar datos"
+  const { data: comparison, isLoading, isFetching, error, refetch } = useUserComparison({ enabled: false });
   const linkUsersMutation = useLinkUsersMutation();
   const unlinkUsersMutation = useUnlinkUsersMutation();
   const [selectedMatch, setSelectedMatch] = useState<UserMatch | null>(null);
@@ -465,13 +466,13 @@ const DataCrossReference = () => {
             <Button 
               icon={<SyncOutlined />} 
               onClick={() => refetch()}
-              loading={isLoading}
+              loading={isLoading || isFetching}
             >
               Actualizar datos
             </Button>
           </div>
           
-          {isLoading ? (
+          {(isLoading || isFetching) ? (
             <div style={{ textAlign: "center", padding: "40px" }}>
               <Spin size="large" />
               <div style={{ marginTop: "16px" }}>

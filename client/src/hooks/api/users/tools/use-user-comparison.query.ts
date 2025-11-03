@@ -68,7 +68,7 @@ export interface UserComparison {
   };
 }
 
-export const useUserComparison = () => {
+export const useUserComparison = (options?: { enabled?: boolean }) => {
   const request = useAuthenticatedAxios<UserComparison>();
 
   return useQuery<UserComparison>({
@@ -83,5 +83,7 @@ export const useUserComparison = () => {
     staleTime: 30 * 1000, // Reducido a 30 segundos
     refetchOnWindowFocus: true, // Refrescar cuando se enfoque la ventana
     refetchInterval: 60 * 1000, // Refrescar cada minuto automáticamente
+    // Permitir al consumidor controlar si la consulta debe ejecutarse automáticamente
+    ...(options ? { enabled: options.enabled } : {}),
   });
 };
