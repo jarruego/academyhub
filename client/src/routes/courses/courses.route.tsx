@@ -1,12 +1,17 @@
-import { Button, Table, Input, Tag } from "antd";
+import { Button, Table, Input } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
-import { useEffect, useState } from "react";
+import { useAllGroupsQuery } from "../../hooks/api/groups/use-all-groups.query";
+import { useEffect, useState, useMemo } from "react";
+import { Course } from "../../shared/types/course/course";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 export default function CoursesRoute() {
+  
+  // We'll fetch all groups once and compute latest end_date per course to enable sorting
+  const { data: allGroups, isLoading: isAllGroupsLoading } = useAllGroupsQuery();
   const { data: coursesData, isLoading: isCoursesLoading } = useCoursesQuery();
   const [searchText, setSearchText] = useState("");
   const navigate = useNavigate();
@@ -33,6 +38,34 @@ export default function CoursesRoute() {
     return bDate - aDate; // Descendente: más recientes primero
   });
 
+  // Map course id -> latest group end timestamp
+  const latestGroupEndByCourse = useMemo(() => {
+    const map: Record<number, number | null> = {};
+    if (!allGroups) return map;
+    for (const g of allGroups) {
+      const courseId = g.id_course as number;
+      if (!g.end_date) {
+        if (typeof map[courseId] === 'undefined') map[courseId] = null;
+        continue;
+      }
+      const ts = new Date(g.end_date).getTime();
+      if (!map[courseId] || (map[courseId] as number) < ts) {
+        map[courseId] = ts;
+      }
+    }
+    return map;
+  }, [allGroups]);
+
+  // Build dataSource enriched with latest_group_end_date for sorting and display
+  type CourseRow = Course & { latest_group_end_date?: number | null };
+
+  const dataSource = useMemo(() => {
+    return (filteredCourses || []).map(c => ({
+      ...c,
+      latest_group_end_date: latestGroupEndByCourse[c.id_course] ?? null,
+    })) as CourseRow[];
+  }, [filteredCourses, latestGroupEndByCourse]);
+
   return <div>
     <Input.Search 
       id="courses-search"
@@ -51,61 +84,34 @@ export default function CoursesRoute() {
         {
           title: 'ID',
           dataIndex: 'id_course',
-          sorter: (a, b) => a.id_course - b.id_course,
+          sorter: (a: CourseRow, b: CourseRow) => a.id_course - b.id_course,
         },
         {
           title: 'ID Moodle',
           dataIndex: 'moodle_id',
-          sorter: (a, b) => (a.moodle_id ?? 0) - (b.moodle_id ?? 0),
+          sorter: (a: CourseRow, b: CourseRow) => (a.moodle_id ?? 0) - (b.moodle_id ?? 0),
         },
         {
           title: 'Nombre',
           dataIndex: 'course_name',
-          sorter: (a, b) => (a.course_name ?? '').localeCompare(b.course_name ?? ''),
+          sorter: (a: CourseRow, b: CourseRow) => (a.course_name ?? '').localeCompare(b.course_name ?? ''),
         },
         {
           title: 'Nombre Corto',
           dataIndex: 'short_name',
-          sorter: (a, b) => (a.short_name ?? '').localeCompare(b.short_name ?? ''),
+          sorter: (a: CourseRow, b: CourseRow) => (a.short_name ?? '').localeCompare(b.short_name ?? ''),
         },
         {
-          title: 'Fecha Inicio',
-          dataIndex: 'start_date',
-          sorter: (a, b) => new Date(a.start_date ?? '').getTime() - new Date(b.start_date ?? '').getTime(),
-          render: (date) => date ? new Date(date).toLocaleDateString('es-ES') : '',
+          title: 'Fecha Fin Grupo',
+          dataIndex: 'latest_group_end_date',
+          key: 'group_end_date',
+          render: (ts: number | null) => ts ? new Date(ts).toLocaleDateString('es-ES') : '',
+          sorter: (a: CourseRow, b: CourseRow) => ( (b.latest_group_end_date ?? 0) - (a.latest_group_end_date ?? 0) ),
+          defaultSortOrder: 'ascend',
         },
-        {
-          title: 'Fecha Fin',
-          dataIndex: 'end_date',
-          sorter: (a, b) => new Date(a.end_date ?? '').getTime() - new Date(b.end_date ?? '').getTime(),
-          render: (date) => date ? new Date(date).toLocaleDateString('es-ES') : '',
-        },
-        {
-          title: 'Estado',
-          dataIndex: 'end_date',
-          sorter: (a, b) => {
-            const today = new Date();
-            const aActive = a.end_date ? new Date(a.end_date) >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
-            const bActive = b.end_date ? new Date(b.end_date) >= new Date(today.getFullYear(), today.getMonth(), today.getDate()) : false;
-            // Activos primero
-            if (aActive === bActive) return 0;
-            return aActive ? -1 : 1;
-          },
-          render: (end_date) => {
-            if (!end_date) return '';
-            const today = new Date();
-            const endDate = new Date(end_date);
-            const isActive = endDate >= new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            return isActive ? (
-              <Tag color="green">Activo</Tag>
-            ) : (
-              <Tag color="red">Finalizado</Tag>
-            );
-          },
-        }
       ]} 
-      dataSource={filteredCourses} 
-      loading={isCoursesLoading}
+      dataSource={dataSource} 
+      loading={isCoursesLoading || isAllGroupsLoading}
       onRow={(record) => ({
         onDoubleClick: () => navigate(`/courses/${record.id_course}`),
         style: { cursor: 'pointer' }
