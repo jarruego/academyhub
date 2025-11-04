@@ -1,12 +1,13 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useUserQuery } from "../../hooks/api/users/use-user.query";
-import { useUpdateUserMutation } from "../../hooks/api/users/use-update-user.mutation";
+import { useUpdateUserWithMoodleMutation } from "../../hooks/api/users/use-update-user-with-moodle.mutation";
 import { useDeleteUserMutation } from "../../hooks/api/users/use-delete-user.mutation";
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
 import { useUserCoursesQuery } from "../../hooks/api/users/use-user-courses.query";
 import { Button, Form, Input, Modal, Checkbox, Select, Tabs, DatePicker } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+// composed hook will handle moodle updates when saving a user
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
@@ -37,6 +38,8 @@ const USER_FORM_SCHEMA = z.object({
   name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
   first_surname: z.string({ required_error: "El primer apellido es obligatorio" }).min(1, "El primer apellido no puede estar vacío"),
   second_surname: z.string().nullish(),
+  moodle_username: z.string().nullish(),
+  moodle_password: z.string().nullish(),
   email: z.string().email("El correo electrónico no es válido").optional().or(z.literal("")),
   dni: DNI_SCHEMA.nullish(),
   document_type: z.nativeEnum(DocumentType, {
@@ -85,7 +88,7 @@ const navigate = useNavigate();
     data: userData,
     isLoading: isUserLoading
   } = useUserQuery(userId);
-  const { mutateAsync: updateUser } = useUpdateUserMutation(userId);
+  const { mutateAsync: updateUserWithMoodle } = useUpdateUserWithMoodleMutation(userId);
   const { mutateAsync: deleteUser } = useDeleteUserMutation(userId);
   const { 
     data: moodleUsers
@@ -96,6 +99,10 @@ const navigate = useNavigate();
   const { handleSubmit, control, reset, setValue, watch, formState: { errors } } = useForm({
     resolver: zodResolver(USER_FORM_SCHEMA)
   });
+
+  const [moodleUsername, setMoodleUsername] = useState<string | undefined>(undefined);
+  const [moodlePassword, setMoodlePassword] = useState<string | undefined>(undefined);
+  // Moodle updates are handled by the composed hook
 
   // Detectar cambios en el campo dni y autocompletar document_type
   const dniValue = watch("dni");
@@ -119,6 +126,18 @@ const navigate = useNavigate();
     }
   }, [userData, reset]);
 
+  // initialize moodle fields from main moodle user when moodleUsers change
+  useEffect(() => {
+    if (moodleUsers && moodleUsers.length > 0) {
+      const main = moodleUsers.find(mu => (mu as any).is_main_user) || moodleUsers[0];
+      setMoodleUsername(main?.moodle_username ?? undefined);
+      setMoodlePassword(main?.moodle_password ?? undefined);
+    } else {
+      setMoodleUsername(undefined);
+      setMoodlePassword(undefined);
+    }
+  }, [moodleUsers]);
+
   useEffect(() => {
     const prevTitle = document.title;
     if (userData) {
@@ -140,10 +159,28 @@ const navigate = useNavigate();
       registration_date: info.registration_date ? dayjs(info.registration_date).utc().toDate() : null,
       email: info.email ?? "",
     };
+    // If the salary_group field was explicitly cleared in the form (null),
+    // preserve that intent and send `salary_group: null` to the API so the
+    // backend can clear the value. `nullsToUndefined` removes nulls, so we
+    // must re-insert null explicitly here when appropriate.
+    if (info.salary_group === null) {
+      (normalizedInfo as any).salary_group = null;
+    }
+
     try {
-      await updateUser(normalizedInfo);
+      await updateUserWithMoodle({
+        userInfo: normalizedInfo,
+        moodleUsername: moodleUsername ?? null,
+        moodlePassword: moodlePassword ?? null,
+        moodleUsers,
+      });
       navigate(location.state?.from || '/users');
-    } catch {
+    } catch (err: any) {
+      // Distinguish errors coming from moodle update
+      if (err && (err as any).type === 'moodle') {
+        modal.error({ title: 'Error al actualizar Moodle', content: 'Se produjo un error al actualizar la cuenta de Moodle asociada. Revisa los logs del servidor.' });
+        return; // keep user on page so they can inspect
+      }
       modal.error({
         title: "Error al guardar el usuario",
         content: "No se pudo guardar el usuario. Revise los datos e inténtelo de nuevo. ¿DNI repetido?",
@@ -261,6 +298,45 @@ const navigate = useNavigate();
               />
             </Form.Item>
           </div>
+          {moodleUsers && moodleUsers.length > 0 && (
+            <div style={{ display: 'flex', gap: '16px', marginTop: 8 }}>
+              <Form.Item label="Username Moodle" name="moodle_username" style={{ flex: 1 }}>
+                <Controller
+                  name="moodle_username"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="moodle_username"
+                      value={field.value ?? moodleUsername ?? ''}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        setMoodleUsername(e.target.value);
+                      }}
+                    />
+                  )}
+                />
+              </Form.Item>
+              <Form.Item label="Password Moodle" name="moodle_password" style={{ flex: 1 }}>
+                <Controller
+                  name="moodle_password"
+                  control={control}
+                  render={({ field }) => (
+                    <Input.Password
+                      {...field}
+                      id="moodle_password"
+                      value={field.value ?? moodlePassword ?? ''}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        setMoodlePassword(e.target.value);
+                      }}
+                    />
+                  )}
+                />
+              </Form.Item>
+              {/* Debug UI removed */}
+            </div>
+          )}
           <Form.Item label="Dirección" name="address">
             <Controller name="address" control={control} render={({ field }) => <Input {...field} id="address" autoComplete="street-address" value={field.value ?? undefined} />} />
           </Form.Item>
