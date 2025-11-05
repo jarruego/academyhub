@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Table, Button, App } from 'antd';
+import { Table, Button, message } from 'antd';
 import { SaveOutlined } from '@ant-design/icons';
 import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.query';
 import { useCreateBonificationFileMutation } from '../../hooks/api/groups/use-create-bonification-file.mutation';
@@ -13,7 +13,7 @@ interface Props {
 }
 
 const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
-  const { message } = App.useApp();
+  const [messageApi, contextHolder] = message.useMessage();
   const { data: usersData, isLoading, refetch } = useUsersByGroupQuery(groupId ? Number(groupId) : null);
 
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
@@ -37,7 +37,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
 
   const openBonification = () => {
     if (!selectedUserIds || selectedUserIds.length === 0) {
-      message.warning('Selecciona al menos un usuario para bonificar');
+      messageApi.warning('Selecciona al menos un usuario para bonificar');
       return;
     }
     setIsBonificationModalOpen(true);
@@ -57,10 +57,10 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      message.success('XML generado correctamente');
+      messageApi.success('XML generado correctamente');
       setIsBonificationModalOpen(false);
     } catch (err) {
-      message.error('No se pudo generar el XML');
+      messageApi.error('No se pudo generar el XML');
     }
   };
 
@@ -72,8 +72,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
 
   return (
     <div>
+      {contextHolder}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginBottom: 8 }}>
-        <Button onClick={() => window.history.back()} type="default">Volver</Button>
         <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0}>Marcar ≥ 75%</Button>
         <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
           Bonificar + XML FUNDAE
@@ -85,7 +85,9 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         dataSource={usersData}
         columns={columns}
         loading={isLoading}
-        pagination={{ pageSize: 100 }}
+        pagination={false}
+        // Fixed table header with vertical scroll
+        scroll={{ y: 500 }}
         rowSelection={{
           type: 'checkbox',
           selectedRowKeys: selectedUserIds,
@@ -105,9 +107,9 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         setSelectedCenters={setSelectedCenters}
         updateUserMainCenterMutation={updateUserMainCenterMutation}
         refetchUsersByGroup={() => refetch?.()}
-        message={message}
+        message={messageApi}
         onRemoveUser={(id) => setSelectedUserIds(prev => prev.filter(x => x !== id))}
-        contextHolder={null}
+        contextHolder={contextHolder}
       />
     </div>
   );
