@@ -1,12 +1,12 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message, Table, Tabs, DatePicker, Modal } from "antd";
+import { Button, Form, Input, message, Tabs, DatePicker, Modal } from "antd";
 import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
-import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { useEffect } from "react";
 import { DeleteOutlined, SaveOutlined, TeamOutlined, ImportOutlined } from "@ant-design/icons";
+import GroupUsersManager from '../../components/group/GroupUsersManager';
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import z from "zod";
@@ -32,7 +32,6 @@ export default function EditGroupRoute() {
   const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(id_group || "");
   const { mutateAsync: updateGroup } = useUpdateGroupMutation(id_group || "");
   const { mutateAsync: deleteGroup } = useDeleteGroupMutation(id_group || "");
-  const { data: usersData, isLoading: isUsersLoading } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof GROUP_FORM_SCHEMA>>({
     resolver: zodResolver(GROUP_FORM_SCHEMA),
   });
@@ -186,17 +185,7 @@ export default function EditGroupRoute() {
       children: (
         <>
           <h2>Usuarios Grupo</h2>
-          <Table
-            rowKey="id_user"
-            columns={[
-              { title: 'ID', dataIndex: ['id_user'] },
-              { title: 'Nombre', dataIndex: ['name'] },
-              { title: 'Apellidos', dataIndex: ['surname'] },
-              { title: 'Email', dataIndex: ['email'] },
-            ]}
-            dataSource={usersData}
-            loading={isUsersLoading}
-          />
+          <GroupUsersManager groupId={id_group ? parseInt(id_group, 10) : null} />
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
             <AuthzHide roles={[Role.ADMIN]}>
