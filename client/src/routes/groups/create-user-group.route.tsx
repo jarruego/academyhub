@@ -4,7 +4,8 @@ import { useUsersQuery } from "../../hooks/api/users/use-users.query";
 import { useAddUserToGroupMutation } from "../../hooks/api/groups/use-add-user-to-group.mutation";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { useDeleteUserFromGroupMutation } from "../../hooks/api/groups/use-delete-user-from-group.mutation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useDebounce } from "../../hooks/use-debounce";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
@@ -12,13 +13,35 @@ import { Role } from "../../hooks/api/auth/use-login.mutation";
 export default function CreateUserGroupRoute() {
   const { id_group } = useParams();
   const navigate = useNavigate();
-  const { data: usersData, isLoading: isUsersLoading } = useUsersQuery();
+  const [messageApi, contextHolder] = message.useMessage();
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  // Server-side paginated users: load 10 per page and pass search param
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(5);
+  const debouncedSearch = useDebounce(searchTerm, 400);
+
+  const normalizedSearch = useMemo(() => {
+    if (!debouncedSearch) return "";
+    return debouncedSearch
+      .trim()
+      .replace(/\s+/g, ' ')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  }, [debouncedSearch]);
+
+  const { data: usersResponse, isLoading: isUsersLoading } = useUsersQuery({ page: currentPage, limit: pageSize, search: normalizedSearch });
+  const usersData = usersResponse?.data ?? [];
   const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
   const { data: groupUsersData, isLoading: isGroupUsersLoading, refetch: refetchUsers } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
   const { mutateAsync: deleteUserFromGroup } = useDeleteUserFromGroupMutation();
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [selectedGroupUserIds, setSelectedGroupUserIds] = useState<number[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Reset to first page when the debounced search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     document.title = "Añadir Usuarios al Grupo";
@@ -27,11 +50,11 @@ export default function CreateUserGroupRoute() {
   const handleSaveUsers = async () => {
     if (!id_group || selectedUserIds.length === 0) return;
     try {
-      await Promise.all(selectedUserIds.map(id_user => addUserToGroup({ id_group: parseInt(id_group, 10), id_user })));
-      message.success('Usuarios añadidos exitosamente');
+  await Promise.all(selectedUserIds.map(id_user => addUserToGroup({ id_group: parseInt(id_group, 10), id_user })));
+  messageApi.success('Usuarios añadidos exitosamente');
       navigate(`/groups/${id_group}/add-user`);
     } catch {
-      message.error('No se pudo añadir a los usuarios');
+  messageApi.error('No se pudo añadir a los usuarios');
     }
   };
 
@@ -39,11 +62,11 @@ export default function CreateUserGroupRoute() {
     if (!id_group || selectedGroupUserIds.length === 0) return;
     try {
       await Promise.all(selectedGroupUserIds.map(id_user => deleteUserFromGroup({ id_group: parseInt(id_group, 10), id_user })));
-      message.success('Usuarios eliminados exitosamente');
+  messageApi.success('Usuarios eliminados exitosamente');
       setSelectedGroupUserIds([]);
       await refetchUsers(); // Refrescar los datos de los usuarios
     } catch {
-      message.error('No se pudo eliminar a los usuarios');
+  messageApi.error('No se pudo eliminar a los usuarios');
     }
   };
 
@@ -61,16 +84,12 @@ export default function CreateUserGroupRoute() {
     },
   };
 
-  const filteredUsersData = usersData
-    ?.filter(user => !groupUsersData?.some(groupUser => groupUser.id_user === user.id_user))
-    .filter(user =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.first_surname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  // Remove users already in the group (server returns paginated results for search/page)
+  const filteredUsersData = usersData?.filter(user => !groupUsersData?.some(groupUser => groupUser.id_user === user.id_user)) ?? [];
 
   return (
     <div>
+      {contextHolder}
       <h2>Todos los Usuarios</h2>
       <Input
         id="user-search"
@@ -96,6 +115,16 @@ export default function CreateUserGroupRoute() {
         ]}
         dataSource={filteredUsersData}
         loading={isUsersLoading}
+        pagination={{
+          current: currentPage,
+          pageSize: pageSize,
+          total: usersResponse?.total || 0,
+          showSizeChanger: false,
+          onChange: (page: number, size?: number) => {
+            setCurrentPage(page);
+            if (size) setPageSize(size);
+          }
+        }}
         rowSelection={{
           ...rowSelection,
           getCheckboxProps: (record) => ({

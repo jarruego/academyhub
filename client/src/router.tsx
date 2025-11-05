@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import HomeRoute from './routes/home.route';
 import UsersRoute from './routes/users/users.route';
+import GroupsRoute from './routes/groups/groups.route';
 import CoursesRoute from './routes/courses/courses.route';
 import CourseDetailRoute from './routes/courses/course-detail.route';
 import CreateUserRoute from './routes/users/create-user.route';
@@ -32,7 +33,8 @@ import {
   BookOutlined,
   ApartmentOutlined,
   BankOutlined,
-  ToolOutlined
+  ToolOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content } = Layout;
@@ -44,6 +46,7 @@ const Sidebar = () => {
   const menuItems = [
     { key: '/', icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
     { key: '/users', icon: <UserOutlined />, label: <Link to="/users">Usuarios</Link> },
+  { key: '/groups', icon: <TeamOutlined />, label: <Link to="/groups">Grupos</Link> },
     { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
     { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
     { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers">Centros</Link> },
@@ -77,6 +80,7 @@ export default function AppRouter() {
               <Route path="/" element={<HomeRoute />} />
               <Route path="/users" element={<UsersRoute />} />
               <Route path="/users/:id_user" element={<UserDetailRoute />} />
+              <Route path="/groups" element={<GroupsRoute />} />
               <Route path="/courses" element={<CoursesRoute />} />
               <Route path="/courses/:id_course" element={<CourseDetailRoute />} />
               <Route path="/courses/:id_course/add-group" element={<CreateGroupRoute />} />
