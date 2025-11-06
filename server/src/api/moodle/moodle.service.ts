@@ -514,36 +514,30 @@ export class MoodleService {
                             throw err;
                         }
                     } else {
-                        // Crear nuevo usuario principal y usuario de Moodle asociado
+                        // No existe usuario Moodle ni local por DNI: crear usuario local y registro Moodle
+                        try {
+                            const userResult = await this.userRepository.create({
+                                name: moodleUser.firstname,
+                                first_surname: moodleUser.lastname,
+                                email: moodleUser.email,
+                            } as UserInsertModel, { transaction });
+                            userId = userResult.insertId;
+                        } catch (err) {
+                            Logger.error({ err, moodleUser }, 'create User ERROR');
+                            throw err;
+                        }
 
-                        // TODO: Decidir si crear usuario local o no al no encontrar por DNI
-                        // Si se decide crear el usuario local, descomentar el siguiente bloque
-                        // Todo esto solo sirve para preparar la app, después deberían existir siempre el usuario local
-
-                        // try {
-                        //     const userResult = await this.userRepository.create({
-                        //         name: moodleUser.firstname,
-                        //         first_surname: moodleUser.lastname,
-                        //         email: moodleUser.email,
-                        //     } as UserInsertModel, { transaction });
-                        //     userId = userResult.insertId;
-                        //     Logger.log({ userId }, 'create User OK');
-                        // } catch (err) {
-                        //     Logger.error({ err, moodleUser }, 'create User ERROR');
-                        //     throw err;
-                        // }
-                        // try {
-                        //     const moodleUserResult = await this.moodleUserService.create({
-                        //         id_user: userId,
-                        //         moodle_id: moodleUser.id,
-                        //         moodle_username: moodleUser.username,
-                        //     }, { transaction });
-                        //     moodleUserId = moodleUserResult.insertId;
-                        //     Logger.log({ userId, moodleUserId }, 'create MoodleUser for new user OK');
-                        // } catch (err) {
-                        //     Logger.error({ err, userId, moodleUser }, 'create MoodleUser for new user ERROR');
-                        //     throw err;
-                        // }
+                        try {
+                            const moodleUserResult = await this.moodleUserService.create({
+                                id_user: userId,
+                                moodle_id: moodleUser.id,
+                                moodle_username: moodleUser.username,
+                            }, { transaction });
+                            moodleUserId = moodleUserResult.insertId;
+                        } catch (err) {
+                            Logger.error({ err, userId, moodleUser }, 'create MoodleUser for new user ERROR');
+                            throw err;
+                        }
                     }
                 }
 
@@ -850,21 +844,48 @@ export class MoodleService {
                     }, { transaction });
                     
                 } else {
-                    // Crear nuevo usuario principal
-                    const userResult = await this.userRepository.create({
-                        name: moodleUser.firstname,
-                        first_surname: moodleUser.lastname,
-                        email: moodleUser.email,
-                    } as UserInsertModel, { transaction });
-                    
-                    userId = userResult.insertId;
-                    
-                    // Crear usuario de Moodle asociado
-                    await this.moodleUserService.create({
-                        id_user: userId,
-                        moodle_id: moodleUser.id,
-                        moodle_username: moodleUser.username,
-                    }, { transaction });
+                    // Si no existe, intentar buscar por DNI en los customfields de Moodle
+                    let foundUserByDni = null;
+                    const dniField = moodleUser.customfields?.find(f => (f.shortname && f.shortname.toLowerCase() === 'dni') || (f.name && f.name.toLowerCase() === 'dni'));
+                    if (dniField && dniField.value) {
+                        try {
+                            foundUserByDni = await this.userRepository.findByDni(dniField.value, { transaction });
+                        } catch (err) {
+                            Logger.error({ err, dniField, moodleUser }, 'findByDni ERROR');
+                            throw err;
+                        }
+                    }
+
+                    if (foundUserByDni) {
+                        // Asociar el usuario Moodle al usuario local existente por DNI
+                        userId = foundUserByDni.id_user;
+                        try {
+                            await this.moodleUserService.create({
+                                id_user: userId,
+                                moodle_id: moodleUser.id,
+                                moodle_username: moodleUser.username,
+                            }, { transaction });
+                        } catch (err) {
+                            Logger.error({ err, userId, moodleUser }, 'create MoodleUser by DNI ERROR');
+                            throw err;
+                        }
+                    } else {
+                        // Crear nuevo usuario principal
+                        const userResult = await this.userRepository.create({
+                            name: moodleUser.firstname,
+                            first_surname: moodleUser.lastname,
+                            email: moodleUser.email,
+                        } as UserInsertModel, { transaction });
+                        
+                        userId = userResult.insertId;
+                        
+                        // Crear usuario de Moodle asociado
+                        await this.moodleUserService.create({
+                            id_user: userId,
+                            moodle_id: moodleUser.id,
+                            moodle_username: moodleUser.username,
+                        }, { transaction });
+                    }
                 }
             }
             
@@ -895,21 +916,43 @@ export class MoodleService {
                 }, { transaction });
                 
             } else {
-                // Crear nuevo usuario principal
-                const userResult = await this.userRepository.create({
-                    name: moodleUser.firstname,
-                    first_surname: moodleUser.lastname,
-                    email: moodleUser.email,
-                } as UserInsertModel, { transaction });
-                
-                userId = userResult.insertId;
-                
-                // Crear usuario de Moodle asociado
-                await this.moodleUserService.create({
-                    id_user: userId,
-                    moodle_id: moodleUser.id,
-                    moodle_username: moodleUser.username,
-                }, { transaction });
+                // Intentar buscar por DNI en customfields antes de crear usuario nuevo
+                let foundUserByDni = null;
+                const dniField = moodleUser.customfields?.find(f => (f.shortname && f.shortname.toLowerCase() === 'dni') || (f.name && f.name.toLowerCase() === 'dni'));
+                if (dniField && dniField.value) {
+                    try {
+                        foundUserByDni = await this.userRepository.findByDni(dniField.value, { transaction });
+                    } catch (err) {
+                        Logger.error({ err, dniField, moodleUser }, 'findByDni ERROR');
+                        throw err;
+                    }
+                }
+
+                if (foundUserByDni) {
+                    // Asociar usuario de Moodle al usuario local existente por DNI
+                    userId = foundUserByDni.id_user;
+                    await this.moodleUserService.create({
+                        id_user: userId,
+                        moodle_id: moodleUser.id,
+                        moodle_username: moodleUser.username,
+                    }, { transaction });
+                } else {
+                    // Crear nuevo usuario principal
+                    const userResult = await this.userRepository.create({
+                        name: moodleUser.firstname,
+                        first_surname: moodleUser.lastname,
+                        email: moodleUser.email,
+                    } as UserInsertModel, { transaction });
+
+                    userId = userResult.insertId;
+
+                    // Crear usuario de Moodle asociado
+                    await this.moodleUserService.create({
+                        id_user: userId,
+                        moodle_id: moodleUser.id,
+                        moodle_username: moodleUser.username,
+                    }, { transaction });
+                }
             }
 
             // Verificar si el usuario ya está en el grupo

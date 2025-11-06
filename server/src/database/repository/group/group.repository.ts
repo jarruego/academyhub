@@ -52,21 +52,31 @@ export class GroupRepository extends Repository {
   }
 
   async upsertMoodleGroup(moodleGroup: MoodleGroup, id_course: number, options?: QueryOptions) {
-    const data = {
+    // Base mapping from Moodle data. We intentionally DO NOT include
+    // start_date, end_date or fundae_id here for updates because Moodle
+    // doesn't provide those fields and we want to preserve local values
+    // when they already exist.
+    const baseData: Partial<GroupInsertModel> = {
       group_name: moodleGroup.name,
       moodle_id: moodleGroup.id,
       id_course: id_course,
       description: moodleGroup.description || '',
-      // TODO: Moodle not providing this fields
-      fundae_id: '', 
-      start_date: null,
-      end_date: null  
     };
+
     const existingGroup = await this.findByMoodleId(moodleGroup.id, options);
     if (existingGroup) {
-      await this.update(existingGroup.id_group, data, options);
+      // Preserve existing local metadata (start_date, end_date, fundae_id).
+      // Only update fields that Moodle provides (name, description, moodle_id, id_course).
+      await this.update(existingGroup.id_group, baseData as GroupUpdateModel, options);
       return await this.findByMoodleId(moodleGroup.id, options); // TODO: optimize
     } else {
+      // When creating a new group, initialize the optional metadata to sensible defaults.
+      const data: GroupInsertModel = {
+        ...baseData as GroupInsertModel,
+        fundae_id: '',
+        start_date: null,
+        end_date: null,
+      };
       const newGroup = await this.create(data, options);
       return await this.findById(newGroup[0].id, options);
     }
