@@ -15,6 +15,9 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
     { title: 'Apellidos', dataIndex: ['first_surname'], sorter: {
         compare: (a, b) => (a.first_surname || '').localeCompare(b.first_surname || ''),
     } },
+  { title: 'Rol', dataIndex: ['role_shortname'], sorter: {
+    compare: (a, b) => (a.role_shortname || '').localeCompare(b.role_shortname || ''),
+  }, render: (_: unknown, user: User) => (user.role_shortname ?? (user.id_role ? String(user.id_role) : '-')) },
     // { title: 'Email', dataIndex: ['email'], sorter: {
     //     compare: (a, b) => (a.email || '').localeCompare(b.email || ''),
     // } },

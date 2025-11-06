@@ -43,8 +43,10 @@ export class UserGroupRepository extends Repository {
     }
 
     async findUsersInGroup(groupId: number, options?: QueryOptions) {
+        // Seleccionamos explícitamente las tablas que necesitamos y hacemos leftJoin
+        // con user_roles para devolver el role_shortname (si existe) junto al usuario.
         const rows = await this.query(options)
-            .select()
+            .select({ users: userTable, user_course: userCourseTable, user_group: userGroupTable, role: userRolesTable })
             .from(userGroupTable)
             .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
             .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
@@ -52,21 +54,26 @@ export class UserGroupRepository extends Repository {
                 eq(userCourseTable.id_user, userGroupTable.id_user),
                 eq(userCourseTable.id_course, groupTable.id_course)
             ))
+            .leftJoin(userRolesTable, eq(userGroupTable.id_role, userRolesTable.id_role))
             .where(eq(userGroupTable.id_group, groupId));
-        // Mezclar los datos del usuario y completion_percentage
+
+        // Mezclar los datos del usuario, completion_percentage y rol (si lo hay)
         return rows.map((r) => ({
             ...r.users,
-            completion_percentage: r.user_course.completion_percentage
+            completion_percentage: r.user_course.completion_percentage,
+            id_role: r.user_group?.id_role,
+            role_shortname: r.role?.role_shortname,
         }));
     }
 
     async findUsersInGroupByIds(groupId: number, userIds: number[], options?: QueryOptions) {
         const rows = await this.query(options)
-            .select()
+            .select({ users: userTable, user_group: userGroupTable, role: userRolesTable })
             .from(userGroupTable)
             .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
+            .leftJoin(userRolesTable, eq(userGroupTable.id_role, userRolesTable.id_role))
             .where(and(eq(userGroupTable.id_group, groupId), inArray(userGroupTable.id_user, userIds)));
-        return rows.map((r) => r.users);
+        return rows.map((r) => ({ ...r.users, id_role: r.user_group?.id_role, role_shortname: r.role?.role_shortname }));
     }
 
     async updateUserInGroup(id_group: number, id_user: number, data: UserGroupUpdateModel, options?: QueryOptions) {

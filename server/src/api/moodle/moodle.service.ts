@@ -994,7 +994,6 @@ export class MoodleService {
                 if (typeof roleIdToAssign !== 'undefined' && existing?.id_role !== roleIdToAssign) {
                     try {
                         await this.userGroupRepository.updateById(userId, id_group, { id_role: roleIdToAssign }, { transaction });
-                        Logger.log({ userId, id_group, oldRole: existing?.id_role, newRole: roleIdToAssign }, 'MoodleService:upsertMoodleUserByGroup - role updated');
                     } catch (err) {
                         Logger.error({ err, userId, id_group, roleIdToAssign }, 'MoodleService:upsertMoodleUserByGroup - update role failed');
                         // No bloquear el flujo por un fallo al actualizar el role en user_group

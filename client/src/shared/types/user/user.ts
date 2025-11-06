@@ -40,4 +40,7 @@ export type User = {
         start_date?: string | Date | null;
         end_date?: string | Date | null;
     }>;
+    // Role information (populated when listing users in a group)
+    id_role?: number | null;
+    role_shortname?: string | null;
 }
