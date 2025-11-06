@@ -14,7 +14,6 @@ import { CourseModality } from "src/types/course/course-modality.enum";
 import { UserService } from "../user/user.service";
 import { CourseInsertModel, CourseSelectModel, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { UserCourseInsertModel, UserCourseUpdateModel } from "src/database/schema/tables/user_course.table";
-import { UserCourseRoleInsertModel } from "src/database/schema/tables/user_course_moodle_role.table";
 import { UserInsertModel } from "src/database/schema/tables/user.table";
 
 @Injectable()
@@ -91,18 +90,6 @@ export class CourseService {
     });
   }
 
-  async addUserRoleToCourse(userCourseRoleInsertModel: UserCourseRoleInsertModel, options?: QueryOptions) {
-    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.courseRepository.addUserRoleToCourse(userCourseRoleInsertModel, { transaction });
-    });
-  }
-
-  //TODO: mejorar, se usa ¿UserCourseRoleInsertModel?
-  async updateUserRolesInCourse(id_course: number, id_user: number, roles: UserCourseRoleInsertModel[], options?: QueryOptions) {
-    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.courseRepository.updateUserRolesInCourse(id_course, id_user, roles, { transaction });
-    });
-  }
 
   async upsertMoodleCourse(moodleCourse: MoodleCourse, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
@@ -344,17 +331,8 @@ export class CourseService {
 
       await this.userCourseRepository.addUserToCourse(userCourseData, { transaction });
 
-      // Actualizar roles de Moodle para el curso
-      if (moodleUser.roles) {
-        for (const role of moodleUser.roles) {
-          await this.courseRepository.addUserRoleToCourse({
-            id_user: userId,
-            id_course: courseId,
-            id_role: role.roleid,
-            role_shortname: role.shortname
-          }, { transaction });
-        }
-      }
+      // Nota: el almacenamiento de roles por curso (user_course_moodle_role) se eliminó.
+      // Ahora los roles se resuelven y aplican al nivel de `user_group.id_role` durante la importación de grupos.
 
       return await this.userRepository.findById(userId, { transaction });
     });

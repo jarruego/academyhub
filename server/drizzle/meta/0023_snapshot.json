@@ -1,0 +1,1411 @@
+{
+  "id": "c7700493-7d69-4ffa-aee0-a44777980946",
+  "prevId": "21606c56-dedc-4207-90ca-9654dc066434",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.auth_users": {
+      "name": "auth_users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lastName": {
+          "name": "lastName",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password": {
+          "name": "password",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'viewer'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "auth_users_email_unique": {
+          "name": "auth_users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        },
+        "auth_users_username_unique": {
+          "name": "auth_users_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.centers": {
+      "name": "centers",
+      "schema": "",
+      "columns": {
+        "id_center": {
+          "name": "id_center",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "center_name": {
+          "name": "center_name",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employer_number": {
+          "name": "employer_number",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_company": {
+          "name": "id_company",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contact_person": {
+          "name": "contact_person",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_phone": {
+          "name": "contact_phone",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "contact_email": {
+          "name": "contact_email",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "import_id": {
+          "name": "import_id",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "centers_id_company_companies_id_company_fk": {
+          "name": "centers_id_company_companies_id_company_fk",
+          "tableFrom": "centers",
+          "tableTo": "companies",
+          "columnsFrom": [
+            "id_company"
+          ],
+          "columnsTo": [
+            "id_company"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.companies": {
+      "name": "companies",
+      "schema": "",
+      "columns": {
+        "id_company": {
+          "name": "id_company",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "company_name": {
+          "name": "company_name",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "corporate_name": {
+          "name": "corporate_name",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cif": {
+          "name": "cif",
+          "type": "varchar(12)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "import_id": {
+          "name": "import_id",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "companies_cif_unique": {
+          "name": "companies_cif_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "cif"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.courses": {
+      "name": "courses",
+      "schema": "",
+      "columns": {
+        "id_course": {
+          "name": "id_course",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "moodle_id": {
+          "name": "moodle_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "course_name": {
+          "name": "course_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "short_name": {
+          "name": "short_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "modality": {
+          "name": "modality",
+          "type": "course_modality",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hours": {
+          "name": "hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price_per_hour": {
+          "name": "price_per_hour",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fundae_id": {
+          "name": "fundae_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.groups": {
+      "name": "groups",
+      "schema": "",
+      "columns": {
+        "id_group": {
+          "name": "id_group",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "moodle_id": {
+          "name": "moodle_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "group_name": {
+          "name": "group_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_course": {
+          "name": "id_course",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fundae_id": {
+          "name": "fundae_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "groups_id_course_courses_id_course_fk": {
+          "name": "groups_id_course_courses_id_course_fk",
+          "tableFrom": "groups",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "id_course"
+          ],
+          "columnsTo": [
+            "id_course"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "groups_moodle_id_unique": {
+          "name": "groups_moodle_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "moodle_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.import_decisions": {
+      "name": "import_decisions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "import_source": {
+          "name": "import_source",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dni_csv": {
+          "name": "dni_csv",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name_csv": {
+          "name": "name_csv",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_surname_csv": {
+          "name": "first_surname_csv",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "second_surname_csv": {
+          "name": "second_surname_csv",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name_db": {
+          "name": "name_db",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_surname_db": {
+          "name": "first_surname_db",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "second_surname_db": {
+          "name": "second_surname_db",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dni_db": {
+          "name": "dni_db",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_db": {
+          "name": "email_db",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nss_db": {
+          "name": "nss_db",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "similarity_score": {
+          "name": "similarity_score",
+          "type": "numeric(5, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "csv_row_data": {
+          "name": "csv_row_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "change_metadata": {
+          "name": "change_metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "selected_user_id": {
+          "name": "selected_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "processed": {
+          "name": "processed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "decision_action": {
+          "name": "decision_action",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "import_decisions_selected_user_id_users_id_user_fk": {
+          "name": "import_decisions_selected_user_id_users_id_user_fk",
+          "tableFrom": "import_decisions",
+          "tableTo": "users",
+          "columnsFrom": [
+            "selected_user_id"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.import_jobs": {
+      "name": "import_jobs",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "import_type": {
+          "name": "import_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "total_rows": {
+          "name": "total_rows",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "processed_rows": {
+          "name": "processed_rows",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_summary": {
+          "name": "result_summary",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "import_jobs_job_id_unique": {
+          "name": "import_jobs_job_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "job_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.moodle_users": {
+      "name": "moodle_users",
+      "schema": "",
+      "columns": {
+        "id_moodle_user": {
+          "name": "id_moodle_user",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "id_user": {
+          "name": "id_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "moodle_id": {
+          "name": "moodle_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "moodle_username": {
+          "name": "moodle_username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "moodle_password": {
+          "name": "moodle_password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_main_user": {
+          "name": "is_main_user",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "moodle_users_id_user_users_id_user_fk": {
+          "name": "moodle_users_id_user_users_id_user_fk",
+          "tableFrom": "moodle_users",
+          "tableTo": "users",
+          "columnsFrom": [
+            "id_user"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "moodle_users_moodle_id_unique": {
+          "name": "moodle_users_moodle_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "moodle_id"
+          ]
+        },
+        "moodle_users_moodle_username_unique": {
+          "name": "moodle_users_moodle_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "moodle_username"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_center": {
+      "name": "user_center",
+      "schema": "",
+      "columns": {
+        "id_user": {
+          "name": "id_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_center": {
+          "name": "id_center",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_main_center": {
+          "name": "is_main_center",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_center_id_user_users_id_user_fk": {
+          "name": "user_center_id_user_users_id_user_fk",
+          "tableFrom": "user_center",
+          "tableTo": "users",
+          "columnsFrom": [
+            "id_user"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_center_id_center_centers_id_center_fk": {
+          "name": "user_center_id_center_centers_id_center_fk",
+          "tableFrom": "user_center",
+          "tableTo": "centers",
+          "columnsFrom": [
+            "id_center"
+          ],
+          "columnsTo": [
+            "id_center"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_center_id_user_id_center_pk": {
+          "name": "user_center_id_user_id_center_pk",
+          "columns": [
+            "id_user",
+            "id_center"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_course": {
+      "name": "user_course",
+      "schema": "",
+      "columns": {
+        "id_user": {
+          "name": "id_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_course": {
+          "name": "id_course",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_moodle_user": {
+          "name": "id_moodle_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enrollment_date": {
+          "name": "enrollment_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completion_percentage": {
+          "name": "completion_percentage",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_spent": {
+          "name": "time_spent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_course_id_user_users_id_user_fk": {
+          "name": "user_course_id_user_users_id_user_fk",
+          "tableFrom": "user_course",
+          "tableTo": "users",
+          "columnsFrom": [
+            "id_user"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_course_id_course_courses_id_course_fk": {
+          "name": "user_course_id_course_courses_id_course_fk",
+          "tableFrom": "user_course",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "id_course"
+          ],
+          "columnsTo": [
+            "id_course"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_course_id_moodle_user_moodle_users_id_moodle_user_fk": {
+          "name": "user_course_id_moodle_user_moodle_users_id_moodle_user_fk",
+          "tableFrom": "user_course",
+          "tableTo": "moodle_users",
+          "columnsFrom": [
+            "id_moodle_user"
+          ],
+          "columnsTo": [
+            "id_moodle_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_course_id_user_id_course_pk": {
+          "name": "user_course_id_user_id_course_pk",
+          "columns": [
+            "id_user",
+            "id_course"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_course_moodle_role": {
+      "name": "user_course_moodle_role",
+      "schema": "",
+      "columns": {
+        "id_user": {
+          "name": "id_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_course": {
+          "name": "id_course",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_role": {
+          "name": "id_role",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role_shortname": {
+          "name": "role_shortname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_course_moodle_role_id_user_users_id_user_fk": {
+          "name": "user_course_moodle_role_id_user_users_id_user_fk",
+          "tableFrom": "user_course_moodle_role",
+          "tableTo": "users",
+          "columnsFrom": [
+            "id_user"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_course_moodle_role_id_course_courses_id_course_fk": {
+          "name": "user_course_moodle_role_id_course_courses_id_course_fk",
+          "tableFrom": "user_course_moodle_role",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "id_course"
+          ],
+          "columnsTo": [
+            "id_course"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_course_moodle_role_id_user_id_course_id_role_pk": {
+          "name": "user_course_moodle_role_id_user_id_course_id_role_pk",
+          "columns": [
+            "id_user",
+            "id_course",
+            "id_role"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_group": {
+      "name": "user_group",
+      "schema": "",
+      "columns": {
+        "id_user": {
+          "name": "id_user",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_group": {
+          "name": "id_group",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id_role": {
+          "name": "id_role",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_center": {
+          "name": "id_center",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "join_date": {
+          "name": "join_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "completion_percentage": {
+          "name": "completion_percentage",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_spent": {
+          "name": "time_spent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_access": {
+          "name": "last_access",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_group_id_user_users_id_user_fk": {
+          "name": "user_group_id_user_users_id_user_fk",
+          "tableFrom": "user_group",
+          "tableTo": "users",
+          "columnsFrom": [
+            "id_user"
+          ],
+          "columnsTo": [
+            "id_user"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_group_id_group_groups_id_group_fk": {
+          "name": "user_group_id_group_groups_id_group_fk",
+          "tableFrom": "user_group",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "id_group"
+          ],
+          "columnsTo": [
+            "id_group"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_group_id_role_user_roles_id_role_fk": {
+          "name": "user_group_id_role_user_roles_id_role_fk",
+          "tableFrom": "user_group",
+          "tableTo": "user_roles",
+          "columnsFrom": [
+            "id_role"
+          ],
+          "columnsTo": [
+            "id_role"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_group_id_center_centers_id_center_fk": {
+          "name": "user_group_id_center_centers_id_center_fk",
+          "tableFrom": "user_group",
+          "tableTo": "centers",
+          "columnsFrom": [
+            "id_center"
+          ],
+          "columnsTo": [
+            "id_center"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_group_id_user_id_group_pk": {
+          "name": "user_group_id_user_id_group_pk",
+          "columns": [
+            "id_user",
+            "id_group"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_roles": {
+      "name": "user_roles",
+      "schema": "",
+      "columns": {
+        "id_role": {
+          "name": "id_role",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "role_shortname": {
+          "name": "role_shortname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role_description": {
+          "name": "role_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id_user": {
+          "name": "id_user",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "first_surname": {
+          "name": "first_surname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "second_surname": {
+          "name": "second_surname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registration_date": {
+          "name": "registration_date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "birth_date": {
+          "name": "birth_date",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dni": {
+          "name": "dni",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nss": {
+          "name": "nss",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "document_type": {
+          "name": "document_type",
+          "type": "document_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'DNI'"
+        },
+        "gender": {
+          "name": "gender",
+          "type": "gender",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'Other'"
+        },
+        "professional_category": {
+          "name": "professional_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": null
+        },
+        "salary_group": {
+          "name": "salary_group",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "disability": {
+          "name": "disability",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "terrorism_victim": {
+          "name": "terrorism_victim",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gender_violence_victim": {
+          "name": "gender_violence_victim",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "education_level": {
+          "name": "education_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": null
+        },
+        "postal_code": {
+          "name": "postal_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "city": {
+          "name": "city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "province": {
+          "name": "province",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "country": {
+          "name": "country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "observations": {
+          "name": "observations",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seasonalWorker": {
+          "name": "seasonalWorker",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "erteLaw": {
+          "name": "erteLaw",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "accreditationDiploma": {
+          "name": "accreditationDiploma",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'N'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_dni_unique": {
+          "name": "users_dni_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "dni"
+          ]
+        },
+        "users_nss_unique": {
+          "name": "users_nss_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "nss"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.course_modality": {
+      "name": "course_modality",
+      "schema": "public",
+      "values": [
+        "Online",
+        "Presencial",
+        "Mixta"
+      ]
+    },
+    "public.document_type": {
+      "name": "document_type",
+      "schema": "public",
+      "values": [
+        "DNI",
+        "NIE"
+      ]
+    },
+    "public.gender": {
+      "name": "gender",
+      "schema": "public",
+      "values": [
+        "Male",
+        "Female",
+        "Other"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

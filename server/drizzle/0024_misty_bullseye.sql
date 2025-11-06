@@ -1,0 +1,1 @@
+DROP TABLE "user_course_moodle_role" CASCADE;

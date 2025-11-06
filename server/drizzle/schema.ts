@@ -38,6 +38,12 @@ export const courses = pgTable("courses", {
 	pricePerHour: numeric("price_per_hour", { precision: 10, scale:  2 }),
 });
 
+export const userRoles = pgTable("user_roles", {
+	idRole: serial("id_role").primaryKey().notNull(),
+	roleShortname: text("role_shortname").notNull(),
+	roleDescription: text("role_description"),
+});
+
 export const centers = pgTable("centers", {
 	idCenter: serial("id_center").primaryKey().notNull(),
 	centerName: varchar("center_name", { length: 128 }).notNull(),
@@ -248,6 +254,7 @@ export const userCourse = pgTable("user_course", {
 export const userGroup = pgTable("user_group", {
 	idUser: integer("id_user").notNull(),
 	idGroup: integer("id_group").notNull(),
+	idRole: integer("id_role"),
 	idCenter: integer("id_center"),
 	joinDate: date("join_date").defaultNow(),
 	completionPercentage: numeric("completion_percentage", { precision: 5, scale:  2 }),
@@ -268,6 +275,11 @@ export const userGroup = pgTable("user_group", {
 			columns: [table.idCenter],
 			foreignColumns: [centers.idCenter],
 			name: "user_group_id_center_centers_id_center_fk"
+		}),
+	foreignKey({
+			columns: [table.idRole],
+			foreignColumns: [userRoles.idRole],
+			name: "user_group_id_role_user_roles_id_role_fk"
 		}),
 	primaryKey({ columns: [table.idUser, table.idGroup], name: "user_group_id_user_id_group_pk"}),
 ]);

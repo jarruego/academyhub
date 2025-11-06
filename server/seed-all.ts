@@ -10,8 +10,9 @@ import { courseTable } from "./src/database/schema/tables/course.table";
 import { groupTable } from "./src/database/schema/tables/group.table";
 import { userCenterTable } from "./src/database/schema/tables/user_center.table";
 import { userGroupTable } from "./src/database/schema/tables/user_group.table";
+import { userRolesTable } from "./src/database/schema/tables/user_roles.table";
+import { eq } from "drizzle-orm";
 import { userCourseTable } from "./src/database/schema/tables/user_course.table";
-import { userCourseMoodleRoleTable } from "./src/database/schema/tables/user_course_moodle_role.table";
 
 const client = new Client({
   connectionString: process.env.DATABASE_URL || "postgresql://user:pass@127.0.0.1:5432/tfg"
@@ -19,7 +20,7 @@ const client = new Client({
 
 async function clearAllTables(db: any) {
   // Borra datos previos (orden importa por claves foráneas)
-  await db.delete(userCourseMoodleRoleTable);
+  // legacy table user_course_moodle_role removed from codebase; only clear user_course
   await db.delete(userCourseTable);
   await db.delete(userGroupTable);
   await db.delete(userCenterTable);
@@ -36,6 +37,28 @@ async function main() {
 
   // Descomenta la siguiente línea para borrar los datos previos
   await clearAllTables(db);
+
+  // Insertar roles por defecto (siempre podemos crear on-demand en runtime, pero
+  // es útil poblar algunos roles estándar para facilitar pruebas)
+  const rolesData = [
+    { role_shortname: 'admin', role_description: 'Administrador del sitio.' },
+    { role_shortname: 'creator', role_description: 'Creador de cursos.' },
+    { role_shortname: 'teacher', role_description: 'Profesor.' },
+    { role_shortname: 'editingteacher', role_description: 'Profesor sin edición.' },
+    { role_shortname: 'student', role_description: 'Estudiante.' },
+    { role_shortname: 'guest', role_description: 'Invitado.' },
+    { role_shortname: 'manager', role_description: 'Gestor.' },
+  ];
+  await db.insert(userRolesTable).values(rolesData).onConflictDoNothing();
+
+  // Obtener los ids de los roles para usarlos al insertar user_group
+  const role_admin = (await db.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, 'admin')))?.[0] ?? null;
+  const role_creator = (await db.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, 'creator')))?.[0] ?? null;
+  const role_teacher = (await db.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, 'teacher')))?.[0] ?? null;
+  const role_editingteacher = (await db.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, 'editingteacher')))?.[0] ?? null;
+  const role_student = (await db.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, 'student')))?.[0] ?? null;
+  const role_guest = (await db.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, 'guest')))?.[0] ?? null;
+  const role_manager = (await db.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, 'manager')))?.[0] ?? null;
 
   // Empresas (fusionadas)
   const empresasData = [
@@ -636,15 +659,15 @@ async function main() {
 
   // Relacionar usuarios con grupos (user-group)
   await db.insert(userGroupTable).values([
-    { id_user: users[0].id_user, id_group: grupos[0].id_group, id_center: centros[0].id_center, join_date: new Date("2024-01-10"), completion_percentage: "100", time_spent: 40, last_access: new Date("2024-02-10T18:00:00+01:00") },
-    { id_user: users[1].id_user, id_group: grupos[0].id_group, id_center: centros[0].id_center, join_date: new Date("2024-01-10"), completion_percentage: "80", time_spent: 32, last_access: new Date("2024-02-09T17:00:00+01:00") },
-    { id_user: users[2].id_user, id_group: grupos[1].id_group, id_center: centros[1].id_center, join_date: new Date("2024-03-01"), completion_percentage: "90", time_spent: 27, last_access: new Date("2024-04-01T18:00:00+01:00") },
-    { id_user: users[3].id_user, id_group: grupos[2].id_group, id_center: centros[2].id_center, join_date: new Date("2024-05-01"), completion_percentage: "100", time_spent: 25, last_access: new Date("2024-06-01T18:00:00+01:00") },
-    { id_user: users[4].id_user, id_group: grupos[3].id_group, id_center: centros[0].id_center, join_date: new Date("2024-07-01"), completion_percentage: "100", time_spent: 50, last_access: new Date("2024-08-01T18:00:00+01:00") },
-    { id_user: users[5].id_user, id_group: grupos[4].id_group, id_center: centros[1].id_center, join_date: new Date("2024-09-01"), completion_percentage: "100", time_spent: 20, last_access: new Date("2024-10-01T18:00:00+01:00") },
-    { id_user: users[6].id_user, id_group: grupos[5].id_group, id_center: centros[3].id_center, join_date: new Date("2024-11-01"), completion_percentage: "100", time_spent: 60, last_access: new Date("2024-12-01T18:00:00+01:00") },
-    { id_user: users[7].id_user, id_group: grupos[6].id_group, id_center: centros[4].id_center, join_date: new Date("2025-01-10"), completion_percentage: "100", time_spent: 35, last_access: new Date("2025-02-10T18:00:00+01:00") },
-    { id_user: users[8].id_user, id_group: grupos[6].id_group, id_center: centros[4].id_center, join_date: new Date("2025-01-10"), completion_percentage: "100", time_spent: 35, last_access: new Date("2025-02-10T18:00:00+01:00") }
+    { id_user: users[0].id_user, id_group: grupos[0].id_group, id_role: role_student?.id_role ?? null, id_center: centros[0].id_center, join_date: new Date("2024-01-10"), completion_percentage: "100", time_spent: 40, last_access: new Date("2024-02-10T18:00:00+01:00") },
+    { id_user: users[1].id_user, id_group: grupos[0].id_group, id_role: role_teacher?.id_role ?? null, id_center: centros[0].id_center, join_date: new Date("2024-01-10"), completion_percentage: "80", time_spent: 32, last_access: new Date("2024-02-09T17:00:00+01:00") },
+    { id_user: users[2].id_user, id_group: grupos[1].id_group, id_role: role_student?.id_role ?? null, id_center: centros[1].id_center, join_date: new Date("2024-03-01"), completion_percentage: "90", time_spent: 27, last_access: new Date("2024-04-01T18:00:00+01:00") },
+    { id_user: users[3].id_user, id_group: grupos[2].id_group, id_role: role_manager?.id_role ?? null, id_center: centros[2].id_center, join_date: new Date("2024-05-01"), completion_percentage: "100", time_spent: 25, last_access: new Date("2024-06-01T18:00:00+01:00") },
+    { id_user: users[4].id_user, id_group: grupos[3].id_group, id_role: role_student?.id_role ?? null, id_center: centros[0].id_center, join_date: new Date("2024-07-01"), completion_percentage: "100", time_spent: 50, last_access: new Date("2024-08-01T18:00:00+01:00") },
+    { id_user: users[5].id_user, id_group: grupos[4].id_group, id_role: role_student?.id_role ?? null, id_center: centros[1].id_center, join_date: new Date("2024-09-01"), completion_percentage: "100", time_spent: 20, last_access: new Date("2024-10-01T18:00:00+01:00") },
+    { id_user: users[6].id_user, id_group: grupos[5].id_group, id_role: role_student?.id_role ?? null, id_center: centros[3].id_center, join_date: new Date("2024-11-01"), completion_percentage: "100", time_spent: 60, last_access: new Date("2024-12-01T18:00:00+01:00") },
+    { id_user: users[7].id_user, id_group: grupos[6].id_group, id_role: role_student?.id_role ?? null, id_center: centros[4].id_center, join_date: new Date("2025-01-10"), completion_percentage: "100", time_spent: 35, last_access: new Date("2025-02-10T18:00:00+01:00") },
+    { id_user: users[8].id_user, id_group: grupos[6].id_group, id_role: role_teacher?.id_role ?? null, id_center: centros[4].id_center, join_date: new Date("2025-01-10"), completion_percentage: "100", time_spent: 35, last_access: new Date("2025-02-10T18:00:00+01:00") }
   ]);
 
   // Relacionar usuarios con cursos (user-course)
@@ -660,18 +683,9 @@ async function main() {
     { id_user: users[8].id_user, id_course: cursos[6].id_course, enrollment_date: new Date("2025-01-10"), completion_percentage: "100", time_spent: 35 }
   ]);
 
-  // Relacionar usuarios, cursos y roles de Moodle (user-course-moodle-role)
-  await db.insert(userCourseMoodleRoleTable).values([
-    { id_user: users[0].id_user, id_course: cursos[0].id_course, id_role: 1, role_shortname: "student" },
-    { id_user: users[1].id_user, id_course: cursos[0].id_course, id_role: 2, role_shortname: "teacher" },
-    { id_user: users[2].id_user, id_course: cursos[1].id_course, id_role: 1, role_shortname: "student" },
-    { id_user: users[3].id_user, id_course: cursos[2].id_course, id_role: 3, role_shortname: "manager" },
-    { id_user: users[4].id_user, id_course: cursos[3].id_course, id_role: 1, role_shortname: "student" },
-    { id_user: users[5].id_user, id_course: cursos[4].id_course, id_role: 1, role_shortname: "student" },
-    { id_user: users[6].id_user, id_course: cursos[5].id_course, id_role: 1, role_shortname: "student" },
-    { id_user: users[7].id_user, id_course: cursos[6].id_course, id_role: 1, role_shortname: "student" },
-    { id_user: users[8].id_user, id_course: cursos[6].id_course, id_role: 2, role_shortname: "teacher" }
-  ]);
+  // Nota: anteriormente guardábamos roles por curso en `user_course_moodle_role`.
+  // Ahora los roles se gestionan por grupo y se almacenan en `user_group.id_role`.
+  // Eliminamos la inserción en `userCourseMoodleRoleTable` para evitar datos redundantes.
 
   await client.end();
   console.log("Datos de prueba insertados en todas las tablas principales");

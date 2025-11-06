@@ -14,6 +14,8 @@ import { UserRepository } from 'src/database/repository/user/user.repository';
 import { UserGroupRepository } from 'src/database/repository/group/user-group.repository';
 import { MoodleUserService } from '../moodle-user/moodle-user.service';
 import { GroupService } from '../group/group.service';
+import { userRolesTable } from 'src/database/schema/tables/user_roles.table';
+import { eq } from 'drizzle-orm';
 import { CourseModality } from 'src/types/course/course-modality.enum';
 import { UserCourseInsertModel } from 'src/database/schema/tables/user_course.table';
 import { UserInsertModel, UserUpdateModel } from 'src/database/schema/tables/user.table';
@@ -560,23 +562,8 @@ export class MoodleService {
                     throw err;
                 }
 
-                // Actualizar roles de Moodle para el curso
-                if (moodleUser.roles) {
-                    for (const role of moodleUser.roles) {
-                        try {
-                            await this.courseRepository.addUserRoleToCourse({
-                                id_user: userId,
-                                id_course: courseId,
-                                id_role: role.roleid,
-                                role_shortname: role.shortname
-                            }, { transaction });
-                            // Logger.log({ userId, courseId, role }, 'addUserRoleToCourse OK');
-                        } catch (err) {
-                            Logger.error({ err, userId, courseId, role }, 'addUserRoleToCourse ERROR');
-                            throw err;
-                        }
-                    }
-                }
+                // Nota: el almacenamiento de roles por curso (user_course_moodle_role) se eliminó.
+                // Los roles se resuelven y aplican al nivel de `user_group.id_role` cuando se importan grupos.
 
                 return await this.userRepository.findById(userId, { transaction });
             } catch (error) {
@@ -958,8 +945,61 @@ export class MoodleService {
             // Verificar si el usuario ya está en el grupo
             const userGroupRows = await this.userGroupRepository.findUserInGroup(userId, id_group, { transaction });
 
+            // Resolver rol desde Moodle (si viene) delegando al repositorio para mantener la lógica de BD
+            // Nota: algunas llamadas a la API (p.ej. core_group_get_group_members -> getUserById)
+            // no devuelven el array `roles`. En ese caso, intentamos obtener los roles
+            // buscando al usuario entre los `enrolledUsers` del curso padre (vía core_enrol_get_enrolled_users).
+            let roleIdToAssign: number | undefined = undefined;
+            try {
+                // Preferir roles ya presentes en el objeto recibido
+                let rolesSource = moodleUser.roles;
+
+                // Si no vienen roles, intentar obtenerlos consultando los usuarios matriculados del curso
+                if ((!rolesSource || rolesSource.length === 0)) {
+                    try {
+                        const group = await this.groupRepository.findById(id_group, { transaction });
+                        if (group && group.id_course) {
+                            const course = await this.courseRepository.findById(group.id_course, { transaction });
+                            if (course && course.moodle_id) {
+                                const enrolled = await this.getEnrolledUsers(course.moodle_id);
+                                const match = enrolled.find(u => u.id === moodleUser.id);
+                                if (match && match.roles && match.roles.length > 0) {
+                                    rolesSource = match.roles;
+                                }
+                            }
+                        }
+                    } catch (innerErr) {
+                        // No bloquear si la llamada a la API adicional falla; seguiremos sin roles
+                        Logger.warn({ innerErr, moodleUserId: moodleUser.id, id_group }, 'MoodleService:upsertMoodleUserByGroup - could not fetch enrolled users to resolve roles');
+                    }
+                }
+
+                if (rolesSource && rolesSource.length > 0) {
+                    const shortname = rolesSource[0].shortname;
+                    if (shortname) {
+                        roleIdToAssign = await this.userGroupRepository.findOrCreateRoleByShortname(shortname, { transaction });
+                    }
+                }
+            } catch (e) {
+                // No bloquear el flujo si hay un error resolviendo roles; dejamos role undefined
+                Logger.warn({ e, moodleUserId: moodleUser.id }, 'MoodleService:upsertMoodleUserByGroup - role resolution failed');
+            }
+
             if (userGroupRows.length <= 0) {
-                await this.groupService.addUserToGroup({id_group, id_user: userId}, { transaction });
+                // No existía: crear la asociación incluyendo el id_role resuelto (o el por defecto que gestione el repositorio)
+                await this.groupService.addUserToGroup({ id_group, id_user: userId, id_role: roleIdToAssign }, { transaction });
+            } else {
+                // Ya existe la fila user_group: si viene un role resuelto y es distinto al actual, actualizarlo
+                const existing = userGroupRows[0] as any;
+                if (typeof roleIdToAssign !== 'undefined' && existing?.id_role !== roleIdToAssign) {
+                    try {
+                        await this.userGroupRepository.updateById(userId, id_group, { id_role: roleIdToAssign }, { transaction });
+                        Logger.log({ userId, id_group, oldRole: existing?.id_role, newRole: roleIdToAssign }, 'MoodleService:upsertMoodleUserByGroup - role updated');
+                    } catch (err) {
+                        Logger.error({ err, userId, id_group, roleIdToAssign }, 'MoodleService:upsertMoodleUserByGroup - update role failed');
+                        // No bloquear el flujo por un fallo al actualizar el role en user_group
+                    }
+                }
             }
         };
 

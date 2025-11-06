@@ -15,6 +15,11 @@ export class UpdateUserGroupDTO {
   @ApiPropertyOptional()
   @IsInt()
   @IsOptional()
+  id_role?: number;
+
+  @ApiPropertyOptional()
+  @IsInt()
+  @IsOptional()
   id_center?: number;
 
   @ApiPropertyOptional()

@@ -5,7 +5,7 @@ import { QueryOptions } from "src/database/repository/repository";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { GroupInsertModel, GroupSelectModel, GroupUpdateModel } from "src/database/schema/tables/group.table";
-import { UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
+import { UserGroupUpdateModel, UserGroupInsertModel } from "src/database/schema/tables/user_group.table";
 import { GroupBonificableService } from "./group-bonification.service";
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
 import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
@@ -15,7 +15,7 @@ import { userCenterTable } from "src/database/schema/tables/user_center.table";
 import { eq, and } from "drizzle-orm";
 
 
-type AddUserToGroupOptions = {id_group: number; id_user: number; id_center?: number }
+type AddUserToGroupOptions = {id_group: number; id_user: number; id_center?: number; id_role?: number }
 
 @Injectable()
 export class GroupService {
@@ -56,7 +56,7 @@ export class GroupService {
 
   
 
-  async addUserToGroup({ id_group, id_user, id_center }: AddUserToGroupOptions, options?: QueryOptions) {
+  async addUserToGroup({ id_group, id_user, id_center, id_role }: AddUserToGroupOptions, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       // Si no se pasa id_center, buscar el main_center del usuario
       let centerIdToUse = id_center;
@@ -103,16 +103,17 @@ export class GroupService {
         return existingUserGroup;
       }
 
-      // No existía: crear la asociación incluyendo centro/join_date
+      // No existía: crear la asociación incluyendo centro/join_date y posible id_role
       const created = await this.userGroupRepository.create({
         id_group,
         id_user,
+        id_role: id_role ?? undefined,
         id_center: centerIdToUse,
         join_date: new Date(),
         completion_percentage: "0",
         time_spent: 0,
         last_access: null,
-      }, { transaction });
+      } as UserGroupInsertModel, { transaction });
 
       return created;
     });

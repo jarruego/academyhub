@@ -5,7 +5,6 @@ import { CourseService } from './course.service';
 import { FilterCourseDTO } from 'src/dto/course/filter-course.dto';
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 import { UpdateUserCourseDTO } from 'src/dto/user-course/update-user-course.dto';
-import { CreateUserCourseRoleDTO } from "src/dto/user-course-role/create-user-course-role.dto";
 import { RoleGuard } from 'src/guards/role.guard';
 import { Role } from 'src/guards/role.enum';
 
@@ -58,21 +57,7 @@ export class CourseController {
     return this.courseService.updateUserInCourse(numericCourseId, numericUserId, updateUserCourseDTO);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
-  @Post(':id/users/:userId/roles')
-  async addUserRoleToCourse(@Param('id') id: string, @Param('userId') userId: string, @Body() createUserCourseRoleDTO: CreateUserCourseRoleDTO) {
-    createUserCourseRoleDTO.id_course = parseInt(id, 10);
-    createUserCourseRoleDTO.id_user = parseInt(userId, 10);
-    return this.courseService.addUserRoleToCourse(createUserCourseRoleDTO);
-  }
-
-  @UseGuards(RoleGuard([Role.ADMIN]))
-  @Put(':id/users/:userId/roles')
-  async updateUserRolesInCourse(@Param('id') id: string, @Param('userId') userId: string, @Body() roles: CreateUserCourseRoleDTO[]) {
-    const numericCourseId = parseInt(id, 10);
-    const numericUserId = parseInt(userId, 10);
-    return this.courseService.updateUserRolesInCourse(numericCourseId, numericUserId, roles);
-  }
+  // Endpoints for per-course roles were removed: roles are now handled at group-level (user_group.id_role)
 
   @Get(':id/groups')
   async findGroupsInCourse(@Param('id') id: string) {

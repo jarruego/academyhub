@@ -3,7 +3,7 @@ import { QueryOptions, Repository } from "../repository";
 import { CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { eq, ilike, and } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
-import { userCourseMoodleRoleTable, UserCourseRoleInsertModel } from "src/database/schema/tables/user_course_moodle_role.table";
+// user_course_moodle_role removed: roles are now managed via user_roles + user_group.id_role
 
 @Injectable()
 export class CourseRepository extends Repository {
@@ -50,40 +50,7 @@ export class CourseRepository extends Repository {
     return result;
   }
 
-  async addUserRoleToCourse(userCourseRoleInsertModel: UserCourseRoleInsertModel, options?: QueryOptions) {
-    // Verificar si ya existe el rol para evitar duplicados
-    const existingRole = await this.query(options)
-      .select()
-      .from(userCourseMoodleRoleTable)
-      .where(and(
-        eq(userCourseMoodleRoleTable.id_user, userCourseRoleInsertModel.id_user),
-        eq(userCourseMoodleRoleTable.id_course, userCourseRoleInsertModel.id_course),
-        eq(userCourseMoodleRoleTable.id_role, userCourseRoleInsertModel.id_role)
-      ));
-
-    if (existingRole.length === 0) {
-      // Solo insertar si no existe
-      const result = await this.query(options)
-        .insert(userCourseMoodleRoleTable)
-        .values(userCourseRoleInsertModel);
-      return result;
-    }
-    
-    // Si ya existe, no hacer nada o retornar el existente
-    return { insertId: null, affectedRows: 0 };
-  }
-
-  //TODO: mejorar, se usa ¿UserCourseRoleInsertModel? para roles
-  async updateUserRolesInCourse(id_course: number, id_user: number, roles: UserCourseRoleInsertModel[], options?: QueryOptions) {
-    await this.query(options)
-      .delete(userCourseMoodleRoleTable)
-      .where(and(eq(userCourseMoodleRoleTable.id_course, id_course), eq(userCourseMoodleRoleTable.id_user, id_user)));
-
-    const result = await this.query(options)
-      .insert(userCourseMoodleRoleTable)
-      .values(roles);
-    return result;
-  }
+  // Legacy per-course role storage removed. Role assignments are now stored at user_group.id_role
 
   async findByMoodleId(moodleId: number, options?: QueryOptions) {
     const rows = await this.query(options).select().from(courseTable).where(eq(courseTable.moodle_id, moodleId));
