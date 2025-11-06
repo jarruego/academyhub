@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Table, Button, message } from 'antd';
-import { SaveOutlined } from '@ant-design/icons';
+import { SaveOutlined, TeamOutlined, ImportOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { AuthzHide } from '../permissions/authz-hide';
+import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.query';
 import { useCreateBonificationFileMutation } from '../../hooks/api/groups/use-create-bonification-file.mutation';
 import { useUpdateUserMainCenterMutation } from '../../hooks/api/centers/use-update-user-main-center.mutation';
@@ -14,6 +17,7 @@ interface Props {
 
 const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const [messageApi, contextHolder] = message.useMessage();
+  const navigate = useNavigate();
   const { data: usersData, isLoading, refetch } = useUsersByGroupQuery(groupId ? Number(groupId) : null);
 
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
@@ -73,11 +77,31 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   return (
     <div>
       {contextHolder}
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginBottom: 8 }}>
-        <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0}>Marcar ≥ 75%</Button>
-        <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
-          Bonificar + XML FUNDAE
-        </Button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <AuthzHide roles={[Role.ADMIN]}>
+            <Button
+              type="default"
+              icon={<TeamOutlined />}
+              onClick={() => groupId ? navigate(`/groups/${groupId}/add-user`) : null}
+            >
+              Gestionar Usuarios del Grupo
+            </Button>
+            <Button
+              type="default"
+              icon={<ImportOutlined />}
+              onClick={() => groupId ? navigate(`/groups/${groupId}/import-users`) : null}
+            >
+              Importar Usuarios
+            </Button>
+          </AuthzHide>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0}>Marcar ≥ 75%</Button>
+          <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
+            Bonificar + XML FUNDAE
+          </Button>
+        </div>
       </div>
 
       <Table<User>
@@ -88,6 +112,18 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         pagination={false}
         // Fixed table header with vertical scroll
         scroll={{ y: 500 }}
+        onRow={(record) => ({
+          onDoubleClick: () => {
+            try {
+              const url = `${window.location.origin}/users/${record.id_user}`;
+              window.open(url, '_blank', 'noopener,noreferrer');
+            } catch (e) {
+              // Fallback: open relative path
+              window.open(`/users/${record.id_user}`, '_blank');
+            }
+          },
+          style: { cursor: 'pointer' }
+        })}
         rowSelection={{
           type: 'checkbox',
           selectedRowKeys: selectedUserIds,

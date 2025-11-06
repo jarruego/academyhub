@@ -5,7 +5,7 @@ import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
 import { useEffect } from "react";
-import { DeleteOutlined, SaveOutlined, TeamOutlined, ImportOutlined } from "@ant-design/icons";
+import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import GroupUsersManager from '../../components/group/GroupUsersManager';
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -48,7 +48,12 @@ export default function EditGroupRoute() {
   }, [groupData, reset]);
 
   useEffect(() => {
-    document.title = `Detalles del Grupo ${id_group}`;
+    // Set browser tab title to group name when available, fallback to id
+    if (groupData && groupData.group_name) {
+      document.title = String(groupData.group_name);
+    } else {
+      document.title = `Detalles del Grupo ${id_group}`;
+    }
   }, [id_group]);
 
   if (isGroupLoading) return <div>Cargando...</div>;
@@ -91,15 +96,22 @@ export default function EditGroupRoute() {
     });
   };
 
-  const handleAddUserToGroup = () => {
-    navigate(`/groups/${id_group}/add-user`);
-  };
-
-  const handleImportUsers = () => {
-    navigate(`/groups/${id_group}/import-users`);
-  };
+  
 
   const items = [
+    {
+      key: "2",
+      label: "Usuarios del Grupo",
+      children: (
+        <>
+          <h2>Usuarios del Grupo {groupData?.group_name ? `- ${groupData.group_name}` : ''}</h2>
+          <GroupUsersManager groupId={id_group ? parseInt(id_group, 10) : null} />
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
+          </div>
+        </>
+      ),
+    },
     {
       key: "1",
       label: "Datos del Grupo",
@@ -179,33 +191,12 @@ export default function EditGroupRoute() {
         </Form>
       ),
     },
-    {
-      key: "2",
-      label: "Usuarios del Grupo",
-      children: (
-        <>
-          <h2>Usuarios Grupo</h2>
-          <GroupUsersManager groupId={id_group ? parseInt(id_group, 10) : null} />
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
-            <AuthzHide roles={[Role.ADMIN]}>
-            <Button type="primary" icon={<TeamOutlined />} onClick={handleAddUserToGroup} >
-              Gestionar Usuarios del Grupo
-            </Button>
-            <Button type="primary" icon={<ImportOutlined />} onClick={handleImportUsers}>
-              Importar Usuarios
-            </Button>
-            </AuthzHide>
-          </div>
-        </>
-      ),
-    },
   ];
 
   return (
     <div>
       {contextHolder}
-      <Tabs defaultActiveKey="1" items={items} />
+      <Tabs defaultActiveKey="2" items={items} />
     </div>
   );
 }
