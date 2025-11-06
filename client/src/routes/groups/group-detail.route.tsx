@@ -36,6 +36,7 @@ export default function EditGroupRoute() {
     resolver: zodResolver(GROUP_FORM_SCHEMA),
   });
   const [modal, contextHolder] = Modal.useModal();
+  const [messageApi, messageContextHolder] = message.useMessage();
 
   useEffect(() => {
     if (groupData) {
@@ -66,10 +67,10 @@ export default function EditGroupRoute() {
         start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
         end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
       });
-      message.success('Grupo actualizado exitosamente');
+    messageApi.success('Grupo actualizado exitosamente');
       navigate(`/courses/${groupData.id_course}`);
     } catch {
-      message.error('No se pudo actualizar el grupo');
+    messageApi.error('No se pudo actualizar el grupo');
     }
   };
 
@@ -83,8 +84,8 @@ export default function EditGroupRoute() {
       cancelText: "Cancelar",
       onOk: async () => {
         try {
-          await deleteGroup();
-          message.success('Grupo eliminado exitosamente');
+            await deleteGroup();
+            messageApi.success('Grupo eliminado exitosamente');
           navigate(`/courses/${groupData.id_course}`);
         } catch {
           modal.error({
@@ -104,6 +105,7 @@ export default function EditGroupRoute() {
       label: "Usuarios del Grupo",
       children: (
         <>
+          {messageContextHolder}
           <h2>Usuarios del Grupo {groupData?.group_name ? `- ${groupData.group_name}` : ''}</h2>
           <GroupUsersManager groupId={id_group ? parseInt(id_group, 10) : null} />
           <div style={{ display: 'flex', gap: '16px' }}>
@@ -196,6 +198,7 @@ export default function EditGroupRoute() {
   return (
     <div>
       {contextHolder}
+      {messageContextHolder}
       <Tabs defaultActiveKey="2" items={items} />
     </div>
   );

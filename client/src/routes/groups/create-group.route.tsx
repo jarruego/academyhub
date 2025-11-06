@@ -38,6 +38,8 @@ export default function CreateGroupRoute() {
     }
   }, [course]);
 
+  const [messageApi, messageContextHolder] = message.useMessage();
+
   const submit: SubmitHandler<z.infer<typeof CREATE_GROUP_FORM>> = async (data) => {
     try {
       await createGroup({
@@ -47,15 +49,16 @@ export default function CreateGroupRoute() {
         end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
       });
 
-      message.success('Grupo creado exitosamente');
+      messageApi.success('Grupo creado exitosamente');
       navigate(`/courses/${id_course}`);
     } catch {
-      message.error('No se pudo crear el grupo');
+      messageApi.error('No se pudo crear el grupo');
     }
   };
 
   return (
     <div>
+      {messageContextHolder}
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <Form.Item
           label="ID del curso"
