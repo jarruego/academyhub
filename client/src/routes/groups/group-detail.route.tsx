@@ -55,7 +55,7 @@ export default function EditGroupRoute() {
     } else {
       document.title = `Detalles del Grupo ${id_group}`;
     }
-  }, [id_group]);
+  }, [id_group, groupData]);
 
   if (isGroupLoading) return <div>Cargando...</div>;
 
@@ -108,9 +108,6 @@ export default function EditGroupRoute() {
           {messageContextHolder}
           <h2>Usuarios del Grupo {groupData?.group_name ? `- ${groupData.group_name}` : ''}</h2>
           <GroupUsersManager groupId={id_group ? parseInt(id_group, 10) : null} />
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
-          </div>
         </>
       ),
     },
@@ -184,7 +181,6 @@ export default function EditGroupRoute() {
             <Controller name="description" control={control} render={({ field }) => <Input id="description" autoComplete="off" {...field} value={field.value ?? ""} data-testid="group-description" />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
-            <Button type="default" onClick={() => navigate(`/courses/${groupData?.id_course}`)}>Volver al Curso</Button>
             <AuthzHide roles={[Role.ADMIN]}>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-group">Guardar</Button>
             <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>

@@ -309,7 +309,18 @@ export default function CourseDetailRoute() {
               id="groups-table"
               onRow={(record) => ({
                 onClick: () => handleRowClick(record),
-                onDoubleClick: () => navigate(`/groups/${record.id_group}/edit`),
+                onDoubleClick: () => {
+                  const url = `/groups/${record.id_group}/edit`;
+                  const newWindow = window.open(url, '_blank');
+                  if (newWindow) {
+                    // prevent the opened page from accessing window.opener for security
+                    try {
+                      newWindow.opener = null;
+                    } catch (e) {
+                      // ignore if setting opener is not allowed
+                    }
+                  }
+                },
                 style: { cursor: 'pointer' }
               })}
             />
