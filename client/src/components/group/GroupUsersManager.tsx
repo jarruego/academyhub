@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { Table, Button, message } from 'antd';
-import { SaveOutlined, TeamOutlined, ImportOutlined } from '@ant-design/icons';
+import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { AuthzHide } from '../permissions/authz-hide';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.query';
+import { useImportMoodleGroupMutation } from '../../hooks/api/moodle/use-import-moodle-group.mutation';
+import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
 import { useCreateBonificationFileMutation } from '../../hooks/api/groups/use-create-bonification-file.mutation';
 import { useUpdateUserMainCenterMutation } from '../../hooks/api/centers/use-update-user-main-center.mutation';
 import { BonificationModal } from '../courses/BonificationModal';
@@ -26,15 +28,30 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
 
   const createBonificationFile = useCreateBonificationFileMutation();
   const updateUserMainCenterMutation = useUpdateUserMainCenterMutation();
+  const { mutateAsync: importMoodleGroup, isPending: importMoodleGroupPending } = useImportMoodleGroupMutation();
+  const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(groupId ? String(groupId) : undefined);
+
 
   const handleMark75 = () => {
     if (!usersData) return;
+    const getRoleShortname = (user: User): string | null => {
+      if (user.role_shortname) return user.role_shortname;
+      // some responses may include a 'role' property; read it safely without using `any`
+      const maybe = user as unknown as Record<string, unknown>;
+      const r = maybe['role'];
+      return typeof r === 'string' ? r : null;
+    };
     const getPercent = (v: unknown) => {
       const n = Number(v ?? 0) || 0;
       return n > 0 && n <= 1 ? n * 100 : n;
     };
     const ids = usersData
-      .filter(u => getPercent((u as any).completion_percentage) >= 75)
+      .filter((u: User) => {
+        // only students
+        const role = getRoleShortname(u);
+        const isStudent = typeof role === 'string' ? role.toLowerCase() === 'student' : false;
+        return isStudent && getPercent(u.completion_percentage) >= 75;
+      })
       .map(u => u.id_user);
     setSelectedUserIds(ids);
   };
@@ -89,10 +106,40 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
             </Button>
             <Button
               type="default"
-              icon={<ImportOutlined />}
+              icon={<FileExcelOutlined style={{ color: '#008000' }} />}
               onClick={() => groupId ? navigate(`/groups/${groupId}/import-users`) : null}
             >
-              Importar Usuarios
+              Importar XLS
+            </Button>
+            <Button
+              type="default"
+              icon={<CloudDownloadOutlined style={{ color: '#f56b00' }} />}
+              onClick={async () => {
+                if (!groupId) return;
+                const moodleId = groupData?.moodle_id;
+                if (!moodleId) {
+                  message.warning('El grupo local no está asociado a un grupo de Moodle');
+                  return;
+                }
+
+                try {
+                  const response = await importMoodleGroup(moodleId);
+                  const result = response.data;
+                  if (result?.success) {
+                    message.success(result.message || 'Usuarios importados desde Moodle');
+                    refetch();
+                  } else {
+                    message.error(result?.error || 'Error al importar usuarios desde Moodle');
+                  }
+                } catch (err) {
+                  console.error('Error importando usuarios desde Moodle:', err);
+                  message.error('Error al traer usuarios desde Moodle');
+                }
+              }}
+              loading={importMoodleGroupPending || isGroupLoading}
+              disabled={isGroupLoading || !groupData?.moodle_id}
+            >
+              Traer de Moodle
             </Button>
           </AuthzHide>
         </div>

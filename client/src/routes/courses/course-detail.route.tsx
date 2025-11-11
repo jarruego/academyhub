@@ -294,10 +294,9 @@ export default function CourseDetailRoute() {
               title={() => <h3>Grupos del Curso</h3>}
               rowKey="id_group"
               columns={[
-                { title: 'ID', dataIndex: 'id_group' },
-                { title: 'MOODLE ID', dataIndex: 'moodle_id' },
                 { title: 'Nombre del grupo', dataIndex: 'group_name' },
-                { title: 'Descripción', dataIndex: 'description', render: (desc: string) => desc ? <span dangerouslySetInnerHTML={{ __html: desc }} /> : '-' },
+                { title: 'Fecha Inicio', dataIndex: 'start_date', render: (d: string | Date | null) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+                { title: 'Fecha Fin', dataIndex: 'end_date', render: (d: string | Date | null) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
               ]}
               dataSource={groupsData}
               loading={isGroupsLoading}
