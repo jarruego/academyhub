@@ -161,12 +161,14 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         scroll={{ y: 500 }}
         onRow={(record) => ({
           onDoubleClick: () => {
+            const uid = Number(record.id_user);
+            if (!Number.isFinite(uid)) return;
             try {
-              const url = `${window.location.origin}/users/${record.id_user}`;
+              const url = `${window.location.origin}/users/${uid}`;
               window.open(url, '_blank', 'noopener,noreferrer');
             } catch (e) {
               // Fallback: open relative path
-              window.open(`/users/${record.id_user}`, '_blank');
+              window.open(`/users/${uid}`, '_blank');
             }
           },
           style: { cursor: 'pointer' }

@@ -138,6 +138,28 @@ export class UserService {
     });
   }
 
+  /**
+   * Devuelve solo campos mínimos para búsquedas/lookup (sin enriquecer con centros)
+   * Esto evita el coste de múltiples consultas por usuario cuando solo necesitamos el DNI
+   */
+  async findAllMinimal(filter: Partial<FilterUserDTO> = {}, options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const where: any[] = [];
+      if (filter.dni) where.push(sql`unaccent(lower(${users.dni})) LIKE unaccent(lower(${`%${filter.dni}%`}))`);
+      if (filter.name) where.push(sql`unaccent(lower(${users.name})) LIKE unaccent(lower(${`%${filter.name}%`}))`);
+
+      const whereCondition = where.length > 0 ? and(...where) : undefined;
+
+      const list = await transaction
+        .select({ id_user: users.id_user, dni: users.dni, name: users.name, first_surname: users.first_surname, second_surname: users.second_surname })
+        .from(users)
+        .where(whereCondition)
+        .orderBy(users.id_user);
+
+      return list;
+    });
+  }
+
   async delete(id: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.userRepository.delete(id, { transaction });

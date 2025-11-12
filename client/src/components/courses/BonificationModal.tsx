@@ -112,7 +112,9 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
           size="small"
           onRow={(record) => ({
             onDoubleClick: () => {
-              window.open(`/users/${record.id_user}`, '_blank', 'noopener');
+          const uid = Number(record.id_user);
+          if (!Number.isFinite(uid)) return;
+          window.open(`/users/${uid}`, '_blank', 'noopener');
             },
             style: { cursor: 'pointer' }
           })}

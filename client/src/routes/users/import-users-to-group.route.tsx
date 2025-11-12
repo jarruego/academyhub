@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { UserImportTemplate } from "../../shared/types/user/user-import-template";
 import { User } from "../../shared/types/user/user";
 import { useBulkCreateAndAddToGroupMutation } from "../../hooks/api/users/use-bulk-create-and-add-to-group.mutation";
-import { useUsersQuery } from "../../hooks/api/users/use-users.query";
+import { useAllUsersLookupQuery } from "../../hooks/api/users/use-users.query";
 
 export default function ImportUsersToGroupRoute() {
   const { id_group } = useParams();
@@ -14,12 +14,30 @@ export default function ImportUsersToGroupRoute() {
   const [users, setUsers] = useState<UserImportTemplate[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const { mutateAsync: bulkCreateAndAddToGroup } = useBulkCreateAndAddToGroupMutation();
-  const { data: existingUsers } = useUsersQuery();
+  // We need a plain array of users to be able to call `.find` on it.
+  // Use lightweight lookup (dni + name/surnames) for much faster initial load
+  const { data: existingUsers } = useAllUsersLookupQuery();
+
+  // Normalizar DNI para comparación robusta: convertir a string, trim, quitar espacios/puntos/guiones, pasar a mayúsculas
+  const normalizeDni = (v: unknown) =>
+    String(v ?? "").trim().replace(/[\.\-\s]/g, "").toUpperCase();
 
   useEffect(() => {
     if (existingUsers && users.length > 0) {
+      // Debugging helpers: print small samples so we can inspect mismatches in the browser console
+      try {
+        console.debug('[import-users] existingUsers sample (first 20 dni):', existingUsers.slice(0, 20).map(u => u.dni));
+        console.debug('[import-users] imported rows sample (first 20 DNI):', users.slice(0, 20).map(u => u.DNI));
+        const preview = users.slice(0, 20).map((u) => {
+          const match = existingUsers.find(db => normalizeDni(db.dni) === normalizeDni(u.DNI));
+          return { original: u.DNI, normalized: normalizeDni(u.DNI), matched: !!match, matchedDni: match?.dni ?? null };
+        });
+        console.debug('[import-users] match preview (first 20):', preview);
+      } catch (e) {
+        console.debug('[import-users] debug failed', e);
+      }
       const updatedUsers = users.map(user => {
-        const dbUser = existingUsers.find(dbUser => dbUser.dni === user.DNI);
+        const dbUser = existingUsers.find((dbUser) => normalizeDni(dbUser.dni) === normalizeDni(user.DNI));
         const existsInDB = !!dbUser;
         return { ...user, existsInDB, dbUser };
       });
@@ -53,20 +71,21 @@ export default function ImportUsersToGroupRoute() {
 
   const handleImportUsers = async () => {
     try {
-      const usersToCreate = selectedUserIds.map((userId) => {
-        const user = users.find((user) => user.DNI === userId);
-        if (user) {
-          return {
-            dni: user.DNI,
-            name: user.NOMBRE,
-            first_surname: user.AP1,
-            second_surname: user.AP2,
-            email: user.email,
-            phone: user.movil.toString(),
-          } as Omit<User, 'id_user'>;
-        }
-        return null;
-      }).filter(user => user !== null);
+      const usersToCreate = selectedUserIds
+        // selectedUserIds are normalized (because rowKey uses normalized DNI)
+        .map((userId) => users.find((user) => normalizeDni(user.DNI) === normalizeDni(userId)))
+        .filter((user): user is UserImportTemplate => !!user && !user.existsInDB)
+        .map((user) => ({
+          dni: user.DNI,
+          name: user.NOMBRE,
+          first_surname: user.AP1,
+          second_surname: user.AP2,
+          // The backend expects a document_type; default to 'DNI' for imports
+          document_type: 'DNI',
+          // Ensure email and phone are strings (backend validation expects strings)
+          email: user.email ?? '',
+          phone: user.movil ? String(user.movil) : '',
+        } as Omit<User, 'id_user'>));
       if (id_group) {
         await bulkCreateAndAddToGroup({ users: usersToCreate, id_group: parseInt(id_group, 10) });
       } else {
@@ -85,6 +104,13 @@ export default function ImportUsersToGroupRoute() {
     },
   };
 
+  // Mostrar primero registros NO encontrados en la BD
+  const displayedUsers = users.slice().sort((a, b) => {
+    const aFound = !!a.existsInDB;
+    const bFound = !!b.existsInDB;
+    return (aFound ? 1 : 0) - (bFound ? 1 : 0);
+  });
+
   return (
     <div>
       <h1>Importación de Usuarios a Grupo {id_group}</h1>
@@ -93,21 +119,20 @@ export default function ImportUsersToGroupRoute() {
       </Upload>
       <Table
         id="import-users-table"
-        rowKey="DNI" //TODO: Cambiar por el identificador único
+        rowKey={(record) => normalizeDni(record.DNI)} // Use normalized DNI as row key
         sortDirections={['ascend', 'descend']}
         columns={[
-          { title: "BD", dataIndex: "existsInDB", render: (text) => text ? 'Sí' : 'No' },
-          { title: "Nombre", dataIndex: "NOMBRE", sorter: (a, b) => a.NOMBRE.localeCompare(b.NOMBRE) },
-          { title: "Apellido 1", dataIndex: "AP1", sorter: (a, b) => a.AP1.localeCompare(b.AP1) },
-          { title: "Apellido 2", dataIndex: "AP2", sorter: (a, b) => a.AP2.localeCompare(b.AP2) },
-          { title: "DNI", dataIndex: "DNI" },
-          { title: "Email", dataIndex: "email" },
-          { title: "Móvil", dataIndex: "movil" },
-          { title: "Nombre BD", dataIndex: ["dbUser", "name"], render: (text) => text || '-' },
-          { title: "Apellido 1 BD", dataIndex: ["dbUser", "first_surname"], render: (text) => text || '-' },
-          { title: "Apellido 2 BD", dataIndex: ["dbUser", "second_surname"], render: (text) => text || '-' },
+          { title: "BD", dataIndex: "existsInDB", render: (text) => text ? 'Sí' : 'No', align: 'left' },
+          { title: "Nombre", dataIndex: "NOMBRE", align: 'left', sorter: (a, b) => a.NOMBRE.localeCompare(b.NOMBRE), render: (text, record) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{text || '-'}</span> },
+          { title: "Apellido 1", dataIndex: "AP1", align: 'left', sorter: (a, b) => a.AP1.localeCompare(b.AP1), render: (text, record) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{text || '-'}</span> },
+          { title: "Apellido 2", dataIndex: "AP2", align: 'left', sorter: (a, b) => a.AP2.localeCompare(b.AP2), render: (text, record) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{text || '-'}</span> },
+          { title: "DNI", dataIndex: "DNI", align: 'left', render: (text, record) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{text || '-'}</span> },
+          { title: "DNI BD", dataIndex: ["dbUser", "dni"], render: (text) => text || '-', align: 'left' },
+          { title: "Nombre BD", dataIndex: ["dbUser", "name"], render: (text) => text || '-', align: 'left' },
+          { title: "Apellido 1 BD", dataIndex: ["dbUser", "first_surname"], render: (text) => text || '-', align: 'left' },
+          { title: "Apellido 2 BD", dataIndex: ["dbUser", "second_surname"], render: (text) => text || '-', align: 'left' },
         ]}
-        dataSource={users}
+  dataSource={displayedUsers}
         rowSelection={{
           ...rowSelection,
           getCheckboxProps: (record) => ({
@@ -115,7 +140,7 @@ export default function ImportUsersToGroupRoute() {
             name: `user-checkbox-${record.DNI}`,
           }),
         }}
-        rowClassName={(record) => record.existsInDB ? '' : 'ant-table-placeholder'}
+  rowClassName={(record) => record.existsInDB ? '' : 'import-row-not-found'}
         style={{ marginTop: "16px" }}
       />
       <Button type="primary" onClick={handleImportUsers}>

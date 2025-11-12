@@ -133,7 +133,11 @@ export default function CreateUserGroupRoute() {
           }),
         }}
         onRow={(record) => ({
-          onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
+          onDoubleClick: () => {
+            const uid = Number(record.id_user);
+            if (!Number.isFinite(uid)) return;
+            navigate(`/users/${uid}`, { state: { from: location.pathname } });
+          },
           style: { cursor: 'pointer' }
         })}
       />
@@ -162,7 +166,11 @@ export default function CreateUserGroupRoute() {
           }),
         }}
         onRow={(record) => ({
-          onDoubleClick: () => navigate(`/users/${record.id_user}`, { state: { from: location.pathname } }),
+          onDoubleClick: () => {
+            const uid = Number(record.id_user);
+            if (!Number.isFinite(uid)) return;
+            navigate(`/users/${uid}`, { state: { from: location.pathname } });
+          },
           style: { cursor: 'pointer' }
         })}
       />

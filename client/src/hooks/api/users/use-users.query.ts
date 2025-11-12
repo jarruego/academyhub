@@ -44,3 +44,16 @@ export const useAllUsersQuery = () => {
         })).data,
     });
 }
+
+// Hook rápido para devolver solo campos mínimos necesarios para lookup (dni, nombre, apellidos)
+export const useAllUsersLookupQuery = () => {
+    const request = useAuthenticatedAxios<Array<Pick<User, 'id_user' | 'dni' | 'name' | 'first_surname' | 'second_surname'>>>();
+
+    return useQuery({
+        queryKey: ['users', 'lookup'],
+        queryFn: async () => (await request({
+            method: 'GET',
+            url: `${getApiHost()}/user/lookup`
+        })).data,
+    });
+}

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards, ParseIntPipe, BadRequestException } from '@nestjs/common';
 import { CreateUserDTO } from '../../dto/user/create-user.dto';
 import { UpdateUserDTO } from '../../dto/user/update-user.dto';
 import { UserService } from './user.service';
@@ -28,12 +28,6 @@ export class UserController {
     return this.userService.update(numericId, updateUserDTO);
   }
 
-  @Get(':id')
-  async findById(@Param('id') id: string) {
-    const numericId = parseInt(id, 10);
-    return this.userService.findById(numericId);
-  }
-
   @Get()
   async findAll(@Query() filter: FilterUserDTO): Promise<PaginatedUsersResult | UserWithCenters[]> {
     // Si hay parámetros de paginación, usar el método paginado
@@ -47,6 +41,12 @@ export class UserController {
   @Get('all')
   async findAllWithoutPagination(@Query() filter: FilterUserDTO) {
     return this.userService.findAll(filter);
+  }
+
+  // Endpoint ligero para devolver solo campos necesarios para lookup (dni, nombre, apellidos)
+  @Get('lookup')
+  async findAllLookup(@Query() filter: FilterUserDTO) {
+    return this.userService.findAllMinimal(filter);
   }
 
   @UseGuards(RoleGuard([Role.ADMIN]))
@@ -64,9 +64,11 @@ export class UserController {
 
   @UseGuards(RoleGuard([Role.ADMIN]))
   @Post('bulk-create-and-add-to-group/:id_group')
-  async bulkCreateAndAddToGroup(@Param('id_group') id_group: string, @Body() users: CreateUserDTO[]) {
-    const numericGroupId = parseInt(id_group, 10);
-    return this.userService.bulkCreateAndAddToGroup(users, numericGroupId);
+  async bulkCreateAndAddToGroup(@Param('id_group', ParseIntPipe) id_group: number, @Body() users: CreateUserDTO[]) {
+    if (!Number.isFinite(id_group) || id_group <= 0) {
+      throw new BadRequestException('Invalid group id');
+    }
+    return this.userService.bulkCreateAndAddToGroup(users, id_group);
   }
 
   @Get(':id/centers')
@@ -79,6 +81,15 @@ export class UserController {
   async findCoursesByUser(@Param('id') id: string) {
     const numericId = parseInt(id, 10);
     return this.userService.findCoursesByUserId(numericId);
+  }
+
+  @Get(':id')
+  async findById(@Param('id', ParseIntPipe) id: number) {
+    // ParseIntPipe will automatically validate and throw if the param is not a valid integer.
+    if (!Number.isFinite(id) || id <= 0) {
+      throw new BadRequestException('Invalid user id');
+    }
+    return this.userService.findById(id);
   }
 
 }
