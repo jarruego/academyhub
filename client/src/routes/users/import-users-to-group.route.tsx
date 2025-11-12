@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { UserImportTemplate } from "../../shared/types/user/user-import-template";
 import { User } from "../../shared/types/user/user";
 import { useBulkCreateAndAddToGroupMutation } from "../../hooks/api/users/use-bulk-create-and-add-to-group.mutation";
+import { useAddUserToGroupMutation } from "../../hooks/api/groups/use-add-user-to-group.mutation";
 import { useAllUsersLookupQuery } from "../../hooks/api/users/use-users.query";
 
 export default function ImportUsersToGroupRoute() {
@@ -14,6 +15,8 @@ export default function ImportUsersToGroupRoute() {
   const [users, setUsers] = useState<UserImportTemplate[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const { mutateAsync: bulkCreateAndAddToGroup } = useBulkCreateAndAddToGroupMutation();
+  const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
+  const [messageApi, messageContextHolder] = message.useMessage();
   // We need a plain array of users to be able to call `.find` on it.
   // Use lightweight lookup (dni + name/surnames) for much faster initial load
   const { data: existingUsers } = useAllUsersLookupQuery();
@@ -55,7 +58,7 @@ export default function ImportUsersToGroupRoute() {
     const reader = new FileReader();
     reader.onload = (e) => {
       if (!e.target) {
-        message.error("Error al leer el archivo");
+        messageApi.error("Error al leer el archivo");
         return;
       }
       const data = new Uint8Array(e.target.result as ArrayBuffer);
@@ -71,10 +74,13 @@ export default function ImportUsersToGroupRoute() {
 
   const handleImportUsers = async () => {
     try {
-      const usersToCreate = selectedUserIds
-        // selectedUserIds are normalized (because rowKey uses normalized DNI)
+      // Build two lists: new users to create, and existing users to add to group
+      const selectedUsers = selectedUserIds
         .map((userId) => users.find((user) => normalizeDni(user.DNI) === normalizeDni(userId)))
-        .filter((user): user is UserImportTemplate => !!user && !user.existsInDB)
+        .filter((u): u is UserImportTemplate => !!u);
+
+      const usersToCreate = selectedUsers
+        .filter(u => !u.existsInDB)
         .map((user) => ({
           dni: user.DNI,
           name: user.NOMBRE,
@@ -86,20 +92,50 @@ export default function ImportUsersToGroupRoute() {
           email: user.email ?? '',
           phone: user.movil ? String(user.movil) : '',
         } as Omit<User, 'id_user'>));
-      if (id_group) {
-        await bulkCreateAndAddToGroup({ users: usersToCreate, id_group: parseInt(id_group, 10) });
-      } else {
-        message.error("ID de grupo no válido");
+
+      const existingUserIdsToAdd = (selectedUsers as any[])
+        .filter(u => !!(u as any).existsInDB && !!(u as any).dbUser)
+        .map(u => ((u as any).dbUser as any).id_user as number)
+        .filter(Boolean);
+
+      console.debug('[import-users] usersToCreate count', usersToCreate.length, usersToCreate.slice(0,5));
+      console.debug('[import-users] existingUserIdsToAdd count', existingUserIdsToAdd.length, existingUserIdsToAdd.slice(0,5));
+
+      if (!id_group) {
+        messageApi.error("ID de grupo no válido");
+        return;
       }
+
+      // Prepare promises: create new users (which will be added to the group by the endpoint),
+      // and add existing users to the group via the group endpoint.
+      const tasks: Promise<any>[] = [];
+
+      if (usersToCreate.length > 0) {
+        tasks.push(bulkCreateAndAddToGroup({ users: usersToCreate, id_group: parseInt(id_group, 10) }));
+      }
+
+      if (existingUserIdsToAdd.length > 0) {
+        // Use Promise.all to add existing users in parallel
+        tasks.push(Promise.all(existingUserIdsToAdd.map(id_user => addUserToGroup({ id_group: parseInt(id_group!, 10), id_user }))));
+      }
+
+      if (tasks.length === 0) {
+        messageApi.info('No hay usuarios seleccionados para crear o añadir al grupo.');
+        return;
+      }
+
+      await Promise.all(tasks);
       navigate(`/groups/${id_group}/edit`);
     } catch (error) {
-      message.error(`No se pudo importar a los usuarios: ${(error as Error).message}`);
+      console.error('[import-users] import failed', error);
+      messageApi.error(`No se pudo importar a los usuarios: ${(error as Error).message}`);
     }
   };
 
   const rowSelection = {
     selectedRowKeys: selectedUserIds,
     onChange: (selectedRowKeys: React.Key[]) => {
+      console.debug('[import-users] selectedRowKeys changed', selectedRowKeys);
       setSelectedUserIds(selectedRowKeys as string[]);
     },
   };
@@ -114,6 +150,7 @@ export default function ImportUsersToGroupRoute() {
   return (
     <div>
       <h1>Importación de Usuarios a Grupo {id_group}</h1>
+      {messageContextHolder}
       <Upload beforeUpload={handleUpload}>
         <Button icon={<UploadOutlined />}>Seleccionar Archivo</Button>
       </Upload>
