@@ -7,6 +7,7 @@ import { UserImportTemplate } from "../../shared/types/user/user-import-template
 import { User } from "../../shared/types/user/user";
 import { useBulkCreateAndAddToGroupMutation } from "../../hooks/api/users/use-bulk-create-and-add-to-group.mutation";
 import { useAddUserToGroupMutation } from "../../hooks/api/groups/use-add-user-to-group.mutation";
+import { useBulkUpdateUsersMutation } from "../../hooks/api/users/use-bulk-update-users.mutation";
 import { useAllUsersLookupQuery } from "../../hooks/api/users/use-users.query";
 
 export default function ImportUsersToGroupRoute() {
@@ -16,6 +17,7 @@ export default function ImportUsersToGroupRoute() {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const { mutateAsync: bulkCreateAndAddToGroup } = useBulkCreateAndAddToGroupMutation();
   const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
+  const { mutateAsync: bulkUpdateUsers } = useBulkUpdateUsersMutation();
   const [messageApi, messageContextHolder] = message.useMessage();
   // We need a plain array of users to be able to call `.find` on it.
   // Use lightweight lookup (dni + name/surnames) for much faster initial load
@@ -132,6 +134,39 @@ export default function ImportUsersToGroupRoute() {
     }
   };
 
+  const handleUpdateSelected = async () => {
+    try {
+      const selectedUsers = selectedUserIds
+        .map((userId) => users.find((user) => normalizeDni(user.DNI) === normalizeDni(userId)))
+        .filter((u): u is UserImportTemplate => !!u);
+
+      const updates = (selectedUsers as any[])
+        .filter(u => !!(u as any).existsInDB && !!(u as any).dbUser)
+        .map(u => ({
+          id_user: ((u as any).dbUser as any).id_user as number,
+          data: {
+            name: u.NOMBRE || undefined,
+            first_surname: u.AP1 || undefined,
+            second_surname: u.AP2 || undefined,
+            email: u.email ?? '',
+            phone: u.movil ? String(u.movil) : '',
+          }
+        }));
+
+      if (updates.length === 0) {
+        messageApi.info('No hay usuarios seleccionados que existan en la BD para actualizar.');
+        return;
+      }
+
+      console.debug('[import-users] bulk updating users count', updates.length);
+      await bulkUpdateUsers(updates);
+      messageApi.success('Usuarios actualizados correctamente en la BD');
+    } catch (error) {
+      console.error('[import-users] update selected failed', error);
+      messageApi.error(`No se pudieron actualizar los usuarios: ${(error as Error).message}`);
+    }
+  };
+
   const rowSelection = {
     selectedRowKeys: selectedUserIds,
     onChange: (selectedRowKeys: React.Key[]) => {
@@ -185,6 +220,9 @@ export default function ImportUsersToGroupRoute() {
       </div>
       <Button type="primary" onClick={handleImportUsers}>
         Importar al Grupo
+      </Button>
+      <Button type="default" style={{ marginLeft: 12 }} onClick={handleUpdateSelected}>
+        Actualizar BD
       </Button>
       <Button type="default" onClick={() => navigate(-1)}>
         Volver
