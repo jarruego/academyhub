@@ -3,6 +3,8 @@ import { Table, Button, message } from 'antd';
 import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { AuthzHide } from '../permissions/authz-hide';
+import CreateUserGroupModal from './CreateUserGroupModal';
+import ImportUsersToGroupModal from './ImportUsersToGroupModal';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.query';
 import { useImportMoodleGroupMutation } from '../../hooks/api/moodle/use-import-moodle-group.mutation';
@@ -25,6 +27,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [selectedCenters, setSelectedCenters] = useState<Record<number, number>>({});
   const [isBonificationModalOpen, setIsBonificationModalOpen] = useState(false);
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const createBonificationFile = useCreateBonificationFileMutation();
   const updateUserMainCenterMutation = useUpdateUserMainCenterMutation();
@@ -100,14 +104,14 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
             <Button
               type="default"
               icon={<TeamOutlined />}
-              onClick={() => groupId ? navigate(`/groups/${groupId}/add-user`) : null}
+              onClick={() => groupId ? setIsManageModalOpen(true) : null}
             >
               Gestionar Usuarios del Grupo
             </Button>
             <Button
               type="default"
               icon={<FileExcelOutlined style={{ color: '#008000' }} />}
-              onClick={() => groupId ? navigate(`/groups/${groupId}/import-users`) : null}
+              onClick={() => groupId ? setIsImportModalOpen(true) : null}
             >
               Importar XLS
             </Button>
@@ -181,6 +185,9 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         }}
         size="small"
       />
+
+  <CreateUserGroupModal open={isManageModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsManageModalOpen(false)} />
+  <ImportUsersToGroupModal open={isImportModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsImportModalOpen(false)} onSuccess={() => { setIsImportModalOpen(false); navigate(`/groups/${groupId}/edit`); }} />
 
       <BonificationModal
         open={isBonificationModalOpen}

@@ -14,9 +14,7 @@ import CreateCompanyRoute from './routes/companies/create-company.route';
 import CompanyDetailRoute from './routes/companies/company-detail.route';
 import CreateCenterRoute from './routes/centers/create-center.route';
 import EditCenterRoute from './routes/centers/center-detail.route'; 
-import CreateUserGroupRoute from './routes/groups/create-user-group.route';
 import CentersRoute from './routes/centers/centers.route'; 
-import ImportUsersToGroupRoute from './routes/users/import-users-to-group.route';
 import { Layout, Menu, Button } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 import ToolsRoute from './routes/tools/tools.route';
@@ -87,8 +85,6 @@ export default function AppRouter() {
               <Route path="/users/create" element={<CreateUserRoute />} />
               <Route path="/add-course" element={<CreateCourseRoute />} />
               <Route path="/groups/:id_group/edit" element={<EditGroupRoute />} />
-              <Route path="/groups/:id_group/add-user" element={<CreateUserGroupRoute />} />
-              <Route path="/groups/:id_group/import-users" element={<ImportUsersToGroupRoute />} />
               <Route path="/companies" element={<CompaniesRoute />} />
               <Route path="/companies/:id_company" element={<CompanyDetailRoute />} />
               <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} /> 
