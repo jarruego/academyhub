@@ -117,10 +117,12 @@ export default function ImportUsersToGroupRoute() {
       <Upload beforeUpload={handleUpload}>
         <Button icon={<UploadOutlined />}>Seleccionar Archivo</Button>
       </Upload>
+      <div style={{ maxHeight: '60vh', overflowY: 'auto', marginTop: 16 }}>
       <Table
         id="import-users-table"
         rowKey={(record) => normalizeDni(record.DNI)} // Use normalized DNI as row key
         sortDirections={['ascend', 'descend']}
+        pagination={false}
         columns={[
           { title: "BD", dataIndex: "existsInDB", render: (text) => text ? 'Sí' : 'No', align: 'left' },
           { title: "Nombre", dataIndex: "NOMBRE", align: 'left', sorter: (a, b) => a.NOMBRE.localeCompare(b.NOMBRE), render: (text, record) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{text || '-'}</span> },
@@ -141,8 +143,9 @@ export default function ImportUsersToGroupRoute() {
           }),
         }}
   rowClassName={(record) => record.existsInDB ? '' : 'import-row-not-found'}
-        style={{ marginTop: "16px" }}
+        style={{ marginTop: 0 }}
       />
+      </div>
       <Button type="primary" onClick={handleImportUsers}>
         Importar al Grupo
       </Button>
