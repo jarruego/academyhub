@@ -143,7 +143,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
               loading={importMoodleGroupPending || isGroupLoading}
               disabled={isGroupLoading || !groupData?.moodle_id}
             >
-              Traer de Moodle
+              Traer Moodle
             </Button>
           </AuthzHide>
         </div>

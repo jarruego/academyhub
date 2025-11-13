@@ -135,15 +135,16 @@ export default function CourseDetailRoute() {
     <div>
       {contextHolder}
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
-          <Form.Item label="ID" name="id_course">
-            <Controller name="id_course" control={control} render={({ field }) => <Input {...field} id="id_course" autoComplete="off" disabled />} />
-          </Form.Item>
-          <Form.Item label="ID Moodle" name="moodle_id">
-            <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" disabled value={field.value ?? undefined} />} />
-          </Form.Item>
+        <div>
+          {/* Keep id_course in the form but hidden from the UI */}
+          <Controller name="id_course" control={control} render={({ field }) => <input type="hidden" {...field} id="id_course" />} />
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
+          {courseData?.moodle_id ? (
+            <Form.Item label="ID Moodle" name="moodle_id" style={{ width: 140 }}>
+              <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" disabled value={field.value ?? undefined} />} />
+            </Form.Item>
+          ) : null}
           <Form.Item
             label="Nombre del curso"
             name="course_name"
@@ -285,13 +286,15 @@ export default function CourseDetailRoute() {
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <div style={{ marginTop: 8, display: 'flex', width: '30%', flexDirection: 'column', gap: '8px' }}>
-            <AuthzHide roles={[Role.ADMIN]}>
-              <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>
-                Añadir Grupo al Curso
-              </Button>
-            </AuthzHide>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0 }}>Grupos del Curso</h3>
+              <AuthzHide roles={[Role.ADMIN]}>
+                <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>
+                  Añadir Grupo al Curso
+                </Button>
+              </AuthzHide>
+            </div>
             <Table
-              title={() => <h3>Grupos del Curso</h3>}
               rowKey="id_group"
               columns={[
                 { title: 'Nombre del grupo', dataIndex: 'group_name' },
@@ -300,6 +303,8 @@ export default function CourseDetailRoute() {
               ]}
               dataSource={groupsData}
               loading={isGroupsLoading}
+              pagination={false}
+              scroll={{ y: 500 }}
               rowSelection={{
                 type: 'radio',
                 selectedRowKeys,
@@ -330,7 +335,6 @@ export default function CourseDetailRoute() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
           <AuthzHide roles={[Role.ADMIN]}>
             <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-course">Guardar Curso</Button>
             <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
