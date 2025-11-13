@@ -17,8 +17,10 @@ interface Props {
   onSuccess?: () => void;
 }
 
+type EnrichedUserImport = UserImportTemplate & { existsInDB?: boolean; dbUser?: User | null };
+
 const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSuccess }) => {
-  const [users, setUsers] = useState<UserImportTemplate[]>([]);
+  const [users, setUsers] = useState<EnrichedUserImport[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const { mutateAsync: bulkCreateAndAddToGroup } = useBulkCreateAndAddToGroupMutation();
   const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
@@ -31,13 +33,13 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
 
   useEffect(() => {
     if (existingUsers && users.length > 0) {
-      const updatedUsers = users.map(user => {
-        const dbUser = existingUsers.find((dbUser) => normalizeDni(dbUser.dni) === normalizeDni(user.DNI));
+      const updatedUsers: EnrichedUserImport[] = users.map(user => {
+        const dbUser = existingUsers.find((dbUser) => normalizeDni(dbUser.dni) === normalizeDni(user.DNI)) ?? null;
         const existsInDB = !!dbUser;
-        return { ...user, existsInDB, dbUser } as any;
+        return { ...user, existsInDB, dbUser };
       });
       const isDifferent = JSON.stringify(updatedUsers) !== JSON.stringify(users);
-      if (isDifferent) setUsers(updatedUsers as UserImportTemplate[]);
+      if (isDifferent) setUsers(updatedUsers);
     }
   }, [existingUsers, users]);
 
@@ -63,7 +65,7 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
     try {
       const selectedUsers = selectedUserIds
         .map((userId) => users.find((user) => normalizeDni(user.DNI) === normalizeDni(userId)))
-        .filter((u): u is UserImportTemplate => !!u);
+        .filter((u): u is EnrichedUserImport => !!u);
 
       const usersToCreate = selectedUsers
         .filter(u => !u.existsInDB)
@@ -77,9 +79,9 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
           phone: user.movil ? String(user.movil) : '',
         } as Omit<User, 'id_user'>));
 
-      const existingUserIdsToAdd = (selectedUsers as any[])
+      const existingUserIdsToAdd = selectedUsers
         .filter(u => !!u.existsInDB && !!u.dbUser)
-        .map(u => (u.dbUser as any).id_user as number)
+        .map(u => u.dbUser!.id_user)
         .filter(Boolean);
 
       if (!groupId) {
@@ -87,7 +89,7 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
         return;
       }
 
-      const tasks: Promise<any>[] = [];
+  const tasks: Promise<unknown>[] = [];
       if (usersToCreate.length > 0) tasks.push(bulkCreateAndAddToGroup({ users: usersToCreate, id_group: parseInt(String(groupId), 10) }));
       if (existingUserIdsToAdd.length > 0) tasks.push(Promise.all(existingUserIdsToAdd.map(id_user => addUserToGroup({ id_group: parseInt(String(groupId), 10), id_user }))));
 
@@ -109,12 +111,12 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
     try {
       const selectedUsers = selectedUserIds
         .map((userId) => users.find((user) => normalizeDni(user.DNI) === normalizeDni(userId)))
-        .filter((u): u is UserImportTemplate => !!u);
+        .filter((u): u is EnrichedUserImport => !!u);
 
-      const updates = (selectedUsers as any[])
+      const updates = selectedUsers
         .filter(u => !!u.existsInDB && !!u.dbUser)
         .map(u => ({
-          id_user: (u.dbUser as any).id_user as number,
+          id_user: u.dbUser!.id_user,
           data: {
             name: u.NOMBRE || undefined,
             first_surname: u.AP1 || undefined,
@@ -164,28 +166,28 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
         <Button icon={<UploadOutlined />}>Seleccionar Archivo</Button>
       </Upload>
       <div style={{ maxHeight: '64vh', overflowY: 'auto', marginTop: 16 }}>
-        <Table
+        <Table<EnrichedUserImport>
           id="import-users-table"
-          rowKey={(record: any) => normalizeDni(record.DNI)}
+          rowKey={(record) => normalizeDni(record.DNI)}
           sortDirections={[ 'ascend', 'descend' ]}
           pagination={false}
           columns={[
-            { title: 'BD', dataIndex: 'existsInDB', render: (text: any) => text ? 'Sí' : 'No', align: 'left' },
-            { title: 'Nombre', dataIndex: 'NOMBRE', align: 'left', render: (text: any, record: any) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{text || '-'}</span> },
-            { title: 'Apellido 1', dataIndex: 'AP1', align: 'left', render: (text: any, record: any) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{text || '-'}</span> },
-            { title: 'Apellido 2', dataIndex: 'AP2', align: 'left', render: (text: any, record: any) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{text || '-'}</span> },
-            { title: 'DNI', dataIndex: 'DNI', align: 'left', render: (text: any, record: any) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{text || '-'}</span> },
-            { title: 'DNI BD', dataIndex: ['dbUser', 'dni'], render: (text: any) => text || '-', align: 'left' },
-            { title: 'Nombre BD', dataIndex: ['dbUser', 'name'], render: (text: any) => text || '-', align: 'left' },
-            { title: 'Apellido 1 BD', dataIndex: ['dbUser', 'first_surname'], render: (text: any) => text || '-', align: 'left' },
-            { title: 'Apellido 2 BD', dataIndex: ['dbUser', 'second_surname'], render: (text: any) => text || '-', align: 'left' },
+            { title: 'BD', dataIndex: 'existsInDB', render: (value: EnrichedUserImport['existsInDB']) => value ? 'Sí' : 'No', align: 'left' },
+            { title: 'Nombre', dataIndex: 'NOMBRE', align: 'left', render: (value: EnrichedUserImport['NOMBRE'], record: EnrichedUserImport) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{value || '-'}</span> },
+            { title: 'Apellido 1', dataIndex: 'AP1', align: 'left', render: (value: EnrichedUserImport['AP1'], record: EnrichedUserImport) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{value || '-'}</span> },
+            { title: 'Apellido 2', dataIndex: 'AP2', align: 'left', render: (value: EnrichedUserImport['AP2'], record: EnrichedUserImport) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{value || '-'}</span> },
+            { title: 'DNI', dataIndex: 'DNI', align: 'left', render: (value: EnrichedUserImport['DNI'], record: EnrichedUserImport) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{value || '-'}</span> },
+            { title: 'DNI BD', dataIndex: ['dbUser', 'dni'], render: (value: User['dni']) => value || '-', align: 'left' },
+            { title: 'Nombre BD', dataIndex: ['dbUser', 'name'], render: (value: User['name']) => value || '-', align: 'left' },
+            { title: 'Apellido 1 BD', dataIndex: ['dbUser', 'first_surname'], render: (value: User['first_surname']) => value || '-', align: 'left' },
+            { title: 'Apellido 2 BD', dataIndex: ['dbUser', 'second_surname'], render: (value: User['second_surname']) => value || '-', align: 'left' },
           ]}
           dataSource={displayedUsers}
           rowSelection={{
             ...rowSelection,
-            getCheckboxProps: (record: any) => ({ id: `user-checkbox-${record.DNI}`, name: `user-checkbox-${record.DNI}` }),
+            getCheckboxProps: (record: EnrichedUserImport) => ({ id: `user-checkbox-${record.DNI}`, name: `user-checkbox-${record.DNI}` }),
           }}
-          rowClassName={(record: any) => record.existsInDB ? '' : 'import-row-not-found'}
+          rowClassName={(record: EnrichedUserImport) => record.existsInDB ? '' : 'import-row-not-found'}
           style={{ marginTop: 0 }}
         />
       </div>
