@@ -79,6 +79,12 @@ export class MoodleController {
     }
 
     @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('groups/:moodleGroupId/sync-members')
+    async syncMoodleGroupMembers(@Param('moodleGroupId', ParseIntPipe) moodleGroupId: number): Promise<ImportResult> {
+        return await this.moodleService.syncMoodleGroupMembers(moodleGroupId);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
     @Post('import-all')
     async importMoodleCourses(@Query('skipUsers') skipUsers?: string) {
         // Accepts skipUsers as query param (e.g., /import-all?skipUsers=true)

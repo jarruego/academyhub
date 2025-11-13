@@ -1,19 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import { Table, Button, message } from 'antd';
 import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
-import { /* useNavigate removed - not used anymore */ } from 'react-router-dom';
 import { AuthzHide } from '../permissions/authz-hide';
 import CreateUserGroupModal from './CreateUserGroupModal';
 import ImportUsersToGroupModal from './ImportUsersToGroupModal';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.query';
-import { useImportMoodleGroupMutation } from '../../hooks/api/moodle/use-import-moodle-group.mutation';
 import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
 import { useCreateBonificationFileMutation } from '../../hooks/api/groups/use-create-bonification-file.mutation';
 import { useUpdateUserMainCenterMutation } from '../../hooks/api/centers/use-update-user-main-center.mutation';
 import { BonificationModal } from '../courses/BonificationModal';
 import { User } from '../../shared/types/user/user';
 import { USERS_TABLE_COLUMNS } from '../../constants/tables/users-table-columns.constant';
+import { useSyncMoodleGroupMembersMutation } from '../../hooks/api/moodle/use-sync-moodle-group-members.mutation';
 
 interface Props {
   groupId: number | null | undefined;
@@ -21,7 +20,6 @@ interface Props {
 
 const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const [messageApi, contextHolder] = message.useMessage();
-  // navigate removed: no longer navigating on import success, only closing modal
   const { data: usersData, isLoading, refetch } = useUsersByGroupQuery(groupId ? Number(groupId) : null);
 
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
@@ -32,7 +30,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
 
   const createBonificationFile = useCreateBonificationFileMutation();
   const updateUserMainCenterMutation = useUpdateUserMainCenterMutation();
-  const { mutateAsync: importMoodleGroup, isPending: importMoodleGroupPending } = useImportMoodleGroupMutation();
+  const { mutateAsync: syncMoodleGroupMembers, isPending: syncMoodleGroupMembersPending } = useSyncMoodleGroupMembersMutation();
+
   const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(groupId ? String(groupId) : undefined);
 
 
@@ -40,7 +39,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
     if (!usersData) return;
     const getRoleShortname = (user: User): string | null => {
       if (user.role_shortname) return user.role_shortname;
-      // some responses may include a 'role' property; read it safely without using `any`
       const maybe = user as unknown as Record<string, unknown>;
       const r = maybe['role'];
       return typeof r === 'string' ? r : null;
@@ -95,6 +93,37 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
     ];
   }, []);
 
+  // Compute totals for footer: total students and students with >=75% completion
+  const { totalStudents, studentsAtOrAbove75 } = useMemo(() => {
+    let total = 0;
+    let at75 = 0;
+    if (!usersData || usersData.length === 0) return { totalStudents: 0, studentsAtOrAbove75: 0 };
+
+    const getRoleShortname = (user: User): string | null => {
+      if (user.role_shortname) return user.role_shortname;
+      const maybe = user as unknown as Record<string, unknown>;
+      const r = maybe['role'];
+      return typeof r === 'string' ? r : null;
+    };
+
+    const getPercent = (v: unknown) => {
+      const n = Number(v ?? 0) || 0;
+      return n > 0 && n <= 1 ? n * 100 : n;
+    };
+
+    for (const u of usersData) {
+      const role = getRoleShortname(u);
+      const isStudent = typeof role === 'string' ? role.toLowerCase() === 'student' : false;
+      if (isStudent) {
+        total += 1;
+        const pct = getPercent(u.completion_percentage);
+        if (pct >= 75) at75 += 1;
+      }
+    }
+
+    return { totalStudents: total, studentsAtOrAbove75: at75 };
+  }, [usersData]);
+
   return (
     <div>
       {contextHolder}
@@ -115,7 +144,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
             >
               Importar XLS
             </Button>
-            <Button
+             <Button
               type="default"
               icon={<CloudDownloadOutlined style={{ color: '#f56b00' }} />}
               onClick={async () => {
@@ -127,24 +156,25 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
                 }
 
                 try {
-                  const response = await importMoodleGroup(moodleId);
+                  // Call lightweight per-user sync instead of the full import
+                  const response = await syncMoodleGroupMembers(moodleId);
                   const result = response.data;
                   if (result?.success) {
-                    message.success(result.message || 'Usuarios importados desde Moodle');
+                    message.success(result.message || 'Usuarios sincronizados desde Moodle');
                     refetch();
                   } else {
-                    message.error(result?.error || 'Error al importar usuarios desde Moodle');
+                    message.error(result?.error || result?.message || 'Error al sincronizar usuarios desde Moodle');
                   }
                 } catch (err) {
-                  console.error('Error importando usuarios desde Moodle:', err);
+                  console.error('Error sincronizando usuarios desde Moodle:', err);
                   message.error('Error al traer usuarios desde Moodle');
                 }
               }}
-              loading={importMoodleGroupPending || isGroupLoading}
+              loading={(syncMoodleGroupMembersPending) || isGroupLoading}
               disabled={isGroupLoading || !groupData?.moodle_id}
             >
               Traer Moodle
-            </Button>
+            </Button>            
           </AuthzHide>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -163,6 +193,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         pagination={false}
         // Fixed table header with vertical scroll
         scroll={{ y: 500 }}
+        footer={() => (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, paddingRight: 8 }}>
+            <strong>Estudiantes:</strong>&nbsp;{totalStudents}
+            <span>•</span>
+            <strong>≥75%:</strong>&nbsp;{studentsAtOrAbove75}
+          </div>
+        )}
         onRow={(record) => ({
           onDoubleClick: () => {
             const uid = Number(record.id_user);

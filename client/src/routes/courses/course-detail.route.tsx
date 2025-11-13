@@ -5,7 +5,7 @@ import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-cour
 import { Button, DatePicker, Form, Input, Table, Select, Checkbox, Modal, App } from "antd";
 import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { useDeleteCourseMutation } from "../../hooks/api/courses/use-delete-course.mutation";
@@ -39,6 +39,15 @@ export default function CourseDetailRoute() {
   const { id_course } = useParams();
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
   const { data: groupsData, isLoading: isGroupsLoading } = useGroupsQuery(id_course || "");
+  // Keep groups sorted by group_name for consistent display
+  const sortedGroups = useMemo(() => {
+    const list = groupsData ?? [];
+    return [...list].sort((a, b) => {
+      const aName = (a?.group_name ?? '') as string;
+      const bName = (b?.group_name ?? '') as string;
+      return aName.localeCompare(bName);
+    });
+  }, [groupsData]);
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const { refetch: refetchUsersByGroup } = useUsersByGroupQuery(selectedGroupId);
@@ -62,11 +71,11 @@ export default function CourseDetailRoute() {
   }, [courseData, reset]);
 
   useEffect(() => {
-    if (groupsData && groupsData.length > 0) {
-      setSelectedGroupId(groupsData[0].id_group);
-      setSelectedRowKeys([groupsData[0].id_group]);
+    if (sortedGroups && sortedGroups.length > 0) {
+      setSelectedGroupId(sortedGroups[0].id_group);
+      setSelectedRowKeys([sortedGroups[0].id_group]);
     }
-  }, [groupsData]);
+  }, [sortedGroups]);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -301,7 +310,7 @@ export default function CourseDetailRoute() {
                 { title: 'Fecha Inicio', dataIndex: 'start_date', render: (d: string | Date | null) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
                 { title: 'Fecha Fin', dataIndex: 'end_date', render: (d: string | Date | null) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
               ]}
-              dataSource={groupsData}
+              dataSource={sortedGroups}
               loading={isGroupsLoading}
               pagination={false}
               scroll={{ y: 500 }}

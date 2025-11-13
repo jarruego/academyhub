@@ -10,6 +10,7 @@ import { DATABASE_PROVIDER } from "src/database/database.module";
 import { QueryOptions } from "src/database/repository/repository";
 import { MoodleCourse } from "src/types/moodle/course";
 import { MoodleUser } from "src/types/moodle/user";
+import { resolveInsertId } from "src/utils/db";
 import { CourseModality } from "src/types/course/course-modality.enum";
 import { UserService } from "../user/user.service";
 import { CourseInsertModel, CourseSelectModel, CourseUpdateModel } from "src/database/schema/tables/course.table";
@@ -116,8 +117,8 @@ export class CourseService {
 
       try {
         const created = await this.courseRepository.create(data as CourseInsertModel, { transaction });
-        const anyCreated: any = created;
-        const newId = Array.isArray(anyCreated) ? (anyCreated[0]?.id || anyCreated[0]?.id_course || anyCreated[0]?.insertId || anyCreated[0]?.insert_id) : (anyCreated?.id || anyCreated?.id_course || anyCreated?.insertId || anyCreated?.insert_id);
+        // Use shared util to resolve inserted id
+  const newId = resolveInsertId(created as unknown);
         if (newId) return await this.courseRepository.findById(Number(newId), { transaction });
         return await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
       } catch (e) {
@@ -149,8 +150,7 @@ export class CourseService {
       // Try create and resolve persisted row
       try {
         const created = await this.courseRepository.create(payload as CourseInsertModel, { transaction });
-        const anyCreated: any = created;
-        const newId = Array.isArray(anyCreated) ? (anyCreated[0]?.id || anyCreated[0]?.id_course || anyCreated[0]?.insertId || anyCreated[0]?.insert_id) : (anyCreated?.id || anyCreated?.id_course || anyCreated?.insertId || anyCreated?.insert_id);
+        const newId = resolveInsertId(created as unknown);
         if (newId) return await this.courseRepository.findById(Number(newId), { transaction });
         if (moodleId) return await this.courseRepository.findByMoodleId(moodleId, { transaction });
         return Array.isArray(created) ? created[0] : created;
@@ -200,10 +200,13 @@ export class CourseService {
         console.log('💾 Guardando/actualizando curso en base de datos...');
         const course = await this.upsertMoodleCourse(moodleCourse, { transaction });
 
-        // PASO 2B: Obtener TODOS los usuarios matriculados en este curso
-        console.log('👥 Obteniendo usuarios matriculados en el curso...');
-        const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
-        console.log(`👤 Encontrados ${enrolledUsers.length} usuarios matriculados`);
+  // PASO 2B: Obtener TODOS los usuarios matriculados en este curso
+  console.log('👥 Obteniendo usuarios matriculados en el curso...');
+  const enrolledUsers = await this.MoodleService.getEnrolledUsers(moodleCourse.id);
+  console.log(`👤 Encontrados ${enrolledUsers.length} usuarios matriculados`);
+  // Build roles map to merge into group members later and avoid per-user API calls
+  const enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
+  for (const eu of enrolledUsers) enrolledRolesMap.set(eu.id, eu.roles ?? []);
         
         // PASO 2C: Procesar cada usuario matriculado
         for (const enrolledUser of enrolledUsers) {
@@ -252,6 +255,11 @@ export class CourseService {
           // PASO 2E3: Procesar cada usuario del grupo
           for (const moodleUser of moodleUsers) {
             console.log(`      👤 Asignando usuario ${moodleUser.username} al grupo`);
+            // Merge roles from enrolledRolesMap into moodleUser if payload lacks roles
+            if ((!moodleUser.roles || moodleUser.roles.length === 0) && enrolledRolesMap.size > 0) {
+              const fromMap = enrolledRolesMap.get(moodleUser.id);
+              if (fromMap && fromMap.length > 0) moodleUser.roles = fromMap;
+            }
             await this.MoodleService.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
           }
         }

@@ -14,11 +14,10 @@ import { UserRepository } from 'src/database/repository/user/user.repository';
 import { UserGroupRepository } from 'src/database/repository/group/user-group.repository';
 import { MoodleUserService } from '../moodle-user/moodle-user.service';
 import { GroupService } from '../group/group.service';
-import { userRolesTable } from 'src/database/schema/tables/user_roles.table';
-import { eq } from 'drizzle-orm';
 import { CourseModality } from 'src/types/course/course-modality.enum';
 import { UserCourseInsertModel } from 'src/database/schema/tables/user_course.table';
 import { UserInsertModel, UserUpdateModel } from 'src/database/schema/tables/user.table';
+import { UserGroupSelectModel } from 'src/database/schema/tables/user_group.table';
 
 type RequestOptions<D> = {
     params?: D;
@@ -67,7 +66,7 @@ export class MoodleService {
             // If method is POST, send params in the request body as form-encoded to avoid URL length limits (414)
             if (method === 'post') {
                 const body = new URLSearchParams();
-                for (const [k, v] of Object.entries(params as Record<string, any>)) {
+                for (const [k, v] of Object.entries(params as Record<string, unknown>)) {
                     if (Array.isArray(v)) {
                         for (const item of v) {
                             body.append(`${k}[]`, (item && typeof item === 'object') ? JSON.stringify(item) : String(item));
@@ -110,6 +109,112 @@ export class MoodleService {
             const message = me?.message || (me?.response && JSON.stringify(me.response)) || 'Error calling Moodle API';
             throw new InternalServerErrorException(message);
         }
+    }
+
+    /**
+     * Sync members of a Moodle group by fetching Moodle group members and
+     * updating each corresponding local user/group record one-by-one.
+     * This performs per-user updates (no single big transaction) so failures
+     * on individual users do not abort the whole operation.
+     */
+    async syncMoodleGroupMembers(moodleGroupId: number): Promise<ImportResult> {
+        const errors: Array<{ userId?: number; username?: string; error: string }> = [];
+        let updated = 0;
+
+        // Find local group mapped to this Moodle group
+        const localGroup = await this.groupRepository.findByMoodleId(moodleGroupId);
+        if (!localGroup) {
+            return {
+                success: false,
+                message: `Local group for Moodle id ${moodleGroupId} not found`,
+                importedData: { groupId: null, usersImported: 0 },
+            } as ImportResult;
+        }
+
+        // Get moodle users in group (calls Moodle API and returns detailed users)
+        const moodleUsers = await this.getGroupUsers(moodleGroupId);
+
+    // ALSO fetch enrolled users (once) for the parent course to obtain roles in bulk.
+    // getEnrolledUsers returns users with roles; we map them by Moodle id to avoid
+    // calling the enrolled API per-user inside the loop.
+    const enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
+        try {
+            const parentCourse = localGroup.id_course ? await this.courseRepository.findById(localGroup.id_course) : null;
+            if (parentCourse && parentCourse.moodle_id) {
+                const enrolled = await this.getEnrolledUsers(parentCourse.moodle_id);
+                for (const eu of enrolled) {
+                    enrolledRolesMap.set(eu.id, eu.roles ?? []);
+                }
+            }
+        } catch (err) {
+            Logger.warn({ err, moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch enrolled users for role mapping');
+            // proceed without enrolled roles map
+        }
+
+        for (const mu of moodleUsers) {
+            try {
+                // Update-only behavior: we only update existing local user and moodle_user
+                // records. We do NOT create new users or alter group memberships here.
+                const existingMoodleUser = await this.moodleUserService.findByMoodleId(mu.id);
+                if (!existingMoodleUser) {
+                    // No local mapping found: record and continue
+                    errors.push({ userId: mu.id, username: mu.username, error: 'No local moodle_user mapping found' });
+                    continue;
+                }
+
+                // Do NOT overwrite local user's personal data (name, surname, email) from Moodle.
+                // Requirement: when a user already exists in local DB, preserve local personal fields.
+                // We only update role (user_group) and moodle_username below. If you want to
+                // sync personal data from Moodle, do it explicitly in a separate flow.
+
+                // Update moodle_user record (username)
+                try {
+                    await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
+                        moodle_username: mu.username,
+                    });
+                } catch (mErr: any) {
+                    Logger.error({ mErr, moodleUserId: mu.id, localMoodleUserId: existingMoodleUser.id_moodle_user }, 'MoodleService:syncMoodleGroupMembers - moodle_user update failed');
+                    throw mErr;
+                }
+
+                // Resolve and update role in user_group using roles provided by Moodle or
+                // by the enrolled users map we fetched once above.
+                try {
+                    // Avoid casting to `any` — prefer a runtime check that `roles` is an array.
+                    const muRoles = Array.isArray(mu.roles) ? mu.roles : undefined;
+                    const rolesSource = (muRoles && muRoles.length > 0) ? muRoles : enrolledRolesMap.get(mu.id);
+                    if (rolesSource && rolesSource.length > 0) {
+                        const shortname = rolesSource[0].shortname;
+                        if (shortname) {
+                            const roleIdToAssign = await this.userGroupRepository.findOrCreateRoleByShortname(shortname);
+                            try {
+                                // We assume the local user is already associated to the local group
+                                await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { id_role: roleIdToAssign });
+                            } catch (err) {
+                                Logger.error({ err, userId: existingMoodleUser.id_user, id_group: localGroup.id_group, roleIdToAssign }, 'MoodleService:syncMoodleGroupMembers - update role failed');
+                                // Do not block overall sync for role update failures
+                            }
+                        }
+                    }
+                } catch (roleErr) {
+                    Logger.warn({ roleErr, moodleUserId: mu.id }, 'MoodleService:syncMoodleGroupMembers - role resolution failed');
+                    // continue - role resolution failures shouldn't block user updates
+                }
+
+                updated += 1;
+            } catch (err) {
+                const e: any = err;
+                errors.push({ userId: mu.id, username: mu.username, error: e?.message ?? String(e) });
+            }
+        }
+
+        const message = `Processed ${moodleUsers.length} members; updated ${updated}; errors ${errors.length}`;
+        return {
+            success: errors.length === 0,
+            message,
+            importedData: { groupId: localGroup.id_group, usersImported: moodleUsers.length },
+            details: errors,
+        } as ImportResult;
     }
 
 
@@ -236,16 +341,28 @@ export class MoodleService {
      */
     /* TODO: Quizás sea mejor intregrarla en getEnroledUsers */
     async getUserProgressInCourse(user: MoodleUser, courseId: number): Promise<ExtendedMoodleUser> {
-        const completionData = await this.request<any>('core_completion_get_activities_completion_status', {
+        // Typings for the completion API response (we only care about these fields here)
+        type CompletionActivity = {
+            // state: 0 = not completed, other values mean completed in Moodle's response
+            state: number;
+            // valueused indicates whether the activity counts for completion calculation
+            valueused?: boolean;
+        };
+
+        interface CompletionResponse {
+            statuses?: CompletionActivity[];
+        }
+
+        const completionData = await this.request<CompletionResponse>('core_completion_get_activities_completion_status', {
             params: {
                 courseid: courseId,
                 userid: user.id
             }
         });
 
-        const activities = completionData.statuses || [];
-        const usedActivities = activities.filter((activity: any) => activity.valueused === true);
-        const completed = usedActivities.filter((activity: any) => activity.state !== 0).length;
+        const activities: CompletionActivity[] = completionData.statuses || [];
+        const usedActivities = activities.filter((activity: CompletionActivity) => activity.valueused === true);
+        const completed = usedActivities.filter((activity: CompletionActivity) => activity.state !== 0).length;
         const total = usedActivities.length;
         const completion_percentage = total > 0 ? Math.round((completed / total) * 100) : null;
 
@@ -630,10 +747,31 @@ export class MoodleService {
                 for (const moodleGroup of moodleGroups) {
                     const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, { transaction });
                     
-                    const moodleUsers = await this.getGroupUsers(moodleGroup.id);
-                    for (const moodleUser of moodleUsers) {
-                        await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
-                    }
+                        const moodleUsers = await this.getGroupUsers(moodleGroup.id);
+                        // If we have enrolledUsers earlier for this course, try to reuse their roles.
+                        // Build a quick map from enrolled users fetched in this function scope if present.
+                        // Note: when importSpecificMoodleCourse called getEnrolledUsers it stored them in `enrolledUsers`.
+                        const enrolledRolesMapLocal: Map<number, MoodleUser['roles']> = new Map();
+                        try {
+                            // Try to fetch enrolled users for the course once (best-effort). If this function
+                            // already called getEnrolledUsers for the course earlier, this will be redundant but safe.
+                            const courseObj = await this.courseRepository.findById(course.id_course, { transaction });
+                            if (courseObj && courseObj.moodle_id) {
+                                const enrolledForCourse = await this.getEnrolledUsers(courseObj.moodle_id);
+                                for (const eu of enrolledForCourse) enrolledRolesMapLocal.set(eu.id, eu.roles ?? []);
+                            }
+                        } catch (e) {
+                            // best-effort: if this fails we continue without the map
+                        }
+
+                        for (const moodleUser of moodleUsers) {
+                            // Prefer roles already present on the moodleUser payload; otherwise merge from map
+                            if ((!moodleUser.roles || moodleUser.roles.length === 0) && enrolledRolesMapLocal.size > 0) {
+                                const fromMap = enrolledRolesMapLocal.get(moodleUser.id);
+                                if (fromMap && fromMap.length > 0) moodleUser.roles = fromMap;
+                            }
+                            await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
+                        }
                 }
                 
                 
@@ -703,14 +841,39 @@ export class MoodleService {
                 
                 const moodleUsers = await this.getGroupUsers(moodleGroup.id);
                 let usersImported = 0;
-                
+
+                // Build enrolled roles map for the parent course (merge into moodleUser when missing)
+                const enrolledRolesMapForGroup: Map<number, MoodleUser['roles']> = new Map();
+                try {
+                    if (parentCourse && parentCourse.id) {
+                        const enrolled = await this.getEnrolledUsers(parentCourse.id);
+                        for (const eu of enrolled) enrolledRolesMapForGroup.set(eu.id, eu.roles ?? []);
+                    }
+                } catch (e) {
+                    // non-fatal
+                }
+
                 for (const moodleUser of moodleUsers) {
+                    if ((!moodleUser.roles || moodleUser.roles.length === 0) && enrolledRolesMapForGroup.size > 0) {
+                        const fromMap = enrolledRolesMapForGroup.get(moodleUser.id);
+                        if (fromMap && fromMap.length > 0) moodleUser.roles = fromMap;
+                    }
                     await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
                     let completionPercentage = null;
                     if (moodleUser.username !== 'guest') {
                         try {
                             const progress = await this.getUserProgressInCourse(moodleUser, parentCourse.id);
-                            completionPercentage = progress.completion_percentage != null ? parseInt(progress.completion_percentage as any) : null;
+                            // Normalize completion_percentage which may be number or string in some flows
+                            const normalizeCompletion = (v: unknown): number | null => {
+                                if (v == null) return null;
+                                if (typeof v === 'number') return Math.round(v);
+                                if (typeof v === 'string') {
+                                    const n = Number(v);
+                                    return Number.isFinite(n) ? Math.round(n) : null;
+                                }
+                                return null;
+                            };
+                            completionPercentage = normalizeCompletion(progress.completion_percentage);
                         } catch (e) {
                             completionPercentage = null;
                         }
@@ -763,9 +926,12 @@ export class MoodleService {
                 if (moodleCourse.id === 1) continue;
                 console.log(`[MOODLE IMPORT] Importando curso: ${moodleCourse.fullname} (ID: ${moodleCourse.id})`);
                 const course = await this.upsertMoodleCourse(moodleCourse, { transaction });
+                // Prepare enrolled roles map for this course if we will process users
+                let enrolledRolesMap: Map<number, MoodleUser['roles']> | undefined = undefined;
                 if (!skipUsers) {
                     const enrolledUsers = await this.getEnrolledUsers(moodleCourse.id);
                     console.log(`  [MOODLE IMPORT]   Usuarios matriculados: ${enrolledUsers.length}`);
+                    enrolledRolesMap = new Map<number, MoodleUser['roles']>();
                     let userCount = 0;
                     for (const enrolledUser of enrolledUsers) {
                         userCount++;
@@ -779,6 +945,8 @@ export class MoodleService {
                         } catch (e) {
                             await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
                         }
+                        // store roles for later group processing
+                        enrolledRolesMap.set(enrolledUser.id, enrolledUser.roles ?? []);
                         if (userCount % 10 === 0) {
                             console.log(`    [MOODLE IMPORT]     Procesados ${userCount} usuarios...`);
                         }
@@ -794,6 +962,10 @@ export class MoodleService {
                     if (!skipUsers) {
                         const moodleUsers = await this.getGroupUsers(moodleGroup.id);
                         for (const moodleUser of moodleUsers) {
+                            if (enrolledRolesMap && (!moodleUser.roles || moodleUser.roles.length === 0)) {
+                                const fromMap = enrolledRolesMap.get(moodleUser.id);
+                                if (fromMap && fromMap.length > 0) moodleUser.roles = fromMap;
+                            }
                             await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
                         }
                     }
@@ -888,20 +1060,19 @@ export class MoodleService {
             let userId: number;
 
             if (existingMoodleUser) {
-                // Si existe el usuario de Moodle, actualizamos el usuario principal
+                // Si existe el usuario de Moodle, NO sobreescribimos los datos personales locales
+                // (name, first_surname, email) con los valores desde Moodle. De acuerdo a la
+                // nueva regla, cuando el usuario ya existe en la BD solo se deben actualizar
+                // los campos relacionados con rol (user_group.id_role) y porcentaje
+                // (user_course.completion_percentage). El username de Moodle sí se actualiza
+                // porque es específico de Moodle.
                 userId = existingMoodleUser.id_user;
-                
-                await this.userRepository.update(userId, {
-                    name: moodleUser.firstname,
-                    first_surname: moodleUser.lastname,
-                    email: moodleUser.email,
-                } as UserUpdateModel, { transaction });
-                
-                // Actualizar usuario de Moodle
+
+                // Actualizar usuario de Moodle (solo username)
                 await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
                     moodle_username: moodleUser.username,
                 }, { transaction });
-                
+
             } else {
                 // Intentar buscar por DNI en customfields antes de crear usuario nuevo
                 let foundUserByDni = null;
@@ -954,25 +1125,10 @@ export class MoodleService {
                 // Preferir roles ya presentes en el objeto recibido
                 let rolesSource = moodleUser.roles;
 
-                // Si no vienen roles, intentar obtenerlos consultando los usuarios matriculados del curso
-                if ((!rolesSource || rolesSource.length === 0)) {
-                    try {
-                        const group = await this.groupRepository.findById(id_group, { transaction });
-                        if (group && group.id_course) {
-                            const course = await this.courseRepository.findById(group.id_course, { transaction });
-                            if (course && course.moodle_id) {
-                                const enrolled = await this.getEnrolledUsers(course.moodle_id);
-                                const match = enrolled.find(u => u.id === moodleUser.id);
-                                if (match && match.roles && match.roles.length > 0) {
-                                    rolesSource = match.roles;
-                                }
-                            }
-                        }
-                    } catch (innerErr) {
-                        // No bloquear si la llamada a la API adicional falla; seguiremos sin roles
-                        Logger.warn({ innerErr, moodleUserId: moodleUser.id, id_group }, 'MoodleService:upsertMoodleUserByGroup - could not fetch enrolled users to resolve roles');
-                    }
-                }
+                // NOTE: roles should be provided in `moodleUser.roles` by the caller to avoid
+                // making an API call per user. If roles are not present, we will not attempt
+                // to fetch enrolled users here (caller should supply them); this keeps the
+                // function efficient for bulk imports.
 
                 if (rolesSource && rolesSource.length > 0) {
                     const shortname = rolesSource[0].shortname;
@@ -990,7 +1146,8 @@ export class MoodleService {
                 await this.groupService.addUserToGroup({ id_group, id_user: userId, id_role: roleIdToAssign }, { transaction });
             } else {
                 // Ya existe la fila user_group: si viene un role resuelto y es distinto al actual, actualizarlo
-                const existing = userGroupRows[0] as any;
+                // `findUserInGroup` devuelve filas del `user_group`; tipamos el primer registro adecuadamente
+                const existing: UserGroupSelectModel | undefined = userGroupRows[0] ?? undefined;
                 if (typeof roleIdToAssign !== 'undefined' && existing?.id_role !== roleIdToAssign) {
                     try {
                         await this.userGroupRepository.updateById(userId, id_group, { id_role: roleIdToAssign }, { transaction });

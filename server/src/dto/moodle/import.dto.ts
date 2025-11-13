@@ -109,6 +109,14 @@ export class ImportResult {
     usersImported?: number;
   };
 
+  @ApiPropertyOptional({ description: 'Detalles por usuario procesado en operaciones por lote' })
+  @IsOptional()
+  details?: Array<{
+    userId?: number;
+    username?: string;
+    error: string;
+  }>;
+
   @ApiPropertyOptional({ description: 'Mensaje de error en caso de fallo', example: 'No se pudo conectar con Moodle' })
   @IsOptional()
   @IsString()
