@@ -20,7 +20,7 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(5);
+  const [pageSize, setPageSize] = useState<number>(10);
   const debouncedSearch = useDebounce(searchTerm, 400);
 
   const normalizedSearch = useMemo(() => {
@@ -90,112 +90,134 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
 
   return (
     <Modal
+      centered
       title={`Añadir usuarios al grupo ${groupId ?? ''}`}
       open={open}
       onCancel={onClose}
       footer={null}
-      width={900}
-      bodyStyle={{ maxHeight: '70vh', overflow: 'auto' }}
+      width={'85vw'}
+      bodyStyle={{ minHeight: '80vh', maxHeight: '92vh', overflow: 'hidden', padding: 16 }}
       destroyOnClose
     >
       {contextHolder}
-      <div style={{ marginBottom: 12 }}>
-        <Input
-          id="user-search"
-          placeholder="Buscar usuarios"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          style={{ marginBottom: 8 }}
-          aria-label="Buscar usuarios"
-        />
-        <AuthzHide roles={[Role.ADMIN]}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleSaveUsers} disabled={selectedUserIds.length === 0} style={{ marginBottom: 8 }}>
-            Añadir al Grupo
-          </Button>
-        </AuthzHide>
+
+  <div style={{ display: 'flex', gap: 16, height: 'calc(80vh - 80px)' }}>
+        {/* Left: All users (DB) */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Input
+              id="user-search"
+              placeholder="Buscar usuarios"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              aria-label="Buscar usuarios"
+              style={{ flex: 1 }}
+            />
+            <AuthzHide roles={[Role.ADMIN]}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleSaveUsers} disabled={selectedUserIds.length === 0}>
+                Añadir al Grupo
+              </Button>
+            </AuthzHide>
+          </div>
+
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <Table
+              id="all-users-table"
+              rowKey="id_user"
+              columns={[
+                { title: 'ID', dataIndex: 'id_user' },
+                { title: 'Nombre', dataIndex: 'name' },
+                { title: 'Apellidos', dataIndex: 'surname' },
+                { title: 'Email', dataIndex: 'email' },
+              ]}
+              dataSource={filteredUsersData}
+              loading={isUsersLoading}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: usersResponse?.total || 0,
+                showSizeChanger: false,
+                onChange: (page: number, size?: number) => {
+                  setCurrentPage(page);
+                  if (size) setPageSize(size);
+                }
+              }}
+              rowSelection={{
+                ...rowSelection,
+                getCheckboxProps: (record: User) => ({
+                  id: `add-user-checkbox-${record.id_user}`,
+                  name: `add-user-checkbox-${record.id_user}`,
+                }),
+              }}
+              onRow={(record) => ({
+                onDoubleClick: () => {
+                  const uid = Number(record.id_user);
+                  if (!Number.isFinite(uid)) return;
+                  try {
+                    const url = `${window.location.origin}/users/${uid}`;
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                  } catch (e) {
+                    window.open(`/users/${uid}`, '_blank');
+                  }
+                },
+                style: { cursor: 'pointer' }
+              })}
+              scroll={{ y: '50vh' }}
+              size="small"
+            />
+          </div>
+        </div>
+
+  {/* Right: Users in group */}
+  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>Usuarios del Grupo</h3>
+            <AuthzHide roles={[Role.ADMIN]}>
+              <Button type="primary" danger onClick={handleDeleteUsers} icon={<DeleteOutlined />} disabled={selectedGroupUserIds.length === 0}>
+                Eliminar del Grupo
+              </Button>
+            </AuthzHide>
+          </div>
+
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <Table
+              id="group-users-table"
+              rowKey="id_user"
+              columns={[
+                { title: 'ID', dataIndex: 'id_user' },
+                { title: 'Nombre', dataIndex: 'name' },
+                { title: 'Apellidos', dataIndex: 'surname' },
+                { title: 'Email', dataIndex: 'email' },
+              ]}
+              dataSource={groupUsersData}
+              loading={isGroupUsersLoading}
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              rowSelection={{
+                ...groupUserRowSelection,
+                getCheckboxProps: (record: User) => ({
+                  id: `remove-user-checkbox-${record.id_user}`,
+                  name: `remove-user-checkbox-${record.id_user}`,
+                }),
+              }}
+              onRow={(record) => ({
+                onDoubleClick: () => {
+                  const uid = Number(record.id_user);
+                  if (!Number.isFinite(uid)) return;
+                  try {
+                    const url = `${window.location.origin}/users/${uid}`;
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                  } catch (e) {
+                    window.open(`/users/${uid}`, '_blank');
+                  }
+                },
+                style: { cursor: 'pointer' }
+              })}
+              scroll={{ y: '56vh' }}
+              size="small"
+            />
+          </div>
+        </div>
       </div>
-
-      <Table
-        id="all-users-table"
-        rowKey="id_user"
-        columns={[
-          { title: 'ID', dataIndex: 'id_user' },
-          { title: 'Nombre', dataIndex: 'name' },
-          { title: 'Apellidos', dataIndex: 'surname' },
-          { title: 'Email', dataIndex: 'email' },
-        ]}
-        dataSource={filteredUsersData}
-        loading={isUsersLoading}
-        pagination={{
-          current: currentPage,
-          pageSize: pageSize,
-          total: usersResponse?.total || 0,
-          showSizeChanger: false,
-          onChange: (page: number, size?: number) => {
-            setCurrentPage(page);
-            if (size) setPageSize(size);
-          }
-        }}
-        rowSelection={{
-          ...rowSelection,
-          getCheckboxProps: (record: User) => ({
-            id: `add-user-checkbox-${record.id_user}`,
-            name: `add-user-checkbox-${record.id_user}`,
-          }),
-        }}
-        onRow={(record) => ({
-          onDoubleClick: () => {
-            const uid = Number(record.id_user);
-            if (!Number.isFinite(uid)) return;
-            try {
-              const url = `${window.location.origin}/users/${uid}`;
-              window.open(url, '_blank', 'noopener,noreferrer');
-            } catch (e) {
-              window.open(`/users/${uid}`, '_blank');
-            }
-          },
-          style: { cursor: 'pointer' }
-        })}
-      />
-
-      <h3 style={{ marginTop: 16 }}>Usuarios del Grupo</h3>
-      <AuthzHide roles={[Role.ADMIN]}>
-        <Button type="primary" danger onClick={handleDeleteUsers} style={{ marginTop: '8px', marginBottom: 8 }} icon={<DeleteOutlined />} disabled={selectedGroupUserIds.length === 0}>
-          Eliminar del Grupo
-        </Button>
-      </AuthzHide>
-      <Table
-        id="group-users-table"
-        rowKey="id_user"
-        columns={[
-          { title: 'ID', dataIndex: 'id_user' },
-          { title: 'Nombre', dataIndex: 'name' },
-          { title: 'Apellidos', dataIndex: 'surname' },
-          { title: 'Email', dataIndex: 'email' },
-        ]}
-        dataSource={groupUsersData}
-        loading={isGroupUsersLoading}
-        rowSelection={{
-          ...groupUserRowSelection,
-          getCheckboxProps: (record: User) => ({
-            id: `remove-user-checkbox-${record.id_user}`,
-            name: `remove-user-checkbox-${record.id_user}`,
-          }),
-        }}
-        onRow={(record) => ({
-          onDoubleClick: () => {
-            const uid = Number(record.id_user);
-            if (!Number.isFinite(uid)) return;
-            try {
-              const url = `${window.location.origin}/users/${uid}`;
-              window.open(url, '_blank', 'noopener,noreferrer');
-            } catch (e) {
-              window.open(`/users/${uid}`, '_blank');
-            }
-          },
-          style: { cursor: 'pointer' }
-        })}
-      />
     </Modal>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Table, Button, message } from 'antd';
 import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { /* useNavigate removed - not used anymore */ } from 'react-router-dom';
 import { AuthzHide } from '../permissions/authz-hide';
 import CreateUserGroupModal from './CreateUserGroupModal';
 import ImportUsersToGroupModal from './ImportUsersToGroupModal';
@@ -21,7 +21,7 @@ interface Props {
 
 const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const [messageApi, contextHolder] = message.useMessage();
-  const navigate = useNavigate();
+  // navigate removed: no longer navigating on import success, only closing modal
   const { data: usersData, isLoading, refetch } = useUsersByGroupQuery(groupId ? Number(groupId) : null);
 
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
@@ -187,7 +187,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
       />
 
   <CreateUserGroupModal open={isManageModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsManageModalOpen(false)} />
-  <ImportUsersToGroupModal open={isImportModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsImportModalOpen(false)} onSuccess={() => { setIsImportModalOpen(false); navigate(`/groups/${groupId}/edit`); }} />
+  <ImportUsersToGroupModal open={isImportModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsImportModalOpen(false)} onSuccess={() => setIsImportModalOpen(false)} />
 
       <BonificationModal
         open={isBonificationModalOpen}
