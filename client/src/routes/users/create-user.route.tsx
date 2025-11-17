@@ -13,6 +13,7 @@ import { DNI_SCHEMA } from "../../schemas/dni.schema";
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { SALARY_GROUP_OPTIONS, EDUCATION_LEVEL_OPTIONS } from '../../constants/options/user-options';
 
 const CREATE_USER_FORM = z.object({
   name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
@@ -194,19 +195,68 @@ export default function CreateUserRoute() {
             <Controller name="professional_category" control={control} render={({ field }) => <Input data-testid="professional-category" id="professional_category" autoComplete="organization-title" {...field} />} />
           </Form.Item>
           <Form.Item label="Grupo de Cotización" name="salary_group" style={{ flex: 1 }}>
-            <Controller name="salary_group" control={control} render={({ field }) => (
-              <Input 
-                type="number" 
-                data-testid="salary-group" 
-                id="salary_group"
-                autoComplete="off" 
-                {...field} 
-                onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-              />
-            )} />
+            <Controller
+              name="salary_group"
+              control={control}
+                render={({ field }) => {
+                const options = SALARY_GROUP_OPTIONS;
+
+                const currentValue = typeof field.value === 'number' ? field.value : (field.value ? Number(field.value) : undefined);
+
+                return (
+                  <Select
+                    {...field}
+                    data-testid="salary-group"
+                    id="salary_group"
+                    value={currentValue}
+                    onChange={(val) => {
+                      if (typeof val === 'undefined' || val === null) field.onChange(undefined);
+                      else field.onChange(Number(val));
+                    }}
+                    allowClear
+                    placeholder="Selecciona grupo de cotización"
+                  >
+                    {options.map(o => (
+                      <Select.Option key={o.value} value={o.value}>
+                        {o.label}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                );
+              }}
+            />
           </Form.Item>
           <Form.Item label="Nivel Educativo" name="education_level" style={{ flex: 1 }}>
-            <Controller name="education_level" control={control} render={({ field }) => <Input data-testid="education-level" id="education_level" autoComplete="off" {...field} />} />
+              <Controller
+              name="education_level"
+              control={control}
+              render={({ field }) => {
+                const options = EDUCATION_LEVEL_OPTIONS;
+
+                const currentValue = typeof field.value === 'number' ? field.value : (field.value ? Number(field.value) : undefined);
+
+                return (
+                  <Select
+                    {...field}
+                    data-testid="education-level"
+                    id="education_level"
+                    value={currentValue}
+                    onChange={(val) => {
+                      if (typeof val === 'undefined' || val === null) field.onChange(undefined);
+                      else field.onChange(Number(val));
+                    }}
+                    allowClear
+                    placeholder="Selecciona nivel educativo"
+                  >
+                    {options.map(o => (
+                      <Select.Option key={o.value} value={o.value}>
+                        {o.label}
+                      </Select.Option>
+                    ))}
+                  </Select>
+                );
+              }}
+            />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>

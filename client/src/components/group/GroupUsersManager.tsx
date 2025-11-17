@@ -144,7 +144,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
             >
               Importar XLS
             </Button>
-             <Button
+            <Button
               type="default"
               icon={<CloudDownloadOutlined style={{ color: '#f56b00' }} />}
               onClick={async () => {
@@ -174,7 +174,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
               disabled={isGroupLoading || !groupData?.moodle_id}
             >
               Traer Moodle
-            </Button>            
+            </Button>
           </AuthzHide>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -223,8 +223,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         size="small"
       />
 
-  <CreateUserGroupModal open={isManageModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsManageModalOpen(false)} />
-  <ImportUsersToGroupModal open={isImportModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsImportModalOpen(false)} onSuccess={() => setIsImportModalOpen(false)} />
+      <CreateUserGroupModal open={isManageModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsManageModalOpen(false)} />
+      <ImportUsersToGroupModal open={isImportModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsImportModalOpen(false)} onSuccess={() => setIsImportModalOpen(false)} />
 
       <BonificationModal
         open={isBonificationModalOpen}

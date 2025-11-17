@@ -20,6 +20,7 @@ import { MoodleUsersSection } from "./moodle-users-section";
 import { UserCoursesSection } from "./user-courses-section";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { SALARY_GROUP_OPTIONS, EDUCATION_LEVEL_OPTIONS } from '../../constants/options/user-options';
 
 
 function nullsToUndefined<T>(obj: T): T {
@@ -55,7 +56,10 @@ const USER_FORM_SCHEMA = z.object({
   gender: z.nativeEnum(Gender, {
     errorMap: () => ({ message: "Género no válido" }),
   }).nullish(),
-  education_level: z.string().nullish(),
+  // education_level may be stored as a string in the backend but in the UI
+  // we accept a numeric code 1..10. Accept both string and number here so
+  // the zod resolver won't reject existing string values coming from the API.
+  education_level: z.union([z.string(), z.number().int().min(1).max(10)]).nullish(),
   postal_code: z.string().nullish(),
   city: z.string().nullish(),
   province: z.string().nullish(),
@@ -111,6 +115,9 @@ const navigate = useNavigate();
     setValue("document_type", detected ?? undefined);
   }, [dniValue, setValue]);
 
+  // Watch salary_group and education_level to show inline guidance when not specified
+  const salaryGroupValue = watch("salary_group");
+  const educationLevelValue = watch("education_level");
   useEffect(() => {
     if (userData) {
       let diploma: "S" | "N" | null = null;
@@ -153,39 +160,69 @@ const navigate = useNavigate();
   if (isUserLoading) return <div>Cargando...</div>;
 
   const submit: SubmitHandler<z.infer<typeof USER_FORM_SCHEMA>> = async (info) => {
-    const normalizedInfo = {
-      ...nullsToUndefined(info),
-      birth_date: info.birth_date ? dayjs(info.birth_date).utc().toDate() : null,
-      registration_date: info.registration_date ? dayjs(info.registration_date).utc().toDate() : null,
-      email: info.email ?? "",
+    const performSave = async () => {
+      const normalizedInfo = {
+        ...nullsToUndefined(info),
+        birth_date: info.birth_date ? dayjs(info.birth_date).utc().toDate() : null,
+        registration_date: info.registration_date ? dayjs(info.registration_date).utc().toDate() : null,
+        email: info.email ?? "",
+      } as Record<string, unknown>;
+      // If the salary_group field was explicitly cleared in the form (null),
+      // preserve that intent and send `salary_group: null` to the API so the
+      // backend can clear the value. `nullsToUndefined` removes nulls, so we
+      // must re-insert null explicitly here when appropriate.
+      if (info.salary_group === null) {
+        (normalizedInfo as any).salary_group = null;
+      }
+      // Ensure education_level is sent as string (backend stores it as text)
+      if (info.education_level === null || typeof info.education_level === 'undefined') {
+        (normalizedInfo as any).education_level = null;
+      } else {
+        (normalizedInfo as any).education_level = String(info.education_level);
+      }
+
+      try {
+        await updateUserWithMoodle({
+          userInfo: normalizedInfo,
+          moodleUsername: moodleUsername ?? null,
+          moodlePassword: moodlePassword ?? null,
+          moodleUsers,
+        });
+        navigate(location.state?.from || '/users');
+      } catch (err: any) {
+        // Distinguish errors coming from moodle update
+        if (err && (err as any).type === 'moodle') {
+          modal.error({ title: 'Error al actualizar Moodle', content: 'Se produjo un error al actualizar la cuenta de Moodle asociada. Revisa los logs del servidor.' });
+          return; // keep user on page so they can inspect
+        }
+        modal.error({
+          title: "Error al guardar el usuario",
+          content: "No se pudo guardar el usuario. Revise los datos e inténtelo de nuevo. ¿DNI repetido?",
+        });
+      }
     };
-    // If the salary_group field was explicitly cleared in the form (null),
-    // preserve that intent and send `salary_group: null` to the API so the
-    // backend can clear the value. `nullsToUndefined` removes nulls, so we
-    // must re-insert null explicitly here when appropriate.
-    if (info.salary_group === null) {
-      (normalizedInfo as any).salary_group = null;
+
+    // If salary_group or education_level not specified, ask for confirmation before saving
+    const missing: string[] = [];
+    if (info.salary_group == null) missing.push('Grupo de cotización');
+    if (info.education_level == null) missing.push('Nivel educativo');
+
+    if (missing.length > 0) {
+      modal.confirm({
+        title: 'Campos no especificados',
+        content: (`Los siguientes campos no están especificados: ${missing.join(', ')}.` +
+          ' ¿Desea continuar y guardar sin asignar estos valores?'),
+        okText: 'Sí, guardar',
+        cancelText: 'Cancelar',
+        onOk: async () => {
+          await performSave();
+        }
+      });
+      return;
     }
 
-    try {
-      await updateUserWithMoodle({
-        userInfo: normalizedInfo,
-        moodleUsername: moodleUsername ?? null,
-        moodlePassword: moodlePassword ?? null,
-        moodleUsers,
-      });
-      navigate(location.state?.from || '/users');
-    } catch (err: any) {
-      // Distinguish errors coming from moodle update
-      if (err && (err as any).type === 'moodle') {
-        modal.error({ title: 'Error al actualizar Moodle', content: 'Se produjo un error al actualizar la cuenta de Moodle asociada. Revisa los logs del servidor.' });
-        return; // keep user on page so they can inspect
-      }
-      modal.error({
-        title: "Error al guardar el usuario",
-        content: "No se pudo guardar el usuario. Revise los datos e inténtelo de nuevo. ¿DNI repetido?",
-      });
-    }
+    // Normal save path
+    await performSave();
   };
 
   const handleDelete = async () => {
@@ -361,20 +398,66 @@ const navigate = useNavigate();
             <Form.Item label="Categoría Profesional" name="professional_category" style={{ flex: 1 }}>
               <Controller name="professional_category" control={control} render={({ field }) => <Input {...field} id="professional_category" autoComplete="organization-title" value={field.value ?? undefined} />} />
             </Form.Item>
-            <Form.Item label="Grupo de Cotización" name="salary_group" style={{ flex: 1 }}>
-              <Controller name="salary_group" control={control} render={({ field }) => (
-                <Input 
-                  type="number" 
-                  {...field} 
-                  id="salary_group"
-                  autoComplete="off"
-                  value={field.value ?? undefined}
-                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value, 10) : null)}
-                />
-              )} />
+            <Form.Item label="Grupo de Cotización" name="salary_group" style={{ flex: 1 }} extra={salaryGroupValue == null ? 'No especificado — se guardará vacío. Se mostrará un aviso al guardar.' : undefined}>
+              <Controller
+                name="salary_group"
+                control={control}
+                render={({ field }) => {
+                  const options = SALARY_GROUP_OPTIONS;
+
+                  return (
+                    <Select
+                      {...field}
+                      id="salary_group"
+                      value={field.value ?? undefined}
+                      onChange={(val) => {
+                        // val can be undefined when cleared
+                        if (typeof val === 'undefined' || val === null) field.onChange(null);
+                        else field.onChange(Number(val));
+                      }}
+                      allowClear
+                      placeholder="Selecciona grupo de cotización"
+                    >
+                      {options.map(o => (
+                        <Select.Option key={o.value} value={o.value}>
+                          {o.label}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  );
+                }}
+              />
             </Form.Item>
-            <Form.Item label="Nivel Educativo" name="education_level" style={{ flex: 1 }}>
-              <Controller name="education_level" control={control} render={({ field }) => <Input {...field} id="education_level" autoComplete="off" value={field.value ?? undefined} />} />
+            <Form.Item label="Nivel Educativo" name="education_level" style={{ flex: 1 }} extra={educationLevelValue == null ? 'No especificado — se guardará vacío. Se mostrará un aviso al guardar.' : undefined}>
+              <Controller
+                name="education_level"
+                control={control}
+                render={({ field }) => {
+                  const options = EDUCATION_LEVEL_OPTIONS;
+
+                  const currentValue = typeof field.value === 'number' ? field.value : (field.value ? Number(field.value) : undefined);
+
+                  return (
+                    <Select
+                      {...field}
+                      id="education_level"
+                      value={currentValue}
+                      onChange={(val) => {
+                        if (typeof val === 'undefined' || val === null) field.onChange(null);
+                        else field.onChange(Number(val));
+                      }}
+                      allowClear
+                      placeholder="Selecciona nivel educativo"
+                    >
+                      {options.map(o => (
+                        <Select.Option key={o.value} value={o.value}>
+                          {o.label}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  );
+                }}
+              />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
