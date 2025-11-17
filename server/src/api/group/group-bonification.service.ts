@@ -4,11 +4,9 @@ import { DatabaseService } from "src/database/database.service";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 import { GroupRepository } from "src/database/repository/group/group.repository";
 import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
-import { UserRepository } from "src/database/repository/user/user.repository";
-import type { UserMainCompanyCif } from "src/database/repository/user/user.repository";
 import { CourseSelectModel } from "src/database/schema/tables/course.table";
 import { GroupSelectModel } from "src/database/schema/tables/group.table";
-import { UserSelectModel } from "src/database/schema/tables/user.table";
+import type { UserWithEnrollmentInfo } from "src/database/repository/group/user-group.repository";
 import { create } from 'xmlbuilder2';
 // repository method will handle user_center/center/company joins
 import type { FundaeCost, FundaeParticipant, FundaeGroup, FundaeRoot } from '../../types/fundae/fundae.types';
@@ -16,7 +14,7 @@ import type { FundaeCost, FundaeParticipant, FundaeGroup, FundaeRoot } from '../
 type CreateFundaeXmlObjectOptions = {
     course: CourseSelectModel;
     group: GroupSelectModel;
-    users: (UserSelectModel)[];
+    users: (UserWithEnrollmentInfo)[];
 }
 
 @Injectable()
@@ -26,8 +24,7 @@ export class GroupBonificableService {
         private readonly databaseService: DatabaseService, 
         private readonly groupRepository: GroupRepository, 
         private readonly userGroupRepository: UserGroupRepository,
-        private readonly courseRepository: CourseRepository,
-        private readonly userRepository: UserRepository) {}
+        private readonly courseRepository: CourseRepository) {}
 
     async generateBonificationFile(groupId: number, userIds: number[]) {
         return await this.databaseService.db.transaction(async (transaction) => {
@@ -43,15 +40,15 @@ export class GroupBonificableService {
             const users = await this.userGroupRepository.findUsersInGroupByIds(group.id_group, userIds, { transaction });
             if (users.length <= 0) throw new BadRequestException("No users found in group");
 
-            // Get each user's main-center company CIF from repository (DB ops moved to repository)
-            const userCompanyRows = await this.userRepository.findUsersMainCompanyCifs(users.map(u => u.id_user), { transaction });
-
+            // Determine company CIF based on the center at the time of enrollment
+            // The repository now returns enrollment_company_cif on each user (from user_group.id_center -> centers -> company.cif)
             const cifToUsers: Record<string, Set<number>> = {};
-            for (const row of userCompanyRows as UserMainCompanyCif[]) {
-                const { id_user: uid, cif } = row;
+            for (const user of users) {
+                const uid = user.id_user;
+                const cif = String(user.enrollment_company_cif ?? '');
                 if (!cif || !uid) continue;
                 if (!cifToUsers[cif]) cifToUsers[cif] = new Set<number>();
-                cifToUsers[cif].add(uid);
+                cifToUsers[cif].add(uid as number);
             }
 
             const pricePerHour = Number(course.price_per_hour ?? 0);

@@ -3,9 +3,19 @@ import { QueryOptions, Repository } from "../repository";
 import { and, eq, not, inArray } from "drizzle-orm";
 import { UserGroupInsertModel, userGroupTable, UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
 import { userRolesTable } from "src/database/schema/tables/user_roles.table";
-import { userTable } from "src/database/schema/tables/user.table";
+import { userTable, UserSelectModel } from "src/database/schema/tables/user.table";
 import { groupTable } from "src/database/schema/tables/group.table";
 import { userCourseTable } from "src/database/schema/tables/user_course.table";
+import { centers } from "src/database/schema";
+import { companyTable } from "src/database/schema/tables/company.table";
+
+// Enriched user shape returned by findUsersInGroupByIds
+export type UserWithEnrollmentInfo = UserSelectModel & {
+    id_role?: number;
+    role_shortname?: string | null;
+    enrollment_center_id?: number | null;
+    enrollment_company_cif?: string | null;
+};
 
 @Injectable()
 export class UserGroupRepository extends Repository {
@@ -66,14 +76,23 @@ export class UserGroupRepository extends Repository {
         }));
     }
 
-    async findUsersInGroupByIds(groupId: number, userIds: number[], options?: QueryOptions) {
+    async findUsersInGroupByIds(groupId: number, userIds: number[], options?: QueryOptions): Promise<UserWithEnrollmentInfo[]> {
         const rows = await this.query(options)
-            .select({ users: userTable, user_group: userGroupTable, role: userRolesTable })
+            .select({ users: userTable, user_group: userGroupTable, role: userRolesTable, center: centers, company: companyTable })
             .from(userGroupTable)
             .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
+            .innerJoin(centers, eq(userGroupTable.id_center, centers.id_center))
+            .innerJoin(companyTable, eq(centers.id_company, companyTable.id_company))
             .leftJoin(userRolesTable, eq(userGroupTable.id_role, userRolesTable.id_role))
             .where(and(eq(userGroupTable.id_group, groupId), inArray(userGroupTable.id_user, userIds)));
-        return rows.map((r) => ({ ...r.users, id_role: r.user_group?.id_role, role_shortname: r.role?.role_shortname }));
+        return rows.map((r) => ({
+            ...r.users,
+            id_role: r.user_group?.id_role,
+            role_shortname: r.role?.role_shortname,
+            // include the center at enrollment and the company's CIF so callers can group by the enrollment company
+            enrollment_center_id: r.user_group?.id_center,
+            enrollment_company_cif: r.company?.cif,
+        }));
     }
 
     async updateUserInGroup(id_group: number, id_user: number, data: UserGroupUpdateModel, options?: QueryOptions) {

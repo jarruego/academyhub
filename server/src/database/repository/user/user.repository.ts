@@ -8,10 +8,6 @@ import type { UsersColumns } from "src/database/schema";
 import { DbCondition } from "src/database/types/db-expression";
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
 import { centers } from "src/database/schema";
-import { companyTable } from "src/database/schema/tables/company.table";
-
-export type UserMainCompanyCif = { id_user: number; cif: string };
-
 
 @Injectable()
 export class UserRepository extends Repository {
@@ -23,34 +19,6 @@ export class UserRepository extends Repository {
     return rows?.[0] || null;
   }
 
-  /**
-   * Given an array of user IDs, returns rows with id_user and the CIF of their main center's company.
-   * Only users that have a main center (uc.is_main_center = true) will be returned.
-   */
-  async findUsersMainCompanyCifs(userIds: number[], options?: QueryOptions): Promise<UserMainCompanyCif[]> {
-    if (!userIds || userIds.length === 0) return [];
-
-    const rows = await this.query(options)
-      .select({ uc: userCenterTable, center: centers, company: companyTable })
-      .from(userCenterTable)
-      .innerJoin(centers, eq(userCenterTable.id_center, centers.id_center))
-      .innerJoin(companyTable, eq(centers.id_company, companyTable.id_company))
-      .where(
-        // only main centers and the requested users
-        and(
-          inArray(userCenterTable.id_user, userIds),
-          eq(userCenterTable.is_main_center, true)
-        )
-      );
-
-    // Return simple mapping rows: { id_user, cif }
-    return rows.map((r) => {
-      // Drizzle returns nested objects named as in the select: { uc, center, company }
-      const uc = (r as unknown as { uc?: { id_user?: number } }).uc;
-      const company = (r as unknown as { company?: { cif?: string } }).company;
-      return { id_user: Number(uc?.id_user ?? 0), cif: String(company?.cif ?? '') } as UserMainCompanyCif;
-    }).filter(x => x.id_user > 0 && x.cif.length > 0);
-  }
   async findById(id: number, options?: QueryOptions) {
     const rows = await this.query(options).select().from(userTable).where(eq(userTable.id_user, id));
     return rows?.[0];
