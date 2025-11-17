@@ -8,7 +8,7 @@ import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.query';
 import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
 import { useCreateBonificationFileMutation } from '../../hooks/api/groups/use-create-bonification-file.mutation';
-import { useUpdateUserMainCenterMutation } from '../../hooks/api/centers/use-update-user-main-center.mutation';
+import { useUpdateUserEnrollmentCenterMutation } from '../../hooks/api/groups/use-update-user-enrollment-center.mutation';
 import { BonificationModal } from '../courses/BonificationModal';
 import { User } from '../../shared/types/user/user';
 import { USERS_TABLE_COLUMNS } from '../../constants/tables/users-table-columns.constant';
@@ -29,7 +29,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const createBonificationFile = useCreateBonificationFileMutation();
-  const updateUserMainCenterMutation = useUpdateUserMainCenterMutation();
+  const updateUserEnrollmentCenterMutation = useUpdateUserEnrollmentCenterMutation();
   const { mutateAsync: syncMoodleGroupMembers, isPending: syncMoodleGroupMembersPending } = useSyncMoodleGroupMembersMutation();
 
   const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(groupId ? String(groupId) : undefined);
@@ -250,7 +250,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         selectedUserIds={selectedUserIds}
         selectedCenters={selectedCenters}
         setSelectedCenters={setSelectedCenters}
-        updateUserMainCenterMutation={updateUserMainCenterMutation}
+        groupId={groupId}
+        updateUserEnrollmentCenterMutation={updateUserEnrollmentCenterMutation}
         refetchUsersByGroup={() => refetch?.()}
         message={messageApi}
         onRemoveUser={(id) => setSelectedUserIds(prev => prev.filter(x => x !== id))}

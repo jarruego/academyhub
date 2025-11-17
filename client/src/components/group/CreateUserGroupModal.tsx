@@ -96,7 +96,7 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
       onCancel={onClose}
       footer={null}
       width={'85vw'}
-      bodyStyle={{ minHeight: '80vh', maxHeight: '92vh', overflow: 'hidden', padding: 16 }}
+      styles={{ body: { minHeight: '80vh', maxHeight: '92vh', overflow: 'hidden', padding: 16 } }}
       destroyOnClose
     >
       {contextHolder}

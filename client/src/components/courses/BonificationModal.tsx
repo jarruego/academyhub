@@ -4,7 +4,7 @@ import { User } from "../../shared/types/user/user";
 import React from "react";
 import { USERS_TABLE_COLUMNS } from "../../constants/tables/users-table-columns.constant";
 import type { UseMutationResult } from '@tanstack/react-query';
-import type { UpdateUserMainCenterPayload } from '../../hooks/api/centers/use-update-user-main-center.mutation';
+import type { UpdateUserEnrollmentCenterPayload } from '../../hooks/api/groups/use-update-user-enrollment-center.mutation';
 
 interface BonificationModalProps {
   open: boolean;
@@ -14,7 +14,9 @@ interface BonificationModalProps {
   selectedUserIds: number[];
   selectedCenters: Record<number, number>;
   setSelectedCenters: React.Dispatch<React.SetStateAction<Record<number, number>>>;
-  updateUserMainCenterMutation: UseMutationResult<void, unknown, UpdateUserMainCenterPayload>;
+  // mutation to update the enrollment center (user_group.id_center)
+  groupId: number | null | undefined;
+  updateUserEnrollmentCenterMutation: UseMutationResult<void, unknown, UpdateUserEnrollmentCenterPayload>;
   refetchUsersByGroup: () => void;
   message: ReturnType<typeof App.useApp>["message"];
   onRemoveUser: (userId: number) => void;
@@ -29,7 +31,8 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
   selectedUserIds,
   selectedCenters,
   setSelectedCenters,
-  updateUserMainCenterMutation,
+  groupId,
+  updateUserEnrollmentCenterMutation,
   refetchUsersByGroup,
   message,
   onRemoveUser,
@@ -39,18 +42,33 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
     {
       title: 'Centro (empresa)',
       dataIndex: 'centro_select',
-      render: (_: unknown, user: User) => {
-        const selected = selectedCenters[user.id_user] ?? user.centers?.find(c => c.is_main_center)?.id_center ?? user.centers?.[0]?.id_center;
+      render: (_: unknown, user: User & { enrollment_center_id?: number | null }) => {
+    // Prefer enrollment center if available (comes from backend as enrollment_center_id)
+  const enrollmentCenterId = user.enrollment_center_id ?? undefined;
+    const selected = selectedCenters[user.id_user] ?? enrollmentCenterId ?? user.centers?.find(c => c.is_main_center)?.id_center ?? user.centers?.[0]?.id_center;
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Select
               id={`center-select-${user.id_user}`}
               style={{ minWidth: 220 }}
+              popupMatchSelectWidth={false}
               value={selected}
               placeholder={user.centers?.length ? 'Selecciona centro' : 'Sin centros'}
               options={user.centers?.map(center => ({
                 value: center.id_center,
-                label: `${center.center_name} (${center.company_name ?? ''})${center.is_main_center ? ' (principal)' : ''}`
+                // Antd Select accepts ReactNode as label; render principal badge always for main center,
+                // but render the red "Antiguo" badge only when this center is the currently selected value
+                label: (
+                  <span>
+                    <span>{center.center_name}</span>
+                    <span style={{ color: '#666', marginLeft: 6 }}>({center.company_name ?? ''})</span>
+                    {center.is_main_center ? (
+                      <span style={{ marginLeft: 8, backgroundColor: 'darkgreen', color: 'white', padding: '2px 6px', borderRadius: 8, fontSize: '0.75em' }}>(principal)</span>
+                    ) : (center.id_center === enrollmentCenterId ? (
+                      <span style={{ marginLeft: 8, backgroundColor: 'darkred', color: 'white', padding: '2px 6px', borderRadius: 8, fontSize: '0.75em' }}>Antiguo</span>
+                    ) : null)}
+                  </span>
+                )
               }))}
               allowClear
               onChange={val => setSelectedCenters(prev => ({ ...prev, [user.id_user]: val }))}
@@ -59,17 +77,23 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
               <Button
                 type="primary"
                 size="small"
-                loading={updateUserMainCenterMutation.isPending}
-                onClick={() => updateUserMainCenterMutation.mutate(
-                  { userId: user.id_user, centerId: selected },
-                  {
-                    onSuccess: () => {
-                      message.success('Centro principal actualizado');
-                      refetchUsersByGroup();
-                    },
-                    onError: () => message.error('Error al actualizar el centro principal')
+                loading={updateUserEnrollmentCenterMutation.isPending}
+                onClick={() => {
+                  if (!groupId) {
+                    message.error('Group ID desconocido');
+                    return;
                   }
-                )}
+                  updateUserEnrollmentCenterMutation.mutate(
+                    { groupId: Number(groupId), userId: user.id_user, centerId: Number(selected) },
+                    {
+                      onSuccess: () => {
+                        message.success('Centro de matrícula actualizado');
+                        refetchUsersByGroup();
+                      },
+                      onError: () => message.error('Error al actualizar el centro de matrícula')
+                    }
+                  );
+                }}
               >
                 Guardar
               </Button>

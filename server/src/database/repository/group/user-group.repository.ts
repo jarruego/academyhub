@@ -52,11 +52,11 @@ export class UserGroupRepository extends Repository {
         return await this.create({ id_user, id_group } as UserGroupInsertModel, options);
     }
 
-    async findUsersInGroup(groupId: number, options?: QueryOptions) {
+    async findUsersInGroup(groupId: number, options?: QueryOptions): Promise<UserWithEnrollmentInfo[]> {
         // Seleccionamos explícitamente las tablas que necesitamos y hacemos leftJoin
         // con user_roles para devolver el role_shortname (si existe) junto al usuario.
         const rows = await this.query(options)
-            .select({ users: userTable, user_course: userCourseTable, user_group: userGroupTable, role: userRolesTable })
+            .select({ users: userTable, user_course: userCourseTable, user_group: userGroupTable, role: userRolesTable, center: centers, company: companyTable })
             .from(userGroupTable)
             .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
             .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
@@ -65,6 +65,8 @@ export class UserGroupRepository extends Repository {
                 eq(userCourseTable.id_course, groupTable.id_course)
             ))
             .leftJoin(userRolesTable, eq(userGroupTable.id_role, userRolesTable.id_role))
+            .leftJoin(centers, eq(userGroupTable.id_center, centers.id_center))
+            .leftJoin(companyTable, eq(centers.id_company, companyTable.id_company))
             .where(eq(userGroupTable.id_group, groupId));
 
         // Mezclar los datos del usuario, completion_percentage y rol (si lo hay)
@@ -73,6 +75,8 @@ export class UserGroupRepository extends Repository {
             completion_percentage: r.user_course.completion_percentage,
             id_role: r.user_group?.id_role,
             role_shortname: r.role?.role_shortname,
+            enrollment_center_id: r.user_group?.id_center,
+            enrollment_company_cif: r.company?.cif,
         }));
     }
 

@@ -8,10 +8,11 @@ import { GroupInsertModel, GroupSelectModel, GroupUpdateModel } from "src/databa
 import { UserGroupUpdateModel, UserGroupInsertModel } from "src/database/schema/tables/user_group.table";
 import { GroupBonificableService } from "./group-bonification.service";
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
-import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
+import { UserGroupRepository, UserWithEnrollmentInfo } from "src/database/repository/group/user-group.repository";
 import { CenterRepository } from "src/database/repository/center/center.repository";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
-import { userCenterTable } from "src/database/schema/tables/user_center.table";
+import { userCenterTable, UserCenterSelectModel } from "src/database/schema/tables/user_center.table";
+import { CenterSelectModel } from "src/database/schema/tables/center.table";
 import { eq, and } from "drizzle-orm";
 
 
@@ -125,16 +126,16 @@ export class GroupService {
       const users = await this.userGroupRepository.findUsersInGroup(groupId, { transaction });
       // Para cada usuario, obtener todos sus centros y el main_center
       const usersWithCenters = await Promise.all(
-        users.map(async (user: any) => {
-          // Buscar todos los centros del usuario
+        users.map(async (user: UserWithEnrollmentInfo) => {
+          // Build full centers list from user_center (existing behavior)
           const userCenters = await transaction
             .select()
             .from(userCenterTable)
             .where(eq(userCenterTable.id_user, user.id_user));
-          // Array de centros completos
+
           const centers = await Promise.all(
-            userCenters.map(async (uc: any) => {
-              const center = await this.centerRepository.findById(uc.id_center, { transaction });
+            userCenters.map(async (uc: UserCenterSelectModel) => {
+              const center: CenterSelectModel | null = await this.centerRepository.findById(uc.id_center, { transaction });
               if (!center) return null;
               const company = await this.companyRepository.findOne(center.id_company, { transaction });
               return {
@@ -143,14 +144,36 @@ export class GroupService {
                 is_main_center: uc.is_main_center,
                 start_date: uc.start_date,
                 end_date: uc.end_date
-              };
+              } as CenterSelectModel & { company_name?: string | null; is_main_center?: boolean; start_date?: unknown; end_date?: unknown };
             })
           );
+
+          // If there is an enrollment_center_id (from user_group), flag that center in the list
+          const enrollmentCenterId = user.enrollment_center_id;
+          let enrollmentCenterFound = false;
+          const centersFiltered = centers.filter(Boolean).map((c) => {
+            if (enrollmentCenterId && c && (c as CenterSelectModel).id_center === enrollmentCenterId) {
+              enrollmentCenterFound = true;
+              return { ...(c as any), is_enrollment_center: true } as CenterSelectModel & { company_name?: string | null; is_main_center?: boolean; is_enrollment_center?: true };
+            }
+            return c as CenterSelectModel & { company_name?: string | null; is_main_center?: boolean };
+          });
+
+          // If enrollment center isn't in user_center (edge case), fetch and append it
+          if (enrollmentCenterId && !enrollmentCenterFound) {
+            const center = await this.centerRepository.findById(enrollmentCenterId, { transaction });
+            if (center) {
+              const company = await this.companyRepository.findOne(center.id_company, { transaction });
+              centersFiltered.push({ ...center, company_name: company?.company_name || null, is_main_center: false, is_enrollment_center: true } as CenterSelectModel & { company_name?: string | null; is_main_center?: boolean; is_enrollment_center?: true });
+            }
+          }
+
           // main_center para compatibilidad
-          const mainUserCenter = centers.find((c: any) => c && c.is_main_center === true) || null;
+          const mainUserCenter = (centersFiltered.find((c) => c && (c as any).is_main_center === true) as CenterSelectModel & { company_name?: string | null; is_main_center?: boolean }) || null;
+
           return {
             ...user,
-            centers: centers.filter(Boolean),
+            centers: centersFiltered,
             main_center: mainUserCenter
           };
         })

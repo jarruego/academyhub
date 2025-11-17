@@ -157,7 +157,7 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
       onCancel={onClose}
       title={`Importar a Grupo ${groupData?.group_name ?? groupId ?? ''}`}
       width={'80vw'}
-      bodyStyle={{ padding: 16, maxHeight: '85vh', overflowY: 'auto' }}
+      styles={{ body: { padding: 16, maxHeight: '85vh', overflowY: 'auto' } }}
       footer={null}
       destroyOnClose
     >
