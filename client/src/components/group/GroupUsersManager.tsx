@@ -69,13 +69,29 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const handleConfirmBonification = async () => {
     if (!groupId) return;
     try {
-      const blob = await createBonificationFile.mutateAsync({ groupId: Number(groupId), userIds: selectedUserIds });
-      // download
-      const selectedGroupName = `grupo_${groupId}`;
+      const response = await createBonificationFile.mutateAsync({ groupId: Number(groupId), userIds: selectedUserIds });
+      const blob = response.data as Blob;
+
+      // Determine filename: prefer Content-Disposition from server, otherwise use group name
+      let filename = `grupo_${groupId}.xml`;
+      try {
+        const cd = response.headers?.['content-disposition'] || response.headers?.['Content-Disposition'];
+        if (cd) {
+          // Common patterns: filename="name.xml" or filename*=UTF-8''name.xml
+          const fnStar = /filename\*=(?:UTF-8''?)?([^;\n\r]+)/i.exec(cd);
+          const fn = fnStar ? decodeURIComponent(fnStar[1].trim()) : (/filename="?([^";]+)"?/i.exec(cd)?.[1]);
+          if (fn) filename = fn.replace(/\s+$/g, '');
+        } else if (groupData?.group_name) {
+          filename = `${groupData.group_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.xml`;
+        }
+      } catch (err) {
+        // fallback handled below
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${selectedGroupName}.xml`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();

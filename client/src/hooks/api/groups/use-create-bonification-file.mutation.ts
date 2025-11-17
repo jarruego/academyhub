@@ -18,7 +18,7 @@ export const useCreateBonificationFileMutation = () => {
         responseType: "blob",
         headers: { Accept: "application/xml" },
       });
-      return response.data as Blob;
+      return response; // return full axios response so callers can access headers and data (blob)
     },
   });
 };

@@ -34,7 +34,7 @@ export const userTable = pgTable("users", {
     observations: text("observations"),
     seasonalWorker: boolean("seasonalWorker").default(false),
     erteLaw: boolean("erteLaw").default(false),
-    accreditationDiploma: text("accreditationDiploma").default("N"),
+    accreditationDiploma: text("accreditationDiploma").default("S"),
     ...TIMESTAMPS
 });
 

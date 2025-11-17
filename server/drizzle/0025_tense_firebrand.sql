@@ -1,0 +1,1 @@
+ALTER TABLE "users" ALTER COLUMN "accreditationDiploma" SET DEFAULT 'S';
