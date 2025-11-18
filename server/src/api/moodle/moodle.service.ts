@@ -260,7 +260,7 @@ export class MoodleService {
         }
 
         // Verificar si tienen customfields (puede ser útil en callers)
-        const usersWithCustomFields = detailedUsers.filter(user => user.customfields && user.customfields.length > 0);
+        //const usersWithCustomFields = detailedUsers.filter(user => user.customfields && user.customfields.length > 0);
 
         return detailedUsers;
     }
