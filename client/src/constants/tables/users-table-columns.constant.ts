@@ -1,7 +1,11 @@
 import { ColumnProps } from "antd/es/table";
 import { User } from "../../shared/types/user/user";
+import { UserCenter } from "../../shared/types/center/user-center";
 import React from "react";
 import { Progress } from "antd";
+// Use the existing `UserCenter` type (includes is_main_center) and add the
+// optional `is_enrollment_center` flag that the backend may include.
+type Center = UserCenter & { is_enrollment_center?: boolean };
 
 export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
     // { title: 'ID', dataIndex: ['id_user'], sorter: {
@@ -35,22 +39,30 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
             strokeColor: percent >= 75 ? '#52c41a' : '#ff4d4f',
         });
     } },
-    { title: 'Centro',
+  { title: 'Centro',
       sorter: {
         compare: (a, b) => {
-          const ca = a.centers?.find(c => c.is_main_center)?.center_name ?? a.centers?.[0]?.center_name ?? '-';
-          const cb = b.centers?.find(c => c.is_main_center)?.center_name ?? b.centers?.[0]?.center_name ?? '-';
+          const pick = (u: User) => u.centers?.find((c: Center) => c.is_enrollment_center) ?? u.centers?.find((c: Center) => c.is_main_center) ?? u.centers?.[0];
+          const ca = pick(a)?.center_name ?? '-';
+          const cb = pick(b)?.center_name ?? '-';
           return (ca || '').localeCompare(cb || '');
         }
       },
-      render: (_, user) => (user.centers?.find(c => c.is_main_center)?.center_name ?? user.centers?.[0]?.center_name ?? '-') },
+      render: (_, user) => {
+        const center = user.centers?.find((c: Center) => c.is_enrollment_center) ?? user.centers?.find((c: Center) => c.is_main_center) ?? user.centers?.[0];
+        return center?.center_name ?? '-';
+      } },
     { title: 'Empresa',
       sorter: {
         compare: (a, b) => {
-          const ca = a.centers?.find(c => c.is_main_center)?.company_name ?? a.centers?.[0]?.company_name ?? '-';
-          const cb = b.centers?.find(c => c.is_main_center)?.company_name ?? b.centers?.[0]?.company_name ?? '-';
+          const pick = (u: User) => u.centers?.find((c: Center) => c.is_enrollment_center) ?? u.centers?.find((c: Center) => c.is_main_center) ?? u.centers?.[0];
+          const ca = pick(a)?.company_name ?? '-';
+          const cb = pick(b)?.company_name ?? '-';
           return (ca || '').localeCompare(cb || '');
         }
       },
-      render: (_, user) => (user.centers?.find(c => c.is_main_center)?.company_name ?? user.centers?.[0]?.company_name ?? '-') },
+      render: (_, user) => {
+        const center = user.centers?.find((c: Center) => c.is_enrollment_center) ?? user.centers?.find((c: Center) => c.is_main_center) ?? user.centers?.[0];
+        return center?.company_name ?? '-';
+      } },
 ]
