@@ -1464,6 +1464,69 @@ export class ImportVelneoService {
   } catch (e) { errors.push({ row: idx, phase: 'groups', error: String(e) }); try { this.appendBadRow(`${idx},groups,"group_failed","${JSON.stringify(row).replace(/"/g,'""')}"\n`); } catch (_) {} }
     };
 
+    // After associate phase: ensure every user has at least one main center.
+    // Strategy: scan user_center rows; for any user missing is_main_center=true pick the
+    // association with the most recent start_date (if any) or the first association otherwise,
+    // then set that row as is_main_center and clear others (within a transaction per-user).
+    const ensureAllUsersHaveMainCenter = async (): Promise<number> => {
+      try {
+        const allUcs = await this.databaseService.db.select().from(userCenterTable);
+        const byUser = new Map<string, any[]>();
+        for (const u of allUcs) {
+          try {
+            const k = String(u.id_user);
+            const arr = byUser.get(k) || [];
+            arr.push(u);
+            byUser.set(k, arr);
+          } catch (e) { /* ignore per-row */ }
+        }
+
+        let fixedCount = 0;
+        for (const [uid, arr] of byUser.entries()) {
+          try {
+            if (!arr || !arr.length) continue;
+            const hasMain = arr.some(x => !!x.is_main_center);
+            if (hasMain) continue;
+
+            // pick candidate: prefer entries with start_date and choose the latest start_date
+            let candidate: any = null;
+            const withStart = arr.filter(a => a && a.start_date);
+            if (withStart.length) {
+              candidate = withStart.reduce((best, cur) => {
+                try {
+                  const btime = best && best.start_date ? new Date(best.start_date).getTime() : 0;
+                  const ctime = cur && cur.start_date ? new Date(cur.start_date).getTime() : 0;
+                  return ctime > btime ? cur : best;
+                } catch (e) { return best; }
+              }, withStart[0]);
+            } else {
+              candidate = arr[0];
+            }
+            if (!candidate) continue;
+
+            const userId = Number(uid);
+            const centerId = Number(candidate.id_center);
+            // transaction per-user to avoid partial states
+            try {
+              await this.databaseService.db.transaction(async (tx) => {
+                // clear existing flags
+                try { await tx.update(userCenterTable).set({ is_main_center: false }).where(eq(userCenterTable.id_user, userId)); } catch (e) { /* best-effort */ }
+                // set chosen row
+                try { await tx.update(userCenterTable).set({ is_main_center: true }).where(and(eq(userCenterTable.id_user, userId), eq(userCenterTable.id_center, centerId))); } catch (e) { /* best-effort */ }
+              });
+              fixedCount++;
+            } catch (e) {
+              this.logger.error(`[import] ensure main center failed for user ${userId}: ${String((e as any)?.message || e)}`);
+            }
+          } catch (e) { /* skip user on error */ }
+        }
+        return fixedCount;
+      } catch (e) {
+        this.logger.error('[import] ensureAllUsersHaveMainCenter failed: ' + String((e as any)?.message || e));
+        return 0;
+      }
+    };
+
     let i = 0;
     for (const r of rows) {
       i++;
@@ -1476,6 +1539,16 @@ export class ImportVelneoService {
     if (phase === 'associate') await processAssociatePhase(r, i);
     if (phase === 'groups') await processGroupsPhase(r, i);
       } catch (e) { errors.push({ row: i, error: String(e) }); }
+    }
+
+    // Post-phase: if we just ran 'associate', ensure every user has at least one main_center
+    if (phase === 'associate') {
+      try {
+        const fixed = await ensureAllUsersHaveMainCenter();
+        try { if (fixed && fixed > 0) this.logger.log(`[import] associate: ensured main_center for ${fixed} users missing it`); } catch (_) {}
+      } catch (e) {
+        this.logger.error('[import] post-associate ensure main center failed: ' + String((e as any)?.message || e));
+      }
     }
 
     this.logger.log(`Import finalizado. Filas: ${i}. Errores: ${errors.length}. OK: ${results.length}`);
