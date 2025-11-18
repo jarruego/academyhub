@@ -15,6 +15,11 @@ import { GroupService } from '../group/group.service';
 import { DATABASE_PROVIDER } from 'src/database/database.module';
 import { DatabaseService } from 'src/database/database.service';
 import { userCenterTable } from 'src/database/schema/tables/user_center.table';
+import { userRolesTable } from 'src/database/schema/tables/user_roles.table';
+import { userGroupTable, UserGroupUpdateModel } from 'src/database/schema/tables/user_group.table';
+import { GroupUpdateModel } from 'src/database/schema/tables/group.table';
+import { UserCourseInsertModel, UserCourseUpdateModel } from 'src/database/schema/tables/user_course.table';
+import { CourseUpdateModel } from 'src/database/schema/tables/course.table';
 import { eq, and } from 'drizzle-orm';
 
 type Phase = 'users' | 'companies' | 'associate' | 'courses' | 'groups';
@@ -309,6 +314,14 @@ export class ImportVelneoService {
       if (g?.group_name) groupByName.set(String(g.group_name).trim().toLowerCase(), g);
       if (g?.moodle_id) groupByMoodleId.set(String(g.moodle_id), g);
     }
+
+    // Preload the 'student' role id (if present) to avoid per-row queries. If not present,
+    // we'll skip setting id_role.
+    let studentRoleId: number | null = null;
+    try {
+      const sr = await this.databaseService.db.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, 'student'));
+      if (sr && sr.length) studentRoleId = sr[0].id_role;
+    } catch (e) { /* ignore - we'll not set roles if lookup fails */ }
 
     const errors: any[] = [];
     const results: any[] = [];
@@ -1181,23 +1194,24 @@ export class ImportVelneoService {
 
         // update course fields (hours, fundae_id, price_per_hour)
         try {
-          await this.courseService.update(course.id_course, {
+          const courseUpdate: CourseUpdateModel = {
             hours: Number(row.course_hours || 0) || 0,
             fundae_id: row.fundae_course_id || undefined,
             price_per_hour: row.price_per_hour ? Number(row.price_per_hour) : undefined
-          } as any);
+          };
+          await this.courseService.update(course.id_course, courseUpdate);
         } catch (e) { /* non-fatal */ }
 
         // ensure moodle user exists/linked
         try {
           const mu = await ensureMoodleUser(user, row);
-          const ucPayload: any = { id_user: user?.id_user, id_course: course.id_course };
+          const ucPayload: UserCourseInsertModel = { id_user: user!.id_user, id_course: course.id_course } as UserCourseInsertModel;
           if (mu && mu.id_moodle_user) ucPayload.id_moodle_user = mu.id_moodle_user;
           // coerce completion percentage to numeric (decimal) and time_spent to integer seconds
           // use shared parseCompletion helper defined above
           const completionPct = parseCompletion(row.completion_percentage ?? row.COMPLETION_PERCENTAGE ?? row.completion_percentage_raw);
           const timeSeconds = parseTimeToSeconds(row.time_spent_seconds ?? row.time_spent ?? row.TIME_SPENT ?? row.time_spent_raw);
-          if (completionPct !== undefined) ucPayload.completion_percentage = completionPct;
+          if (completionPct !== undefined) ucPayload.completion_percentage = String(completionPct);
           if (timeSeconds !== undefined) ucPayload.time_spent = timeSeconds;
 
           // Intentar añadir usuario al curso; si hay conflicto (unique) intentar la ruta de actualización
@@ -1406,7 +1420,7 @@ export class ImportVelneoService {
           const parsedEnd = parseFlexibleDate(rawEnd);
           // fechas no parseadas: (antes se registraban como debug), ahora no hacemos logging
           // (removed verbose group updating log)
-          const groupUpdatePayload: any = {};
+          const groupUpdatePayload: GroupUpdateModel = {};
           if (row.group_description !== undefined && row.group_description !== null && String(row.group_description).trim() !== '') {
             const cleanedDesc = sanitizeDescription(row.group_description);
             if (cleanedDesc) groupUpdatePayload.description = cleanedDesc;
@@ -1415,7 +1429,7 @@ export class ImportVelneoService {
           if (parsedEnd !== undefined && parsedEnd !== null) groupUpdatePayload.end_date = parsedEnd;
           if (row.fundae_group_id !== undefined && row.fundae_group_id !== null && String(row.fundae_group_id).trim() !== '') groupUpdatePayload.fundae_id = String(row.fundae_group_id).trim();
           if (Object.keys(groupUpdatePayload).length > 0) {
-            await this.groupService.update(group.id_group, groupUpdatePayload as any);
+            await this.groupService.update(group.id_group, groupUpdatePayload);
             // (removed verbose group update succeeded log)
           } else {
             // (removed verbose group update skipped log)
@@ -1426,39 +1440,68 @@ export class ImportVelneoService {
 
         try {
           // (removed verbose add user to group log)
-          await this.groupService.addUserToGroup({ id_group: group.id_group, id_user: user?.id_user, id_center: center?.id_center } as any);
+          const addOpts: { id_group: number; id_user: number; id_center?: number | null } = { id_group: group.id_group, id_user: user!.id_user, id_center: center?.id_center ?? undefined };
+          await this.groupService.addUserToGroup(addOpts);
           // (removed verbose addUserToGroup succeeded log)
 
           // Update user_group with completion percentage and time spent when provided
           try {
-            const ugUpdate: any = {};
+            const ugUpdate: UserGroupUpdateModel = {};
             // use shared parseCompletion helper defined above
             const completionPct = parseCompletion(row.completion_percentage ?? row.COMPLETION_PERCENTAGE ?? row.completion_percentage_raw);
             const timeSeconds = parseTimeToSeconds(row.time_spent_seconds ?? row.time_spent ?? row.TIME_SPENT ?? row.time_spent_raw);
-            if (completionPct !== undefined) ugUpdate.completion_percentage = completionPct;
+            if (completionPct !== undefined) ugUpdate.completion_percentage = String(completionPct);
             if (timeSeconds !== undefined) ugUpdate.time_spent = timeSeconds;
-              if (Object.keys(ugUpdate).length > 0) {
-              await this.groupService.updateUserInGroup(group.id_group, user?.id_user, ugUpdate as any);
+            if (Object.keys(ugUpdate).length > 0) {
+              await this.groupService.updateUserInGroup(group.id_group, user!.id_user, ugUpdate);
             }
-          } catch (ue) { this.logger.error(`[import] row=${idx} groups: user_group update failed: ${String((ue as any)?.message || ue)}`); }
+          } catch (ue) {
+            this.logger.error(`[import] row=${idx} groups: user_group update failed: ${String((ue as any)?.message || ue)}`);
+          }
 
           // Also keep user_course in sync if a course is present
           if (course) {
             try {
-              const ucUpdate: any = {};
+              const ucUpdate: UserCourseUpdateModel = {};
               // use shared parseCompletion helper defined above
               const completionPct2 = parseCompletion(row.completion_percentage ?? row.COMPLETION_PERCENTAGE ?? row.completion_percentage_raw);
               const timeSeconds2 = parseTimeToSeconds(row.time_spent_seconds ?? row.time_spent ?? row.TIME_SPENT ?? row.time_spent_raw);
-              if (completionPct2 !== undefined) ucUpdate.completion_percentage = completionPct2;
+              if (completionPct2 !== undefined) ucUpdate.completion_percentage = String(completionPct2);
               if (timeSeconds2 !== undefined) ucUpdate.time_spent = timeSeconds2;
-                if (Object.keys(ucUpdate).length > 0) {
-                await this.courseService.updateUserInCourse(course.id_course, user?.id_user, ucUpdate as any);
+              if (Object.keys(ucUpdate).length > 0) {
+                await this.courseService.updateUserInCourse(course.id_course, user!.id_user, ucUpdate);
               }
-            } catch (uce) { this.logger.error(`[import] row=${idx} groups: user_course update failed: ${String((uce as any)?.message || uce)}`); }
+            } catch (uce) {
+              this.logger.error(`[import] row=${idx} groups: user_course update failed: ${String((uce as any)?.message || uce)}`);
+            }
           }
         } catch (e) {
           this.logger.error(`[import] row=${idx} groups: addUserToGroup failed: ${String((e as any)?.message || e)}`);
         }
+
+        // If CSV specifies a student role (strict match 'Estudiante'), set id_role to the
+        // DB student id only when the current user_group.id_role is NULL/absent.
+        try {
+          const rawRole = (row.moodle_role_shortname || row.MOODLE_ROLE_SHORTNAME || row.role || row.ROLE || '').toString().trim();
+          const isStudent = rawRole.toLowerCase() === 'estudiante'; // case-insensitive match
+          if (isStudent && studentRoleId) {
+            try {
+              const ugRows = await this.databaseService.db.select().from(userGroupTable).where(and(eq(userGroupTable.id_group, group.id_group), eq(userGroupTable.id_user, user?.id_user)));
+              if (ugRows && ugRows.length) {
+                const ugRow = ugRows[0];
+                if (ugRow && (ugRow.id_role === null || ugRow.id_role === undefined)) {
+                  // set id_role only when NULL
+                  try {
+                    const roleUpdate: UserGroupUpdateModel = { id_role: studentRoleId };
+                    await this.groupService.updateUserInGroup(group.id_group, user?.id_user, roleUpdate);
+                  } catch (e) { /* best-effort */ }
+                }
+              }
+            } catch (e) {
+              this.logger.error(`[import] row=${idx} groups: set id_role failed: ${String((e as any)?.message || e)}`);
+            }
+          }
+        } catch (e) { /* ignore role-setting errors */ }
 
   results.push({ row: idx, phase: 'groups', status: 'ok', id_group: group.id_group, id_user: user?.id_user, matched_by, candidate_count });
   } catch (e) { errors.push({ row: idx, phase: 'groups', error: String(e) }); try { this.appendBadRow(`${idx},groups,"group_failed","${JSON.stringify(row).replace(/"/g,'""')}"\n`); } catch (_) {} }
