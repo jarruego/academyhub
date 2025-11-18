@@ -93,7 +93,8 @@ export class UserRepository extends Repository {
             unaccentLike(users.first_surname, searchTerm),
             unaccentLike(users.second_surname, searchTerm),
             unaccentLike(users.email, searchTerm),
-            unaccentLike(users.dni, searchTerm)
+            unaccentLike(users.dni, searchTerm),
+            unaccentLike(users.nss, searchTerm)
           )
         );
       } else {
@@ -106,7 +107,8 @@ export class UserRepository extends Repository {
               unaccentLike(users.first_surname, term),
               unaccentLike(users.second_surname, term),
               unaccentLike(users.email, term),
-              unaccentLike(users.dni, term)
+              unaccentLike(users.dni, term),
+              unaccentLike(users.nss, term)
             )
           );
         });

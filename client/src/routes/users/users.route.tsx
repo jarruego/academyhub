@@ -190,12 +190,6 @@ export default function UsersRoute() {
       scroll={{ x: 'max-content', y: tableScrollY }}
       columns={[
         {
-          title: 'ID',
-          dataIndex: 'id_user',
-          sorter: (a: User, b: User) => a.id_user - b.id_user,
-          width: 80,
-        },
-        {
           title: 'DNI',
           dataIndex: 'dni',
           sorter: (a: User, b: User) => (a.dni ?? '').localeCompare(b.dni ?? ''),
@@ -239,6 +233,12 @@ export default function UsersRoute() {
             return ca.localeCompare(cb);
           },
           width: 200,
+        }
+        ,{
+          title: 'NSS',
+          dataIndex: 'nss',
+          sorter: (a: User, b: User) => (a.nss ?? '').localeCompare(b.nss ?? ''),
+          width: 160,
         }
       ]} 
       onRow={(record: User) => ({
