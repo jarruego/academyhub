@@ -15,9 +15,9 @@ export const SALARY_GROUP_OPTIONS: Array<{ value: number; label: string }> = [
 export const EDUCATION_LEVEL_OPTIONS: Array<{ value: number; label: string }> = [
   { value: 1, label: '1 - Menos que primaria' },
   { value: 2, label: '2 - Educación primaria' },
-  { value: 3, label: '3 - Primera etapa de educación secundaria (1º y 2º ciclo de la ESO, EGB, Graduado Escolar, Certificados de profesionalidad nivel 1 y 2)' },
-  { value: 4, label: '4 - Segunda etapa de educación secundaria (Bachillerato, FP de grado medio, BUP, FPI y FPII)' },
-  { value: 5, label: '5 - Educación postsecundaria no superior (Certificados de Profesionalidad de nivel 3)' },
+  { value: 3, label: '3 - Primera etapa de educación secundaria' },
+  { value: 4, label: '4 - Segunda etapa de educación secundaria' },
+  { value: 5, label: '5 - Educación postsecundaria no superior' },
   { value: 6, label: '6 - Técnico Superior/FP grado superior y equivalentes' },
   { value: 7, label: '7 - E. universitarios 1º ciclo (Diplomatura-Grados)' },
   { value: 8, label: '8 - E. universitarios 2º ciclo (Licenciatura-Máster)' },
