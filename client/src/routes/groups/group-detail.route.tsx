@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message, Tabs, DatePicker, Modal } from "antd";
+import { Button, Form, Input, message, Tabs, DatePicker, Modal, Tag } from "antd";
 import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
+import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
 import { useEffect } from "react";
@@ -30,6 +31,7 @@ export default function EditGroupRoute() {
   const { id_group } = useParams();
   const navigate = useNavigate();
   const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(id_group || "");
+  const { data: courseData } = useCourseQuery(groupData?.id_course ? String(groupData.id_course) : "");
   const { mutateAsync: updateGroup } = useUpdateGroupMutation(id_group || "");
   const { mutateAsync: deleteGroup } = useDeleteGroupMutation(id_group || "");
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof GROUP_FORM_SCHEMA>>({
@@ -106,7 +108,16 @@ export default function EditGroupRoute() {
       children: (
         <>
           {messageContextHolder}
-          <h2>Usuarios del Grupo {groupData?.group_name ? `- ${groupData.group_name}` : ''}</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <h2 style={{ margin: 0}}>Usuarios del Grupo {groupData?.group_name ? `- ${groupData.group_name}` : ''}</h2>
+            {courseData?.course_name && (
+              <div style={{ marginLeft: 12 }}>
+                <a href={`/courses/${courseData.id_course}`} target="_blank" rel="noopener noreferrer">
+                  <Tag color="blue" style={{ cursor: 'pointer' }}>{courseData.course_name}</Tag>
+                </a>
+              </div>
+            )}
+          </div>
           <GroupUsersManager groupId={id_group ? parseInt(id_group, 10) : null} />
         </>
       ),
