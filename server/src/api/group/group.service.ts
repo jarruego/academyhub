@@ -120,6 +120,59 @@ export class GroupService {
     });
   }
 
+  /**
+   * Add multiple users to a group in a single transaction.
+   * Returns per-id results to allow the client to report partial failures.
+   */
+  async addUsersToGroup(id_group: number, userIds: number[], options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const addedIds: number[] = [];
+      const existingIds: number[] = [];
+      const failedIds: number[] = [];
+
+      const group = await this.groupRepository.findById(id_group, { transaction });
+      const id_course = group.id_course;
+
+      for (const id_user of userIds) {
+        try {
+          const existingUserGroup = await this.userGroupRepository.findByGroupAndUserId(id_group, id_user, { transaction });
+          if (existingUserGroup) {
+            existingIds.push(id_user);
+            continue;
+          }
+
+          // Ensure the user is enrolled in the course
+          const userCourse = await this.userCourseRepository.findByCourseAndUserId(id_course, id_user, { transaction });
+          if (!userCourse) {
+            await this.userCourseRepository.create({
+              id_user,
+              id_course,
+              enrollment_date: new Date(),
+              completion_percentage: "0",
+              time_spent: 0,
+            }, { transaction });
+          }
+
+          // Create user-group association
+          await this.userGroupRepository.create({
+            id_group,
+            id_user,
+            join_date: new Date(),
+            completion_percentage: "0",
+            time_spent: 0,
+            last_access: null,
+          } as any, { transaction });
+          addedIds.push(id_user);
+        } catch (err) {
+          // collect and continue
+          failedIds.push(id_user);
+        }
+      }
+
+      return { addedIds, existingIds, failedIds };
+    });
+  }
+
   async findUsersInGroup(groupId: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       // Get the users in the group

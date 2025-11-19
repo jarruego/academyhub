@@ -71,6 +71,14 @@ export class UserController {
     return this.userService.bulkCreateAndAddToGroup(users, id_group);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @Post('bulk-update')
+  async bulkUpdate(@Body() updates: { id_user: number; data: UpdateUserDTO }[]) {
+    // Basic validation
+    if (!Array.isArray(updates)) throw new BadRequestException('Invalid payload');
+    return this.userService.bulkUpdate(updates);
+  }
+
   @Get(':id/centers')
   async findCentersByUser(@Param('id') id: string) {
     const numericId = parseInt(id, 10);

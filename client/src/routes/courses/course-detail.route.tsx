@@ -56,8 +56,24 @@ export default function CourseDetailRoute() {
   const [modal, contextHolder] = Modal.useModal();
   const [userToLookup, setUserToLookup] = useState<number | null>(null);
 
+  // Provide explicit defaultValues so controlled inputs are never undefined on first render
+  const defaultModality = Object.values(CourseModality)[0] as CourseModality;
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof COURSE_DETAIL_FORM_SCHEMA>>({
     resolver: zodResolver(COURSE_DETAIL_FORM_SCHEMA),
+    defaultValues: {
+      id_course: id_course ? Number(id_course) : 0,
+      course_name: '',
+      short_name: '',
+      start_date: null,
+      end_date: null,
+      modality: defaultModality,
+      hours: null,
+      price_per_hour: null,
+      fundae_id: '',
+      active: false,
+      moodle_id: null,
+      category: '',
+    },
   });
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe, HttpCode, Res, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, ParseIntPipe, HttpCode, Res, UseGuards, BadRequestException } from '@nestjs/common';
 import { CreateGroupDTO } from '../../dto/group/create-group.dto';
 import { UpdateGroupDTO } from '../../dto/group/update-group.dto';
 import { GroupService } from './group.service';
@@ -45,6 +45,14 @@ export class GroupController {
   @Get()
   async findAll(@Query() filter: FilterGroupDTO ) {
     return this.groupService.findAll(filter);
+  }
+
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @Post(':id/users/bulk-add')
+  async bulkAddUsersToGroup(@Param('id', new ParseIntPipe()) id: number, @Body() body: { userIds: number[] }) {
+    if (!body || !Array.isArray(body.userIds)) throw new BadRequestException('Invalid payload: expected { userIds: number[] }');
+    return this.groupService.addUsersToGroup(id, body.userIds);
   }
 
   @UseGuards(RoleGuard([Role.ADMIN]))

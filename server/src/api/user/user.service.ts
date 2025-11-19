@@ -234,4 +234,27 @@ export class UserService {
       return Array.isArray(result) ? result : (result ? [result] : []);
     });
   }
+
+  /**
+   * Bulk update multiple users in a single request.
+   * Returns updatedIds and failedIds for partial reporting.
+   */
+  async bulkUpdate(updates: { id_user: number; data: UserUpdateModel }[]) {
+    return await this.databaseService.db.transaction(async transaction => {
+      const updatedIds: number[] = [];
+      const failedIds: number[] = [];
+
+      for (const u of updates) {
+        try {
+          await this.userRepository.update(u.id_user, u.data, { transaction });
+          updatedIds.push(u.id_user);
+        } catch (err) {
+          // Collect failed id and continue with others
+          failedIds.push(u.id_user);
+        }
+      }
+
+      return { updatedIds, failedIds };
+    });
+  }
 }

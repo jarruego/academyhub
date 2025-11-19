@@ -6,15 +6,20 @@ import { getApiHost } from "../../../utils/api/get-api-host.util";
 // Use a Partial<User> but explicitly exclude `id_user` so the id is never sent in the body
 type UpdateData = Omit<Partial<User>, 'id_user'>;
 
+type BulkUpdateRequest = { id_user: number; data: UpdateData }[];
+type BulkUpdateResponse = { updatedIds: number[]; failedIds: number[] };
+
 export const useBulkUpdateUsersMutation = () => {
-  const request = useAuthenticatedAxios<UpdateData>();
+  // The axios helper takes a single generic used for the request/response shape.
+  // Use a union so the config accepts the request body type and the response is typed as the response shape.
+  const request = useAuthenticatedAxios<BulkUpdateRequest | BulkUpdateResponse>();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (updates: { id_user: number; data: UpdateData }[]) => {
-      // Execute PUT requests in parallel
-      const tasks = updates.map(u => request({ method: 'PUT', url: `${getApiHost()}/user/${u.id_user}`, data: u.data }));
-      return Promise.all(tasks);
+      // Use server-side bulk endpoint to update many users in one request.
+      const resp = await request({ method: 'POST', url: `${getApiHost()}/user/bulk-update`, data: updates });
+      return resp.data;
     },
     onSuccess: () => {
       // Invalidate lookups and lists

@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { UserImportTemplate } from '../../shared/types/user/user-import-template';
 import { User } from '../../shared/types/user/user';
 import { useBulkCreateAndAddToGroupMutation } from '../../hooks/api/users/use-bulk-create-and-add-to-group.mutation';
-import { useAddUserToGroupMutation } from '../../hooks/api/groups/use-add-user-to-group.mutation';
+import { useBulkAddUsersToGroupMutation } from '../../hooks/api/groups/use-bulk-add-users-to-group.mutation';
 import { useBulkUpdateUsersMutation } from '../../hooks/api/users/use-bulk-update-users.mutation';
 import { useAllUsersLookupQuery } from '../../hooks/api/users/use-users.query';
 import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
@@ -23,7 +23,7 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
   const [users, setUsers] = useState<EnrichedUserImport[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const { mutateAsync: bulkCreateAndAddToGroup } = useBulkCreateAndAddToGroupMutation();
-  const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
+  const { mutateAsync: bulkAddUsersToGroup } = useBulkAddUsersToGroupMutation();
   const { mutateAsync: bulkUpdateUsers } = useBulkUpdateUsersMutation();
   const [messageApi, messageContextHolder] = message.useMessage();
   const { data: existingUsers } = useAllUsersLookupQuery();
@@ -89,16 +89,27 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
         return;
       }
 
-  const tasks: Promise<unknown>[] = [];
-      if (usersToCreate.length > 0) tasks.push(bulkCreateAndAddToGroup({ users: usersToCreate, id_group: parseInt(String(groupId), 10) }));
-      if (existingUserIdsToAdd.length > 0) tasks.push(Promise.all(existingUserIdsToAdd.map(id_user => addUserToGroup({ id_group: parseInt(String(groupId), 10), id_user }))));
+      // Process creations and additions with a small concurrency limit to avoid flooding the API
+      const id_group_num = parseInt(String(groupId), 10);
 
-      if (tasks.length === 0) {
-        messageApi.info('No hay usuarios seleccionados para crear o añadir al grupo.');
-        return;
+      // First, create & add new users in bulk (server endpoint handles them in one request)
+      if (usersToCreate.length > 0) {
+        await bulkCreateAndAddToGroup({ users: usersToCreate, id_group: id_group_num });
       }
 
-      await Promise.all(tasks);
+      // Then, add existing users to the group using a server-side bulk endpoint (faster and avoids many HTTP requests)
+      if (existingUserIdsToAdd.length > 0) {
+        const resp = await bulkAddUsersToGroup({ id_group: id_group_num, userIds: existingUserIdsToAdd });
+        const failed = (resp as any)?.failedIds ?? [];
+        const existing = (resp as any)?.existingIds ?? [];
+        if (failed && failed.length > 0) {
+          messageApi.warning(`Algunos usuarios no se pudieron añadir al grupo: ${failed.join(', ')}`);
+        } else if (existing && existing.length > 0) {
+          // optional informative message when some users were already in the group
+          messageApi.info(`${existing.length} usuarios ya pertenecían al grupo`);
+        }
+      }
+
       messageApi.success('Usuarios importados correctamente');
       onSuccess ? onSuccess() : onClose();
     } catch (error) {
@@ -131,8 +142,14 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
         return;
       }
 
-      await bulkUpdateUsers(updates);
-      messageApi.success('Usuarios actualizados correctamente en la BD');
+      const resp = await bulkUpdateUsers(updates);
+      // bulkUpdateUsers now returns { results, failedIds }
+      const failed = (resp as any)?.failedIds ?? [];
+      if (!failed || failed.length === 0) {
+        messageApi.success('Usuarios actualizados correctamente en la BD');
+      } else {
+        messageApi.warning(`Actualizado parcialmente: ${failed.length} usuarios no se pudieron actualizar. IDs: ${failed.join(', ')}`);
+      }
     } catch (error) {
       console.error('[import-users] update selected failed', error);
       messageApi.error(`No se pudieron actualizar los usuarios: ${(error as Error).message}`);
