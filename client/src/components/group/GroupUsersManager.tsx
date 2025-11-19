@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Table, Button, message } from 'antd';
-import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined } from '@ant-design/icons';
 import { AuthzHide } from '../permissions/authz-hide';
 import CreateUserGroupModal from './CreateUserGroupModal';
 import ImportUsersToGroupModal from './ImportUsersToGroupModal';
@@ -13,6 +13,7 @@ import { BonificationModal } from '../courses/BonificationModal';
 import { User } from '../../shared/types/user/user';
 import { USERS_TABLE_COLUMNS } from '../../constants/tables/users-table-columns.constant';
 import { useSyncMoodleGroupMembersMutation } from '../../hooks/api/moodle/use-sync-moodle-group-members.mutation';
+import useExportUsersToCsv from '../../hooks/api/groups/use-export-users-csv';
 
 interface Props {
   groupId: number | null | undefined;
@@ -33,6 +34,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const { mutateAsync: syncMoodleGroupMembers, isPending: syncMoodleGroupMembersPending } = useSyncMoodleGroupMembersMutation();
 
   const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(groupId ? String(groupId) : undefined);
+  const exportUsersToCsv = useExportUsersToCsv();
 
 
   const handleMark75 = () => {
@@ -190,6 +192,24 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
               disabled={isGroupLoading || !groupData?.moodle_id}
             >
               Traer Moodle
+            </Button>
+            <Button
+              type="default"
+              icon={<MailOutlined />}
+              onClick={async () => {
+                if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
+                if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para exportar');
+                try {
+                  await exportUsersToCsv(selectedUserIds, usersData, groupData?.group_name);
+                  messageApi.success('CSV exportado correctamente');
+                } catch (err) {
+                  console.error('Error exportando CSV', err);
+                  messageApi.error('Error al exportar CSV');
+                }
+              }}
+              disabled={isGroupLoading}
+            >
+              .csv
             </Button>
           </AuthzHide>
         </div>
