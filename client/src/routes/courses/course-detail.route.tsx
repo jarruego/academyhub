@@ -42,10 +42,18 @@ export default function CourseDetailRoute() {
   // Keep groups sorted by group_name for consistent display
   const sortedGroups = useMemo(() => {
     const list = groupsData ?? [];
+    // Sort by end_date descending (latest end_date first).
+    // If end_date is missing/null, place those groups at the end.
     return [...list].sort((a, b) => {
-      const aName = (a?.group_name ?? '') as string;
-      const bName = (b?.group_name ?? '') as string;
-      return aName.localeCompare(bName);
+      const toMillis = (d: string | Date | null | undefined) => {
+        if (!d) return Number.NEGATIVE_INFINITY; // treat missing dates as smallest so they appear last when sorting desc
+        const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
+        return Number.isFinite(t) ? t : Number.NEGATIVE_INFINITY;
+      };
+      const aTime = toMillis(a?.end_date);
+      const bTime = toMillis(b?.end_date);
+      // Descending: later dates first
+      return bTime - aTime;
     });
   }, [groupsData]);
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
