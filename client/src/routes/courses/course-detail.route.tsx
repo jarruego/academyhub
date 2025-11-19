@@ -146,12 +146,12 @@ export default function CourseDetailRoute() {
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
         <div>
           {/* Keep id_course in the form but hidden from the UI */}
-          <Controller name="id_course" control={control} render={({ field }) => <input type="hidden" {...field} id="id_course" />} />
+          <Controller name="id_course" control={control} render={({ field }) => <input type="hidden" {...field} id="id_course" value={field.value ?? ''} />} />
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           {courseData?.moodle_id ? (
             <Form.Item label="ID Moodle" name="moodle_id" style={{ width: 140 }}>
-              <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" disabled value={field.value ?? undefined} />} />
+              <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" disabled value={field.value ?? ''} />} />
             </Form.Item>
           ) : null}
           <Form.Item
@@ -162,7 +162,7 @@ export default function CourseDetailRoute() {
             help={errors.course_name?.message}
             validateStatus={errors.course_name ? "error" : undefined}
           >
-            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" />} />
+            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" value={field.value ?? ''} />} />
           </Form.Item>
           <Form.Item
             label="Nombre corto"
@@ -172,7 +172,7 @@ export default function CourseDetailRoute() {
             help={errors.short_name?.message}
             validateStatus={errors.short_name ? "error" : undefined}
           >
-            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" />} />
+            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" value={field.value ?? ''} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
@@ -244,7 +244,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="hours"
               control={control}
-              render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" style={{ width: 80 }} value={field.value ?? undefined} />}
+              render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" style={{ width: 80 }} value={field.value ?? ''} />}
             />
           </Form.Item>
           <Form.Item
@@ -256,7 +256,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="price_per_hour"
               control={control}
-              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" style={{ width: 100 }} value={field.value ?? undefined} />}
+              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" style={{ width: 100 }} value={field.value ?? ''} />}
             />
           </Form.Item>
           <Form.Item
@@ -268,7 +268,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="fundae_id"
               control={control}
-              render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} value={field.value ?? undefined} />}
+              render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} value={field.value ?? ''} />}
             />
           </Form.Item>
           <Form.Item
