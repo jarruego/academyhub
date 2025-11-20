@@ -6,7 +6,7 @@ import type { MoodleUserSelectModel } from '../../../shared/types/moodle/moodle-
 import type { Course } from '../../../shared/types/course/course';
 import { buildCsv, saveCsv, safeFilename } from '../../../utils/export-utils';
 
-type SmsRow = [string, string, string];
+type ExportRow = [string, string, string];
 
 /**
  * Hook to export selected users to a CSV file for SMS sending (no header, 3 columns: phone, message, sender).
@@ -68,7 +68,7 @@ export const useExportUsersToSmsCsv = () => {
 
   const moodleResults = await fetchMoodleBatch(withPhone, 6);
 
-    const rows: SmsRow[] = withPhone.map((u, idx) => {
+    const rows: ExportRow[] = withPhone.map((u, idx) => {
       const moodleArr = moodleResults[idx] ?? [];
       const main = (moodleArr.find((m: MoodleUserSelectModel) => m.is_main_user) ?? moodleArr[0]) ?? null;
 
