@@ -113,10 +113,21 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   };
 
   const columns = useMemo(() => {
-    return [
-      ...USERS_TABLE_COLUMNS,
-    ];
-  }, []);
+    const moodleColumn = {
+      title: 'M',
+      dataIndex: 'id_moodle_user',
+      key: 'moodle',
+      width: 48,
+      render: (_: unknown, user: User) => {
+        // backend now returns id_moodle_user on the user when available
+        const has = (user as any).id_moodle_user;
+        if (typeof has === 'undefined' || has === null) return <span style={{ color: '#ff4d4f', fontWeight: 700 }}>N</span>;
+        return <span style={{ color: '#52c41a', fontWeight: 700 }}>S</span>;
+      }
+    } as any;
+
+    return [moodleColumn, ...USERS_TABLE_COLUMNS];
+  }, [usersData]);
 
   // Compute totals for footer: total students and students with >=75% completion
   const { totalStudents, studentsAtOrAbove75 } = useMemo(() => {

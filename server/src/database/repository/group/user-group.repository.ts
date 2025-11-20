@@ -15,6 +15,8 @@ export type UserWithEnrollmentInfo = UserSelectModel & {
     role_shortname?: string | null;
     enrollment_center_id?: number | null;
     enrollment_company_cif?: string | null;
+    // id_moodle_user associated to the user's enrollment in the course (nullable)
+    id_moodle_user?: number | null;
 };
 
 @Injectable()
@@ -77,6 +79,7 @@ export class UserGroupRepository extends Repository {
             role_shortname: r.role?.role_shortname,
             enrollment_center_id: r.user_group?.id_center,
             enrollment_company_cif: r.company?.cif,
+            id_moodle_user: r.user_course?.id_moodle_user ?? null,
         }));
     }
 
@@ -96,6 +99,8 @@ export class UserGroupRepository extends Repository {
             // include the center at enrollment and the company's CIF so callers can group by the enrollment company
             enrollment_center_id: r.user_group?.id_center,
             enrollment_company_cif: r.company?.cif,
+            // for this variant we don't have user_course joined; id_moodle_user will be null
+            id_moodle_user: null,
         }));
     }
 

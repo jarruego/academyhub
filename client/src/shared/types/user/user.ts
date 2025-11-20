@@ -43,4 +43,7 @@ export type User = {
     // Role information (populated when listing users in a group)
     id_role?: number | null;
     role_shortname?: string | null;
+    // If the user has a moodle user associated to their enrollment in the course,
+    // the repository returns `id_moodle_user` (nullable).
+    id_moodle_user?: number | null;
 }
