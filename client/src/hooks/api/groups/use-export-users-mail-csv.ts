@@ -22,7 +22,7 @@ type ExportRow = {
  * Hook to export selected users to a CSV file compatible with Excel (UTF-8 BOM, ; separator, CRLF).
  * It attempts to fetch Moodle accounts per user to include username/password when available.
  */
-export const useExportUsersToCsv = () => {
+export const useExportUsersToMailCsv = () => {
   const request = useAuthenticatedAxios<MoodleUserSelectModel[]>();
 
   // Fetch moodle accounts for a single user id (returns array or empty array on error)
@@ -124,4 +124,4 @@ export const useExportUsersToCsv = () => {
   return exportSelected;
 };
 
-export default useExportUsersToCsv;
+export default useExportUsersToMailCsv;
