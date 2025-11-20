@@ -14,5 +14,11 @@ export const useMoodleCoursesQuery = () => {
                 url: `${getApiHost()}/moodle/courses/with-import-status`
             });
         },
+        // Disable automatic refetching: only refetch when user explicitly calls refetch()
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchInterval: false,
+        // Treat data as fresh indefinitely so React Query won't try to automatically revalidate
+        staleTime: Infinity,
     });
 };

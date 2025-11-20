@@ -15,5 +15,10 @@ export const useMoodleGroupsByCourseQuery = (moodleCourseId: number, enabled: bo
             });
         },
         enabled: enabled && !!moodleCourseId,
+        // Disable automatic refetching; only update when parent calls refetch()
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        refetchInterval: false,
+        staleTime: Infinity,
     });
 };

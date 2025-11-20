@@ -107,7 +107,7 @@ export const useExportUsersToCsv = () => {
 
     const csv = '\uFEFF' + csvLines.join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const filename = `${(groupName ?? 'usuarios')}_export.csv`.replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const filename = `${(groupName ?? 'usuarios')}_MAIL.csv`.replace(/[^a-zA-Z0-9_.-]/g, '_');
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
