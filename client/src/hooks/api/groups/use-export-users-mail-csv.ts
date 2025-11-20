@@ -3,6 +3,7 @@ import { useAuthenticatedAxios } from '../../../utils/api/use-authenticated-axio
 import { getApiHost } from '../../../utils/api/get-api-host.util';
 import type { User } from '../../../shared/types/user/user';
 import type { MoodleUserSelectModel } from '../../../shared/types/moodle/moodle-user.types';
+import { buildCsv, saveCsv, safeFilename } from '../../../utils/export-utils';
 
 type ExportRow = {
   usuario: string;
@@ -59,7 +60,7 @@ export const useExportUsersToMailCsv = () => {
       const moodleArr = moodleResults[idx] ?? [];
       const main = (moodleArr.find((m) => m.is_main_user) ?? moodleArr[0]) ?? null;
 
-      const username = main?.moodle_username ?? u.email ?? (u.dni ?? `user${u.id_user}`);
+      const username = main?.moodle_username ?? (u.dni ?? `user${u.id_user}`) ?? u.email;
       const password = main?.moodle_password ?? '';
       const firstName = u.name ?? '';
       const secondName = [u.first_surname ?? '', u.second_surname ?? ''].filter(Boolean).join(' ');
@@ -88,37 +89,14 @@ export const useExportUsersToMailCsv = () => {
       };
     });
 
-    // CSV building: semicolon separator, CRLF, UTF-8 BOM
-    const SEP = ';';
+    // CSV building using shared helper
     const header = ['UserName', 'Password', 'FirstName', 'SecondName', 'email', 'phone1', 'dni', 'Empresa', 'Porcentaje', 'centro', 'Grupo'];
-    const escape = (v: unknown) => {
-      if (v === null || v === undefined) return '';
-      const s = String(v);
-      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r') || s.includes(SEP)) {
-        return '"' + s.replace(/"/g, '""') + '"';
-      }
-      return s;
-    };
+    const csv = buildCsv(rows.map(r => [r.usuario, r.contraseña, r.nombre, r.apellido, r.email, r.telefono, r.dni, r.empresa, r.porcentaje, r.centro, r.grupo]), header);
+    const filename = safeFilename(`${(groupName ?? 'usuarios')}_MAIL.csv`);
 
-    const csvLines = [header.join(SEP)];
-    for (const r of rows) {
-      const line = [r.usuario, r.contraseña, r.nombre, r.apellido, r.email, r.telefono, r.dni, r.empresa, r.porcentaje, r.centro, r.grupo].map(escape).join(SEP);
-      csvLines.push(line);
-    }
-
-    const csv = '\uFEFF' + csvLines.join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const filename = `${(groupName ?? 'usuarios')}_MAIL.csv`.replace(/[^a-zA-Z0-9_.-]/g, '_');
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-
-    return { filename, rowsCount: rows.length };
+    const saved = await saveCsv(csv, filename);
+    if (saved.cancelled) return { filename: '', rowsCount: 0 };
+    return { filename: saved.filename, rowsCount: rows.length };
   }, [request]);
 
   return exportSelected;

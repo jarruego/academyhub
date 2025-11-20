@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Table, Button, message } from 'antd';
-import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined } from '@ant-design/icons';
+import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MobileOutlined } from '@ant-design/icons';
 import { AuthzHide } from '../permissions/authz-hide';
 import CreateUserGroupModal from './CreateUserGroupModal';
 import ImportUsersToGroupModal from './ImportUsersToGroupModal';
@@ -14,6 +14,7 @@ import { User } from '../../shared/types/user/user';
 import { USERS_TABLE_COLUMNS } from '../../constants/tables/users-table-columns.constant';
 import { useSyncMoodleGroupMembersMutation } from '../../hooks/api/moodle/use-sync-moodle-group-members.mutation';
 import useExportUsersToMailCsv from '../../hooks/api/groups/use-export-users-mail-csv';
+import useExportUsersToSmsCsv from '../../hooks/api/groups/use-export-users-sms-csv';
 
 interface Props {
   groupId: number | null | undefined;
@@ -35,6 +36,12 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
 
   const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(groupId ? String(groupId) : undefined);
   const exportUsersToMailCsv = useExportUsersToMailCsv();
+  const exportUsersToSmsCsv = useExportUsersToSmsCsv();
+
+  // NOTE: we intentionally avoid mounting a course query on every render because the
+  // course short_name is only needed when exporting SMS CSV. Instead we pass the
+  // groupData.id_course to the export hook and let it fetch the course lazily when
+  // the export is triggered.
 
 
   const handleMark75 = () => {
@@ -200,8 +207,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
                 if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
                 if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para exportar');
                 try {
-                  await exportUsersToMailCsv(selectedUserIds, usersData, groupData?.group_name);
-                  messageApi.success('CSV exportado correctamente');
+                  const result = await exportUsersToMailCsv(selectedUserIds, usersData, groupData?.group_name);
+                  if (!result || result.rowsCount === 0) {
+                    // treated as cancellation (user closed save dialog) or nothing exported
+                    messageApi.info('Exportación cancelada');
+                    return;
+                  }
+                  messageApi.success(`CSV exportado correctamente (${result.rowsCount} filas)`);
                 } catch (err) {
                   console.error('Error exportando CSV', err);
                   messageApi.error('Error al exportar CSV');
@@ -210,6 +222,30 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
               disabled={isGroupLoading}
             >
               .csv
+            </Button>
+            <Button
+              type="default"
+              icon={<MobileOutlined />}
+              onClick={async () => {
+                if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
+                if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para exportar');
+                try {
+                  const courseId = groupData?.id_course;
+                  const groupName = groupData?.group_name ?? '';
+                  const result = await exportUsersToSmsCsv(selectedUserIds, usersData, courseId, groupName);
+                  if (!result || result.rowsCount === 0) {
+                    messageApi.info('Exportación cancelada');
+                    return;
+                  }
+                  messageApi.success(`CSV SMS exportado correctamente (${result.rowsCount} filas)`);
+                } catch (err) {
+                  console.error('Error exportando SMS CSV', err);
+                  messageApi.error('Error al exportar SMS CSV');
+                }
+              }}
+              disabled={isGroupLoading}
+            >
+              SMS .csv
             </Button>
           </AuthzHide>
         </div>
