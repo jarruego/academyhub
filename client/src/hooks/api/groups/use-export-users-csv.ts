@@ -57,7 +57,7 @@ export const useExportUsersToCsv = () => {
 
     const rows: ExportRow[] = selected.map((u, idx) => {
       const moodleArr = moodleResults[idx] ?? [];
-      const main = (moodleArr.find((m: any) => m.is_main_user) || moodleArr[0]) || null;
+      const main = (moodleArr.find((m) => m.is_main_user) ?? moodleArr[0]) ?? null;
 
       const username = main?.moodle_username ?? u.email ?? (u.dni ?? `user${u.id_user}`);
       const password = main?.moodle_password ?? '';
@@ -66,10 +66,11 @@ export const useExportUsersToCsv = () => {
       const email = u.email ?? '';
       const phone1 = u.phone ?? '';
       const dni = u.dni ?? '';
-  const company = (u.centers && u.centers.length > 0) ? (u.centers.find((c: any) => (c as any).is_main_center) ?? u.centers[0]).company_name ?? '' : '';
+      const mainCenter = (u.centers && u.centers.length > 0) ? (u.centers.find((c) => c.is_main_center) ?? u.centers[0]) : undefined;
+      const company = mainCenter ? mainCenter.company_name ?? '' : '';
       const porcentajeRaw = u.completion_percentage ?? 0;
       const porcentaje = (typeof porcentajeRaw === 'number' && porcentajeRaw > 0 && porcentajeRaw <= 1) ? (porcentajeRaw * 100).toString() : String(porcentajeRaw ?? '0');
-  const centro = (u.centers && u.centers.length > 0) ? (u.centers.find((c: any) => (c as any).is_main_center) ?? u.centers[0]).center_name ?? '' : '';
+      const centro = mainCenter ? mainCenter.center_name ?? '' : '';
       const grupo = groupName ?? '';
 
       return {
