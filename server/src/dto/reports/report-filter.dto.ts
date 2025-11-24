@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsInt, IsString, IsDateString } from "class-validator";
+import { IsOptional, IsInt, IsString, IsDateString, IsArray } from "class-validator";
 import { Type } from "class-transformer";
 
 export class ReportFilterDTO {
@@ -15,15 +15,19 @@ export class ReportFilterDTO {
   @IsInt()
   limit?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: [Number] })
   @IsOptional()
-  @IsInt()
-  id_company?: number;
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  id_company?: number[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: [Number] })
   @IsOptional()
-  @IsInt()
-  id_center?: number;
+  @IsArray()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  id_center?: number[];
 
   @ApiPropertyOptional()
   @IsOptional()

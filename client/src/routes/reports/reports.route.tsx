@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Table, TablePaginationConfig } from 'antd';
+import { Table, TablePaginationConfig, Select, Space } from 'antd';
 import type { SorterResult, FilterValue } from 'antd/es/table/interface';
 import { useReportsQuery } from '../../hooks/api/reports/use-reports.query';
+import { useCompaniesQuery } from '../../hooks/api/companies/use-companies.query';
+import { useCentersQuery } from '../../hooks/api/centers/use-centers.query';
+import { useCentersByCompaniesQuery } from '../../hooks/api/centers/use-centers-by-companies.query';
 import { ReportRow } from '../../shared/types/reports/report-row';
 import { PaginationResult } from '../../shared/types/pagination';
+import type { Center } from '../../shared/types/center/center';
 
 export default function ReportsRoute() {
   useEffect(() => {
@@ -12,11 +16,53 @@ export default function ReportsRoute() {
 
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(50);
+  const [selectedCompanies, setSelectedCompanies] = useState<number[]>([]);
+  const [selectedCenters, setSelectedCenters] = useState<number[]>([]);
+  const [availableCenters, setAvailableCenters] = useState<Center[]>([]);
 
   const [sortField, setSortField] = useState<string | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>(undefined);
 
-  const { data, isLoading } = useReportsQuery({ page, limit: pageSize, sort_field: sortField, sort_order: sortOrder });
+  // Fetch companies (for select options)
+  const { data: companies } = useCompaniesQuery();
+
+  // When no companies selected, fetch all centers via the centers hook
+  const { data: allCenters } = useCentersQuery();
+  // Fetch centers for the selected companies (hook handles parallel requests & dedupe)
+  const { data: centersForCompanies } = useCentersByCompaniesQuery(selectedCompanies?.length ? selectedCompanies : undefined);
+
+  // Update available centers depending on selectedCompanies
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      // If no companies selected, show all centers (if available)
+      if (!selectedCompanies || selectedCompanies.length === 0) {
+        if (mounted) setAvailableCenters(allCenters ?? []);
+        return;
+      }
+
+      // If we already have allCenters, filter locally (fast and avoids many requests)
+      if (allCenters && Array.isArray(allCenters)) {
+        const filtered = allCenters.filter((c: Center) => selectedCompanies.includes(c.id_company));
+        if (mounted) setAvailableCenters(filtered);
+        return;
+      }
+      // If we don't have allCenters, but the centersForCompanies query has data, use it.
+      if (centersForCompanies && Array.isArray(centersForCompanies)) {
+        if (mounted) setAvailableCenters(centersForCompanies);
+        return;
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [selectedCompanies, allCenters, centersForCompanies]);
+
+  // Build params including chosen company/center filters (arrays)
+  const params: Record<string, any> = { page, limit: pageSize, sort_field: sortField, sort_order: sortOrder };
+  if (selectedCompanies && selectedCompanies.length) params.id_company = selectedCompanies;
+  if (selectedCenters && selectedCenters.length) params.id_center = selectedCenters;
+
+  const { data, isLoading } = useReportsQuery(params);
 
   // Backend returns PaginationResult<ReportRow>
   const paginated: PaginationResult<ReportRow> | undefined = data;
@@ -69,8 +115,32 @@ export default function ReportsRoute() {
   return (
     <div>
       <h1>Informes</h1>
+      <Space style={{ marginBottom: 12 }}>
+        <div>
+          <div style={{ marginBottom: 4 }}>Empresa</div>
+          <Select<any>
+            mode="multiple"
+            style={{ minWidth: 240 }}
+            placeholder="Selecciona empresas"
+            value={selectedCompanies}
+            onChange={(vals) => { setSelectedCompanies(vals as number[]); setSelectedCenters([]); /* reset centers selection when companies change */ }}
+            options={(companies || []).map(c => ({ label: c.company_name ?? String(c.id_company), value: c.id_company }))}
+          />
+        </div>
+        <div>
+          <div style={{ marginBottom: 4 }}>Centro</div>
+          <Select<any>
+            mode="multiple"
+            style={{ minWidth: 240 }}
+            placeholder="Selecciona centros"
+            value={selectedCenters}
+            onChange={(vals) => setSelectedCenters(vals as number[])}
+            options={(availableCenters || []).map(c => ({ label: c.center_name ?? String(c.id_center), value: c.id_center }))}
+          />
+        </div>
+      </Space>
       <Table
-        rowKey={(record: ReportRow, idx?: number) => `${record.dni ?? ''}-${record.moodle_id ?? ''}-${idx ?? 0}`}
+        rowKey={(record: ReportRow) => (record.id_user && record.id_group) ? `${record.id_user}-${record.id_group}` : `${record.dni ?? ''}-${record.moodle_id ?? ''}`}
         loading={isLoading}
         dataSource={rows}
         columns={columns}

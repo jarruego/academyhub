@@ -2,6 +2,11 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 
 export class ReportRowDTO {
   @ApiPropertyOptional()
+  id_user?: number;
+
+  @ApiPropertyOptional()
+  id_group?: number;
+  @ApiPropertyOptional()
   name?: string;
 
   @ApiPropertyOptional()

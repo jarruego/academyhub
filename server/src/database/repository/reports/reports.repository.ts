@@ -27,8 +27,21 @@ export class ReportsRepository extends Repository {
 
     const where: any[] = [];
 
-    if (filter?.id_company) where.push(eq(companyTable.id_company, filter.id_company));
-    if (filter?.id_center) where.push(eq(centers.id_center, filter.id_center));
+    // support arrays for company/center filters (multiple selection)
+    if (filter?.id_company) {
+      if (Array.isArray(filter.id_company) && filter.id_company.length) {
+        where.push(or(...filter.id_company.map((id) => eq(companyTable.id_company, Number(id)))));
+      } else if (!Array.isArray(filter.id_company)) {
+        where.push(eq(companyTable.id_company, filter.id_company));
+      }
+    }
+    if (filter?.id_center) {
+      if (Array.isArray(filter.id_center) && filter.id_center.length) {
+        where.push(or(...filter.id_center.map((id) => eq(centers.id_center, Number(id)))));
+      } else if (!Array.isArray(filter.id_center)) {
+        where.push(eq(centers.id_center, filter.id_center));
+      }
+    }
     if (filter?.id_course) where.push(eq(courseTable.id_course, filter.id_course));
     if (filter?.id_role) where.push(eq(userGroupTable.id_role, filter.id_role));
 
@@ -118,6 +131,8 @@ export class ReportsRepository extends Repository {
       .offset(offset);
 
     const mapped = rows.map((r) => ({
+      id_user: r.user?.id_user,
+      id_group: r.user_group?.id_group,
       name: r.user?.name,
       first_surname: r.user?.first_surname,
       second_surname: r.user?.second_surname,
@@ -139,8 +154,19 @@ export class ReportsRepository extends Repository {
       moodle_password: r.moodle_user?.moodle_password ?? null,
     }));
 
+    // Deduplicate rows that may repeat due to LEFT JOINs (user_course, moodle_user, etc.).
+    // Use the primary composite key id_user-id_group when available; fall back to dni-moodle_id.
+    const uniqueMap = new Map<string, (typeof mapped)[number]>();
+    for (const r of mapped) {
+      const key = (r.id_user != null && r.id_group != null)
+        ? `${r.id_user}-${r.id_group}`
+        : `${r.dni ?? ''}-${r.moodle_id ?? ''}`;
+      if (!uniqueMap.has(key)) uniqueMap.set(key, r);
+    }
+    const uniqueArr = Array.from(uniqueMap.values());
+
     return {
-      data: mapped,
+      data: uniqueArr,
       total,
       page,
       limit,

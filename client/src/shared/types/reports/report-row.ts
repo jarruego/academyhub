@@ -1,4 +1,6 @@
 export type ReportRow = {
+  id_user?: number;
+  id_group?: number;
   name?: string;
   first_surname?: string;
   second_surname?: string;
