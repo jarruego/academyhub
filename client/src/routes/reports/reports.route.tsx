@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Table, TablePaginationConfig, Select, Space } from 'antd';
-import type { SorterResult, FilterValue } from 'antd/es/table/interface';
-import { useReportsQuery } from '../../hooks/api/reports/use-reports.query';
+import { useDebounce } from '../../hooks/use-debounce';
+import { normalizeSearch } from '../../utils/normalize-search';
+import dayjs from 'dayjs';
+import type { Dayjs } from 'dayjs';
+import { Table, TablePaginationConfig, Select, Space, DatePicker, Input } from 'antd';
+import type { SorterResult, FilterValue, SortOrder } from 'antd/es/table/interface';
+import { useReportsQuery, ReportsQueryParams } from '../../hooks/api/reports/use-reports.query';
+import { useCoursesQuery } from '../../hooks/api/courses/use-courses.query';
+import { useGroupsQuery } from '../../hooks/api/groups/use-groups.query';
 import { useCompaniesQuery } from '../../hooks/api/companies/use-companies.query';
 import { useCentersQuery } from '../../hooks/api/centers/use-centers.query';
 import { useCentersByCompaniesQuery } from '../../hooks/api/centers/use-centers-by-companies.query';
@@ -19,17 +25,35 @@ export default function ReportsRoute() {
   const [selectedCompanies, setSelectedCompanies] = useState<number[]>([]);
   const [selectedCenters, setSelectedCenters] = useState<number[]>([]);
   const [availableCenters, setAvailableCenters] = useState<Center[]>([]);
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | undefined>(undefined);
+  const [search, setSearch] = useState<string>('');
+  const debouncedSearch = useDebounce(search, 350);
+  // Normalize the debounced search using shared util
+  const normalizedSearch = useMemo(() => normalizeSearch(debouncedSearch), [debouncedSearch]);
+  const [selectedCourse, setSelectedCourse] = useState<number | undefined>(undefined);
+  const [selectedGroup, setSelectedGroup] = useState<number[]>([]);
 
-  const [sortField, setSortField] = useState<string | undefined>(undefined);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>(undefined);
+  // Default to sort by group end date (newest first)
+  const [sortField, setSortField] = useState<string | undefined>('group_end_date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>('desc');
 
   // Fetch companies (for select options)
   const { data: companies } = useCompaniesQuery();
+  // keep companies sorted alphabetically by name for the Select
+  const sortedCompanies = useMemo(() => (companies && Array.isArray(companies)) ? [...companies].sort((a, b) => String(a.company_name ?? '').localeCompare(String(b.company_name ?? ''))) : [], [companies]);
 
   // When no companies selected, fetch all centers via the centers hook
   const { data: allCenters } = useCentersQuery();
   // Fetch centers for the selected companies (hook handles parallel requests & dedupe)
   const { data: centersForCompanies } = useCentersByCompaniesQuery(selectedCompanies?.length ? selectedCompanies : undefined);
+  // Fetch courses and groups for the course/group filters
+  const { data: courses } = useCoursesQuery();
+  // Pass the numeric course id (or undefined) so the groups query can enable/disable itself
+  const { data: groupsForCourse } = useGroupsQuery(selectedCourse);
+
+  // Keep courses and groups sorted alphabetically by name for their Selects
+  const sortedCourses = useMemo(() => (courses && Array.isArray(courses)) ? [...courses].sort((a, b) => String(a.course_name ?? '').localeCompare(String(b.course_name ?? ''))) : [], [courses]);
+  const sortedGroups = useMemo(() => (groupsForCourse && Array.isArray(groupsForCourse)) ? [...groupsForCourse].sort((a, b) => String(a.group_name ?? '').localeCompare(String(b.group_name ?? ''))) : [], [groupsForCourse]);
 
   // Update available centers depending on selectedCompanies
   useEffect(() => {
@@ -37,19 +61,19 @@ export default function ReportsRoute() {
     const load = async () => {
       // If no companies selected, show all centers (if available)
       if (!selectedCompanies || selectedCompanies.length === 0) {
-        if (mounted) setAvailableCenters(allCenters ?? []);
+        if (mounted) setAvailableCenters((allCenters ?? []).slice().sort((a: Center, b: Center) => String(a.center_name ?? '').localeCompare(String(b.center_name ?? ''))));
         return;
       }
 
       // If we already have allCenters, filter locally (fast and avoids many requests)
       if (allCenters && Array.isArray(allCenters)) {
-        const filtered = allCenters.filter((c: Center) => selectedCompanies.includes(c.id_company));
+        const filtered = allCenters.filter((c: Center) => selectedCompanies.includes(c.id_company)).slice().sort((a: Center, b: Center) => String(a.center_name ?? '').localeCompare(String(b.center_name ?? '')));
         if (mounted) setAvailableCenters(filtered);
         return;
       }
       // If we don't have allCenters, but the centersForCompanies query has data, use it.
       if (centersForCompanies && Array.isArray(centersForCompanies)) {
-        if (mounted) setAvailableCenters(centersForCompanies);
+        if (mounted) setAvailableCenters(centersForCompanies.slice().sort((a: Center, b: Center) => String(a.center_name ?? '').localeCompare(String(b.center_name ?? ''))));
         return;
       }
     };
@@ -58,9 +82,18 @@ export default function ReportsRoute() {
   }, [selectedCompanies, allCenters, centersForCompanies]);
 
   // Build params including chosen company/center filters (arrays)
-  const params: Record<string, any> = { page, limit: pageSize, sort_field: sortField, sort_order: sortOrder };
+  const params: ReportsQueryParams = { page, limit: pageSize, sort_field: sortField, sort_order: sortOrder };
   if (selectedCompanies && selectedCompanies.length) params.id_company = selectedCompanies;
   if (selectedCenters && selectedCenters.length) params.id_center = selectedCenters;
+  if (selectedCourse !== undefined && selectedCourse !== null) params.id_course = selectedCourse;
+  if (selectedGroup && selectedGroup.length) params.id_group = selectedGroup;
+  if (normalizedSearch) params.search = normalizedSearch;
+  if (dateRange && dateRange[0] && dateRange[1]) {
+    // Send ISO datetimes covering the whole days so filtering is inclusive:
+    // start at 00:00:00 and end at 23:59:59.999 in UTC (to avoid timezone issues send ISO strings).
+    params.start_date = dateRange[0].startOf('day').toISOString();
+    params.end_date = dateRange[1].endOf('day').toISOString();
+  }
 
   const { data, isLoading } = useReportsQuery(params);
 
@@ -81,8 +114,22 @@ export default function ReportsRoute() {
     { title: 'Empresa', dataIndex: 'company_name', key: 'company_name', sorter: true },
     { title: 'CIF empresa', dataIndex: 'company_cif', key: 'company_cif', sorter: true },
     { title: 'Grupo', dataIndex: 'group_name', key: 'group_name', sorter: true },
-    { title: 'Inicio grupo', dataIndex: 'group_start_date', key: 'group_start_date', sorter: true },
-    { title: 'Fin grupo', dataIndex: 'group_end_date', key: 'group_end_date', sorter: true },
+    {
+      title: 'Inicio grupo',
+      dataIndex: 'group_start_date',
+      key: 'group_start_date',
+      sorter: true,
+      render: (val: string | undefined) => val ? dayjs(val).format('DD/MM/YYYY') : '',
+    },
+    {
+      title: 'Fin grupo',
+      dataIndex: 'group_end_date',
+      key: 'group_end_date',
+      sorter: true,
+      // Show newest first by default in UI indicator
+  defaultSortOrder: 'descend' as SortOrder,
+      render: (val: string | undefined) => val ? dayjs(val).format('DD/MM/YYYY') : '',
+    },
     { title: 'Rol', dataIndex: 'role_shortname', key: 'role_shortname', sorter: true },
     { title: 'Completado (%)', dataIndex: 'completion_percentage', key: 'completion_percentage', sorter: true },
     { title: 'Curso', dataIndex: 'course_name', key: 'course_name', sorter: true },
@@ -115,30 +162,96 @@ export default function ReportsRoute() {
   return (
     <div>
       <h1>Informes</h1>
-      <Space style={{ marginBottom: 12 }}>
-        <div>
-          <div style={{ marginBottom: 4 }}>Empresa</div>
-          <Select<any>
-            mode="multiple"
-            style={{ minWidth: 240 }}
-            placeholder="Selecciona empresas"
-            value={selectedCompanies}
-            onChange={(vals) => { setSelectedCompanies(vals as number[]); setSelectedCenters([]); /* reset centers selection when companies change */ }}
-            options={(companies || []).map(c => ({ label: c.company_name ?? String(c.id_company), value: c.id_company }))}
-          />
-        </div>
-        <div>
-          <div style={{ marginBottom: 4 }}>Centro</div>
-          <Select<any>
-            mode="multiple"
-            style={{ minWidth: 240 }}
-            placeholder="Selecciona centros"
-            value={selectedCenters}
-            onChange={(vals) => setSelectedCenters(vals as number[])}
-            options={(availableCenters || []).map(c => ({ label: c.center_name ?? String(c.id_center), value: c.id_center }))}
-          />
-        </div>
-      </Space>
+      <div style={{ marginBottom: 12 }}>
+        <Input.Search
+          placeholder="Buscar por nombre, apellidos, email, dni, nss o teléfono"
+          allowClear
+          enterButton={false}
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          style={{ width: 600 }}
+        />
+      </div>
+  <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* First row: Course & Groups */}
+        <Space>
+          <div>
+            <div style={{ marginBottom: 4 }}>Curso</div>
+            <Select<number>
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              placeholder="Selecciona curso"
+              style={{ minWidth: 240 }}
+              value={selectedCourse}
+              onChange={(val) => { setSelectedCourse(val == null ? undefined : Number(val)); setSelectedGroup([]); setPage(1); }}
+              options={(sortedCourses || []).map(c => ({ label: c.course_name ?? String(c.id_course), value: c.id_course }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Grupo</div>
+            <Select<number[]>
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              placeholder="Selecciona grupo"
+              style={{ minWidth: 240 }}
+              mode="multiple"
+              disabled={!selectedCourse}
+              value={selectedGroup}
+              onChange={(vals: number[]) => { setSelectedGroup(vals); setPage(1); }}
+              options={(sortedGroups || []).map(g => ({ label: g.group_name ?? String(g.id_group), value: g.id_group }))}
+            />
+          </div>
+        </Space>
+
+        {/* Second row: Company, Center and Date range */}
+        <Space>
+          <div>
+            <div style={{ marginBottom: 4 }}>Empresa</div>
+            <Select<number[]>
+              mode="multiple"
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              style={{ minWidth: 240 }}
+              placeholder="Selecciona empresas"
+              value={selectedCompanies}
+              onChange={(vals: number[]) => { setSelectedCompanies(vals); setSelectedCenters([]); /* reset centers selection when companies change */ }}
+              options={(sortedCompanies || []).map(c => ({ label: c.company_name ?? String(c.id_company), value: c.id_company }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Centro</div>
+            <Select<number[]>
+              mode="multiple"
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              style={{ minWidth: 240 }}
+              placeholder="Selecciona centros"
+              value={selectedCenters}
+              onChange={(vals: number[]) => setSelectedCenters(vals)}
+              options={(availableCenters || []).map(c => ({ label: c.center_name ?? String(c.id_center), value: c.id_center }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Rango fechas grupo</div>
+            <DatePicker.RangePicker
+              style={{ minWidth: 300 }}
+              value={dateRange}
+              format="DD/MM/YYYY"
+              onChange={(dates) => {
+                setDateRange(dates as [Dayjs | null, Dayjs | null] | undefined);
+                setPage(1);
+              }}
+              allowClear
+            />
+          </div>
+        </Space>
+      </div>
       <Table
         rowKey={(record: ReportRow) => (record.id_user && record.id_group) ? `${record.id_user}-${record.id_group}` : `${record.dni ?? ''}-${record.moodle_id ?? ''}`}
         loading={isLoading}

@@ -9,6 +9,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useDebounce } from "../../hooks/use-debounce";
+import { normalizeSearch } from "../../utils/normalize-search";
 import { User } from "../../shared/types/user/user";
 import { TablePaginationConfig } from "antd/es/table";
 
@@ -21,16 +22,8 @@ export default function UsersRoute() {
   // Debounce search para evitar muchas consultas
   const debouncedSearchText = useDebounce(searchText, 500);
 
-  // Normalizar texto de búsqueda: eliminar espacios extras y normalizar acentos
-  const normalizedSearchText = useMemo(() => {
-    if (!debouncedSearchText) return "";
-    return debouncedSearchText
-      .trim()
-      .replace(/\s+/g, ' ') // Reemplazar múltiples espacios por uno solo
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
-      .toLowerCase();
-  }, [debouncedSearchText]);
+  // Normalizar texto de búsqueda: eliminar espacios extras, normalizar acentos y caracteres especiales
+  const normalizedSearchText = useMemo(() => normalizeSearch(debouncedSearchText), [debouncedSearchText]);
 
   const [selectedCompany, setSelectedCompany] = useState<string | undefined>(undefined);
   const [selectedCenter, setSelectedCenter] = useState<string | undefined>(undefined);

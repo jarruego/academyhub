@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { Repository, QueryOptions } from "../repository";
 import { and, eq, sql, or, count, desc } from "drizzle-orm";
+import type { SQL } from 'drizzle-orm/sql/sql.js';
+import type { PgColumn } from 'drizzle-orm/pg-core/columns/index.js';
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { userTable } from "src/database/schema/tables/user.table";
 import { groupTable } from "src/database/schema/tables/group.table";
@@ -25,7 +27,8 @@ export class ReportsRepository extends Repository {
     const limit = Number(filter?.limit) || 100;
     const offset = (page - 1) * limit;
 
-    const where: any[] = [];
+  // Conditions for WHERE clause: Drizzle SQL expressions
+  const where: SQL[] = [];
 
     // support arrays for company/center filters (multiple selection)
     if (filter?.id_company) {
@@ -43,17 +46,34 @@ export class ReportsRepository extends Repository {
       }
     }
     if (filter?.id_course) where.push(eq(courseTable.id_course, filter.id_course));
+    // Support multiple selected groups (id_group can be number[])
+    if (filter?.id_group) {
+      if (Array.isArray(filter.id_group) && filter.id_group.length) {
+        where.push(or(...filter.id_group.map((id) => eq(groupTable.id_group, Number(id)))));
+      } else if (!Array.isArray(filter.id_group)) {
+        where.push(eq(groupTable.id_group, filter.id_group as unknown as number));
+      }
+    }
     if (filter?.id_role) where.push(eq(userGroupTable.id_role, filter.id_role));
 
     if (filter?.start_date) where.push(sql`${groupTable.start_date} >= ${filter.start_date}`);
     if (filter?.end_date) where.push(sql`${groupTable.end_date} <= ${filter.end_date}`);
 
     if (filter?.search) {
-      const term = `%${String(filter.search).trim().toLowerCase()}%`;
+      const term = `%${String(filter.search).trim()}%`;
+      // Search across multiple user fields: name, first/second surname, full name,
+      // dni, email, phone and employer number (nss). Use unaccent+lower for
+      // case- and accent-insensitive matching (Postgres unaccent extension).
       where.push(or(
-        sql`lower(${userTable.name}) LIKE ${term}`,
-        sql`lower(${userTable.dni}) LIKE ${term}`,
-        sql`lower(${userTable.email}) LIKE ${term}`,
+        sql`unaccent(lower(${userTable.name})) LIKE unaccent(lower(${term}))`,
+        sql`unaccent(lower(${userTable.first_surname})) LIKE unaccent(lower(${term}))`,
+        sql`unaccent(lower(${userTable.second_surname})) LIKE unaccent(lower(${term}))`,
+  // full name concatenation
+  sql`unaccent(lower(${userTable.name} || ' ' || COALESCE(${userTable.first_surname}, '') || ' ' || COALESCE(${userTable.second_surname}, ''))) LIKE unaccent(lower(${term}))`,
+        sql`unaccent(lower(${userTable.dni})) LIKE unaccent(lower(${term}))`,
+        sql`unaccent(lower(${userTable.email})) LIKE unaccent(lower(${term}))`,
+        sql`unaccent(lower(${userTable.phone})) LIKE unaccent(lower(${term}))`,
+        sql`unaccent(lower(${centers.employer_number})) LIKE unaccent(lower(${term}))`,
       ));
     }
 
@@ -74,7 +94,7 @@ export class ReportsRepository extends Repository {
     const total = Number(totalResult?.[0]?.total ?? 0);
 
     // Build order clause from requested sort field/order, but only allow known columns
-    const sortableMap: Record<string, any> = {
+    const sortableMap: Record<string, PgColumn> = {
       name: userTable.name,
       first_surname: userTable.first_surname,
       second_surname: userTable.second_surname,
@@ -95,11 +115,29 @@ export class ReportsRepository extends Repository {
       moodle_username: moodleUserTable.moodle_username,
     };
 
-    let orderClause: any = userTable.id_user;
+    // Build order clause(s). For date columns, ensure NULLs are treated as "older"
+    // (i.e. nulls are considered older than any real date). This means:
+    // - when sorting DESC (newest first) nulls go last
+    // - when sorting ASC (oldest first) nulls go first
+  // Typed order clause: can hold PG-specific columns, SQL expressions or descending wrappers
+  let orderClause: Array<PgColumn | SQL | ReturnType<typeof desc>> = [userTable.id_user as PgColumn];
     if (filter?.sort_field) {
       const col = sortableMap[String(filter.sort_field)];
       if (col) {
-        orderClause = filter.sort_order === 'desc' ? desc(col) : col;
+        // If the column is one of the group date columns, build a composite order
+        // using a CASE expression to push nulls to the desired side.
+        const isGroupDate = col === groupTable.start_date || col === groupTable.end_date;
+        if (isGroupDate) {
+          if (filter.sort_order === 'desc') {
+            // nulls last: sort by (col IS NULL) so non-nulls (0) come first, then by value desc
+            orderClause = [sql`CASE WHEN ${col} IS NULL THEN 1 ELSE 0 END`, desc(col)];
+          } else {
+            // asc: nulls first: make nulls 0 so they come before real dates
+            orderClause = [sql`CASE WHEN ${col} IS NULL THEN 0 ELSE 1 END`, col];
+          }
+        } else {
+          orderClause = filter.sort_order === 'desc' ? [desc(col)] : [col];
+        }
       }
     }
 
@@ -126,7 +164,7 @@ export class ReportsRepository extends Repository {
       .leftJoin(centers, eq(userCenterTable.id_center, centers.id_center))
       .leftJoin(companyTable, eq(centers.id_company, companyTable.id_company))
   .where(whereCondition)
-  .orderBy(orderClause)
+  .orderBy(...orderClause)
       .limit(limit)
       .offset(offset);
 
