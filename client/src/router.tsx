@@ -23,12 +23,14 @@ import MoodleImportRoute from './routes/tools/moodle-import.route';
 import SageImportRoute from './routes/tools/import-sage.route';
 import ImportVelneoRoute from './routes/tools/import-velneo.route';
 import UserManagementRoute from './routes/auth-users/auth-user-management.route';
+import ReportsRoute from './routes/reports/reports.route';
 import { useRole } from './utils/permissions/use-role';
 import { Role } from './hooks/api/auth/use-login.mutation';
 import {
   HomeOutlined,
   UserOutlined,
   BookOutlined,
+  PieChartOutlined,
   ApartmentOutlined,
   BankOutlined,
   ToolOutlined,
@@ -45,12 +47,13 @@ const Sidebar = () => {
     { key: '/', icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
     { key: '/users', icon: <UserOutlined />, label: <Link to="/users">Usuarios</Link> },
   { key: '/groups', icon: <TeamOutlined />, label: <Link to="/groups">Grupos</Link> },
-    { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
-    { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
+  { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
+  { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
     { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers">Centros</Link> },
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER
       ? [
-          { key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> }
+          { key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> },
+          { key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports">Informes</Link> },
         ]
       : []),
   ];
@@ -91,6 +94,7 @@ export default function AppRouter() {
               <Route path="/centers/:id_center/edit" element={<EditCenterRoute />} /> 
               <Route path="/add-company" element={<CreateCompanyRoute />} />
               <Route path="/centers" element={<CentersRoute />} />
+              <Route path="/reports" element={<ReportsRoute />} />
               <Route path="/tools" element={<ToolsRoute />} />
               <Route path="/tools/data-cross-reference" element={<DataCrossReferenceRoute />} />
               <Route path="/tools/user-management" element={<UserManagementRoute />} />

@@ -1,0 +1,21 @@
+export type ReportRow = {
+  name?: string;
+  first_surname?: string;
+  second_surname?: string;
+  dni?: string;
+  email?: string;
+  phone?: string;
+  center_name?: string | null;
+  employer_number?: string | null;
+  company_name?: string | null;
+  company_cif?: string | null;
+  group_name?: string | null;
+  group_start_date?: string | Date | null;
+  group_end_date?: string | Date | null;
+  role_shortname?: string | null;
+  completion_percentage?: number | string | null;
+  course_name?: string | null;
+  moodle_id?: number | null;
+  moodle_username?: string | null;
+  moodle_password?: string | null;
+};
