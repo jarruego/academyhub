@@ -135,21 +135,139 @@ export class ReportsPdfService {
   }
 
   /**
+   * Stream a certification-style PDF grouped by center -> course -> group.
+   * For each group we render a short paragraph certifying attendance and a
+   * simple table with Nombre, Apellidos y DNI. Pages break by center, course and group.
+   */
+  async streamCertificationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer }) {
+    const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
+    const data = await this.reportsRepository.getReportRows(requestFilter);
+    const rows: ReportRowDTO[] = data?.data ?? [];
+    return this.streamCertificationPdfFromRows(rows, res, opts);
+  }
+
+  async streamCertificationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer }) {
+    // Group by center -> course -> group
+    const centersMap = new Map<string, Map<string, Map<string, ReportRowDTO[]>>>();
+    for (const r of rows) {
+      const center = String(r.center_name ?? 'Sin centro');
+      const course = String(r.course_name ?? 'Sin curso');
+      const group = String(r.group_name ?? 'Sin grupo');
+      if (!centersMap.has(center)) centersMap.set(center, new Map());
+      const courseMap = centersMap.get(center)!;
+      if (!courseMap.has(course)) courseMap.set(course, new Map());
+      const groupMap = courseMap.get(course)!;
+      if (!groupMap.has(group)) groupMap.set(group, []);
+      groupMap.get(group)!.push(r);
+    }
+
+    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
+    this.pdfService.streamDocumentToResponse(doc, res, 'report-certification.pdf');
+
+    if (opts?.logoBuffer) this.pdfService.embedImageSafe(doc, opts.logoBuffer, doc.x, doc.y, { width: 120 });
+
+    const issuer = opts?.issuerName ?? 'Fulanito de Tal';
+
+    const centerEntries = Array.from(centersMap.entries());
+    for (let ci = 0; ci < centerEntries.length; ci++) {
+      const [centerName, courseMap] = centerEntries[ci];
+      if (ci > 0) doc.addPage();
+      doc.fontSize(12).text(`Centro: ${centerName}`, { underline: true });
+      doc.moveDown(0.3);
+
+      const courseEntries = Array.from(courseMap.entries());
+      for (let cj = 0; cj < courseEntries.length; cj++) {
+        const [courseName, groupMap] = courseEntries[cj];
+        if (cj > 0) doc.addPage();
+        doc.fontSize(11).text(`Curso: ${courseName}`);
+        doc.moveDown(0.2);
+
+        const groupEntries = Array.from(groupMap.entries());
+        for (let gk = 0; gk < groupEntries.length; gk++) {
+          const [groupName, students] = groupEntries[gk];
+          if (gk > 0) doc.addPage();
+
+          // derive some group-level metadata from the first student row
+          const first = students[0];
+          const companyName = first?.company_name ?? '';
+          const start = first?.group_start_date ? new Date(first.group_start_date).toLocaleDateString('es-ES') : '';
+          const end = first?.group_end_date ? new Date(first.group_end_date).toLocaleDateString('es-ES') : '';
+
+          const paragraph = `${issuer} certifica que los usuarios del ${centerName} (${companyName}) han realizado el curso ${courseName} entre las fechas ${start} y ${end}.`;
+          doc.fontSize(10).text(paragraph, { align: 'left' });
+          doc.moveDown(0.4);
+
+          // simple table with Nombre | Apellidos | DNI
+          const leftMargin = (doc.page?.margins?.left ?? 40);
+          const rightMargin = (doc.page?.margins?.right ?? 40);
+          const availableWidth = (doc.page.width - leftMargin - rightMargin);
+          const ratios = [0.45, 0.35, 0.20];
+          const colWidths = ratios.map(r => Math.floor(availableWidth * r));
+          const startX = doc.x;
+          const colPositions = colWidths.reduce<number[]>((acc, w, i) => {
+            if (i === 0) acc.push(startX); else acc.push(acc[i - 1] + colWidths[i - 1]);
+            return acc;
+          }, [] as number[]);
+
+          doc.fontSize(9).font('Helvetica-Bold');
+          const headerY = doc.y;
+          doc.text('Nombre', colPositions[0], headerY, { width: colWidths[0], ellipsis: true });
+          doc.text('Apellidos', colPositions[1], headerY, { width: colWidths[1], ellipsis: true });
+          doc.text('DNI', colPositions[2], headerY, { width: colWidths[2], ellipsis: true });
+          doc.moveDown(0.6);
+          doc.font('Helvetica');
+
+          const lineHeight = 12;
+          let currentY = doc.y;
+
+          for (const s of students) {
+            if (currentY > doc.page.height - (doc.page.margins?.bottom ?? 40) - 60) {
+              doc.addPage();
+              currentY = doc.y;
+            }
+
+            const name = `${s.name ?? ''}`.trim();
+            const apellidos = `${s.first_surname ?? ''} ${s.second_surname ?? ''}`.trim();
+            doc.text(name, colPositions[0], currentY, { width: colWidths[0], ellipsis: true });
+            doc.text(apellidos, colPositions[1], currentY, { width: colWidths[1], ellipsis: true });
+            doc.text(String(s.dni ?? ''), colPositions[2], currentY, { width: colWidths[2], ellipsis: true });
+
+            currentY += lineHeight;
+            doc.y = currentY;
+          }
+
+          doc.moveDown(0.6);
+        }
+      }
+    }
+
+    if (opts?.signatureBuffer) {
+      this.pdfService.embedImageSafe(doc, opts.signatureBuffer, doc.page.width - 200, doc.y, { width: 160 });
+    }
+
+    this.pdfService.endDocument(doc);
+  }
+
+  /**
    * High-level export handler: accept the export DTO and dispatch the correct
    * generation path (explicit selected keys, select-all matching with deselections
    * or filter-based export). This centralizes export decision logic so the
    * controller remains thin.
    */
   async exportPdfFromPayload(body: ReportExportDTO, res: Response): Promise<void> {
-    const { filter, include_passwords, selected_keys, select_all_matching, deselected_keys } = body;
+    const { filter, include_passwords, selected_keys, select_all_matching, deselected_keys, report_type } = body;
     const includePasswords = Boolean(include_passwords);
+
+    // Pick the appropriate renderer depending on report_type
+    const rowsRendererFromRows = report_type === 'certification' ? this.streamCertificationPdfFromRows.bind(this) : this.streamDedicationPdfFromRows.bind(this);
+    const rendererFromFilter = report_type === 'certification' ? this.streamCertificationPdf.bind(this) : this.streamDedicationPdf.bind(this);
 
     // If client supplied explicit selected keys, generate report for those rows only
     if (Array.isArray(selected_keys) && selected_keys.length) {
       const keys: string[] = selected_keys;
       const data = await this.reportsService.getRowsByKeys(keys);
       const rows: ReportRowDTO[] = Array.isArray(data) ? data : (data?.data ?? []);
-      await this.streamDedicationPdfFromRows(rows, res, { includePasswords });
+      await rowsRendererFromRows(rows, res, report_type === 'certification' ? { issuerName: undefined } : { includePasswords });
       return;
     }
 
@@ -164,11 +282,11 @@ export class ReportsPdfService {
           return !deselected.includes(key);
         });
       }
-      await this.streamDedicationPdfFromRows(rows, res, { includePasswords });
+      await rowsRendererFromRows(rows, res, report_type === 'certification' ? { issuerName: undefined } : { includePasswords });
       return;
     }
 
     // Default: generate report by applying the filter server-side
-    await this.streamDedicationPdf(filter, res, { includePasswords });
+    await rendererFromFilter(filter, res, report_type === 'certification' ? { issuerName: undefined } : { includePasswords });
   }
 }

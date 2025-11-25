@@ -112,13 +112,16 @@ export default function ReportsRoute() {
 
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [includePasswords, setIncludePasswords] = useState(false);
+  const [exportReportType, setExportReportType] = useState<'dedication' | 'certification'>('dedication');
 
   const { exportPdf: doExportPdf } = useReportExport();
+  const [modal, modalContextHolder] = Modal.useModal();
 
   const handleExport = async () => {
     try {
       setExportModalVisible(false);
-  const payload: ReportExportRequest & { filename?: string } = { filter: params, include_passwords: includePasswords, filename: 'report-dedication.pdf' };
+  const payload: ReportExportRequest & { filename?: string } = { filter: params, include_passwords: includePasswords, filename: exportReportType === 'certification' ? 'report-certification.pdf' : 'report-dedication.pdf' };
+  if (exportReportType === 'certification') payload.report_type = 'certification';
   // If user has explicit selections, send selected_keys; if user chose select-all-across-pages,
   // send select_all_matching with any deselected keys. Otherwise send only the filter.
   if (!selectAllMatching && selectedRowKeys && selectedRowKeys.length) {
@@ -132,9 +135,11 @@ export default function ReportsRoute() {
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error('Export error', err?.response ?? err);
-      Modal.error({ title: 'Error', content: 'No se pudo generar el PDF. Revisa la consola.' });
+      modal.error({ title: 'Error', content: 'No se pudo generar el PDF. Revisa la consola.' });
     }
   };
+
+  // unified export handler used for both dedication and certification
 
   // Backend returns PaginationResult<ReportRow>
   const paginated: PaginationResult<ReportRow> | undefined = data;
@@ -235,6 +240,13 @@ export default function ReportsRoute() {
   const [selectAllMatching, setSelectAllMatching] = useState<boolean>(false);
   const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
 
+  // Helper to clear all selection state when filters/search change
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setSelectAllMatching(false);
+    setDeselectedIds(new Set());
+  };
+
   const getRowKey = (r: ReportRow) => (r.id_user && r.id_group) ? `${r.id_user}-${r.id_group}` : `${r.dni ?? ''}-${r.moodle_id ?? ''}`;
 
   const selectedRowKeys = useMemo(() => {
@@ -319,6 +331,7 @@ export default function ReportsRoute() {
   return (
     <div>
       <h1>Informes</h1>
+      {modalContextHolder}
       <div ref={controlsRef} style={{ marginBottom: 12 }}>
         <div style={{ marginBottom: 12 }}>
           <Input.Search
@@ -326,7 +339,7 @@ export default function ReportsRoute() {
             allowClear
             enterButton={false}
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); clearSelection(); }}
             style={{ width: 600 }}
           />
         </div>
@@ -343,7 +356,7 @@ export default function ReportsRoute() {
               placeholder="Selecciona curso"
               style={{ minWidth: 240 }}
               value={selectedCourse}
-              onChange={(val) => { setSelectedCourse(val == null ? undefined : Number(val)); setSelectedGroup([]); setPage(1); }}
+              onChange={(val) => { setSelectedCourse(val == null ? undefined : Number(val)); setSelectedGroup([]); setPage(1); clearSelection(); }}
               options={(sortedCourses || []).map(c => ({ label: c.course_name ?? String(c.id_course), value: c.id_course }))}
             />
           </div>
@@ -359,7 +372,7 @@ export default function ReportsRoute() {
               mode="multiple"
               disabled={!selectedCourse}
               value={selectedGroup}
-              onChange={(vals: number[]) => { setSelectedGroup(vals); setPage(1); }}
+              onChange={(vals: number[]) => { setSelectedGroup(vals); setPage(1); clearSelection(); }}
               options={(sortedGroups || []).map(g => ({ label: g.group_name ?? String(g.id_group), value: g.id_group }))}
             />
           </div>
@@ -378,7 +391,18 @@ export default function ReportsRoute() {
           </div>
           <div>
             <div style={{ marginBottom: 4, visibility: 'hidden' }}>Export</div>
-            <Button type="primary" onClick={() => setExportModalVisible(true)}>Exportar PDF</Button>
+            <Space>
+              <Select
+                value={exportReportType}
+                onChange={(val) => setExportReportType(val as 'dedication' | 'certification')}
+                options={[
+                  { label: 'PDF Dedicación', value: 'dedication' },
+                  { label: 'PDF Certificado', value: 'certification' },
+                ]}
+                style={{ minWidth: 220 }}
+              />
+              <Button type="primary" onClick={() => setExportModalVisible(true)}>Generar</Button>
+            </Space>
           </div>
         </Space>
 
@@ -394,7 +418,7 @@ export default function ReportsRoute() {
               style={{ minWidth: 240 }}
               placeholder="Selecciona empresas"
               value={selectedCompanies}
-              onChange={(vals: number[]) => { setSelectedCompanies(vals); setSelectedCenters([]); /* reset centers selection when companies change */ }}
+              onChange={(vals: number[]) => { setSelectedCompanies(vals); setSelectedCenters([]); /* reset centers selection when companies change */ setPage(1); clearSelection(); }}
               options={(sortedCompanies || []).map(c => ({ label: c.company_name ?? String(c.id_company), value: c.id_company }))}
             />
           </div>
@@ -408,7 +432,7 @@ export default function ReportsRoute() {
               style={{ minWidth: 240 }}
               placeholder="Selecciona centros"
               value={selectedCenters}
-              onChange={(vals: number[]) => setSelectedCenters(vals)}
+              onChange={(vals: number[]) => { setSelectedCenters(vals); setPage(1); clearSelection(); }}
               options={(availableCenters || []).map(c => ({ label: c.center_name ?? String(c.id_center), value: c.id_center }))}
             />
           </div>
@@ -420,7 +444,8 @@ export default function ReportsRoute() {
               format="DD/MM/YYYY"
               onChange={(dates) => {
                 setDateRange(dates as [Dayjs | null, Dayjs | null] | undefined);
-                setPage(1);
+                  setPage(1);
+                  clearSelection();
               }}
               allowClear
             />
@@ -428,18 +453,25 @@ export default function ReportsRoute() {
         </Space>
         {/* global select-all UI handled via table header checkbox; no external control */}
         <Modal
-          title="Exportar informe"
-          visible={exportModalVisible}
+          title={exportReportType === 'certification' ? 'Generar certificado' : 'Exportar informe'}
+          open={exportModalVisible}
           onOk={handleExport}
           onCancel={() => setExportModalVisible(false)}
           okText="Generar PDF"
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label>
-              <Checkbox checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} /> Incluir contraseñas en el PDF
-            </label>
-            <div style={{ fontSize: 12, color: '#666' }}>Aviso: incluir contraseñas es una acción sensible y debe registrarse en auditoría.</div>
-          </div>
+          {exportReportType === 'certification' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 14 }}>Se generará un PDF de certificación agrupado por Centro → Curso → Grupo con los campos Nombre, Apellidos y DNI.</div>
+              <div style={{ fontSize: 12, color: '#666' }}>El certificado incluirá un párrafo de certificación por cada grupo con las fechas del grupo.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label>
+                <Checkbox checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} /> Incluir contraseñas en el PDF
+              </label>
+              <div style={{ fontSize: 12, color: '#666' }}>Aviso: incluir contraseñas es una acción sensible y debe registrarse en auditoría.</div>
+            </div>
+          )}
         </Modal>
       </div>
     </div>
