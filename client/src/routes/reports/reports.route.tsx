@@ -4,7 +4,7 @@ import { useDebounce } from '../../hooks/use-debounce';
 import { normalizeSearch } from '../../utils/normalize-search';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Table, TablePaginationConfig, Select, Space, DatePicker, Input } from 'antd';
+import { Table, TablePaginationConfig, Select, Space, DatePicker, Input, Button, Modal, Checkbox } from 'antd';
 import type { SorterResult, FilterValue, SortOrder } from 'antd/es/table/interface';
 import { useReportsQuery, ReportsQueryParams } from '../../hooks/api/reports/use-reports.query';
 import { useCoursesQuery } from '../../hooks/api/courses/use-courses.query';
@@ -12,6 +12,8 @@ import { useGroupsQuery } from '../../hooks/api/groups/use-groups.query';
 import { useCompaniesQuery } from '../../hooks/api/companies/use-companies.query';
 import { useCentersQuery } from '../../hooks/api/centers/use-centers.query';
 import { useCentersByCompaniesQuery } from '../../hooks/api/centers/use-centers-by-companies.query';
+import useReportExport from '../../hooks/use-report-export';
+import type { ReportExportRequest } from '../../hooks/api/reports/use-export-report.mutation';
 import { ReportRow } from '../../shared/types/reports/report-row';
 import { PaginationResult } from '../../shared/types/pagination';
 import type { Center } from '../../shared/types/center/center';
@@ -107,6 +109,23 @@ export default function ReportsRoute() {
   if (completionFilter === 'eq100') params.completion_percentage = 100;
 
   const { data, isLoading } = useReportsQuery(params);
+
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [includePasswords, setIncludePasswords] = useState(false);
+
+  const { exportPdf: doExportPdf } = useReportExport();
+
+  const handleExport = async () => {
+    try {
+      setExportModalVisible(false);
+  const payload: ReportExportRequest & { filename?: string } = { filter: params, include_passwords: includePasswords, filename: 'report-dedication.pdf' };
+  await doExportPdf(payload);
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error('Export error', err?.response ?? err);
+      Modal.error({ title: 'Error', content: 'No se pudo generar el PDF. Revisa la consola.' });
+    }
+  };
 
   // Backend returns PaginationResult<ReportRow>
   const paginated: PaginationResult<ReportRow> | undefined = data;
@@ -348,6 +367,10 @@ export default function ReportsRoute() {
               ]}
             />
           </div>
+          <div>
+            <div style={{ marginBottom: 4, visibility: 'hidden' }}>Export</div>
+            <Button type="primary" onClick={() => setExportModalVisible(true)}>Exportar PDF</Button>
+          </div>
         </Space>
 
         {/* Second row: Company, Center and Date range */}
@@ -395,6 +418,20 @@ export default function ReportsRoute() {
           </div>
         </Space>
         {/* global select-all UI handled via table header checkbox; no external control */}
+        <Modal
+          title="Exportar informe"
+          visible={exportModalVisible}
+          onOk={handleExport}
+          onCancel={() => setExportModalVisible(false)}
+          okText="Generar PDF"
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label>
+              <Checkbox checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} /> Incluir contraseñas en el PDF
+            </label>
+            <div style={{ fontSize: 12, color: '#666' }}>Aviso: incluir contraseñas es una acción sensible y debe registrarse en auditoría.</div>
+          </div>
+        </Modal>
       </div>
     </div>
     <div ref={wrapperRef}>
