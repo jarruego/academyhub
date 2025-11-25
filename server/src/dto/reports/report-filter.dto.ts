@@ -72,4 +72,10 @@ export class ReportFilterDTO {
   @IsOptional()
   @IsString()
   sort_order?: 'asc' | 'desc';
+
+  @ApiPropertyOptional({ type: Number, description: 'Completion percentage threshold (inclusive). Rows with completion >= this value will be returned' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  completion_percentage?: number;
 }

@@ -18,6 +18,7 @@ export type ReportsQueryParams = {
   end_date?: string;
   sort_field?: string;
   sort_order?: 'asc' | 'desc';
+  completion_percentage?: number;
 };
 
 export const useReportsQuery = (params?: ReportsQueryParams) => {

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, type Key } from "react";
+import useTableScroll from '../../hooks/use-table-scroll';
 import { useDebounce } from '../../hooks/use-debounce';
 import { normalizeSearch } from '../../utils/normalize-search';
 import dayjs from 'dayjs';
@@ -21,7 +22,12 @@ export default function ReportsRoute() {
   }, []);
 
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(50);
+  const [pageSize, setPageSize] = useState<number>(100);
+  // Refs to compute available space and provide isolated table scroll
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const controlsRef = useRef<HTMLDivElement | null>(null);
+  // Reduce footerOffset so the table body gets a bit more vertical space
+  const tableScrollY = useTableScroll(wrapperRef, controlsRef, { footerOffset: 5});
   const [selectedCompanies, setSelectedCompanies] = useState<number[]>([]);
   const [selectedCenters, setSelectedCenters] = useState<number[]>([]);
   const [availableCenters, setAvailableCenters] = useState<Center[]>([]);
@@ -32,6 +38,7 @@ export default function ReportsRoute() {
   const normalizedSearch = useMemo(() => normalizeSearch(debouncedSearch), [debouncedSearch]);
   const [selectedCourse, setSelectedCourse] = useState<number | undefined>(undefined);
   const [selectedGroup, setSelectedGroup] = useState<number[]>([]);
+  const [completionFilter, setCompletionFilter] = useState<'all' | 'gte75' | 'eq100'>('all');
 
   // Default to sort by group end date (newest first)
   const [sortField, setSortField] = useState<string | undefined>('group_end_date');
@@ -95,6 +102,10 @@ export default function ReportsRoute() {
     params.end_date = dateRange[1].endOf('day').toISOString();
   }
 
+  // Map UI completion filter into server-side single threshold param
+  if (completionFilter === 'gte75') params.completion_percentage = 75;
+  if (completionFilter === 'eq100') params.completion_percentage = 100;
+
   const { data, isLoading } = useReportsQuery(params);
 
   // Backend returns PaginationResult<ReportRow>
@@ -102,17 +113,10 @@ export default function ReportsRoute() {
   const rows: ReportRow[] = paginated?.data ?? [];
   const total: number | undefined = paginated?.total;
 
+  // Server-side completion filtering is applied via params; use rows as returned by the API
+
   const columns = useMemo(() => ([
-    { title: 'Nombre', dataIndex: 'name', key: 'name', sorter: true },
-    { title: 'Apellido 1', dataIndex: 'first_surname', key: 'first_surname', sorter: true },
-    { title: 'Apellido 2', dataIndex: 'second_surname', key: 'second_surname', sorter: true },
-    { title: 'DNI', dataIndex: 'dni', key: 'dni', sorter: true },
-    { title: 'Email', dataIndex: 'email', key: 'email', sorter: true },
-    { title: 'Teléfono', dataIndex: 'phone', key: 'phone', sorter: true },
-    { title: 'Centro', dataIndex: 'center_name', key: 'center_name', sorter: true },
-    { title: 'Employer number', dataIndex: 'employer_number', key: 'employer_number', sorter: true },
-    { title: 'Empresa', dataIndex: 'company_name', key: 'company_name', sorter: true },
-    { title: 'CIF empresa', dataIndex: 'company_cif', key: 'company_cif', sorter: true },
+    { title: 'Curso', dataIndex: 'course_name', key: 'course_name', sorter: true },
     { title: 'Grupo', dataIndex: 'group_name', key: 'group_name', sorter: true },
     {
       title: 'Inicio grupo',
@@ -126,17 +130,55 @@ export default function ReportsRoute() {
       dataIndex: 'group_end_date',
       key: 'group_end_date',
       sorter: true,
-      // Show newest first by default in UI indicator
-  defaultSortOrder: 'descend' as SortOrder,
+      defaultSortOrder: 'descend' as SortOrder,
       render: (val: string | undefined) => val ? dayjs(val).format('DD/MM/YYYY') : '',
     },
+    { title: 'Empresa', dataIndex: 'company_name', key: 'company_name', sorter: true },
+    { title: 'Centro', dataIndex: 'center_name', key: 'center_name', sorter: true },
+  { title: 'Progreso', dataIndex: 'completion_percentage', key: 'completion_percentage', sorter: true },
+  { title: 'Nombre', dataIndex: 'name', key: 'name', sorter: true },
+    { title: 'Apellido 1', dataIndex: 'first_surname', key: 'first_surname', sorter: true },
+    { title: 'Apellido 2', dataIndex: 'second_surname', key: 'second_surname', sorter: true },
+    
+    // keep remaining columns after the requested primary ones
+    { title: 'DNI', dataIndex: 'dni', key: 'dni', sorter: true },
+    { title: 'Email', dataIndex: 'email', key: 'email', sorter: true },
+    { title: 'Teléfono', dataIndex: 'phone', key: 'phone', sorter: true },
+    { title: 'Nº Patronal', dataIndex: 'employer_number', key: 'employer_number', sorter: true },
+    { title: 'CIF', dataIndex: 'company_cif', key: 'company_cif', sorter: true },
     { title: 'Rol', dataIndex: 'role_shortname', key: 'role_shortname', sorter: true },
-    { title: 'Completado (%)', dataIndex: 'completion_percentage', key: 'completion_percentage', sorter: true },
-    { title: 'Curso', dataIndex: 'course_name', key: 'course_name', sorter: true },
     { title: 'ID Moodle', dataIndex: 'moodle_id', key: 'moodle_id', sorter: true },
     { title: 'Usuario Moodle', dataIndex: 'moodle_username', key: 'moodle_username', sorter: true },
     { title: 'Password Moodle', dataIndex: 'moodle_password', key: 'moodle_password', sorter: true },
   ]), []);
+
+  // Ensure each column has a minimum width so the table keeps readable columns
+  // when there are many columns. We add a cell style with minWidth; the Table
+  // scroll.x is already set so horizontal scrolling will appear when needed.
+  const columnsWithMin = useMemo(() => columns.map(col => ({
+    ...col as any,
+    onCell: (record: Record<string, any>) => {
+      // derive the raw value from the record using dataIndex (string key)
+      const dataIndex = col.dataIndex as string | undefined;
+      const raw = dataIndex ? record[dataIndex] : undefined;
+      // if the column defines a render function, attempt to use it to produce the displayed value
+      let display = '';
+      try {
+        if (typeof col.render === 'function') {
+          // call render with the raw value and the record; if it returns a React node we stringify
+          const r = (col as any).render(raw, record);
+          display = (typeof r === 'string' || typeof r === 'number') ? String(r) : '';
+        } else if (raw !== undefined && raw !== null) {
+          display = String(raw);
+        }
+      } catch (err) {
+        display = String(raw ?? '');
+      }
+
+      const title = `${col.title ?? ''}: ${display}`;
+      return { style: { minWidth: 200, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title };
+    }
+  })), [columns]);
 
   const handleTableChange = (
     pagination: TablePaginationConfig,
@@ -159,25 +201,113 @@ export default function ReportsRoute() {
     setSortOrder(order);
   };
 
+  // Selection state: support selecting rows on the current page.
+  // Selection state supporting both per-page selection and global "select all matching" intent
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectAllMatching, setSelectAllMatching] = useState<boolean>(false);
+  const [deselectedIds, setDeselectedIds] = useState<Set<string>>(new Set());
+
+  const getRowKey = (r: ReportRow) => (r.id_user && r.id_group) ? `${r.id_user}-${r.id_group}` : `${r.dni ?? ''}-${r.moodle_id ?? ''}`;
+
+  const selectedRowKeys = useMemo(() => {
+    if (selectAllMatching) {
+      // visible rows minus any explicitly deselected
+      return rows.map(getRowKey).filter(k => !deselectedIds.has(k));
+    }
+    return Array.from(selectedIds.values());
+  }, [selectAllMatching, selectedIds, deselectedIds, rows]);
+
+  const onSelect = (record: ReportRow, selected: boolean) => {
+    const k = getRowKey(record);
+    if (selectAllMatching) {
+      setDeselectedIds(prev => {
+        const s = new Set(prev);
+        if (!selected) s.add(k); else s.delete(k);
+        return s;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const s = new Set(prev);
+        if (selected) s.add(k); else s.delete(k);
+        return s;
+      });
+    }
+  };
+
+  const onSelectAllVisible = (selected: boolean, _selectedRows: ReportRow[], changeRows: ReportRow[]) => {
+    const keys = changeRows.map(getRowKey);
+    // If user checks the header select-all and there are more results than loaded rows,
+    // interpret this as intent to select all matching results across pages.
+    if (selected && total && total > rows.length) {
+      setSelectAllMatching(true);
+      setDeselectedIds(new Set());
+      return;
+    }
+
+    // If user unchecks header and we were in selectAllMatching mode, clear global selection.
+    if (!selected && selectAllMatching) {
+      setSelectAllMatching(false);
+      setSelectedIds(new Set());
+      setDeselectedIds(new Set());
+      return;
+    }
+
+    // Fallback: toggle selection for the visible changeRows (per-page behavior)
+    setSelectedIds(prev => {
+      const s = new Set(prev);
+      const allSelected = keys.every(k => s.has(k));
+      if (allSelected) keys.forEach(k => s.delete(k)); else keys.forEach(k => s.add(k));
+      return s;
+    });
+  };
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (selectedKeys: Key[], _rows: ReportRow[]) => {
+      // If in global select-all mode, update the explicit deselections for visible rows
+      if (selectAllMatching) {
+        const visible = rows.map(getRowKey);
+        const selectedSet = new Set(selectedKeys.map(String));
+        setDeselectedIds(prev => {
+          const s = new Set(prev);
+          for (const k of visible) {
+            if (selectedSet.has(k)) s.delete(k); else s.add(k);
+          }
+          return s;
+        });
+        return;
+      }
+
+      // Normal per-page selection: preserve selections from other pages and replace current page
+      const currentPageKeys = rows.map(getRowKey);
+      const preserved = Array.from(selectedIds.values()).filter(k => !currentPageKeys.includes(k));
+      const newCurrent = selectedKeys.map(String).filter(k => currentPageKeys.includes(k));
+      setSelectedIds(new Set([...preserved, ...newCurrent]));
+    },
+    onSelect,
+    onSelectAll: onSelectAllVisible,
+  } as const;
+
   return (
     <div>
       <h1>Informes</h1>
-      <div style={{ marginBottom: 12 }}>
-        <Input.Search
-          placeholder="Buscar por nombre, apellidos, email, dni, nss o teléfono"
-          allowClear
-          enterButton={false}
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ width: 600 }}
-        />
-      </div>
-  <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div ref={controlsRef} style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }}>
+          <Input.Search
+            placeholder="Buscar por nombre, apellidos, email, dni, nss o teléfono"
+            allowClear
+            enterButton={false}
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            style={{ width: 600 }}
+          />
+        </div>
+        <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* First row: Course & Groups */}
         <Space>
           <div>
             <div style={{ marginBottom: 4 }}>Curso</div>
-            <Select<number>
+            <Select
               allowClear
               showSearch
               optionFilterProp="label"
@@ -203,6 +333,19 @@ export default function ReportsRoute() {
               value={selectedGroup}
               onChange={(vals: number[]) => { setSelectedGroup(vals); setPage(1); }}
               options={(sortedGroups || []).map(g => ({ label: g.group_name ?? String(g.id_group), value: g.id_group }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Filtro % completado</div>
+            <Select
+              style={{ minWidth: 160 }}
+              value={completionFilter}
+              onChange={(val) => { setCompletionFilter(val as any); setPage(1); setSelectedIds(new Set()); setSelectAllMatching(false); setDeselectedIds(new Set()); }}
+              options={[
+                { label: 'Todos (>=0%)', value: 'all' },
+                { label: '>= 75%', value: 'gte75' },
+                { label: '100%', value: 'eq100' },
+              ]}
             />
           </div>
         </Space>
@@ -251,15 +394,21 @@ export default function ReportsRoute() {
             />
           </div>
         </Space>
+        {/* global select-all UI handled via table header checkbox; no external control */}
       </div>
-      <Table
-        rowKey={(record: ReportRow) => (record.id_user && record.id_group) ? `${record.id_user}-${record.id_group}` : `${record.dni ?? ''}-${record.moodle_id ?? ''}`}
-        loading={isLoading}
-        dataSource={rows}
-        columns={columns}
-        pagination={{ current: page, pageSize, total }}
-        onChange={handleTableChange}
-      />
+    </div>
+    <div ref={wrapperRef}>
+        <Table
+          rowKey={(record: ReportRow) => (record.id_user && record.id_group) ? `${record.id_user}-${record.id_group}` : `${record.dni ?? ''}-${record.moodle_id ?? ''}`}
+          loading={isLoading}
+          dataSource={rows}
+          columns={columnsWithMin}
+          pagination={{ current: page, pageSize, total, showSizeChanger: true, pageSizeOptions: ['500','1000','1500','2000'] }}
+          rowSelection={rowSelection}
+          onChange={handleTableChange}
+          scroll={{ x: 'max-content', y: tableScrollY }}
+        />
+      </div>
     </div>
   );
 }

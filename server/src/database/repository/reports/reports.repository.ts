@@ -59,6 +59,11 @@ export class ReportsRepository extends Repository {
     if (filter?.start_date) where.push(sql`${groupTable.start_date} >= ${filter.start_date}`);
     if (filter?.end_date) where.push(sql`${groupTable.end_date} <= ${filter.end_date}`);
 
+    // Completion percentage threshold: return rows with completion >= provided value
+    if (filter?.completion_percentage !== undefined && filter?.completion_percentage !== null) {
+      where.push(sql`COALESCE(${userGroupTable.completion_percentage}, ${userCourseTable.completion_percentage}, 0) >= ${Number(filter.completion_percentage)}`);
+    }
+
     if (filter?.search) {
       const term = `%${String(filter.search).trim()}%`;
       // Search across multiple user fields: name, first/second surname, full name,
@@ -86,6 +91,7 @@ export class ReportsRepository extends Repository {
       .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
       .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
       .innerJoin(courseTable, eq(groupTable.id_course, courseTable.id_course))
+      .leftJoin(userCourseTable, and(eq(userCourseTable.id_user, userTable.id_user), eq(userCourseTable.id_course, courseTable.id_course)))
       .leftJoin(userCenterTable, and(eq(userCenterTable.id_user, userTable.id_user), eq(userCenterTable.is_main_center, true)))
       .leftJoin(centers, eq(userCenterTable.id_center, centers.id_center))
       .leftJoin(companyTable, eq(centers.id_company, companyTable.id_company))

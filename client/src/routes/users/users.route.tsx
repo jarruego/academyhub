@@ -1,5 +1,6 @@
 import { Button, Table, Input, message } from "antd";
 import { useState, useEffect, useMemo, useRef } from "react";
+import useTableScroll from "../../hooks/use-table-scroll";
 import { Select } from "antd";
 import { useUsersQuery, UsersQueryParams } from "../../hooks/api/users/use-users.query";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
@@ -44,47 +45,7 @@ export default function UsersRoute() {
   // Refs to measure available space and compute table body height for internal scroll
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const controlsRef = useRef<HTMLDivElement | null>(null);
-  const [tableScrollY, setTableScrollY] = useState<number | undefined>(400);
-
-  useEffect(() => {
-    const MIN_TABLE_HEIGHT = 220; // px
-    const FOOTER_AND_PAGINATION = 120; // px
-
-    const compute = () => {
-      // Try to detect a fixed header (common selectors), otherwise fallback to wrapper top
-      const headerSelectors = ['.ant-layout-header', 'header', '.app-header'];
-      let headerHeight = 0;
-      for (const sel of headerSelectors) {
-        const el = document.querySelector(sel) as Element | null;
-        if (el) {
-          headerHeight = el.getBoundingClientRect().height || 0;
-          break;
-        }
-      }
-
-      const wrapperTop = wrapperRef.current?.getBoundingClientRect().top ?? 0;
-      const topOffset = headerHeight || wrapperTop || 0;
-
-      const controlsH = controlsRef.current?.getBoundingClientRect().height ?? 0;
-      const available = Math.max(window.innerHeight - topOffset - 16, MIN_TABLE_HEIGHT);
-      const tableBody = Math.max(MIN_TABLE_HEIGHT, Math.floor(available - controlsH - FOOTER_AND_PAGINATION));
-      setTableScrollY(tableBody);
-    };
-
-    // Run an initial compute and then schedule a second pass after layout settles.
-    // This helps when the page is fully reloaded (F5) and some elements or fonts
-    // haven't been measured yet — the delayed runs catch the final sizes.
-    compute();
-
-    // Also recompute when the full window load event fires (images/fonts/layout done)
-    window.addEventListener('load', compute);
-    window.addEventListener('resize', compute);
-
-    return () => {
-      window.removeEventListener('resize', compute);
-      window.removeEventListener('load', compute);
-    };
-  }, []);
+  const tableScrollY = useTableScroll(wrapperRef, controlsRef);
 
   useEffect(() => {
     document.title = "Usuarios";
