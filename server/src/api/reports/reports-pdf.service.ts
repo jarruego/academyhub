@@ -271,9 +271,12 @@ export class ReportsPdfService {
       return;
     }
 
+    // Prepare an export filter that forces no pagination so exports include all matching rows
+    const exportFilter = { ...(filter ?? {}), page: 1, limit: 100000 } as ReportFilterDTO;
+
     // If client requested select-all-matching with deselections, fetch by filter and remove deselected keys
     if (select_all_matching) {
-      const data = await this.reportsService.findAll(filter);
+      const data = await this.reportsService.findAll(exportFilter);
       let rows: ReportRowDTO[] = data?.data ?? [];
       const deselected: string[] = Array.isArray(deselected_keys) ? deselected_keys : [];
       if (deselected.length) {
@@ -286,7 +289,7 @@ export class ReportsPdfService {
       return;
     }
 
-    // Default: generate report by applying the filter server-side
-    await rendererFromFilter(filter, res, report_type === 'certification' ? { issuerName: undefined } : { includePasswords });
+    // Default: generate report by applying the filter server-side (force no pagination)
+    await rendererFromFilter(exportFilter, res, report_type === 'certification' ? { issuerName: undefined } : { includePasswords });
   }
 }
