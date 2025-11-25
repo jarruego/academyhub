@@ -23,13 +23,6 @@ export class ReportsController {
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Post('export')
   async exportPdf(@Body() body: ReportExportDTO, @Res() res: Response) {
-    const filter = body.filter;
-    const includePasswords = Boolean(body.include_passwords);
-
-    // TODO: add audit logging here for includePasswords
-
-    // For now no logo/signature buffers; service supports passing them if available
-    await this.reportsPdfService.streamDedicationPdf(filter, res, { includePasswords });
-    // streamDedicationPdf pipes to res and ends the doc
+    await this.reportsPdfService.exportPdfFromPayload(body, res);
   }
 }

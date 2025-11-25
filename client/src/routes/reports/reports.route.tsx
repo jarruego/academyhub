@@ -119,6 +119,15 @@ export default function ReportsRoute() {
     try {
       setExportModalVisible(false);
   const payload: ReportExportRequest & { filename?: string } = { filter: params, include_passwords: includePasswords, filename: 'report-dedication.pdf' };
+  // If user has explicit selections, send selected_keys; if user chose select-all-across-pages,
+  // send select_all_matching with any deselected keys. Otherwise send only the filter.
+  if (!selectAllMatching && selectedRowKeys && selectedRowKeys.length) {
+    payload.selected_keys = selectedRowKeys as string[];
+  } else if (selectAllMatching) {
+    payload.select_all_matching = true;
+    payload.deselected_keys = Array.from(deselectedIds.values());
+  }
+
   await doExportPdf(payload);
     } catch (err: any) {
       // eslint-disable-next-line no-console

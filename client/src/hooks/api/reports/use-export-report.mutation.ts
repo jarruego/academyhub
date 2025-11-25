@@ -8,6 +8,10 @@ export type ReportExportRequest = {
   include_passwords?: boolean;
   format?: 'pdf' | 'csv';
   report_options?: Record<string, unknown>;
+  // Selection support: explicit keys or select-all intent with deselections
+  selected_keys?: string[];
+  select_all_matching?: boolean;
+  deselected_keys?: string[];
 };
 
 export const useExportReportMutation = () => {

@@ -24,4 +24,16 @@ export class ReportExportDTO {
   @IsOptional()
   @IsString()
   format?: 'pdf' | 'csv';
+
+  @ApiPropertyOptional({ description: 'Explicit selected row keys to export (overrides filter)' })
+  @IsOptional()
+  selected_keys?: string[];
+
+  @ApiPropertyOptional({ description: 'If true, export all matching rows and apply deselected_keys as exclusions' })
+  @IsOptional()
+  select_all_matching?: boolean;
+
+  @ApiPropertyOptional({ description: 'List of keys to exclude when select_all_matching is true' })
+  @IsOptional()
+  deselected_keys?: string[];
 }

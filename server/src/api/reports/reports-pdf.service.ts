@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ReportsRepository } from 'src/database/repository/reports/reports.repository';
+import { ReportsService } from './reports.service';
 import type { ReportFilterDTO } from 'src/dto/reports/report-filter.dto';
 import type { ReportRowDTO } from 'src/dto/reports/report-row.dto';
+import type { ReportExportDTO } from 'src/dto/reports/report-export.dto';
 import type { Response } from 'express';
 import { PdfService } from 'src/common/pdf/pdf.service';
 
@@ -11,6 +13,7 @@ export class ReportsPdfService {
   constructor(
     private readonly reportsRepository: ReportsRepository,
     private readonly pdfService: PdfService,
+    private readonly reportsService: ReportsService,
   ) {}
 
   /**
@@ -20,9 +23,13 @@ export class ReportsPdfService {
     // Ensure we request a sufficiently large limit so we get all rows for export.
     const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
 
-  const data = await this.reportsRepository.getReportRows(requestFilter);
-  const rows: ReportRowDTO[] = data?.data ?? [];
+    const data = await this.reportsRepository.getReportRows(requestFilter);
+    const rows: ReportRowDTO[] = data?.data ?? [];
 
+    return this.streamDedicationPdfFromRows(rows, res, opts);
+  }
+
+  async streamDedicationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer }) {
     // Group by center_name then course_name
     const centersMap = new Map<string, Map<string, ReportRowDTO[]>>();
     for (const r of rows) {
@@ -31,7 +38,7 @@ export class ReportsPdfService {
       if (!centersMap.has(center)) centersMap.set(center, new Map());
       const courseMap = centersMap.get(center)!;
       if (!courseMap.has(course)) courseMap.set(course, []);
-  courseMap.get(course)!.push(r);
+      courseMap.get(course)!.push(r);
     }
 
     const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
@@ -125,5 +132,43 @@ export class ReportsPdfService {
     }
 
     this.pdfService.endDocument(doc);
+  }
+
+  /**
+   * High-level export handler: accept the export DTO and dispatch the correct
+   * generation path (explicit selected keys, select-all matching with deselections
+   * or filter-based export). This centralizes export decision logic so the
+   * controller remains thin.
+   */
+  async exportPdfFromPayload(body: ReportExportDTO, res: Response): Promise<void> {
+    const { filter, include_passwords, selected_keys, select_all_matching, deselected_keys } = body;
+    const includePasswords = Boolean(include_passwords);
+
+    // If client supplied explicit selected keys, generate report for those rows only
+    if (Array.isArray(selected_keys) && selected_keys.length) {
+      const keys: string[] = selected_keys;
+      const data = await this.reportsService.getRowsByKeys(keys);
+      const rows: ReportRowDTO[] = Array.isArray(data) ? data : (data?.data ?? []);
+      await this.streamDedicationPdfFromRows(rows, res, { includePasswords });
+      return;
+    }
+
+    // If client requested select-all-matching with deselections, fetch by filter and remove deselected keys
+    if (select_all_matching) {
+      const data = await this.reportsService.findAll(filter);
+      let rows: ReportRowDTO[] = data?.data ?? [];
+      const deselected: string[] = Array.isArray(deselected_keys) ? deselected_keys : [];
+      if (deselected.length) {
+        rows = rows.filter((r) => {
+          const key = (r.id_user != null && r.id_group != null) ? `${r.id_user}-${r.id_group}` : `${r.dni ?? ''}-${r.moodle_id ?? ''}`;
+          return !deselected.includes(key);
+        });
+      }
+      await this.streamDedicationPdfFromRows(rows, res, { includePasswords });
+      return;
+    }
+
+    // Default: generate report by applying the filter server-side
+    await this.streamDedicationPdf(filter, res, { includePasswords });
   }
 }

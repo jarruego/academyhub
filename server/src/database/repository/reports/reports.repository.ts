@@ -147,6 +147,22 @@ export class ReportsRepository extends Repository {
       }
     }
 
+    const uniqueArr = await this.fetchMappedRows(whereCondition, { limit, offset, orderClause });
+
+    return {
+      data: uniqueArr,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Internal helper: run the common select+joins, map rows and deduplicate.
+   */
+  private async fetchMappedRows(whereCondition?: SQL, opts?: { limit?: number; offset?: number; orderClause?: Array<PgColumn | SQL | ReturnType<typeof desc>> }) {
+    const q = this.query();
     const rows = await q
       .select({
         user: userTable,
@@ -169,10 +185,10 @@ export class ReportsRepository extends Repository {
       .leftJoin(userCenterTable, and(eq(userCenterTable.id_user, userTable.id_user), eq(userCenterTable.is_main_center, true)))
       .leftJoin(centers, eq(userCenterTable.id_center, centers.id_center))
       .leftJoin(companyTable, eq(centers.id_company, companyTable.id_company))
-  .where(whereCondition)
-  .orderBy(...orderClause)
-      .limit(limit)
-      .offset(offset);
+      .where(whereCondition)
+      .orderBy(...(opts?.orderClause ?? []))
+      .limit(opts?.limit ?? undefined)
+      .offset(opts?.offset ?? undefined);
 
     const mapped = rows.map((r) => ({
       id_user: r.user?.id_user,
@@ -199,7 +215,6 @@ export class ReportsRepository extends Repository {
     }));
 
     // Deduplicate rows that may repeat due to LEFT JOINs (user_course, moodle_user, etc.).
-    // Use the primary composite key id_user-id_group when available; fall back to dni-moodle_id.
     const uniqueMap = new Map<string, (typeof mapped)[number]>();
     for (const r of mapped) {
       const key = (r.id_user != null && r.id_group != null)
@@ -207,14 +222,40 @@ export class ReportsRepository extends Repository {
         : `${r.dni ?? ''}-${r.moodle_id ?? ''}`;
       if (!uniqueMap.has(key)) uniqueMap.set(key, r);
     }
-    const uniqueArr = Array.from(uniqueMap.values());
+    return Array.from(uniqueMap.values());
+  }
 
-    return {
-      data: uniqueArr,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+  /**
+   * Fetch report rows matching an explicit list of row keys.
+   * Keys are expected to be either "{id_user}-{id_group}" or "{dni}-{moodle_id}".
+   */
+  async getReportRowsByKeys(keys: string[]) {
+    if (!keys || !keys.length) return [] as any;
+
+    const q = this.query();
+
+    const whereClauses: SQL[] = [];
+    for (const k of keys) {
+      const parts = String(k ?? '').split('-');
+      if (parts.length === 2) {
+        const [left, right] = parts;
+        const leftNum = Number(left);
+        const rightNum = Number(right);
+        if (!Number.isNaN(leftNum) && !Number.isNaN(rightNum)) {
+          // numeric composite key: id_user-id_group
+          whereClauses.push(and(eq(userTable.id_user, leftNum), eq(userGroupTable.id_group, rightNum)));
+        } else {
+          // fallback: dni-moodleId (strings) - compare moodle ids as text to allow numeric/string mix
+          whereClauses.push(and(eq(userTable.dni, left), or(sql`${moodleUserTable.moodle_id}::text = ${right}`, sql`${userCourseTable.id_moodle_user}::text = ${right}`)));
+        }
+      } else {
+        // if key doesn't contain dash, try to match by dni only
+        whereClauses.push(eq(userTable.dni, k));
+      }
+    }
+
+    const whereCondition = whereClauses.length ? or(...whereClauses) : undefined;
+    // reuse the shared mapping/join logic and return all matching rows
+    return this.fetchMappedRows(whereCondition);
   }
 }

@@ -9,4 +9,8 @@ export class ReportsService {
   async findAll(filter?: ReportFilterDTO) {
     return this.reportsRepository.getReportRows(filter);
   }
+
+  async getRowsByKeys(keys: string[]) {
+    return this.reportsRepository.getReportRowsByKeys(keys);
+  }
 }
