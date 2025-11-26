@@ -110,34 +110,40 @@ export class ImportVelneoService {
       if (v === undefined || v === null) return undefined;
       const s = String(v).trim();
       if (!s) return undefined;
-  // Si es un número puro, intentar interpretarlo como segundos o milisegundos
+
+      // Si es un número puro (timestamp en segundos o ms), interpretarlo primero
       if (/^-?\d+$/.test(s)) {
         try {
           const n = Number(s);
-          // si parece segundos (10 dígitos) tratar como segundos
-          if (Math.abs(n) > 1e10) return new Date(n); // ms
-          if (Math.abs(n) > 1e9) return new Date(n * 1000); // seconds -> ms
-          // números pequeños poco probables (no interpretar como timestamp)
+          // si parece milisegundos
+          if (Math.abs(n) > 1e10) return new Date(n);
+          // si parece segundos -> ms
+          if (Math.abs(n) > 1e9) return new Date(n * 1000);
         } catch (e) {}
       }
-  // Intentar formato ISO / Date.parse
-      const iso = Date.parse(s);
-      if (!isNaN(iso)) return new Date(iso);
-  // Intentar dd/mm/yyyy o dd-mm-yyyy
-      const dmy = /^([0-3]?\d)[\/\-]([0-1]?\d)[\/\-](\d{4})$/.exec(s);
-      if (dmy) {
-        const day = Number(dmy[1]); const month = Number(dmy[2]) - 1; const year = Number(dmy[3]);
-        const dt = new Date(year, month, day);
-        if (!isNaN(dt.getTime())) return dt;
-      }
-  // Intentar yyyy/mm/dd o yyyy-mm-dd
+
+      // 1) Si tiene formato yyyy-mm-dd o yyyy/mm/dd: parsearlo como year-month-day (no ambigüedad)
       const ymd = /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/.exec(s);
       if (ymd) {
         const year = Number(ymd[1]); const month = Number(ymd[2]) - 1; const day = Number(ymd[3]);
         const dt = new Date(year, month, day);
         if (!isNaN(dt.getTime())) return dt;
       }
-  // Si nada funciona: devolver undefined
+
+      // 2) Si tiene formato dd/mm/yyyy o dd-mm-yyyy: preferir interpretación day/month/year
+      const dmy = /^([0-3]?\d)[\/\-]([0-1]?\d)[\/\-](\d{4})$/.exec(s);
+      if (dmy) {
+        const day = Number(dmy[1]); const month = Number(dmy[2]) - 1; const year = Number(dmy[3]);
+        const dt = new Date(year, month, day);
+        if (!isNaN(dt.getTime())) return dt;
+      }
+
+      // 3) Fallback: permitir Date.parse para formatos menos comunes (e.g., 'Feb 1 2024')
+      try {
+        const iso = Date.parse(s);
+        if (!isNaN(iso)) return new Date(iso);
+      } catch (e) {}
+
       return undefined;
     };
 
