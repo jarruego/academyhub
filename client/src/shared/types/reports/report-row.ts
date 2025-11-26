@@ -1,6 +1,9 @@
 export type ReportRow = {
   id_user?: number;
   id_group?: number;
+  id_course?: number | null;
+  id_center?: number | null;
+  id_company?: number | null;
   name?: string;
   first_surname?: string;
   second_surname?: string;

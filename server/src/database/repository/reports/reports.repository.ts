@@ -199,6 +199,10 @@ export class ReportsRepository extends Repository {
       dni: r.user?.dni,
       email: r.user?.email,
       phone: r.user?.phone,
+      // include ids for center/company/course so the client can link to their detail pages
+      id_center: r.center?.id_center ?? null,
+      id_company: r.company?.id_company ?? null,
+      id_course: r.course?.id_course ?? null,
       center_name: r.center?.center_name ?? null,
       employer_number: r.center?.employer_number ?? null,
       company_name: r.company?.company_name ?? null,

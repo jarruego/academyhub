@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef, type Key } from "react";
+import { useEffect, useMemo, useState, useRef, type Key, type CSSProperties } from "react";
 import useTableScroll from '../../hooks/use-table-scroll';
 import { useDebounce } from '../../hooks/use-debounce';
 import { normalizeSearch } from '../../utils/normalize-search';
@@ -146,6 +146,8 @@ export default function ReportsRoute() {
   const rows: ReportRow[] = paginated?.data ?? [];
   const total: number | undefined = paginated?.total;
 
+  
+
   // Server-side completion filtering is applied via params; use rows as returned by the API
 
   const columns = useMemo(() => ([
@@ -209,7 +211,49 @@ export default function ReportsRoute() {
       }
 
       const title = `${col.title ?? ''}: ${display}`;
-      return { style: { minWidth: 200, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }, title };
+      // attach double-click handlers for certain cells to open detail pages
+      let onDoubleClick: (() => void) | undefined;
+      try {
+        const idx = dataIndex;
+        // course -> open course detail if id_course available
+        if (idx === 'course_name' && record?.id_course) {
+          const id = record.id_course;
+          onDoubleClick = () => window.open(`${window.location.origin}/courses/${id}`, '_blank', 'noopener,noreferrer');
+        }
+        // group -> open group edit/detail (also when clicking group start/end date or progress)
+        if ((idx === 'group_name' || idx === 'group_start_date' || idx === 'group_end_date' || idx === 'completion_percentage') && record?.id_group) {
+          const id = record.id_group;
+          onDoubleClick = () => window.open(`${window.location.origin}/groups/${id}/edit`, '_blank', 'noopener,noreferrer');
+        }
+        // company -> open company detail (also when clicking CIF)
+        if ((idx === 'company_name' || idx === 'company_cif') && record?.id_company) {
+          const id = record.id_company;
+          onDoubleClick = () => window.open(`${window.location.origin}/companies/${id}`, '_blank', 'noopener,noreferrer');
+        }
+        // center -> open center edit/detail (also when clicking employer_number)
+        if ((idx === 'center_name' || idx === 'employer_number') && record?.id_center) {
+          const id = record.id_center;
+          onDoubleClick = () => window.open(`${window.location.origin}/centers/${id}/edit`, '_blank', 'noopener,noreferrer');
+        }
+        // user-related fields -> open user detail (role, moodle id/username/password also open user)
+        if (['name','first_surname','second_surname','dni','email','phone','role_shortname','moodle_id','moodle_username','moodle_password'].includes(String(idx)) && record?.id_user) {
+          const id = record.id_user;
+          onDoubleClick = () => window.open(`${window.location.origin}/users/${id}`, '_blank', 'noopener,noreferrer');
+        }
+      } catch (err) {
+        // noop
+      }
+
+  const baseStyle: CSSProperties = { minWidth: 200, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'background-color 0.12s ease' };
+  if (onDoubleClick) (baseStyle as CSSProperties & { cursor?: string }).cursor = 'pointer';
+  const cellProps: { style: CSSProperties; title: string; onDoubleClick?: () => void; onMouseEnter?: (e: React.MouseEvent) => void; onMouseLeave?: (e: React.MouseEvent) => void } = { style: baseStyle, title };
+      if (onDoubleClick) {
+        cellProps.onDoubleClick = onDoubleClick;
+        // subtle green highlight on hover to indicate clickability
+        cellProps.onMouseEnter = (e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#e6ffed'; };
+        cellProps.onMouseLeave = (e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.backgroundColor = ''; };
+      }
+      return cellProps;
     }
   })), [columns]);
 
@@ -256,6 +300,13 @@ export default function ReportsRoute() {
     }
     return Array.from(selectedIds.values());
   }, [selectAllMatching, selectedIds, deselectedIds, rows]);
+
+  // Number of rows that will be included in the export modal preview
+  const exportCount = useMemo(() => {
+    if (selectAllMatching) return Math.max(0, Number(total ?? 0) - (deselectedIds?.size ?? 0));
+    if (selectedIds && selectedIds.size) return selectedIds.size;
+    return Number(total ?? 0);
+  }, [selectAllMatching, selectedIds, deselectedIds, total]);
 
   const onSelect = (record: ReportRow, selected: boolean) => {
     const k = getRowKey(record);
@@ -352,9 +403,21 @@ export default function ReportsRoute() {
               allowClear
               showSearch
               optionFilterProp="label"
-              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              filterOption={(input, option) => {
+                // Compare labels and input ignoring accents/diacritics and case.
+                const strip = (s?: unknown) => String(s ?? '')
+                  .normalize('NFD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .toLowerCase();
+                return strip(option?.label).includes(strip(input));
+              }}
               placeholder="Selecciona curso"
               style={{ minWidth: 240 }}
+              // Let the dropdown width adapt to the longest option instead of
+              // forcing it to match the select input width. When the user types
+              // and filters options, the dropdown will resize accordingly.
+              popupMatchSelectWidth={false}
+              dropdownStyle={{ minWidth: 240 }}
               value={selectedCourse}
               onChange={(val) => { setSelectedCourse(val == null ? undefined : Number(val)); setSelectedGroup([]); setPage(1); clearSelection(); }}
               options={(sortedCourses || []).map(c => ({ label: c.course_name ?? String(c.id_course), value: c.id_course }))}
@@ -453,25 +516,39 @@ export default function ReportsRoute() {
         </Space>
         {/* global select-all UI handled via table header checkbox; no external control */}
         <Modal
-          title={exportReportType === 'certification' ? 'Generar certificado' : 'Exportar informe'}
+          title={
+            (exportReportType === 'certification' ? 'Generar certificado' : 'Exportar informe')
+            + ` (${exportCount ?? 0} registros)`
+          }
           open={exportModalVisible}
           onOk={handleExport}
           onCancel={() => setExportModalVisible(false)}
           okText="Generar PDF"
         >
-          {exportReportType === 'certification' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: 14 }}>Se generará un PDF de certificación agrupado por Centro → Curso → Grupo con los campos Nombre, Apellidos y DNI.</div>
-              <div style={{ fontSize: 12, color: '#666' }}>El certificado incluirá un párrafo de certificación por cada grupo con las fechas del grupo.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 14 }}>
+              {exportReportType === 'certification'
+                ? 'Se generará un PDF de certificación agrupado por Centro → Curso → Grupo con los campos Nombre, Apellidos y DNI.'
+                : 'Se generará un informe de dedicación con información detallada por usuario.'}
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label>
-                <Checkbox checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} /> Incluir contraseñas en el PDF
-              </label>
-              <div style={{ fontSize: 12, color: '#666' }}>Aviso: incluir contraseñas es una acción sensible y debe registrarse en auditoría.</div>
+            <div style={{ fontSize: 12, color: '#666' }}>
+              {exportReportType === 'certification'
+                ? 'El certificado incluirá un párrafo de certificación por cada grupo con las fechas del grupo.'
+                : 'Puedes elegir incluir contraseñas en el PDF (acción sensible).'}
             </div>
-          )}
+
+
+
+            {/* Show the include passwords checkbox only for dedication reports */}
+            {exportReportType !== 'certification' && (
+              <div>
+                <label>
+                  <Checkbox checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} /> Incluir contraseñas en el PDF
+                </label>
+                <div style={{ fontSize: 12, color: '#666' }}>Aviso: incluir contraseñas es una acción sensible y debe registrarse en auditoría.</div>
+              </div>
+            )}
+          </div>
         </Modal>
       </div>
     </div>
