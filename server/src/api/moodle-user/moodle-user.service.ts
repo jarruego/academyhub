@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { MoodleUserRepository } from "src/database/repository/moodle-user/moodle-user.repository";
 import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
 import { QueryOptions } from "src/database/repository/repository";
@@ -213,6 +213,32 @@ export class MoodleUserService {
       }
 
       return { totalLocalUsers: Object.keys(groups).length, totalMoodleRows: allMoodleUsers.length, updated };
+    });
+  }
+
+  /**
+   * Marcar un moodle_user concreto como el principal para su usuario local.
+   * Desmarca los demás moodle_users asociados al mismo id_user.
+   */
+  async setMainMoodleUser(moodleUserId: number, options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const target = await this.moodleUserRepository.findById(moodleUserId, { transaction });
+      if (!target) {
+        throw new NotFoundException(`Moodle user ${moodleUserId} not found`);
+      }
+
+      // Obtener todas las cuentas de Moodle del usuario local y actualizar flags
+      const siblings = await this.moodleUserRepository.findByUserId(target.id_user, { transaction });
+
+      for (const s of siblings) {
+        const shouldBeMain = s.id_moodle_user === moodleUserId;
+        if (s.is_main_user !== shouldBeMain) {
+          await this.moodleUserRepository.update(s.id_moodle_user, { is_main_user: shouldBeMain }, { transaction });
+        }
+      }
+
+      // devolver las filas actualizadas
+      return await this.moodleUserRepository.findByUserId(target.id_user, { transaction });
     });
   }
 

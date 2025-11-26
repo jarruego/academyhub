@@ -266,8 +266,8 @@ const navigate = useNavigate();
               <Controller name="second_surname" control={control} render={({ field }) => <Input {...field} id="second_surname" autoComplete="additional-name" value={field.value ?? undefined} />} />
             </Form.Item>
           </div>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Form.Item label="Tipo Doc." name="document_type" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+            <Form.Item label="Tipo Doc." name="document_type" style={{ width: '10ch' }}>
               <Controller
                 name="document_type"
                 control={control}
@@ -279,6 +279,7 @@ const navigate = useNavigate();
                     disabled
                     placeholder="Auto"
                     allowClear
+                    style={{ width: '100%' }}
                   >
                     <Select.Option value={DocumentType.DNI}>DNI</Select.Option>
                     <Select.Option value={DocumentType.NIE}>NIE</Select.Option>
@@ -286,8 +287,14 @@ const navigate = useNavigate();
                 )}
               />
             </Form.Item>
-            <Form.Item label="DNI" name="dni" style={{ flex: 1 }}>
-              <Controller name="dni" control={control} render={({ field }) => <Input {...field} id="dni" autoComplete="off" value={field.value ?? undefined} />} />
+            <Form.Item label="DNI" name="dni" style={{ width: '15ch' }}>
+              <Controller name="dni" control={control} render={({ field }) => <Input {...field} id="dni" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} />} />
+            </Form.Item>
+            <Form.Item label="NSS (Seg.Social)" name="nss" style={{ width: '20ch' }}>
+              <Controller name="nss" control={control} render={({ field }) => <Input {...field} id="nss" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} />} />
+            </Form.Item>
+            <Form.Item label="Categoría Profesional" name="professional_category" style={{ flex: 1 }}>
+              <Controller name="professional_category" control={control} render={({ field }) => <Input {...field} id="professional_category" autoComplete="organization-title" value={field.value ?? undefined} />} />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
@@ -374,30 +381,24 @@ const navigate = useNavigate();
               {/* Debug UI removed */}
             </div>
           )}
-          <Form.Item label="Dirección" name="address">
-            <Controller name="address" control={control} render={({ field }) => <Input {...field} id="address" autoComplete="street-address" value={field.value ?? undefined} />} />
-          </Form.Item>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Form.Item label="Código Postal" name="postal_code" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+            <Form.Item label="Dirección" name="address" style={{ flex: 3, minWidth: '40ch' }}>
+              <Controller name="address" control={control} render={({ field }) => <Input {...field} id="address" autoComplete="street-address" value={field.value ?? undefined} />} />
+            </Form.Item>
+            <Form.Item label="Código Postal" name="postal_code" style={{ flex: 1, minWidth: '10ch' }}>
               <Controller name="postal_code" control={control} render={({ field }) => <Input {...field} id="postal_code" autoComplete="postal-code" value={field.value ?? undefined} />} />
             </Form.Item>
-            <Form.Item label="Ciudad" name="city" style={{ flex: 1 }}>
+            <Form.Item label="Ciudad" name="city" style={{ flex: 1, minWidth: '10ch' }}>
               <Controller name="city" control={control} render={({ field }) => <Input {...field} id="city" autoComplete="address-level2" value={field.value ?? undefined} />} />
             </Form.Item>
-            <Form.Item label="Provincia" name="province" style={{ flex: 1 }}>
+            <Form.Item label="Provincia" name="province" style={{ flex: 1, minWidth: '10ch' }}>
               <Controller name="province" control={control} render={({ field }) => <Input {...field} id="province" autoComplete="address-level1" value={field.value ?? undefined} />} />
             </Form.Item>
-            <Form.Item label="País" name="country" style={{ flex: 1 }}>
+            <Form.Item label="País" name="country" style={{ flex: 1, minWidth: '10ch' }}>
               <Controller name="country" control={control} render={({ field }) => <Input {...field} id="country" autoComplete="country-name" value={field.value ?? undefined} />} />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
-            <Form.Item label="NSS (Seguridad Social)" name="nss" style={{ flex: 1 }}>
-              <Controller name="nss" control={control} render={({ field }) => <Input {...field} id="nss" autoComplete="off" value={field.value ?? undefined} />} />
-            </Form.Item>
-            <Form.Item label="Categoría Profesional" name="professional_category" style={{ flex: 1 }}>
-              <Controller name="professional_category" control={control} render={({ field }) => <Input {...field} id="professional_category" autoComplete="organization-title" value={field.value ?? undefined} />} />
-            </Form.Item>
             <Form.Item label="Grupo de Cotización" name="salary_group" style={{ flex: 1 }} extra={salaryGroupValue == null ? 'No especificado — se guardará vacío. Se mostrará un aviso al guardar.' : undefined}>
               <Controller
                 name="salary_group"
@@ -460,8 +461,8 @@ const navigate = useNavigate();
               />
             </Form.Item>
           </div>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Form.Item name="disability" valuePropName="checked" style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <Form.Item name="disability" valuePropName="checked" style={{ flex: 1, marginBottom: 0 }}>
               <Controller
                 name="disability"
                 control={control}
@@ -476,7 +477,7 @@ const navigate = useNavigate();
                 )}
               />
             </Form.Item>
-            <Form.Item name="terrorism_victim" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item name="terrorism_victim" valuePropName="checked" style={{ flex: 1, marginBottom: 0 }}>
               <Controller
                 name="terrorism_victim"
                 control={control}
@@ -491,7 +492,7 @@ const navigate = useNavigate();
                 )}
               />
             </Form.Item>
-            <Form.Item name="gender_violence_victim" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item name="gender_violence_victim" valuePropName="checked" style={{ flex: 1, marginBottom: 0 }}>
               <Controller
                 name="gender_violence_victim"
                 control={control}
@@ -506,9 +507,7 @@ const navigate = useNavigate();
                 )}
               />
             </Form.Item>
-          </div>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Form.Item name="seasonalWorker" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item name="seasonalWorker" valuePropName="checked" style={{ flex: 1, marginBottom: 0 }}>
               <Controller
                 name="seasonalWorker"
                 control={control}
@@ -523,7 +522,7 @@ const navigate = useNavigate();
                 )}
               />
             </Form.Item>
-            <Form.Item name="erteLaw" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item name="erteLaw" valuePropName="checked" style={{ flex: 1, marginBottom: 0 }}>
               <Controller
                 name="erteLaw"
                 control={control}
@@ -538,7 +537,7 @@ const navigate = useNavigate();
                 )}
               />
             </Form.Item>
-            <Form.Item name="accreditationDiploma" valuePropName="checked" style={{ flex: 1 }}>
+            <Form.Item name="accreditationDiploma" valuePropName="checked" style={{ flex: 1, marginBottom: 0 }}>
               <Controller
                 name="accreditationDiploma"
                 control={control}

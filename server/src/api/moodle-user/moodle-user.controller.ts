@@ -67,6 +67,16 @@ export class MoodleUserController {
     return this.moodleUserService.delete(numericId);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @Post('/:id/set-main')
+  @ApiOperation({ summary: 'Marcar una cuenta de Moodle como principal para el usuario local asociado' })
+  @ApiResponse({ status: 200, description: 'Cuenta marcada como principal exitosamente' })
+  @ApiResponse({ status: 404, description: 'Moodle user no encontrado' })
+  async setMain(@Param('id') id: string) {
+    const numericId = parseInt(id, 10);
+    return this.moodleUserService.setMainMoodleUser(numericId);
+  }
+
   @Get('/by-user/:userId')
   @ApiOperation({ summary: 'Obtener todas las cuentas de Moodle de un usuario específico' })
   @ApiResponse({ status: 200, description: 'Lista de cuentas de Moodle del usuario' })

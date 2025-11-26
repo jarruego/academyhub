@@ -1,4 +1,4 @@
-import { Table, Tag, Spin, Alert } from "antd";
+import { Table, Tag, Spin, Alert, Button, Popconfirm, message } from "antd";
 import type { ColumnsType } from 'antd/es/table';
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
 import type { MoodleUserSelectModel } from '../../shared/types/moodle/moodle-user.types';
@@ -8,6 +8,7 @@ import type { AxiosError } from 'axios';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { getApiHost } from '../../utils/api/get-api-host.util';
 import type { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
+import { useSetMainMoodleUserMutation } from '../../hooks/api/moodle-users/use-set-main-moodle-user.mutation';
 
 interface MoodleUsersSectionProps {
   userId: number;
@@ -16,6 +17,8 @@ interface MoodleUsersSectionProps {
 export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
   const { data: moodleUsers, isLoading, error } = useMoodleUsersByUserIdQuery(userId);
   const request = useAuthenticatedAxios();
+  const setMainMutation = useSetMainMoodleUserMutation(userId);
+  const [messageApi, messageContextHolder] = message.useMessage();
   // Prepare queries to fetch courses for each moodle user in parallel
   const courseQueries = useQueries({
     queries: (moodleUsers || []).map(mu => ({
@@ -96,9 +99,42 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
       title: 'Username Moodle',
       dataIndex: 'moodle_username',
       key: 'moodle_username',
-      render: (username: string, record: MoodleUserSelectModel) => (
-        <Tag color={(record as any).is_main_user ? 'green' : 'blue'}>{username}</Tag>
-      ),
+      render: (username: string, record: MoodleUserSelectModel) => {
+        const handleSetMain = async () => {
+          try {
+            await setMainMutation.mutateAsync(record.id_moodle_user);
+            messageApi.success('Cuenta de Moodle marcada como principal');
+          } catch (err) {
+            messageApi.error('Error marcando como principal');
+          }
+        };
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Tag color={record.is_main_user ? 'green' : 'blue'}>{username}</Tag>
+            {!record.is_main_user && (
+              <Popconfirm
+                title={
+                  <div>
+                    <div>Marcar esta cuenta como principal?</div>
+                    <div style={{ fontSize: 12, marginTop: 6 }}>
+                      La cuenta principal será la que se utilice para dar de alta cursos y grupos en Moodle.
+                    </div>
+                    <div style={{ fontSize: 12, marginTop: 6 }}>
+                      Consulte antes con el administrador de Moodle si no está seguro.
+                    </div>
+                  </div>
+                }
+                onConfirm={handleSetMain}
+                okText="Sí"
+                cancelText="No"
+              >
+                <Button size="small">Hacer principal</Button>
+              </Popconfirm>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: 'Fecha Creación',
@@ -116,6 +152,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
 
   return (
     <div>
+      {messageContextHolder}
       <h3>Usuarios de Moodle Asociados</h3>
       <Table
         columns={columns}

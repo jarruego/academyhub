@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Select, message, Table, Modal } from "antd";
+import { Button, Select, message, Table, Modal, Popconfirm } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { useAddUserToCenterMutation } from "../../hooks/api/centers/use-add-user-to-center.mutation";
@@ -25,16 +25,17 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
   const { mutateAsync: deleteUsersFromCenters, status: deleteStatus } = useDeleteUsersFromCentersMutation();
   const updateUserMainCenterMutation = useUpdateUserMainCenterMutation();
   const [modal, contextHolder] = Modal.useModal();
+  const [messageApi, messageContextHolder] = message.useMessage();
 
   const handleAdd = async () => {
     if (!id_user || !selectedCenter) return;
     try {
       await addUserToCenter({ id_user: Number(id_user), id_center: selectedCenter });
-      message.success("Usuario añadido al centro correctamente");
+      messageApi.success("Usuario añadido al centro correctamente");
       setSelectedCenter(undefined);
       refetchUserCenters();
     } catch {
-      message.error("No se pudo añadir el usuario al centro");
+      messageApi.error("No se pudo añadir el usuario al centro");
     }
   };
 
@@ -45,7 +46,8 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
 
   return (
     <>
-      {contextHolder}
+  {contextHolder}
+  {messageContextHolder}
       <Table
         dataSource={((userCenters as UserCenter[] || [])
           .slice()
@@ -99,18 +101,28 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
                   </Button>
                 ) : (
                   <AuthzHide roles={[Role.ADMIN]}>
-                    <Button
-                      size="small"
-                      style={{ marginRight: 8, minWidth: 110 }}
-                      onClick={async () => {
-                        await updateUserMainCenterMutation.mutateAsync({ userId: Number(id_user), centerId: record.id_center });
-                        message.success('Centro principal actualizado');
-                        refetchUserCenters();
+                    <Popconfirm
+                      title="Marcar este centro como principal?"
+                      onConfirm={async () => {
+                        try {
+                          await updateUserMainCenterMutation.mutateAsync({ userId: Number(id_user), centerId: record.id_center });
+                          messageApi.success('Centro principal actualizado');
+                          refetchUserCenters();
+                        } catch (err) {
+                          messageApi.error('Error actualizando centro principal');
+                        }
                       }}
-                      loading={updateUserMainCenterMutation.isPending}
+                      okText="Sí"
+                      cancelText="No"
                     >
-                      Hacer principal
-                    </Button>
+                      <Button
+                        size="small"
+                        style={{ marginRight: 8, minWidth: 110 }}
+                        loading={updateUserMainCenterMutation.isPending}
+                      >
+                        Hacer principal
+                      </Button>
+                    </Popconfirm>
                   </AuthzHide>
                 )}
                 <AuthzHide roles={[Role.ADMIN]}>
