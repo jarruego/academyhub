@@ -10,6 +10,7 @@ import { userRolesTable } from "./schema/tables/user_roles.table";
 import { userCenterTable } from "./schema/tables/user_center.table";
 import { userCourseTable } from "./schema/tables/user_course.table";
 import { importJobTable, importDecisionsTable } from "./schema/tables/import.table";
+import { organizationSettingsTable } from "./schema/tables/organization_settings.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality } from "./schema/tables/course.table";
@@ -27,6 +28,7 @@ export const user_center = userCenterTable;
 export const user_course = userCourseTable;
 export const import_jobs = importJobTable;
 export const import_decisions = importDecisionsTable;
+export const organization_settings = organizationSettingsTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
@@ -40,3 +42,4 @@ export type CentersColumns = typeof centers;
 export type CompaniesColumns = typeof companies;
 export type CoursesColumns = typeof courses;
 export type GroupsColumns = typeof groups;
+export type OrganizationSettingsColumns = typeof organization_settings;

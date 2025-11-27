@@ -1,10 +1,13 @@
 import { Injectable, HttpException, HttpStatus, InternalServerErrorException, Logger, Inject } from '@nestjs/common';
 import axios, { AxiosResponse } from 'axios';
+import crypto from 'crypto';
 import { MoodleCourse } from 'src/types/moodle/course';
 import { MoodleGroup, CreatedGroupResponseItem } from 'src/types/moodle/group';
 import { MoodleUser, ExtendedMoodleUser } from 'src/types/moodle/user';
 import { MoodleCourseWithImportStatus, MoodleGroupWithImportStatus, ImportResult } from 'src/dto/moodle/import.dto';
 import { DatabaseService } from 'src/database/database.service';
+import { organizationSettingsTable } from 'src/database/schema/tables/organization_settings.table';
+import { eq } from 'drizzle-orm';
 import { DATABASE_PROVIDER } from 'src/database/database.module';
 import { QueryOptions, Transaction } from 'src/database/repository/repository';
 import { CourseRepository } from 'src/database/repository/course/course.repository';
@@ -33,6 +36,7 @@ type MoodleParams = Record<string, MoodleParamsValue>;
 @Injectable()
 export class MoodleService {
     private readonly MOODLE_URL = process.env.MOODLE_URL;
+    // Keep env var as fallback; DB-configured token will take precedence when present
     private readonly MOODLE_TOKEN = process.env.MOODLE_TOKEN;
 
     constructor(
@@ -59,9 +63,11 @@ export class MoodleService {
      * @throws {InternalServerErrorException} - Throws an internal server error exception if the request fails or Moodle returns an error.
      */
     private async request<R = unknown, D extends MoodleParams = MoodleParams>(fn: string, { params: paramsData, method = 'get' }: RequestOptions<D> = {}): Promise<R> {
+        // Resolve token with DB (priority) -> env fallback
+        const resolvedToken = await this.resolveMoodleToken();
         const params: MoodleParams = {
             ...(paramsData ?? {}),
-            wstoken: this.MOODLE_TOKEN,
+            wstoken: resolvedToken,
             wsfunction: fn,
             moodlewsrestformat: 'json',
         };
@@ -123,6 +129,58 @@ export class MoodleService {
             Logger.error({ message: String(err), params, url: this.MOODLE_URL }, 'MoodleService:request');
             throw new InternalServerErrorException(String(err) || 'Error calling Moodle API');
         }
+    }
+
+    /**
+     * Resolve the Moodle token. Priority: DB (organization_settings.encrypted_secrets.moodle_token) -> process.env.MOODLE_TOKEN
+     * For single-center deployments we pick the first organization_settings row if no centerId is provided.
+     */
+    private async resolveMoodleToken(centerId?: number): Promise<string | undefined> {
+        try {
+            // Try to find a token configured in the DB
+            let rows: any[] = [];
+            if (typeof centerId === 'number') {
+                rows = await this.databaseService.db.select().from(organizationSettingsTable).where(eq(organizationSettingsTable.center_id, centerId)).limit(1);
+            } else {
+                rows = await this.databaseService.db.select().from(organizationSettingsTable).limit(1);
+            }
+            if (rows && rows.length > 0) {
+                const row = rows[0] as any;
+                const enc = row.encrypted_secrets?.moodle_token;
+                if (enc) {
+                    // If value is a string, assume plaintext (legacy/dev). If object, attempt to decrypt.
+                    if (typeof enc === 'string') return enc;
+                    try {
+                        return this.decryptSecret(enc);
+                    } catch (e) {
+                        Logger.warn({ err: e }, 'MoodleService:resolveMoodleToken - failed to decrypt token; falling back to env');
+                    }
+                }
+            }
+        } catch (e) {
+            Logger.warn({ e }, 'MoodleService:resolveMoodleToken - DB lookup failed, falling back to env');
+        }
+
+        return this.MOODLE_TOKEN;
+    }
+
+    /**
+     * Decrypts a secret previously encrypted with APP_MASTER_KEY using AES-256-GCM.
+     * Accepts an object { ct: string (base64), iv: string (base64), tag: string (base64) }
+     */
+    private decryptSecret(enc: any): string | undefined {
+        const keyBase = process.env.APP_MASTER_KEY;
+        if (!keyBase) throw new Error('APP_MASTER_KEY not set');
+        const key = Buffer.from(keyBase, 'base64');
+        if (!enc || !enc.ct || !enc.iv || !enc.tag) throw new Error('invalid ciphertext');
+        const iv = Buffer.from(enc.iv, 'base64');
+        const tag = Buffer.from(enc.tag, 'base64');
+        const ct = Buffer.from(enc.ct, 'base64');
+
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+        decipher.setAuthTag(tag);
+        const decrypted = Buffer.concat([decipher.update(ct), decipher.final()]);
+        return decrypted.toString('utf8');
     }
 
     /**
