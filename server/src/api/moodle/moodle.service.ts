@@ -1,7 +1,7 @@
 import { Injectable, HttpException, HttpStatus, InternalServerErrorException, Logger, Inject } from '@nestjs/common';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { MoodleCourse } from 'src/types/moodle/course';
-import { MoodleGroup } from 'src/types/moodle/group';
+import { MoodleGroup, CreatedGroupResponseItem } from 'src/types/moodle/group';
 import { MoodleUser, ExtendedMoodleUser } from 'src/types/moodle/user';
 import { MoodleCourseWithImportStatus, MoodleGroupWithImportStatus, ImportResult } from 'src/dto/moodle/import.dto';
 import { DatabaseService } from 'src/database/database.service';
@@ -19,12 +19,16 @@ import { UserCourseInsertModel } from 'src/database/schema/tables/user_course.ta
 import { UserInsertModel, UserUpdateModel } from 'src/database/schema/tables/user.table';
 import { UserGroupSelectModel } from 'src/database/schema/tables/user_group.table';
 
-type RequestOptions<D> = {
+type RequestOptions<D extends MoodleParams = MoodleParams> = {
     params?: D;
     method?: 'get' | 'post';
 }
 
-
+// Typing for Moodle webservice request params. Moodle expects form-encoded
+// values where values can be strings, numbers, booleans, objects or arrays
+// of the same. This narrows `any` while remaining flexible for Moodle payloads.
+type MoodleParamsValue = string | number | boolean | object | Array<string | number | boolean | object> | null | undefined;
+type MoodleParams = Record<string, MoodleParamsValue>;
 
 @Injectable()
 export class MoodleService {
@@ -54,22 +58,28 @@ export class MoodleService {
      * @returns {Promise<R>} - A promise that resolves to the response data of type R.
      * @throws {InternalServerErrorException} - Throws an internal server error exception if the request fails or Moodle returns an error.
      */
-    private async request<R = Object, D = Object>(fn: string, { params: paramsData, method = 'get' }: RequestOptions<D> = {}) {
-        const params = {
-            ...paramsData,
+    private async request<R = unknown, D extends MoodleParams = MoodleParams>(fn: string, { params: paramsData, method = 'get' }: RequestOptions<D> = {}): Promise<R> {
+        const params: MoodleParams = {
+            ...(paramsData ?? {}),
             wstoken: this.MOODLE_TOKEN,
             wsfunction: fn,
             moodlewsrestformat: 'json',
         };
 
+        const isMoodleError = (d: unknown): d is { exception: unknown } => typeof d === 'object' && d !== null && 'exception' in (d as Record<string, unknown>);
+
         try {
             // If method is POST, send params in the request body as form-encoded to avoid URL length limits (414)
             if (method === 'post') {
                 const body = new URLSearchParams();
-                for (const [k, v] of Object.entries(params as Record<string, unknown>)) {
+                for (const [k, v] of Object.entries(params) as [string, MoodleParamsValue][]) {
                     if (Array.isArray(v)) {
                         for (const item of v) {
-                            body.append(`${k}[]`, (item && typeof item === 'object') ? JSON.stringify(item) : String(item));
+                            if (item && typeof item === 'object') {
+                                body.append(`${k}[]`, JSON.stringify(item));
+                            } else {
+                                body.append(`${k}[]`, String(item));
+                            }
                         }
                     } else if (v && typeof v === 'object') {
                         body.append(k, JSON.stringify(v));
@@ -78,36 +88,40 @@ export class MoodleService {
                     }
                 }
 
-                const response = await axios.request({
+                const response = await axios.request<R, AxiosResponse<R>>({
                     url: this.MOODLE_URL,
                     method,
                     data: body.toString(),
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 });
 
-                if ((response as any).data?.exception) throw (response as any).data;
+                if (isMoodleError(response.data)) throw response.data;
                 return response.data as R;
             }
 
-            const response = await axios.request({ url: this.MOODLE_URL, params, method });
+            const response = await axios.request<R, AxiosResponse<R>>({ url: this.MOODLE_URL, params, method });
 
-            if (response.data.exception) throw response.data;
+            if (isMoodleError(response.data)) throw response.data;
 
             return response.data as R;
-        } catch (moodleError) {
-            const me: any = moodleError;
-            // Log detailed response data when available to help debugging (avoid logging tokens)
-            Logger.error({
-                message: me?.message,
-                status: me?.response?.status,
-                responseData: me?.response?.data,
-                params,
-                url: this.MOODLE_URL,
-            }, "MoodleService:request");
+        } catch (err: unknown) {
+            // Better error typing / handling using axios helper
+            if (axios.isAxiosError(err)) {
+                Logger.error({
+                    message: err.message,
+                    status: err.response?.status,
+                    responseData: err.response?.data,
+                    params,
+                    url: this.MOODLE_URL,
+                }, "MoodleService:request");
 
-            // Include the original error message when throwing so caller/logs get more context
-            const message = me?.message || (me?.response && JSON.stringify(me.response)) || 'Error calling Moodle API';
-            throw new InternalServerErrorException(message);
+                const message = err.message || (err.response && JSON.stringify(err.response)) || 'Error calling Moodle API';
+                throw new InternalServerErrorException(message);
+            }
+
+            // Non-axios error
+            Logger.error({ message: String(err), params, url: this.MOODLE_URL }, 'MoodleService:request');
+            throw new InternalServerErrorException(String(err) || 'Error calling Moodle API');
         }
     }
 
@@ -903,6 +917,64 @@ export class MoodleService {
                 };
             }
         });
+    }
+
+    /**
+     * Create or update a local group in Moodle.
+     * If the local group has a `moodle_id` we will call the Moodle update webservice,
+     * otherwise we will create the group in Moodle. After creation we persist the
+     * returned Moodle group id in our local `groups` table (field `moodle_id`).
+     */
+    async pushLocalGroupToMoodle(id_group: number): Promise<{ success: boolean; moodleGroupId?: number; message?: string }> {
+        // Load local group
+        const localGroup = await this.groupRepository.findById(id_group);
+        if (!localGroup) throw new HttpException('Local group not found', HttpStatus.NOT_FOUND);
+
+        // Load parent course to obtain its moodle_id
+        const course = await this.courseRepository.findById(localGroup.id_course);
+        if (!course) throw new HttpException('Parent course not found', HttpStatus.BAD_REQUEST);
+        if (!course.moodle_id) throw new HttpException('Parent course is not linked to Moodle (missing moodle_id)', HttpStatus.BAD_REQUEST);
+
+    // Prepare Moodle params using explicit keys to match Moodle WS format
+    // Note: `core_group_update_groups` does NOT accept `courseid` for updates,
+    // so only include `courseid` when creating a new group.
+    const baseKey = 'groups[0]';
+    const params: MoodleParams = {};
+    params[`${baseKey}[name]`] = localGroup.group_name || '';
+    params[`${baseKey}[description]`] = localGroup.description ?? '';
+    params[`${baseKey}[descriptionformat]`] = 1; // HTML
+
+        try {
+            if (localGroup.moodle_id) {
+                // Update existing Moodle group
+                params[`${baseKey}[id]`] = localGroup.moodle_id;
+                // core_group_update_groups typically returns boolean true on success
+                const res = await this.request<boolean, MoodleParams>('core_group_update_groups', { method: 'post', params });
+                // If update succeeded, ensure moodle_id stays in DB (no change expected)
+                await this.groupRepository.update(id_group, { moodle_id: localGroup.moodle_id });
+                return { success: true, moodleGroupId: localGroup.moodle_id, message: 'Group updated in Moodle' };
+            } else {
+                // For creation include courseid (required by core_group_create_groups)
+                params[`${baseKey}[courseid]`] = course.moodle_id;
+                // Create new Moodle group
+                const res = await this.request<CreatedGroupResponseItem[], MoodleParams>('core_group_create_groups', { method: 'post', params });
+                // Expecting an array with created groups containing `id` (or groupid/groupidnumber)
+                const createdId = Array.isArray(res) && res[0] && (res[0].id ?? res[0].groupid ?? res[0].groupidnumber) ? (res[0].id ?? res[0].groupid ?? res[0].groupidnumber) : undefined;
+                // If Moodle returns object with id property, try to use it; otherwise try common fallbacks
+                if (!createdId) {
+                    // If we can't determine id, still return success but do not persist
+                    return { success: false, message: 'Moodle did not return created group id' };
+                }
+
+                // Persist moodle_id locally
+                await this.groupRepository.update(id_group, { moodle_id: createdId });
+
+                return { success: true, moodleGroupId: createdId, message: 'Group created in Moodle and local record updated' };
+            }
+        } catch (err: any) {
+            Logger.error({ err, id_group }, 'MoodleService:pushLocalGroupToMoodle');
+            throw new InternalServerErrorException(err?.message || 'Error creating/updating group in Moodle');
+        }
     }
 
     /**

@@ -85,6 +85,16 @@ export class MoodleController {
     }
 
     @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('groups/:groupId/push')
+    /**
+     * Create or update a local group in Moodle. If the local group doesn't have a `moodle_id`
+     * it will be created in Moodle and the returned moodle id will be persisted locally.
+     */
+    async pushGroupToMoodle(@Param('groupId', ParseIntPipe) groupId: number) {
+        return await this.moodleService.pushLocalGroupToMoodle(groupId);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
     @Post('import-all')
     async importMoodleCourses(@Query('skipUsers') skipUsers?: string) {
         // Accepts skipUsers as query param (e.g., /import-all?skipUsers=true)

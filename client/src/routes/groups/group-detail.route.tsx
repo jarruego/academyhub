@@ -5,8 +5,9 @@ import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
+import { usePushGroupToMoodleMutation } from "../../hooks/api/moodle/use-push-group-to-moodle.mutation";
 import { useEffect } from "react";
-import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
+import { DeleteOutlined, SaveOutlined, CloudUploadOutlined } from "@ant-design/icons";
 import GroupUsersManager from '../../components/group/GroupUsersManager';
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -39,6 +40,7 @@ export default function EditGroupRoute() {
   });
   const [modal, contextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
+  const pushGroupMutation = usePushGroupToMoodleMutation();
 
   useEffect(() => {
     if (groupData) {
@@ -191,6 +193,50 @@ export default function EditGroupRoute() {
           >
             <Controller name="description" control={control} render={({ field }) => <Input id="description" autoComplete="off" {...field} value={field.value ?? ""} data-testid="group-description" />} />
           </Form.Item>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            {/* Moodle status */}
+            {groupData?.moodle_id ? (
+              <Tag color="green">Moodle ID: {groupData.moodle_id}</Tag>
+            ) : (
+              <Tag color="orange">No subido a Moodle</Tag>
+            )}
+
+            {/* Upload button (visible to admins) - moved here from the actions area */}
+            <AuthzHide roles={[Role.ADMIN]}>
+              <Button
+                icon={<CloudUploadOutlined style={{ color: '#f58b00' }} />}
+                loading={pushGroupMutation.status === 'pending'}
+                disabled={pushGroupMutation.status === 'pending'}
+                onClick={() => {
+                  if (!groupData) return;
+
+                  modal.confirm({
+                    title: 'Confirmar subida a Moodle',
+                    content: (
+                      <div>
+                        <p>Esta acción subirá los datos del grupo a Moodle. Se enviarán nombre y descripción y se creará o actualizará el grupo en Moodle si ya existe.</p>
+                        <p>Asegúrese de que toda la información es correcta antes de continuar.</p>
+                        <p>Esta acción no sube los usuarios, sólo los datos del grupo.</p>
+                      </div>
+                    ),
+                    okText: 'Subir',
+                    cancelText: 'Cancelar',
+                    onOk: async () => {
+                      try {
+                        const res = await pushGroupMutation.mutateAsync(groupData.id_group);
+                        const msg = res?.data?.message || 'Operación completada';
+                        messageApi.success(msg);
+                      } catch (err) {
+                        messageApi.error('Error al subir el grupo a Moodle');
+                      }
+                    }
+                  });
+                }}
+              >
+                Subir a Moodle
+              </Button>
+            </AuthzHide>
+          </div>
           <div style={{ display: 'flex', gap: '16px' }}>
             <AuthzHide roles={[Role.ADMIN]}>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-group">Guardar</Button>
