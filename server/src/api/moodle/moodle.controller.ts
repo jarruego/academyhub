@@ -81,7 +81,21 @@ export class MoodleController {
     @UseGuards(RoleGuard([Role.ADMIN]))
     @Post('groups/:moodleGroupId/sync-members')
     async syncMoodleGroupMembers(@Param('moodleGroupId', ParseIntPipe) moodleGroupId: number): Promise<ImportResult> {
-        return await this.moodleService.syncMoodleGroupMembers(moodleGroupId);
+        const result = await this.moodleService.syncMoodleGroupMembers(moodleGroupId);
+
+        // If there are per-user details with errors, append a short summary to the message
+        if (result.details && result.details.length > 0) {
+            const max = 10;
+            const items = result.details.slice(0, max).map(d => {
+                const idPart = d.userId ? `${d.userId}` : 'id?';
+                const userPart = d.username ? `${d.username} (${idPart})` : idPart;
+                return `${userPart}: ${d.error}`;
+            });
+            const more = result.details.length > max ? `\n... y ${result.details.length - max} más` : '';
+            result.message = `${result.message}\nErrores:\n${items.join('\n')}${more}`;
+        }
+
+        return result;
     }
 
     @UseGuards(RoleGuard([Role.ADMIN]))

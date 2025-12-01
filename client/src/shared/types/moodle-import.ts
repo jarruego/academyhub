@@ -36,6 +36,11 @@ export interface ImportResult {
     usersImported?: number;
   };
   error?: string;
+  details?: Array<{
+    userId?: number;
+    username?: string;
+    error: string;
+  }>;
 }
 
 export interface ImportModalProps {

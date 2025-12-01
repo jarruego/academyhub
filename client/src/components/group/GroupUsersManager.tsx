@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Table, Button, message } from 'antd';
+import { Table, Button, message, Modal, notification } from 'antd';
 import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MobileOutlined } from '@ant-design/icons';
 import { AuthzHide } from '../permissions/authz-hide';
 import CreateUserGroupModal from './CreateUserGroupModal';
@@ -22,6 +22,14 @@ interface Props {
 
 const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const [messageApi, contextHolder] = message.useMessage();
+  const [modal, modalContextHolder] = Modal.useModal();
+
+  const extractSummary = (text?: string) => {
+    if (!text) return '';
+    const marker = '\nErrores:\n';
+    const idx = text.indexOf(marker);
+    return idx !== -1 ? text.slice(0, idx) : text;
+  };
   const { data: usersData, isLoading, refetch } = useUsersByGroupQuery(groupId ? Number(groupId) : null);
 
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
@@ -162,7 +170,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
 
   return (
     <div>
-      {contextHolder}
+  {contextHolder}
+  {modalContextHolder}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <AuthzHide roles={[Role.ADMIN]}>
@@ -183,11 +192,11 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
             <Button
               type="default"
               icon={<CloudDownloadOutlined style={{ color: '#f56b00' }} />}
-              onClick={async () => {
+                onClick={async () => {
                 if (!groupId) return;
                 const moodleId = groupData?.moodle_id;
                 if (!moodleId) {
-                  message.warning('El grupo local no está asociado a un grupo de Moodle');
+                  messageApi.warning('El grupo local no está asociado a un grupo de Moodle');
                   return;
                 }
 
@@ -196,14 +205,78 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
                   const response = await syncMoodleGroupMembers(moodleId);
                   const result = response.data;
                   if (result?.success) {
-                    message.success(result.message || 'Usuarios sincronizados desde Moodle');
+                    // Show both a toast and a persistent notification with the summary message
+                    messageApi.success(result.message || 'Usuarios sincronizados desde Moodle');
+                    notification.success({
+                      message: 'Sincronización completada',
+                      description: result.message || 'Usuarios sincronizados desde Moodle',
+                      duration: 5,
+                    });
+
+                    // If there are per-user errors, also show a modal with up to 10 entries.
+                    // Open the modal slightly after showing notifications so they remain visible.
+                    if (result.details && result.details.length > 0) {
+                      const max = 10;
+                      const items = result.details.slice(0, max).map((d: any, idx: number) => {
+                        const idPart = d.userId ?? 'id?';
+                        const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
+                        return <li key={idx}>{`${userPart}: ${d.error}`}</li>;
+                      });
+                      const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+                      setTimeout(() => {
+                        const summary = extractSummary(result.message);
+                        modal.info({
+                          title: 'Sincronización completada con errores',
+                          width: 600,
+                          content: (
+                            <div>
+                              <p>{summary}</p>
+                              <div>
+                                <strong>Errores:</strong>
+                                <ul style={{ marginTop: 8 }}>{items}</ul>
+                                {more}
+                              </div>
+                            </div>
+                          ),
+                        });
+                      }, 100);
+                    }
                     refetch();
                   } else {
-                    message.error(result?.error || result?.message || 'Error al sincronizar usuarios desde Moodle');
+                    // If the operation returned failure, show details if present
+                    if (result?.details && result.details.length > 0) {
+                      const max = 10;
+                      const items = result.details.slice(0, max).map((d: any, idx: number) => {
+                        const idPart = d.userId ?? 'id?';
+                        const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
+                        return <li key={idx}>{`${userPart} - ${d.error}`}</li>;
+                      });
+                      const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+                      // Show modal including the summary message and the list of errors
+                      setTimeout(() => {
+                        const summary = extractSummary(result.message);
+                        modal.error({
+                          title: 'Error al sincronizar usuarios desde Moodle',
+                          width: 600,
+                          content: (
+                            <div>
+                              <p>{summary}</p>
+                              <div>
+                                <strong>Errores:</strong>
+                                <ul style={{ marginTop: 8 }}>{items}</ul>
+                                {more}
+                              </div>
+                            </div>
+                          ),
+                        });
+                      }, 100);
+                    } else {
+                      messageApi.error(result?.error || result?.message || 'Error al sincronizar usuarios desde Moodle');
+                    }
                   }
                 } catch (err) {
                   console.error('Error sincronizando usuarios desde Moodle:', err);
-                  message.error('Error al traer usuarios desde Moodle');
+                  messageApi.error('Error al traer usuarios desde Moodle');
                 }
               }}
               loading={(syncMoodleGroupMembersPending) || isGroupLoading}

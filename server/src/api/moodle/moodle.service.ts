@@ -190,8 +190,8 @@ export class MoodleService {
      * on individual users do not abort the whole operation.
      */
     async syncMoodleGroupMembers(moodleGroupId: number): Promise<ImportResult> {
-        const errors: Array<{ userId?: number; username?: string; error: string }> = [];
-        let updated = 0;
+    const errors: Array<{ userId?: number; username?: string; error: string }> = [];
+    let updated = 0;
 
         // Find local group mapped to this Moodle group
         const localGroup = await this.groupRepository.findByMoodleId(moodleGroupId);
@@ -208,20 +208,22 @@ export class MoodleService {
 
     // ALSO fetch enrolled users (once) for the parent course to obtain roles in bulk.
     // getEnrolledUsers returns users with roles; we map them by Moodle id to avoid
-    // calling the enrolled API per-user inside the loop.
+    // calling the enrolled API per-user inside the loop. We also keep the parent
+    // course here so we can request per-user completion status when available.
     const enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
-        try {
-            const parentCourse = localGroup.id_course ? await this.courseRepository.findById(localGroup.id_course) : null;
-            if (parentCourse && parentCourse.moodle_id) {
-                const enrolled = await this.getEnrolledUsers(parentCourse.moodle_id);
-                for (const eu of enrolled) {
-                    enrolledRolesMap.set(eu.id, eu.roles ?? []);
-                }
+    let parentCourse: { id_course?: number; moodle_id?: number } | null = null;
+    try {
+        parentCourse = localGroup.id_course ? await this.courseRepository.findById(localGroup.id_course) : null;
+        if (parentCourse && parentCourse.moodle_id) {
+            const enrolled = await this.getEnrolledUsers(parentCourse.moodle_id);
+            for (const eu of enrolled) {
+                enrolledRolesMap.set(eu.id, eu.roles ?? []);
             }
-        } catch (err) {
-            Logger.warn({ err, moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch enrolled users for role mapping');
-            // proceed without enrolled roles map
         }
+    } catch (err) {
+        Logger.warn({ err, moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch enrolled users for role mapping');
+        // proceed without enrolled roles map or parentCourse
+    }
 
         for (const mu of moodleUsers) {
             try {
@@ -273,10 +275,41 @@ export class MoodleService {
                     // continue - role resolution failures shouldn't block user updates
                 }
 
+                // Additionally, if we have a parent course with a Moodle id, fetch the
+                // user's completion percentage for that course and persist it on the
+                // local user_group record. This keeps completion percentages in sync
+                // when the operator clicks "Traer Moodle". Add debug logs and collect
+                // per-user progress details for temporary tracing.
+                try {
+                    if (parentCourse && parentCourse.moodle_id) {
+                        const progress = await this.getUserProgressInCourse(mu, parentCourse.moodle_id);
+                        const completion = progress?.completion_percentage ?? null;
+
+                        // Persist as string to match existing schema (e.g. "0", "75").
+                        // If completion is null, persist '0' to avoid nulls in UI.
+                        const completionValue = completion !== null && typeof completion !== 'undefined' ? String(completion) : '0';
+                        try {
+                            // Persist completion percentage in the user_course table (where UI reads it from)
+                            await this.userCourseRepository.updateById(existingMoodleUser.id_user, localGroup.id_course, { completion_percentage: completionValue });
+                        } catch (upErr: unknown) {
+                            // Sanitize unknown error for logging: prefer Error properties when available
+                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                            Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_course: localGroup.id_course }, 'MoodleService:syncMoodleGroupMembers - could not persist completion_percentage to user_course');
+                        }
+                    } else {
+                        // No parent course Moodle id: skip per-user progress fetch
+                    }
+                } catch (progErr: unknown) {
+                    const progErrForLog = progErr instanceof Error ? { message: progErr.message, stack: progErr.stack } : String(progErr);
+                    Logger.warn({ progErr: progErrForLog, moodleUserId: mu.id }, 'MoodleService:syncMoodleGroupMembers - could not fetch user progress');
+                    // don't block overall sync on progress fetch failures
+                }
+
                 updated += 1;
             } catch (err) {
-                const e: any = err;
-                errors.push({ userId: mu.id, username: mu.username, error: e?.message ?? String(e) });
+                const e: unknown = err;
+                const errMsg = e instanceof Error ? e.message : String(e);
+                errors.push({ userId: mu.id, username: mu.username, error: errMsg });
             }
         }
 
