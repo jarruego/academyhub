@@ -88,6 +88,13 @@ export default function OrganizationSettingsPage() {
     }
   }, [data]);
 
+  // Set browser tab title for this page and restore previous title on unmount
+  useEffect(() => {
+    const prev = document.title;
+    document.title = 'Ajustes Organización';
+    return () => { document.title = prev; };
+  }, []);
+
   const handleSave = () => {
     if (!jsonText) return messageApi.error('Nada para guardar');
     try {
@@ -236,7 +243,7 @@ export default function OrganizationSettingsPage() {
           </div>
 
           <div>
-            <h3>Firma del diploma</h3>
+            <h3>Firma</h3>
             {data?.signature_path ? <Image src={resolveAssetUrl(data.signature_path)} alt="signature" width={200} /> : <div>No hay firma configurada</div>}
             <Upload customRequest={(opts) => uploadRequest(opts, 'signature')} showUploadList={false} disabled={!admin}>
               <Button icon={<InboxOutlined />} style={{ marginTop: 8 }} disabled={!admin} loading={loadingUpload}>Subir firma</Button>

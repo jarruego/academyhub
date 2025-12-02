@@ -6,6 +6,10 @@ import type { ReportRowDTO } from 'src/dto/reports/report-row.dto';
 import type { ReportExportDTO } from 'src/dto/reports/report-export.dto';
 import type { Response } from 'express';
 import { PdfService } from 'src/common/pdf/pdf.service';
+import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
+import { OrganizationSettingsSelectModel } from 'src/database/schema/tables/organization_settings.table';
+import * as path from 'path';
+import * as fs from 'fs/promises';
 
 @Injectable()
 export class ReportsPdfService {
@@ -14,12 +18,13 @@ export class ReportsPdfService {
     private readonly reportsRepository: ReportsRepository,
     private readonly pdfService: PdfService,
     private readonly reportsService: ReportsService,
+    private readonly organizationRepository: OrganizationRepository,
   ) {}
 
   /**
    * Stream a simple tabular 'dedication' PDF grouped by center -> course using the shared PdfService
    */
-  async streamDedicationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer }) {
+  async streamDedicationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string }) {
     // Ensure we request a sufficiently large limit so we get all rows for export.
     const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
 
@@ -29,7 +34,7 @@ export class ReportsPdfService {
     return this.streamDedicationPdfFromRows(rows, res, opts);
   }
 
-  async streamDedicationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer }) {
+  async streamDedicationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string }) {
     // Group by center_name then course_name
     const centersMap = new Map<string, Map<string, ReportRowDTO[]>>();
     for (const r of rows) {
@@ -48,6 +53,13 @@ export class ReportsPdfService {
     if (opts?.logoBuffer) {
       // use pdfService helper so errors are handled consistently
       this.pdfService.embedImageSafe(doc, opts.logoBuffer, doc.x, doc.y, { width: 120 });
+    }
+
+    // Organization header (issuer) if provided
+    if (opts?.issuerName) {
+      doc.moveDown(0.2);
+      doc.fontSize(10).text(opts.issuerName, { align: 'left' });
+      doc.moveDown(0.4);
     }
 
     this.pdfService.addHeader(doc, 'Informe de dedicación');
@@ -166,7 +178,7 @@ export class ReportsPdfService {
 
     if (opts?.logoBuffer) this.pdfService.embedImageSafe(doc, opts.logoBuffer, doc.x, doc.y, { width: 120 });
 
-    const issuer = opts?.issuerName ?? 'Fulanito de Tal';
+  const issuer = opts?.issuerName ?? 'Fulanito de Tal';
 
     const centerEntries = Array.from(centersMap.entries());
     for (let ci = 0; ci < centerEntries.length; ci++) {
@@ -262,12 +274,63 @@ export class ReportsPdfService {
     const rowsRendererFromRows = report_type === 'certification' ? this.streamCertificationPdfFromRows.bind(this) : this.streamDedicationPdfFromRows.bind(this);
     const rendererFromFilter = report_type === 'certification' ? this.streamCertificationPdf.bind(this) : this.streamDedicationPdf.bind(this);
 
+  // Load organization settings and assets to include in the PDF (logo/signature and company info)
+  let orgRow: OrganizationSettingsSelectModel | null = null;
+    try {
+      orgRow = await this.organizationRepository.findFirst();
+    } catch (e) {
+      this.logger.warn({ e }, 'Could not load organization settings for report header');
+    }
+
+    let logoBuffer: Buffer | undefined = undefined;
+    let signatureBuffer: Buffer | undefined = undefined;
+    let issuerName: string | undefined = undefined;
+
+    if (orgRow) {
+      try {
+  const settings = (orgRow.settings ?? {}) as Record<string, unknown>;
+  const company = (settings && typeof settings === 'object') ? (settings['company'] as Record<string, unknown> | undefined) : undefined;
+        if (company) {
+          const responsable = (company.responsable_nombre as string | undefined) ?? undefined;
+          const razon = (company.razon_social as string | undefined) ?? undefined;
+          const cif = (company.cif as string | undefined) ?? undefined;
+          const direccion = (company.direccion as string | undefined) ?? undefined;
+          if (responsable || razon || cif || direccion) {
+            issuerName = `${responsable ? `D. ${responsable}, ` : ''}${razon ? `administrador de ${razon}` : ''}${cif ? `, con CIF ${cif}` : ''}${direccion ? ` y domicilio en ${direccion}` : ''}.`;
+          }
+        }
+
+        const lp = orgRow.logo_path as string | undefined;
+        const sp = orgRow.signature_path as string | undefined;
+        if (lp) {
+          try {
+            const rel = lp.replace(/^\/+/, '');
+            const fsPath = path.join(process.cwd(), 'public', rel);
+            logoBuffer = await fs.readFile(fsPath);
+          } catch (e) {
+            this.logger.warn({ e, lp }, 'Could not read logo file for reports');
+          }
+        }
+        if (sp) {
+          try {
+            const rel = sp.replace(/^\/+/, '');
+            const fsPath = path.join(process.cwd(), 'public', rel);
+            signatureBuffer = await fs.readFile(fsPath);
+          } catch (e) {
+            this.logger.warn({ e, sp }, 'Could not read signature file for reports');
+          }
+        }
+      } catch (e) {
+        this.logger.warn({ e }, 'Error while preparing organization assets for report');
+      }
+    }
+
     // If client supplied explicit selected keys, generate report for those rows only
     if (Array.isArray(selected_keys) && selected_keys.length) {
       const keys: string[] = selected_keys;
       const data = await this.reportsService.getRowsByKeys(keys);
       const rows: ReportRowDTO[] = Array.isArray(data) ? data : (data?.data ?? []);
-      await rowsRendererFromRows(rows, res, report_type === 'certification' ? { issuerName: undefined } : { includePasswords });
+      await rowsRendererFromRows(rows, res, report_type === 'certification' ? { issuerName, logoBuffer, signatureBuffer } : { includePasswords, logoBuffer, signatureBuffer, issuerName });
       return;
     }
 
@@ -285,11 +348,11 @@ export class ReportsPdfService {
           return !deselected.includes(key);
         });
       }
-      await rowsRendererFromRows(rows, res, report_type === 'certification' ? { issuerName: undefined } : { includePasswords });
+      await rowsRendererFromRows(rows, res, report_type === 'certification' ? { issuerName, logoBuffer, signatureBuffer } : { includePasswords, logoBuffer, signatureBuffer, issuerName });
       return;
     }
 
     // Default: generate report by applying the filter server-side (force no pagination)
-    await rendererFromFilter(exportFilter, res, report_type === 'certification' ? { issuerName: undefined } : { includePasswords });
+    await rendererFromFilter(exportFilter, res, report_type === 'certification' ? { issuerName, logoBuffer, signatureBuffer } : { includePasswords, logoBuffer, signatureBuffer, issuerName });
   }
 }
