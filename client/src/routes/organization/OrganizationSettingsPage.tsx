@@ -7,9 +7,12 @@ import { resolveAssetUrl } from '../../utils/resolve-asset-url.util';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
 import { useUpsertOrganizationMutation } from '../../hooks/api/organization/use-upsert-organization.mutation';
 import { useUploadOrganizationAsset } from '../../hooks/api/organization/use-upload-organization-asset.mutation';
+import { useCheckMoodleConnection } from '../../hooks/api/moodle/use-check-moodle.mutation';
 
 export default function OrganizationSettingsPage() {
   const role = useRole();
+  // Use message.useMessage() to avoid antd warning about static message consuming dynamic theme/context
+  const [messageApi, messageContextHolder] = message.useMessage();
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
   const [tokenValue, setTokenValue] = useState('');
@@ -18,7 +21,11 @@ export default function OrganizationSettingsPage() {
   const uploadMutation = useUploadOrganizationAsset();
   // Support different react-query versions: safe loading flag for the save button
   function hasIsLoading(x: unknown): x is { isLoading: boolean } {
-    return typeof x === 'object' && x !== null && 'isLoading' in x && typeof (x as any).isLoading === 'boolean';
+    if (typeof x === 'object' && x !== null && 'isLoading' in x) {
+      const v = (x as Record<string, unknown>)['isLoading'];
+      return typeof v === 'boolean';
+    }
+    return false;
   }
 
   const statusValue = (saveMutation as unknown as { status?: unknown }).status;
@@ -31,11 +38,11 @@ export default function OrganizationSettingsPage() {
     setLoadingUpload(true);
     try {
       await uploadMutation.mutateAsync({ file: file as Blob, type });
-      message.success('Fichero subido');
-      onSuccess && onSuccess(null, file as any);
+      messageApi.success('Fichero subido');
+  onSuccess && onSuccess(null, file as File);
     } catch (err) {
       console.error(err);
-      message.error('Error subiendo fichero');
+      messageApi.error('Error subiendo fichero');
       onError && onError(err as Error);
     } finally {
       setLoadingUpload(false);
@@ -49,6 +56,14 @@ export default function OrganizationSettingsPage() {
   const exampleSettings = {
     site_name: "Mi Centro",
     contact: { name: "Contacto", email: "contacto@centro.test", phone: "" },
+    // Company identification fields requested: CIF, Razon social and DNI of the responsible person
+    company: {
+      cif: "A12345678",
+      razon_social: "Academia Ejemplo SL",
+      direccion: "Calle Falsa 123, 28000 Madrid",
+      responsable_nombre: "Juan Pérez",
+      responsable_dni: "12345678A",
+    },
     moodle: { url: "https://moodle.example.com" },
     // Plugin flags: set installed Moodle plugins to false by default
     plugins: {
@@ -74,12 +89,32 @@ export default function OrganizationSettingsPage() {
   }, [data]);
 
   const handleSave = () => {
-    if (!jsonText) return message.error('Nada para guardar');
+    if (!jsonText) return messageApi.error('Nada para guardar');
     try {
-  const parsed = JSON.parse(jsonText);
-  saveMutation.mutate({ settings: parsed });
+  const parsed: unknown = JSON.parse(jsonText);
+  // Basic client-side validation for required company fields to give immediate feedback
+  const parsedObj = (typeof parsed === 'object' && parsed !== null) ? parsed as Record<string, unknown> : {};
+  const company = (typeof parsedObj['company'] === 'object' && parsedObj['company'] !== null) ? parsedObj['company'] as Record<string, unknown> : null;
+  const required = ['cif', 'razon_social', 'direccion', 'responsable_nombre', 'responsable_dni'];
+  const missing = required.filter((k) => !company || typeof company[k] !== 'string' || company[k].trim().length === 0);
+  if (missing.length > 0) {
+    return messageApi.error(`Faltan campos obligatorios en company: ${missing.join(', ')}`);
+  }
+
+  // Use mutateAsync so we can catch server validation errors and show them to the user
+  (async () => {
+  try {
+  await saveMutation.mutateAsync({ settings: parsedObj });
+      messageApi.success('Ajustes guardados');
+    } catch (err: any) {
+      // Try to read NestJS error shape (message may be string or array)
+      const serverMsg = getServerMessage(err);
+      messageApi.error(serverMsg);
+    }
+  })();
     } catch (err) {
-      message.error('JSON inválido: ' + (err as Error).message);
+      const msg = (err instanceof Error) ? err.message : String(err);
+      messageApi.error('JSON inválido: ' + msg);
     }
   };
 
@@ -88,14 +123,61 @@ export default function OrganizationSettingsPage() {
     setTokenModalVisible(true);
   };
 
+  const checkMoodle = useCheckMoodleConnection();
+  const checkStatusValue = (checkMoodle as unknown as { status?: unknown }).status;
+  const checkingMoodle = hasIsLoading(checkMoodle)
+    ? checkMoodle.isLoading
+    : (typeof checkStatusValue === 'string' && (checkStatusValue === 'pending' || checkStatusValue === 'loading'));
+
+  const handleCheckMoodle = async () => {
+    try {
+      const resp = await checkMoodle.mutateAsync();
+      const payload = resp.data;
+      if (payload?.success) {
+        const info = payload.info;
+        let label = '';
+        if (info && typeof info === 'object') {
+          const asAny = info as Record<string, unknown>;
+          label = (asAny.sitefullname as string) || (asAny.site_name as string) || JSON.stringify(info).slice(0, 200);
+        } else {
+          label = String(info ?? 'Conexión OK');
+        }
+        messageApi.success(`Conectado a Moodle: ${label}`);
+      } else {
+        messageApi.error(payload?.message ?? 'No se pudo conectar a Moodle');
+      }
+    } catch (err) {
+      console.error('Moodle check failed', err);
+      const serverMsg = getServerMessage(err as unknown);
+      messageApi.error(serverMsg || 'Error comprobando conexión a Moodle');
+    }
+  };
+
   const handleTokenSave = async () => {
-    if (!tokenValue) return message.warning('Introduce el token');
+  if (!tokenValue) return messageApi.warning('Introduce el token');
     // Send plain token to backend; backend will encrypt
-    saveMutation.mutate({ encrypted_secrets: { moodle_token_plain: tokenValue } });
+    try {
+      await saveMutation.mutateAsync({ encrypted_secrets: { moodle_token_plain: tokenValue } });
+      messageApi.success('Token guardado');
+    } catch (err) {
+      const serverMsg = getServerMessage(err);
+      messageApi.error(serverMsg);
+    }
     setTokenModalVisible(false);
   };
 
   const admin = role?.toLowerCase() === 'admin';
+
+  function getServerMessage(err: unknown): string {
+    if (typeof err === 'object' && err !== null) {
+      const e = err as { response?: { data?: { message?: unknown } }; message?: unknown };
+      const msg = e.response?.data?.message ?? e.message;
+      if (typeof msg === 'string') return msg;
+      if (Array.isArray(msg)) return msg.join('; ');
+      return String(msg ?? 'Error en la petición');
+    }
+    return String(err ?? 'Error en la petición');
+  }
 
   // use shared resolveAssetUrl util (imported above)
 
@@ -114,14 +196,15 @@ export default function OrganizationSettingsPage() {
         <Col span={12}>
           <Form form={form} layout="vertical" onFinish={handleSave}>
             <Form.Item label="Settings (JSON)">
+              {messageContextHolder}
               {jsonText ? (
-                <div style={{ border: '1px solid #eee', padding: 8, borderRadius: 4, maxHeight: 420, overflow: 'auto' }}>
+                <div style={{ border: '1px solid #eee', padding: 8, borderRadius: 4, maxHeight: 420, overflow: 'hidden' }}>
                   <Input.TextArea
                     value={jsonText}
                     onChange={(e) => setJsonText(e.target.value)}
-                    rows={20}
+                    // remove rows and set explicit height so only the textarea scrolls
                     disabled={!admin}
-                    style={{ fontFamily: 'monospace', fontSize: 13 }}
+                    style={{ fontFamily: 'monospace', fontSize: 13, height: 420, overflow: 'auto', resize: 'vertical' }}
                   />
                 </div>
               ) : (
@@ -135,6 +218,9 @@ export default function OrganizationSettingsPage() {
               </Button>
               <Button style={{ marginLeft: 8 }} onClick={openTokenModal} disabled={!admin}>
                 {data && data?.version ? 'Cambiar token de Moodle' : 'Configurar token de Moodle'}
+              </Button>
+              <Button style={{ marginLeft: 8 }} onClick={handleCheckMoodle} loading={checkingMoodle} disabled={!admin}>
+                Comprobar conexión Moodle
               </Button>
             </Form.Item>
           </Form>
@@ -159,7 +245,7 @@ export default function OrganizationSettingsPage() {
         </Col>
       </Row>
 
-      <Modal title="Configurar token de Moodle" visible={tokenModalVisible} onOk={handleTokenSave} onCancel={() => setTokenModalVisible(false)} okText="Guardar">
+  <Modal title="Configurar token de Moodle" open={tokenModalVisible} onOk={handleTokenSave} onCancel={() => setTokenModalVisible(false)} okText="Guardar">
         <Form layout="vertical">
           <Form.Item label="Token de Moodle">
             <Input.Password value={tokenValue} onChange={(e) => setTokenValue(e.target.value)} />

@@ -23,6 +23,7 @@ interface Props {
 const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [modal, modalContextHolder] = Modal.useModal();
+  const [notificationApi, notificationContextHolder] = notification.useNotification();
 
   const extractSummary = (text?: string) => {
     if (!text) return '';
@@ -172,6 +173,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
     <div>
   {contextHolder}
   {modalContextHolder}
+  {notificationContextHolder}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', gap: 8 }}>
           <AuthzHide roles={[Role.ADMIN]}>
@@ -207,7 +209,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
                   if (result?.success) {
                     // Show both a toast and a persistent notification with the summary message
                     messageApi.success(result.message || 'Usuarios sincronizados desde Moodle');
-                    notification.success({
+                    notificationApi.success({
                       message: 'Sincronización completada',
                       description: result.message || 'Usuarios sincronizados desde Moodle',
                       duration: 5,

@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus, InternalServerErrorException, Logger, Inject } from '@nestjs/common';
 import axios, { AxiosResponse } from 'axios';
-import crypto from 'crypto';
+import { decryptSecret, tryEncryptSecret } from '../../utils/crypto/secrets.util';
 import { MoodleCourse } from 'src/types/moodle/course';
 import { MoodleGroup, CreatedGroupResponseItem } from 'src/types/moodle/group';
 import { MoodleUser, ExtendedMoodleUser } from 'src/types/moodle/user';
@@ -148,14 +148,48 @@ export class MoodleService {
             }
             if (rows && rows.length > 0) {
                 const row = rows[0] as any;
-                const enc = row.encrypted_secrets?.moodle_token;
-                if (enc) {
-                    // If value is a string, assume plaintext (legacy/dev). If object, attempt to decrypt.
-                    if (typeof enc === 'string') return enc;
-                    try {
-                        return this.decryptSecret(enc);
-                    } catch (e) {
-                        Logger.warn({ err: e }, 'MoodleService:resolveMoodleToken - failed to decrypt token; falling back to env');
+                const secrets = row.encrypted_secrets ?? {};
+                // Support multiple keys historically used for storing the token.
+                const candidates = ['moodle_token', 'moodle_token_plain', 'moodleToken', 'moodle_token_encrypted', 'token'];
+                for (const key of candidates) {
+                    const enc = secrets[key];
+                    if (enc) {
+                        // If value is a string, assume plaintext (legacy/dev).
+                        if (typeof enc === 'string') {
+                            // Try to encrypt and persist the plaintext token so future reads use the secure form.
+                            try {
+                                const encrypted = tryEncryptSecret(enc);
+                                if (encrypted) {
+                                    const newSecrets = { ...secrets } as Record<string, unknown>;
+                                    newSecrets[key] = encrypted;
+                                    try {
+                                        await this.databaseService.db.update(organizationSettingsTable).set({ encrypted_secrets: newSecrets }).where(eq(organizationSettingsTable.id, row.id));
+                                        Logger.log({ key }, 'MoodleService:resolveMoodleToken - encrypted plaintext token in DB');
+                                    } catch (updErr) {
+                                        Logger.warn({ updErr }, 'MoodleService:resolveMoodleToken - failed to persist encrypted token');
+                                    }
+                                    // Return decrypted value from the encrypted object to ensure consistent behavior
+                                    return decryptSecret(encrypted);
+                                }
+                            } catch (e) {
+                                Logger.warn({ e }, 'MoodleService:resolveMoodleToken - encryption attempt failed; falling back to plaintext');
+                                return enc;
+                            }
+                            return enc;
+                        }
+                        try {
+                            return decryptSecret(enc);
+                        } catch (e) {
+                            Logger.warn({ err: e, key }, `MoodleService:resolveMoodleToken - failed to decrypt token for key=${key}; trying next`);
+                        }
+                    }
+                }
+                // Also support nested shape like { moodle: { token: '...' } }
+                if (secrets.moodle && typeof secrets.moodle === 'object') {
+                    const nested = (secrets.moodle as Record<string, unknown>).token;
+                    if (nested) {
+                        if (typeof nested === 'string') return nested;
+                        try { return decryptSecret(nested); } catch (e) { Logger.warn({ e }, 'MoodleService:resolveMoodleToken - failed to decrypt nested token'); }
                     }
                 }
             }
@@ -164,25 +198,6 @@ export class MoodleService {
         }
 
         return this.MOODLE_TOKEN;
-    }
-
-    /**
-     * Decrypts a secret previously encrypted with APP_MASTER_KEY using AES-256-GCM.
-     * Accepts an object { ct: string (base64), iv: string (base64), tag: string (base64) }
-     */
-    private decryptSecret(enc: any): string | undefined {
-        const keyBase = process.env.APP_MASTER_KEY;
-        if (!keyBase) throw new Error('APP_MASTER_KEY not set');
-        const key = Buffer.from(keyBase, 'base64');
-        if (!enc || !enc.ct || !enc.iv || !enc.tag) throw new Error('invalid ciphertext');
-        const iv = Buffer.from(enc.iv, 'base64');
-        const tag = Buffer.from(enc.tag, 'base64');
-        const ct = Buffer.from(enc.ct, 'base64');
-
-        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-        decipher.setAuthTag(tag);
-        const decrypted = Buffer.concat([decipher.update(ct), decipher.final()]);
-        return decrypted.toString('utf8');
     }
 
     /**
@@ -204,7 +219,7 @@ export class MoodleService {
                 if (enc) {
                     if (typeof enc === 'string') return enc;
                     try {
-                        return this.decryptSecret(enc);
+                        return decryptSecret(enc);
                     } catch (e) {
                         Logger.warn({ err: e }, 'MoodleService:resolveMoodleUrl - failed to decrypt url; falling back to settings/env');
                     }
@@ -222,6 +237,14 @@ export class MoodleService {
 
         return this.MOODLE_URL;
     }
+
+        /**
+         * Retrieve basic site info from Moodle to verify connectivity.
+         * Exposes a small wrapper around the generic request for controller use.
+         */
+        async getSiteInfo(): Promise<unknown> {
+            return await this.request('core_webservice_get_site_info');
+        }
 
     /**
      * Sync members of a Moodle group by fetching Moodle group members and

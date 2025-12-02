@@ -121,4 +121,17 @@ export class MoodleController {
     async syncUsernamesFromMoodle() {
         return await this.moodleService.syncUsernamesFromMoodle();
     }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
+    @Get('check')
+    async checkConnection() {
+        try {
+            const info = await this.moodleService.getSiteInfo();
+            return { success: true, info };
+        } catch (err: unknown) {
+            // Normalize error message for client
+            const message = err instanceof Error ? err.message : String(err);
+            return { success: false, message };
+        }
+    }
 }
