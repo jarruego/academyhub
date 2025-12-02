@@ -63,8 +63,10 @@ export class MoodleService {
      * @throws {InternalServerErrorException} - Throws an internal server error exception if the request fails or Moodle returns an error.
      */
     private async request<R = unknown, D extends MoodleParams = MoodleParams>(fn: string, { params: paramsData, method = 'get' }: RequestOptions<D> = {}): Promise<R> {
-        // Resolve token with DB (priority) -> env fallback
+        // Resolve token and URL with DB (priority) -> env fallback
         const resolvedToken = await this.resolveMoodleToken();
+        const resolvedUrl = await this.resolveMoodleUrl();
+        if (!resolvedUrl) throw new InternalServerErrorException('Moodle URL not configured');
         const params: MoodleParams = {
             ...(paramsData ?? {}),
             wstoken: resolvedToken,
@@ -95,7 +97,7 @@ export class MoodleService {
                 }
 
                 const response = await axios.request<R, AxiosResponse<R>>({
-                    url: this.MOODLE_URL,
+                    url: resolvedUrl,
                     method,
                     data: body.toString(),
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -105,7 +107,7 @@ export class MoodleService {
                 return response.data as R;
             }
 
-            const response = await axios.request<R, AxiosResponse<R>>({ url: this.MOODLE_URL, params, method });
+                const response = await axios.request<R, AxiosResponse<R>>({ url: resolvedUrl, params, method });
 
             if (isMoodleError(response.data)) throw response.data;
 
@@ -118,7 +120,7 @@ export class MoodleService {
                     status: err.response?.status,
                     responseData: err.response?.data,
                     params,
-                    url: this.MOODLE_URL,
+                    url: resolvedUrl,
                 }, "MoodleService:request");
 
                 const message = err.message || (err.response && JSON.stringify(err.response)) || 'Error calling Moodle API';
@@ -126,7 +128,7 @@ export class MoodleService {
             }
 
             // Non-axios error
-            Logger.error({ message: String(err), params, url: this.MOODLE_URL }, 'MoodleService:request');
+            Logger.error({ message: String(err), params, url: resolvedUrl }, 'MoodleService:request');
             throw new InternalServerErrorException(String(err) || 'Error calling Moodle API');
         }
     }
@@ -181,6 +183,44 @@ export class MoodleService {
         decipher.setAuthTag(tag);
         const decrypted = Buffer.concat([decipher.update(ct), decipher.final()]);
         return decrypted.toString('utf8');
+    }
+
+    /**
+     * Resolve the Moodle URL. Priority: DB encrypted_secrets.moodle_url -> settings.moodle.url -> process.env.MOODLE_URL
+     * Accepts encrypted URL objects (same shape as for tokens) and will attempt to decrypt them.
+     */
+    private async resolveMoodleUrl(centerId?: number): Promise<string | undefined> {
+        try {
+            let rows: any[] = [];
+            if (typeof centerId === 'number') {
+                rows = await this.databaseService.db.select().from(organizationSettingsTable).where(eq(organizationSettingsTable.center_id, centerId)).limit(1);
+            } else {
+                rows = await this.databaseService.db.select().from(organizationSettingsTable).limit(1);
+            }
+
+            if (rows && rows.length > 0) {
+                const row = rows[0] as any;
+                const enc = row.encrypted_secrets?.moodle_url;
+                if (enc) {
+                    if (typeof enc === 'string') return enc;
+                    try {
+                        return this.decryptSecret(enc);
+                    } catch (e) {
+                        Logger.warn({ err: e }, 'MoodleService:resolveMoodleUrl - failed to decrypt url; falling back to settings/env');
+                    }
+                }
+
+                // Try settings.moodle.url or a couple of common alternatives
+                const s = row.settings ?? {};
+                if (s.moodle?.url) return s.moodle.url;
+                if (s.moodle_url) return s.moodle_url;
+                if (s.moodleUrl) return s.moodleUrl;
+            }
+        } catch (e) {
+            Logger.warn({ e }, 'MoodleService:resolveMoodleUrl - DB lookup failed, falling back to env');
+        }
+
+        return this.MOODLE_URL;
     }
 
     /**
@@ -499,8 +539,9 @@ export class MoodleService {
      * locales cuando existe coinicidencia por moodle_id.
      */
     async syncUsernamesFromMoodle(options?: QueryOptions) {
-        // Validate Moodle configuration early
-        if (!this.MOODLE_URL || !this.MOODLE_TOKEN) {
+        // Validate Moodle configuration early (DB-first)
+        const [resolvedUrl, resolvedToken] = await Promise.all([this.resolveMoodleUrl(), this.resolveMoodleToken()]);
+        if (!resolvedUrl || !resolvedToken) {
             throw new InternalServerErrorException('Moodle URL or token not configured');
         }
 

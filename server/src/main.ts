@@ -1,13 +1,17 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import * as path from 'path';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import "dotenv/config";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.enableCors();
+  // Serve static files from `public` so requests to /uploads/* map to server/public/uploads/*
+  app.useStaticAssets(path.join(process.cwd(), 'public'));
 // Configura el uso de pipes globales en la aplicación, específicamente un ValidationPipe.
 // El ValidationPipe se utiliza para validar y transformar los datos de entrada.
 // La opción 'whitelist: true' elimina las propiedades que no están en el DTO (Data Transfer Object).

@@ -24,6 +24,7 @@ import SageImportRoute from './routes/tools/import-sage.route';
 import ImportVelneoRoute from './routes/tools/import-velneo.route';
 import UserManagementRoute from './routes/auth-users/auth-user-management.route';
 import ReportsRoute from './routes/reports/reports.route';
+import OrganizationSettingsPage from './routes/organization/OrganizationSettingsPage';
 import { useRole } from './utils/permissions/use-role';
 import { Role } from './hooks/api/auth/use-login.mutation';
 import {
@@ -33,6 +34,7 @@ import {
   PieChartOutlined,
   ApartmentOutlined,
   BankOutlined,
+  SettingOutlined,
   ToolOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
@@ -49,6 +51,7 @@ const Sidebar = () => {
   { key: '/groups', icon: <TeamOutlined />, label: <Link to="/groups">Grupos</Link> },
   { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
   { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
+  ...(role?.toLowerCase() === Role.ADMIN ? [{ key: '/organization', icon: <SettingOutlined />, label: <Link to="/organization">Organización</Link> }] : []),
     { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers">Centros</Link> },
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER
       ? [
@@ -93,6 +96,7 @@ export default function AppRouter() {
               <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} /> 
               <Route path="/centers/:id_center/edit" element={<EditCenterRoute />} /> 
               <Route path="/add-company" element={<CreateCompanyRoute />} />
+              <Route path="/organization" element={<OrganizationSettingsPage />} />
               <Route path="/centers" element={<CentersRoute />} />
               <Route path="/reports" element={<ReportsRoute />} />
               <Route path="/tools" element={<ToolsRoute />} />
