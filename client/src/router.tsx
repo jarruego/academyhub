@@ -16,6 +16,7 @@ import CreateCenterRoute from './routes/centers/create-center.route';
 import EditCenterRoute from './routes/centers/center-detail.route'; 
 import CentersRoute from './routes/centers/centers.route'; 
 import { Layout, Menu, Button } from 'antd';
+import type { MenuProps } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 import ToolsRoute from './routes/tools/tools.route';
 import DataCrossReferenceRoute from './routes/tools/data-cross-reference.route';
@@ -45,21 +46,30 @@ const Sidebar = () => {
   const { logout } = useAuthInfo();
   const role = useRole();
 
-  const menuItems = [
+  type MenuItem = NonNullable<MenuProps['items']>[number];
+
+  const menuItems: NonNullable<MenuProps['items']> = [
     { key: '/', icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
     { key: '/users', icon: <UserOutlined />, label: <Link to="/users">Usuarios</Link> },
   { key: '/groups', icon: <TeamOutlined />, label: <Link to="/groups">Grupos</Link> },
   { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
   { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
-  ...(role?.toLowerCase() === Role.ADMIN ? [{ key: '/organization', icon: <SettingOutlined />, label: <Link to="/organization">Organización</Link> }] : []),
     { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers">Centros</Link> },
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER
       ? [
-          { key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> },
           { key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports">Informes</Link> },
         ]
       : []),
   ];
+
+  // Build Administration parent with children placed at the end of the menu
+  const adminChildren: MenuItem[] = [];
+  // Only ADMIN users should see the Administración parent and its children
+  if (role?.toLowerCase() === Role.ADMIN) {
+    adminChildren.push({ key: '/organization', icon: <SettingOutlined />, label: <Link to="/organization">Organización</Link> });
+    adminChildren.push({ key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> });
+    menuItems.push({ key: 'administracion', icon: <SettingOutlined />, label: <span>Administración</span>, children: adminChildren });
+  }
 
   return (
     <Sider>
