@@ -5,6 +5,7 @@ import { MoodleController } from './moodle.controller';
 import { DatabaseModule } from 'src/database/database.module';
 import { CourseRepository } from 'src/database/repository/course/course.repository';
 import { GroupRepository } from 'src/database/repository/group/group.repository';
+import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
 import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
 import { UserRepository } from 'src/database/repository/user/user.repository';
 import { UserGroupRepository } from 'src/database/repository/group/user-group.repository';
@@ -18,6 +19,7 @@ import { GroupModule } from '../group/group.module';
     MoodleService,
     CourseRepository,
     GroupRepository,
+  OrganizationRepository,
     UserCourseRepository,
     UserRepository,
     UserGroupRepository,
