@@ -6,6 +6,8 @@ import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
 import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.mutation";
 import { usePushGroupToMoodleMutation } from "../../hooks/api/moodle/use-push-group-to-moodle.mutation";
+import { useDeleteMoodleGroupMutation } from "../../hooks/api/moodle/use-delete-moodle-group.mutation";
+import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { useEffect } from "react";
 import { DeleteOutlined, SaveOutlined, CloudUploadOutlined } from "@ant-design/icons";
 import GroupUsersManager from '../../components/group/GroupUsersManager';
@@ -41,6 +43,8 @@ export default function EditGroupRoute() {
   const [modal, contextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
   const pushGroupMutation = usePushGroupToMoodleMutation();
+  const deleteMoodleGroupMutation = useDeleteMoodleGroupMutation();
+  const { data: usersInGroup } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
 
   useEffect(() => {
     if (groupData) {
@@ -235,6 +239,35 @@ export default function EditGroupRoute() {
               >
                 Subir a Moodle
               </Button>
+              {/* Show delete-in-Moodle button when group has no users and is already uploaded */}
+              {groupData?.moodle_id && (usersInGroup?.length ?? 0) === 0 && (
+                <Button
+                  style={{ marginLeft: 8 }}
+                  danger
+                  onClick={() => {
+                    modal.confirm({
+                      title: 'Eliminar grupo en Moodle',
+                      content: '¿Desea eliminar este grupo en Moodle? Esta acción sólo eliminará el grupo en Moodle y dejará vacío el campo moodle_id aquí.',
+                      okText: 'Eliminar en Moodle',
+                      cancelText: 'Cancelar',
+                      onOk: async () => {
+                        try {
+                          const res = await deleteMoodleGroupMutation.mutateAsync(groupData.id_group);
+                          const msg = res?.data?.message || 'Grupo eliminado en Moodle';
+                          messageApi.success(msg);
+                        } catch (err) {
+                          modal.error({
+                            title: 'Error al eliminar en Moodle',
+                            content: 'No se pudo eliminar el grupo en Moodle. Compruebe los permisos y vuelva a intentarlo.'
+                          });
+                        }
+                      }
+                    });
+                  }}
+                >
+                  Eliminar en Moodle
+                </Button>
+              )}
             </AuthzHide>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>

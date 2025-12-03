@@ -109,6 +109,15 @@ export class MoodleController {
     }
 
     @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('groups/:groupId/delete')
+    /**
+     * Delete the corresponding group in Moodle and clear local moodle_id.
+     */
+    async deleteGroupInMoodle(@Param('groupId', ParseIntPipe) groupId: number) {
+        return await this.moodleService.deleteLocalGroupFromMoodle(groupId);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
     @Post('import-all')
     async importMoodleCourses(@Query('skipUsers') skipUsers?: string) {
         // Accepts skipUsers as query param (e.g., /import-all?skipUsers=true)

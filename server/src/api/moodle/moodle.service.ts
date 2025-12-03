@@ -103,13 +103,23 @@ export class MoodleService {
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 });
 
-                if (isMoodleError(response.data)) throw response.data;
+                if (isMoodleError(response.data)) {
+                    const moodleErr = response.data as { exception: unknown };
+                    Logger.error({ moodleError: moodleErr, params, url: resolvedUrl }, 'MoodleService:request - moodle error (post)');
+                    const exMsg = typeof moodleErr.exception === 'string' ? moodleErr.exception : JSON.stringify(moodleErr.exception);
+                    throw new InternalServerErrorException(exMsg || 'Moodle returned an error');
+                }
                 return response.data as R;
             }
 
                 const response = await axios.request<R, AxiosResponse<R>>({ url: resolvedUrl, params, method });
 
-            if (isMoodleError(response.data)) throw response.data;
+            if (isMoodleError(response.data)) {
+                const moodleErr = response.data as { exception: unknown };
+                Logger.error({ moodleError: moodleErr, params, url: resolvedUrl }, 'MoodleService:request - moodle error (get)');
+                const exMsg = typeof moodleErr.exception === 'string' ? moodleErr.exception : JSON.stringify(moodleErr.exception);
+                throw new InternalServerErrorException(exMsg || 'Moodle returned an error');
+            }
 
             return response.data as R;
         } catch (err: unknown) {
@@ -1129,6 +1139,34 @@ export class MoodleService {
         } catch (err: any) {
             Logger.error({ err, id_group }, 'MoodleService:pushLocalGroupToMoodle');
             throw new InternalServerErrorException(err?.message || 'Error creating/updating group in Moodle');
+        }
+    }
+
+    /**
+     * Delete a Moodle group identified by the local group id.
+     * Calls Moodle WS to delete the group and clears local `moodle_id` if successful.
+     */
+    async deleteLocalGroupFromMoodle(id_group: number): Promise<{ success: boolean; moodleGroupId?: number; message?: string }> {
+        const localGroup = await this.groupRepository.findById(id_group);
+        if (!localGroup) throw new HttpException('Local group not found', HttpStatus.NOT_FOUND);
+        if (!localGroup.moodle_id) throw new HttpException('Local group is not linked to Moodle', HttpStatus.BAD_REQUEST);
+
+        const moodleId = localGroup.moodle_id;
+
+    // Prepare params for core_group_delete_groups
+    // Moodle expects an array of group ids under the key `groupids` (e.g. groupids[]=123)
+    const params: MoodleParams = {};
+    params['groupids'] = [moodleId];
+
+        try {
+            // Moodle typically returns true on success
+            const res = await this.request<boolean, MoodleParams>('core_group_delete_groups', { method: 'post', params });
+            // On success, clear local moodle_id so local DB reflects deletion
+            await this.groupRepository.update(id_group, { moodle_id: null });
+            return { success: true, moodleGroupId: moodleId, message: 'Group deleted in Moodle and local record updated' };
+        } catch (err: any) {
+            Logger.error({ err, id_group, moodleId }, 'MoodleService:deleteLocalGroupFromMoodle');
+            throw new InternalServerErrorException(err?.message || 'Error deleting group in Moodle');
         }
     }
 
