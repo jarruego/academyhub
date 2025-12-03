@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useExportReportMutation, ReportExportRequest } from './api/reports/use-export-report.mutation';
+import { useExportReportMutation, ReportExportRequest } from './use-export-report.mutation';
 import type { AxiosResponse } from 'axios';
 
 /**

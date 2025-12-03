@@ -13,6 +13,7 @@ type CompanyFields = {
   direccion?: string | null;
   responsable_nombre?: string | null;
   responsable_dni?: string | null;
+  ciudad?: string | null;
 };
 
 @Injectable()
@@ -27,6 +28,7 @@ export class OrganizationService {
       cif: '',
       razon_social: '',
       direccion: '',
+      ciudad: '',
       responsable_nombre: '',
       responsable_dni: '',
     },

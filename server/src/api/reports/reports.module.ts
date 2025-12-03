@@ -5,10 +5,11 @@ import { ReportsRepository } from 'src/database/repository/reports/reports.repos
 import { ReportsPdfService } from './reports-pdf.service';
 import { PdfService } from 'src/common/pdf/pdf.service';
 import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
+import { ReportRenderer } from './report-renderer.service';
 
 @Module({
-  providers: [ReportsService, ReportsRepository, ReportsPdfService, PdfService, OrganizationRepository],
+  providers: [ReportsService, ReportsRepository, ReportsPdfService, PdfService, OrganizationRepository, ReportRenderer],
   controllers: [ReportsController],
-  exports: [ReportsService, ReportsRepository, ReportsPdfService, PdfService],
+  exports: [ReportsService, ReportsRepository, ReportsPdfService, PdfService, ReportRenderer],
 })
 export class ReportsModule {}

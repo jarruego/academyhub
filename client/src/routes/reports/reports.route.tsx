@@ -12,7 +12,7 @@ import { useGroupsQuery } from '../../hooks/api/groups/use-groups.query';
 import { useCompaniesQuery } from '../../hooks/api/companies/use-companies.query';
 import { useCentersQuery } from '../../hooks/api/centers/use-centers.query';
 import { useCentersByCompaniesQuery } from '../../hooks/api/centers/use-centers-by-companies.query';
-import useReportExport from '../../hooks/use-report-export';
+import useReportExport from '../../hooks/api/reports/use-report-export';
 import type { ReportExportRequest } from '../../hooks/api/reports/use-export-report.mutation';
 import { ReportRow } from '../../shared/types/reports/report-row';
 import { PaginationResult } from '../../shared/types/pagination';

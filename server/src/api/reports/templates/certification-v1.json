@@ -1,0 +1,110 @@
+{
+    "meta": {
+        "id": "certification-v1",
+        "title": "Certificado simple"
+    },
+    "variables": [
+        "issuer",
+        "logo",
+        "signature",
+        "rows",
+        "center_name",
+        "course_name",
+        "start_date",
+        "end_date",
+        "company_name",
+        "company_city",
+        "issue_date"
+    ],
+    "styles": {
+        "headerTitle": {
+            "fontSize": 16,
+            "align": "center"
+        },
+        "paragraph": {
+            "fontSize": 10,
+            "align": "left"
+        },
+        "paragraphCentered": {
+            "fontSize": 10,
+            "align": "center"
+        },
+        "tableHeader": {
+            "fontSize": 10,
+            "align": "left"
+        },
+        "tableCell": {
+            "fontSize": 9,
+            "align": "left"
+        },
+        "closing": {
+            "fontSize": 11,
+            "align": "left"
+        },
+        "closingCenteredBold": {
+            "fontSize": 11,
+            "align": "center",
+            "font": "Helvetica-Bold",
+            "marginTopLines": 2,
+            "marginBottomLines": 1
+        }
+    },
+    "pages": [
+        {
+            "elements": [
+                {
+                    "type": "image",
+                    "var": "logo",
+                    "width": 120,
+                    "position": "top-right"
+                },
+                {
+                    "type": "paragraph",
+                    "text": "{{issuer}}",
+                    "style": "paragraph"
+                },
+                {
+                    "type": "title",
+                    "text": "Certifica",
+                    "style": "headerTitle",
+                    "marginTopLines": 1
+                },
+                {
+                    "type": "paragraph",
+                    "text": "Que los alumnos, de la empresa {{company_name}}, del centro de trabajo {{center_name}}, a continuación relacionados, han realizado la Acción Formativa {{course_name}}, del {{start_date}} al {{end_date}}, de modalidad {{modality}}, con una duración total de {{hours}} horas y cuyos contenidos especificamos al dorso.",
+                    "style": "paragraph"
+                },
+                {
+                    "type": "table",
+                    "rowsVar": "rows",
+                    "columns": [
+                        {
+                            "title": "DNI",
+                            "path": "dni",
+                            "width": 90
+                        },
+                        {
+                            "title": "Empleado",
+                            "path": "employee"
+                        }
+                    ],
+                    "headerStyle": "tableHeader",
+                    "cellStyle": "tableCell",
+                    "marginTopLines": 1
+                },
+                {
+                    "type": "paragraph",
+                    "text": "Y para que así conste, lo firmo en {{company_city}} a fecha {{issue_date}}",
+                    "style": "closingCenteredBold"
+                },
+                {
+                    "type": "image",
+                    "var": "signature",
+                    "width": 200,
+                    "position": "center",
+                    "marginTopLines": 1
+                }
+            ]
+        }
+    ]
+}

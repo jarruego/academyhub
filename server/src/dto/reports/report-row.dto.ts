@@ -55,6 +55,12 @@ export class ReportRowDTO {
   course_name?: string;
 
   @ApiPropertyOptional()
+  hours?: number;
+
+  @ApiPropertyOptional()
+  modality?: string;
+
+  @ApiPropertyOptional()
   moodle_id?: number | null;
 
   @ApiPropertyOptional()

@@ -1,0 +1,20 @@
+{
+  "meta": { "id": "dedication-v1", "title": "Informe de dedicación" },
+  "variables": ["issuer","logo","rows","center_name","course_name","issue_date"],
+  "styles": {
+    "headerTitle": { "fontSize": 14, "align": "left", "color": "#7E1515" },
+    "courseTitle": { "fontSize": 16, "align": "left", "font": "Helvetica-Bold", "color": "#0033CC" },
+    "tableHeader": { "fontSize": 9, "align": "left" },
+    "tableCell": { "fontSize": 9, "align": "left" }
+  },
+  "pages": [
+    {
+      "elements": [
+        { "type": "image", "var": "logo", "width": 120, "position": "top-right" },
+        { "type": "title", "text": "Cursos {{center_name}} ({{issue_date}})", "style": "headerTitle", "marginTopLines": 0 },
+        { "type": "title", "text": "{{course_name}}", "style": "courseTitle", "marginTopLines": 1 },
+        { "type": "table", "rowsVar": "rows", "columns": [ { "title": "Usuario", "path": "moodle_username", "width": 120 }, { "title": "Clave", "path": "moodle_password", "width": 100 }, { "title": "Alumno", "path": "employee" }, { "title": "%", "path": "completion_percentage", "width": 60 } ], "headerStyle": "tableHeader", "cellStyle": "tableCell", "marginTopLines": 1 }
+      ]
+    }
+  ]
+}

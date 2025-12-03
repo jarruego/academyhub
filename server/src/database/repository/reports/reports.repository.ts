@@ -27,8 +27,8 @@ export class ReportsRepository extends Repository {
     const limit = Number(filter?.limit) || 100;
     const offset = (page - 1) * limit;
 
-  // Conditions for WHERE clause: Drizzle SQL expressions
-  const where: SQL[] = [];
+    // Conditions for WHERE clause: Drizzle SQL expressions
+    const where: SQL[] = [];
 
     // support arrays for company/center filters (multiple selection)
     if (filter?.id_company) {
@@ -73,8 +73,8 @@ export class ReportsRepository extends Repository {
         sql`unaccent(lower(${userTable.name})) LIKE unaccent(lower(${term}))`,
         sql`unaccent(lower(${userTable.first_surname})) LIKE unaccent(lower(${term}))`,
         sql`unaccent(lower(${userTable.second_surname})) LIKE unaccent(lower(${term}))`,
-  // full name concatenation
-  sql`unaccent(lower(${userTable.name} || ' ' || COALESCE(${userTable.first_surname}, '') || ' ' || COALESCE(${userTable.second_surname}, ''))) LIKE unaccent(lower(${term}))`,
+        // full name concatenation
+        sql`unaccent(lower(${userTable.name} || ' ' || COALESCE(${userTable.first_surname}, '') || ' ' || COALESCE(${userTable.second_surname}, ''))) LIKE unaccent(lower(${term}))`,
         sql`unaccent(lower(${userTable.dni})) LIKE unaccent(lower(${term}))`,
         sql`unaccent(lower(${userTable.email})) LIKE unaccent(lower(${term}))`,
         sql`unaccent(lower(${userTable.phone})) LIKE unaccent(lower(${term}))`,
@@ -125,8 +125,8 @@ export class ReportsRepository extends Repository {
     // (i.e. nulls are considered older than any real date). This means:
     // - when sorting DESC (newest first) nulls go last
     // - when sorting ASC (oldest first) nulls go first
-  // Typed order clause: can hold PG-specific columns, SQL expressions or descending wrappers
-  let orderClause: Array<PgColumn | SQL | ReturnType<typeof desc>> = [userTable.id_user as PgColumn];
+    // Typed order clause: can hold PG-specific columns, SQL expressions or descending wrappers
+    let orderClause: Array<PgColumn | SQL | ReturnType<typeof desc>> = [userTable.id_user as PgColumn];
     if (filter?.sort_field) {
       const col = sortableMap[String(filter.sort_field)];
       if (col) {
@@ -213,6 +213,8 @@ export class ReportsRepository extends Repository {
       role_shortname: r.role?.role_shortname ?? null,
       completion_percentage: r.user_group?.completion_percentage ?? r.user_course?.completion_percentage ?? null,
       course_name: r.course?.course_name ?? null,
+      hours: r.course?.hours ?? null,
+      modality: r.course?.modality ?? null,
       moodle_id: r.moodle_user?.moodle_id ?? r.user_course?.id_moodle_user ?? null,
       moodle_username: r.moodle_user?.moodle_username ?? null,
       moodle_password: r.moodle_user?.moodle_password ?? null,

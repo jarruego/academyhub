@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsOptional, IsObject } from "class-validator";
 
 export class UpdateOrganizationSettingsDTO {
-  @ApiPropertyOptional({ description: 'Free-form settings JSON for the organization. Recommended keys: settings.company.cif, settings.company.razon_social, settings.company.direccion, settings.company.responsable_nombre, settings.company.responsable_dni' })
+  @ApiPropertyOptional({ description: 'Free-form settings JSON for the organization. Recommended keys: settings.company.cif, settings.company.razon_social, settings.company.direccion, settings.company.ciudad, settings.company.responsable_nombre, settings.company.responsable_dni' })
   @IsOptional()
   @IsObject()
   settings?: Record<string, any>;
