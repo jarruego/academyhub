@@ -1,8 +1,10 @@
 import React from 'react';
-import { Table, Tag, Spin, Empty } from 'antd';
+import { Table, Tag, Spin, Empty, Button } from 'antd';
 import type { ColumnType } from 'antd/es/table';
 import { useUserCoursesQuery } from '../../hooks/api/users/use-user-courses.query';
 import { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
+import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
+import { useMoodleUsersByUserIdQuery } from '../../hooks/api/moodle-users/use-moodle-users-by-user-id.query';
 
 interface UserCoursesSectionProps {
   userId: number;
@@ -10,6 +12,31 @@ interface UserCoursesSectionProps {
 
 export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }) => {
   const { data: userCourses, isLoading } = useUserCoursesQuery(userId);
+  const { data: orgSettings } = useOrganizationSettingsQuery();
+  const { data: moodleUsers } = useMoodleUsersByUserIdQuery(userId);
+  const moodleUserId = React.useMemo(() => {
+    if (!moodleUsers || !moodleUsers.length) return undefined;
+    const main = (moodleUsers as any).find((mu: any) => mu.is_main_user) || moodleUsers[0];
+    return main?.moodle_id ?? undefined;
+  }, [moodleUsers]);
+
+  const showCertificatesButton = Boolean(
+    orgSettings?.settings &&
+      (orgSettings.settings as any).plugins?.certificates === true &&
+      ((orgSettings.settings as any).moodle?.url ?? '') &&
+      moodleUserId !== undefined,
+  );
+
+  const moodleBaseUrl = React.useMemo(() => {
+    try {
+      const raw = (orgSettings?.settings as any)?.moodle?.url ?? '';
+      if (!raw) return undefined;
+      const u = new URL(raw);
+      return `${u.origin}/`;
+    } catch (e) {
+      return undefined;
+    }
+  }, [orgSettings]);
 
   const columns: ColumnType<UserCourseWithCourse>[] = [
     {
@@ -107,7 +134,20 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
   }
 
   return (
-    <Table
+    <>
+      {showCertificatesButton && moodleBaseUrl && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <Button
+            type="default"
+            onClick={() => {
+              const url = `${moodleBaseUrl}mod/customcert/my_certificates.php?userid=${moodleUserId}`;
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }}
+          >Abrir certificados Moodle</Button>
+        </div>
+      )}
+
+      <Table
       columns={columns}
       dataSource={userCourses}
       rowKey={(record) => `${record.id_user}-${record.id_course}`}
@@ -134,5 +174,6 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
         },
       })}
     />
+    </>
   );
 };

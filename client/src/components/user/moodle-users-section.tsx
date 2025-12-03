@@ -1,6 +1,8 @@
-import { Table, Tag, Spin, Alert, Button, Popconfirm, message } from "antd";
+import { Table, Tag, Spin, Alert, Button, Popconfirm, message, Tooltip } from "antd";
+import { FileProtectOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
+import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
 import type { MoodleUserSelectModel } from '../../shared/types/moodle/moodle-user.types';
 
 import { useQueries, UseQueryResult } from '@tanstack/react-query';
@@ -18,7 +20,11 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
   const { data: moodleUsers, isLoading, error } = useMoodleUsersByUserIdQuery(userId);
   const request = useAuthenticatedAxios();
   const setMainMutation = useSetMainMoodleUserMutation(userId);
+  const { data: orgSettings } = useOrganizationSettingsQuery();
   const [messageApi, messageContextHolder] = message.useMessage();
+  const certificatesPluginEnabled = Boolean(
+    orgSettings?.settings && (orgSettings.settings as any).plugins?.certificates === true,
+  );
   // Prepare queries to fetch courses for each moodle user in parallel
   const courseQueries = useQueries({
     queries: (moodleUsers || []).map(mu => ({
@@ -136,17 +142,37 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
         );
       },
     },
+    // action column: open Moodle certificates for this moodle_id
     {
-      title: 'Fecha Creación',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString('es-ES'),
-    },
-    {
-      title: 'Última Actualización',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      render: (date: string) => new Date(date).toLocaleDateString('es-ES'),
+      title: 'Cert.',
+      key: 'actions',
+      render: (_v, record: MoodleUserSelectModel) => {
+        // build moodle base origin from org settings if available
+        let moodleBase: string | undefined;
+        try {
+          const raw = (orgSettings?.settings as any)?.moodle?.url ?? '';
+          if (raw) moodleBase = new URL(raw).origin + '/';
+        } catch (e) {
+          moodleBase = undefined;
+        }
+
+        const target = moodleBase ? `${moodleBase}mod/customcert/my_certificates.php?userid=${record.moodle_id}` : undefined;
+        const disabled = !certificatesPluginEnabled || !target;
+        const tip = !certificatesPluginEnabled ? 'Plugin de certificados no habilitado' : (!target ? 'URL de Moodle no configurada' : 'Ver certificados');
+        return (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Tooltip title={tip}>
+              <Button
+                size="small"
+                disabled={disabled}
+                icon={<FileProtectOutlined />}
+                aria-label="Ver certificados"
+                onClick={() => !disabled && target && window.open(target, '_blank', 'noopener,noreferrer')}
+              />
+            </Tooltip>
+          </div>
+        );
+      }
     },
   ];
 
