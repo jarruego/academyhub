@@ -1573,7 +1573,23 @@ export class MoodleService {
 
             // Persist membership locally for all successfully mapped users
             const addResult = await this.groupService.addUsersToGroup(id_group, members.map(m => m.localUserId));
-            addedCount = addResult.addedIds.length;
+            // Count both newly added and pre-existing memberships as synced for reporting
+            const addedIds = addResult.addedIds || [];
+            const existingIds = addResult.existingIds || [];
+            addedCount = (addedIds.length ?? 0) + (existingIds.length ?? 0);
+            // Mark local user_group rows as synced with Moodle for both newly added and existing users
+            for (const userId of [...addedIds, ...existingIds]) {
+                try {
+                    await this.userGroupRepository.updateById(userId, id_group, { moodle_synced_at: new Date() });
+                } catch (updErr: any) {
+                    Logger.warn({
+                        message: updErr?.message ?? String(updErr),
+                        stack: updErr?.stack,
+                        userId,
+                        id_group
+                    }, 'MoodleService:addLocalUsersToMoodleGroup - failed to set moodle_synced_at on user_group');
+                }
+            }
             for (const fid of addResult.failedIds || []) {
                 details.push({ userId: fid, error: 'Failed to persist local membership' });
             }
@@ -1596,7 +1612,22 @@ export class MoodleService {
                 const res2 = await this.request<boolean>('core_group_add_group_members', { method: 'post', params });
 
                 const addResult = await this.groupService.addUsersToGroup(id_group, members.map(m => m.localUserId));
-                addedCount = addResult.addedIds.length;
+                const addedIds = addResult.addedIds || [];
+                const existingIds = addResult.existingIds || [];
+                addedCount = (addedIds.length ?? 0) + (existingIds.length ?? 0);
+                // Mark local user_group rows as synced with Moodle for both newly added and existing users
+                for (const userId of [...addedIds, ...existingIds]) {
+                    try {
+                        await this.userGroupRepository.updateById(userId, id_group, { moodle_synced_at: new Date() });
+                    } catch (updErr: any) {
+                        Logger.warn({
+                            message: updErr?.message ?? String(updErr),
+                            stack: updErr?.stack,
+                            userId,
+                            id_group
+                        }, 'MoodleService:addLocalUsersToMoodleGroup - failed to set moodle_synced_at on user_group');
+                    }
+                }
                 for (const fid of addResult.failedIds || []) {
                     details.push({ userId: fid, error: 'Failed to persist local membership' });
                 }
@@ -1619,6 +1650,17 @@ export class MoodleService {
                         // Persist locally
                         try {
                             await this.groupService.addUserToGroup({ id_group, id_user: m.localUserId });
+                            // mark as synced
+                            try {
+                                await this.userGroupRepository.updateById(m.localUserId, id_group, { moodle_synced_at: new Date() });
+                            } catch (updErr: any) {
+                                Logger.warn({
+                                    message: updErr?.message ?? String(updErr),
+                                    stack: updErr?.stack,
+                                    localUserId: m.localUserId,
+                                    id_group
+                                }, 'MoodleService:addLocalUsersToMoodleGroup - failed to set moodle_synced_at on user_group (per-user)');
+                            }
                             addedCount++;
                         } catch (localErr: any) {
                             details.push({ userId: m.localUserId, error: 'Added in Moodle but failed to persist locally' });

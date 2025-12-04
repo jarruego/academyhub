@@ -11,10 +11,12 @@ export const userGroupTable = pgTable("user_group", {
   // rol aplicado al usuario dentro del grupo (referencia a user_roles.id_role)
   id_role: integer("id_role").references(() => userRolesTable.id_role),
   id_center: integer("id_center").references(() => centerTable.id_center),
-  join_date: date({mode: 'date'}).defaultNow(),
+  join_date: date({ mode: 'date' }).defaultNow(),
   completion_percentage: decimal({ precision: 5, scale: 2 }),
   time_spent: integer("time_spent"),
   last_access: timestamp("last_access"),
+  // Fecha/hora en la que este usuario se subió al grupo en Moodle (null si no sincronizado)
+  moodle_synced_at: timestamp("moodle_synced_at"),
 }, (table) => {
   return {
     pk: primaryKey(table.id_user, table.id_group)

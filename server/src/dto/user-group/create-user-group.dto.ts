@@ -39,4 +39,9 @@ export class CreateUserGroupDTO {
   @IsDateString()
   @IsOptional()
   last_access: Date;
+
+  @ApiPropertyOptional()
+  @IsDateString()
+  @IsOptional()
+  moodle_synced_at?: Date;
 }

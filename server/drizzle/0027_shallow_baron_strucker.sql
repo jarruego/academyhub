@@ -1,0 +1,1 @@
+ALTER TABLE "user_group" ADD COLUMN "moodle_synced_at" timestamp;

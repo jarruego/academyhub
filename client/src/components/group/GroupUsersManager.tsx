@@ -124,6 +124,20 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   };
 
   const columns = useMemo(() => {
+    const groupSyncedColumn = {
+      title: 'G',
+      dataIndex: 'moodle_synced_at',
+      key: 'moodle_synced',
+      width: 56,
+      render: (_: unknown, user: User) => {
+        const synced = (user as any).moodle_synced_at;
+        if (!synced) return <span style={{ color: '#ff4d4f', fontWeight: 700 }}>N</span>;
+        // show a simple check with tooltip of date
+        const date = typeof synced === 'string' ? new Date(synced) : (synced as Date);
+        return <span title={date ? date.toLocaleString() : String(synced)} style={{ color: '#52c41a', fontWeight: 700 }}>S</span>;
+      }
+    } as any;
+
     const moodleColumn = {
       title: 'M',
       dataIndex: 'id_moodle_user',
@@ -137,7 +151,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
       }
     } as any;
 
-    return [moodleColumn, ...USERS_TABLE_COLUMNS];
+    return [groupSyncedColumn, moodleColumn, ...USERS_TABLE_COLUMNS];
   }, [usersData]);
 
   // Compute totals for footer: total students and students with >=75% completion
