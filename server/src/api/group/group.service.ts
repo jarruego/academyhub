@@ -105,10 +105,21 @@ export class GroupService {
       }
 
       // No existía: crear la asociación incluyendo centro/join_date y posible id_role
+      // If no id_role was provided, resolve the 'student' role id from user_roles using the repository helper.
+      let roleToUse = id_role as number | undefined;
+      if (!roleToUse) {
+        try {
+          roleToUse = await this.userGroupRepository.findOrCreateRoleByShortname('student', { transaction });
+        } catch (err) {
+          // If lookup fails, proceed without id_role and let repository.create fallback handle it.
+          roleToUse = undefined;
+        }
+      }
+
       const created = await this.userGroupRepository.create({
         id_group,
         id_user,
-        id_role: id_role ?? undefined,
+        id_role: roleToUse ?? undefined,
         id_center: centerIdToUse,
         join_date: new Date(),
         completion_percentage: "0",
@@ -133,6 +144,15 @@ export class GroupService {
       const group = await this.groupRepository.findById(id_group, { transaction });
       const id_course = group.id_course;
 
+      // Resolve the local 'student' role id once per transaction to use when creating user_group rows.
+      let studentRoleId: number | undefined = undefined;
+      try {
+        studentRoleId = await this.userGroupRepository.findOrCreateRoleByShortname('student', { transaction });
+      } catch (err) {
+        // If lookup fails, we'll pass undefined and let repository.create handle defaults per-row.
+        studentRoleId = undefined;
+      }
+
       for (const id_user of userIds) {
         try {
           const existingUserGroup = await this.userGroupRepository.findByGroupAndUserId(id_group, id_user, { transaction });
@@ -153,10 +173,11 @@ export class GroupService {
             }, { transaction });
           }
 
-          // Create user-group association
+          // Create user-group association (use resolved student role id when available)
           await this.userGroupRepository.create({
             id_group,
             id_user,
+            id_role: studentRoleId ?? undefined,
             join_date: new Date(),
             completion_percentage: "0",
             time_spent: 0,

@@ -22,6 +22,7 @@ import { CourseModality } from 'src/types/course/course-modality.enum';
 import { UserCourseInsertModel } from 'src/database/schema/tables/user_course.table';
 import { UserInsertModel, UserUpdateModel } from 'src/database/schema/tables/user.table';
 import { UserGroupSelectModel } from 'src/database/schema/tables/user_group.table';
+import { generatePassword } from 'src/utils/generate-password';
 
 type RequestOptions<D extends MoodleParams = MoodleParams> = {
     params?: D;
@@ -84,11 +85,30 @@ export class MoodleService {
                 const body = new URLSearchParams();
                 for (const [k, v] of Object.entries(params) as [string, MoodleParamsValue][]) {
                     if (Array.isArray(v)) {
-                        for (const item of v) {
-                            if (item && typeof item === 'object') {
-                                body.append(`${k}[]`, JSON.stringify(item));
-                            } else {
-                                body.append(`${k}[]`, String(item));
+                        // If array items are objects (e.g., users payload), encode as nested Moodle params:
+                        // key[index][prop]=value — Moodle expects this structure for many WS functions.
+                        if (v.length > 0 && v.every(item => item && typeof item === 'object')) {
+                            for (let idx = 0; idx < v.length; idx++) {
+                                const item = v[idx] as Record<string, unknown>;
+                                for (const [prop, val] of Object.entries(item)) {
+                                    if (Array.isArray(val)) {
+                                        for (const sub of val) {
+                                            body.append(`${k}[${idx}][${prop}][]`, String(sub));
+                                        }
+                                    } else if (val && typeof val === 'object') {
+                                        body.append(`${k}[${idx}][${prop}]`, JSON.stringify(val));
+                                    } else if (val !== undefined && val !== null) {
+                                        body.append(`${k}[${idx}][${prop}]`, String(val));
+                                    }
+                                }
+                            }
+                        } else {
+                            for (const item of v) {
+                                if (item && typeof item === 'object') {
+                                    body.append(`${k}[]`, JSON.stringify(item));
+                                } else {
+                                    body.append(`${k}[]`, String(item));
+                                }
                             }
                         }
                     } else if (v && typeof v === 'object') {
@@ -1220,6 +1240,401 @@ export class MoodleService {
         } catch (err: any) {
             Logger.error({ err, id_group, moodleId }, 'MoodleService:deleteLocalGroupFromMoodle');
             throw new InternalServerErrorException(err?.message || 'Error deleting group in Moodle');
+        }
+    }
+
+    /**
+     * Ensure local users have corresponding Moodle accounts. For local users without a
+     * mapping, create them in Moodle with `core_user_create_users` and persist the
+     * resulting moodle_id/username/password in `moodle_users`.
+     * Returns an array of mappings for all provided localUserIds that now have a Moodle id.
+     */
+    async upsertLocalUsersToMoodle(localUserIds: number[]): Promise<Array<{ localUserId: number; moodleId: number; id_moodle_user?: number }>> {
+        const mappings: Array<{ localUserId: number; moodleId: number; id_moodle_user?: number }> = [];
+        const toCreate: Array<{ localUserId: number; user: any; password: string }> = [];
+
+        // First, collect existing mappings and those missing
+        for (const id_user of localUserIds) {
+            try {
+                const muRows = await this.moodleUserService.findByUserId(id_user);
+                if (muRows && muRows.length > 0) {
+                    const main = muRows.find((r: any) => r.is_main_user) || muRows[0];
+                    if (main && main.moodle_id) mappings.push({ localUserId: id_user, moodleId: main.moodle_id, id_moodle_user: main.id_moodle_user });
+                    else {
+                        // treat as missing
+                    }
+                } else {
+                    // fetch local user to prepare creation
+                    const u = await this.userRepository.findById(id_user);
+                    if (!u) continue;
+                    // generate a password according to project rules
+                    const pwd = generatePassword(8);
+                    toCreate.push({ localUserId: id_user, user: u, password: pwd });
+                }
+            } catch (e) {
+                Logger.warn({ e, id_user }, 'MoodleService:upsertLocalUsersToMoodle - findByUserId failed');
+            }
+        }
+
+        if (toCreate.length === 0) return mappings;
+
+    // Build Moodle payload for core_user_create_users
+    const usersPayload: any[] = toCreate.map(tc => {
+            const firstname = (tc.user.name || '').slice(0, 100) || 'User';
+            const lastname = (tc.user.first_surname || '').slice(0, 100) || 'Surname';
+            // username: prefer normalized dni (lowercase, alphanumeric) if available
+            const normalizeDni = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            let username = '';
+            if (tc.user.dni) {
+                const n = normalizeDni(tc.user.dni);
+                username = n.length > 0 ? n : '';
+            }
+            // fallback to email localpart or user_<id>
+            if (!username) {
+                if (tc.user.email && typeof tc.user.email === 'string' && tc.user.email.includes('@')) {
+                    username = tc.user.email.split('@')[0] + '_' + tc.localUserId;
+                } else {
+                    username = 'user_' + tc.localUserId;
+                }
+            }
+            // ensure username length and chars
+            username = String(username).slice(0, 100);
+
+            // generate a password according to rules if not already set
+            const password = tc.password || generatePassword(8);
+
+            return {
+                username,
+                password,
+                firstname,
+                lastname,
+                email: tc.user.email || `${username}@example.local`,
+                auth: 'manual',
+                idnumber: tc.user.dni ?? '',
+            };
+        });
+
+        try {
+            // First try a bulk creation (faster). If it succeeds, persist mappings.
+            const created = await this.request<Array<{ id: number; username: string }>>('core_user_create_users', { method: 'post', params: { users: usersPayload } });
+            if (Array.isArray(created)) {
+                for (let i = 0; i < created.length; i++) {
+                    const c = created[i];
+                    const original = toCreate[i];
+                    try {
+                        const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: c.id, moodle_username: c.username, moodle_password: original.password, is_main_user: true } as any);
+                        mappings.push({ localUserId: original.localUserId, moodleId: c.id, id_moodle_user: (mu as any)?.insertId ?? undefined });
+                    } catch (innerErr) {
+                        Logger.error({ innerErr, created: c, localUserId: original.localUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to persist moodle_user');
+                    }
+                }
+            }
+        } catch (err: any) {
+            // Bulk creation failed. Try per-user creation with a simple username fallback strategy
+            Logger.warn({ err, toCreateLength: toCreate.length }, 'MoodleService:upsertLocalUsersToMoodle - bulk create failed, falling back to per-user creation');
+            for (const original of toCreate) {
+                // reconstruct individual payload
+                const firstname = (original.user.name || '').slice(0, 100) || 'User';
+                const lastname = (original.user.first_surname || '').slice(0, 100) || 'Surname';
+                const normalizeDni = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                let username = '';
+                if (original.user.dni) {
+                    const n = normalizeDni(original.user.dni);
+                    username = n.length > 0 ? n : '';
+                }
+                if (!username) {
+                    if (original.user.email && typeof original.user.email === 'string' && original.user.email.includes('@')) {
+                        username = original.user.email.split('@')[0] + '_' + original.localUserId;
+                    } else {
+                        username = 'user_' + original.localUserId;
+                    }
+                }
+                username = String(username).slice(0, 100);
+
+                const password = original.password;
+
+                // Try original username, then one fallback attempt with _user appended
+                const attempts = [username, `${username}_user`];
+                let createdId: number | null = null;
+                let createdUsername: string | null = null;
+                for (const tryName of attempts) {
+                    const payload = [{ username: tryName, password, firstname, lastname, email: original.user.email || `${tryName}@example.local`, auth: 'manual', idnumber: original.user.dni ?? '' }];
+                    try {
+                        const singleCreate = await this.request<Array<{ id: number; username: string }>>('core_user_create_users', { method: 'post', params: { users: payload } });
+                        if (Array.isArray(singleCreate) && singleCreate.length > 0) {
+                            createdId = singleCreate[0].id;
+                            createdUsername = singleCreate[0].username;
+                            break;
+                        }
+                    } catch (singleErr: any) {
+                        // If error suggests username conflict, try next attempt. Otherwise log and continue to next user.
+                        const msg = singleErr?.message ?? '';
+                        Logger.warn({ singleErr, localUserId: original.localUserId, tryName }, 'MoodleService:upsertLocalUsersToMoodle - per-user create failed');
+                        // continue to next attempt
+                    }
+                }
+
+                if (createdId && createdUsername) {
+                    try {
+                        const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: createdId, moodle_username: createdUsername, moodle_password: password, is_main_user: true } as any);
+                        mappings.push({ localUserId: original.localUserId, moodleId: createdId, id_moodle_user: (mu as any)?.insertId ?? undefined });
+                    } catch (innerErr) {
+                        Logger.error({ innerErr, createdId, createdUsername, localUserId: original.localUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to persist moodle_user after per-user create');
+                    }
+                } else {
+                    Logger.error({ localUserId: original.localUserId }, 'MoodleService:upsertLocalUsersToMoodle - unable to create user in Moodle after retries');
+                }
+            }
+        }
+
+        return mappings;
+    }
+
+    /**
+     * Preview which local users would be created in Moodle (do NOT create anything).
+     * Returns an array of objects with suggested username/password for admin confirmation.
+     */
+    async getUsersToCreateInMoodle(localUserIds: number[]): Promise<Array<{ localUserId: number; name: string; email: string; suggestedUsername: string; suggestedPassword: string }>> {
+        const preview: Array<{ localUserId: number; name: string; email: string; suggestedUsername: string; suggestedPassword: string }> = [];
+
+        const normalizeDni = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        for (const id_user of localUserIds) {
+            try {
+                const muRows = await this.moodleUserService.findByUserId(id_user);
+                if (muRows && muRows.length > 0) continue; // Already has mapping
+                const u = await this.userRepository.findById(id_user);
+                if (!u) continue;
+                // suggest username using same logic as creation
+                let username = '';
+                if (u.dni) {
+                    const n = normalizeDni(u.dni);
+                    username = n.length > 0 ? n : '';
+                }
+                if (!username) {
+                    if (u.email && typeof u.email === 'string' && u.email.includes('@')) {
+                        username = u.email.split('@')[0] + '_' + id_user;
+                    } else {
+                        username = 'user_' + id_user;
+                    }
+                }
+                username = String(username).slice(0, 100);
+                const pwd = generatePassword(8);
+                preview.push({ localUserId: id_user, name: `${u.name ?? ''} ${u.first_surname ?? ''}`.trim(), email: u.email ?? '', suggestedUsername: username, suggestedPassword: pwd });
+            } catch (err) {
+                Logger.warn({ err, id_user }, 'MoodleService:getUsersToCreateInMoodle - preview failed for user');
+            }
+        }
+
+        return preview;
+    }
+
+    /**
+     * Adds local users to the corresponding Moodle group.
+     * If the local group has no moodle_id, it will be created first (pushLocalGroupToMoodle).
+     * Returns an ImportResult-like object with per-user details for failures.
+     */
+    async addLocalUsersToMoodleGroup(id_group: number, userIds: number[]): Promise<ImportResult> {
+        const details: Array<{ userId?: number; username?: string; error: string }> = [];
+        let addedCount = 0;
+
+        // Load local group
+        const localGroup = await this.groupRepository.findById(id_group);
+        if (!localGroup) throw new HttpException('Local group not found', HttpStatus.NOT_FOUND);
+
+        // Ensure parent course exists and has moodle_id
+        const course = await this.courseRepository.findById(localGroup.id_course);
+        if (!course) throw new HttpException('Parent course not found', HttpStatus.BAD_REQUEST);
+        if (!course.moodle_id) throw new HttpException('Parent course is not linked to Moodle (missing moodle_id)', HttpStatus.BAD_REQUEST);
+
+        // Ensure group exists in Moodle
+        let moodleGroupId = localGroup.moodle_id;
+        if (!moodleGroupId) {
+            const push = await this.pushLocalGroupToMoodle(id_group);
+            if (!push || !push.success || !push.moodleGroupId) {
+                return { success: false, message: 'Could not create group in Moodle before adding members', importedData: { groupId: id_group }, details } as ImportResult;
+            }
+            moodleGroupId = push.moodleGroupId;
+        }
+
+        // Map local userIds to Moodle userids (via moodle_users table)
+        const members: { localUserId: number; moodleId: number; id_moodle_user?: number }[] = [];
+        const missingIds: number[] = [];
+        for (const id_user of userIds) {
+            try {
+                const muRows = await this.moodleUserService.findByUserId(id_user);
+                if (!muRows || muRows.length === 0) {
+                    missingIds.push(id_user);
+                    continue;
+                }
+                const main = muRows.find((r: any) => r.is_main_user) || muRows[0];
+                if (!main || !main.moodle_id) {
+                    missingIds.push(id_user);
+                    continue;
+                }
+                members.push({ localUserId: id_user, moodleId: main.moodle_id, id_moodle_user: main.id_moodle_user });
+            } catch (err: any) {
+                Logger.warn({ err, id_user }, 'MoodleService:addLocalUsersToMoodleGroup - findByUserId failed');
+                missingIds.push(id_user);
+            }
+        }
+
+        // Create missing Moodle users when possible
+        if (missingIds.length > 0) {
+            try {
+                const created = await this.upsertLocalUsersToMoodle(missingIds);
+                for (const c of created) {
+                    members.push({ localUserId: c.localUserId, moodleId: c.moodleId, id_moodle_user: c.id_moodle_user });
+                }
+            } catch (e: any) {
+                Logger.warn({ e, missingCount: missingIds.length }, 'MoodleService:addLocalUsersToMoodleGroup - failed creating missing Moodle users');
+                for (const id of missingIds) details.push({ userId: id, error: 'No Moodle account linked for this user and creation failed' });
+            }
+        }
+
+        if (members.length === 0) {
+            return { success: false, message: 'No valid Moodle users to add', importedData: { groupId: id_group, usersImported: 0 }, details } as ImportResult;
+        }
+
+        // Ensure the users are enrolled in the parent course before attempting to add them to the group.
+        // Moodle requires users to be enrolled in the course to be group members. We'll try to enroll missing users
+        // using the manual enrol webservice. We perform a pre-check to avoid unnecessary enrol attempts.
+        try {
+            const enrolled = await this.getEnrolledUsers(course.moodle_id as number);
+            const enrolledIds = new Set(enrolled.map(u => Number(u.id)));
+            const toEnroll = members.filter(m => !enrolledIds.has(Number(m.moodleId)));
+            if (toEnroll.length > 0) {
+                Logger.log({ count: toEnroll.length, courseMoodleId: course.moodle_id }, 'MoodleService:addLocalUsersToMoodleGroup - enrolling missing users into course');
+                const enrolParams: MoodleParams = {};
+                // Use Moodle's manual enrol webservice. We'll use roleid=5 (student) by default.
+                const STUDENT_ROLE_ID = 5;
+                toEnroll.forEach((m, idx) => {
+                    enrolParams[`enrolments[${idx}][roleid]`] = STUDENT_ROLE_ID as any;
+                    enrolParams[`enrolments[${idx}][userid]`] = m.moodleId as any;
+                    enrolParams[`enrolments[${idx}][courseid]`] = course.moodle_id as any;
+                });
+
+                try {
+                    await this.request<boolean>('enrol_manual_enrol_users', { method: 'post', params: enrolParams });
+                    Logger.log({ count: toEnroll.length }, 'MoodleService:addLocalUsersToMoodleGroup - enrol_manual_enrol_users succeeded');
+                    // Persist enrollment locally: create or update user_course rows with id_moodle_user
+                    for (const m of toEnroll) {
+                        try {
+                            // Ensure we persist the LOCAL moodle_users PK (id_moodle_user), not the remote Moodle id.
+                            // m.moodleId is the remote Moodle user id (e.g. 19807). The user_course.id_moodle_user
+                            // FK references moodle_users.id_moodle_user (local PK). Prefer the already-known
+                            // m.id_moodle_user if present; otherwise try to look it up.
+                            let localIdMoodleUser: number | undefined = undefined;
+                            if (typeof m.id_moodle_user === 'number') {
+                                localIdMoodleUser = Number(m.id_moodle_user);
+                            } else {
+                                try {
+                                    const mu = await this.moodleUserService.findByMoodleId(Number(m.moodleId));
+                                    if (mu && (mu as any).id_moodle_user) localIdMoodleUser = (mu as any).id_moodle_user;
+                                } catch (findErr: any) {
+                                    Logger.warn({ findErr, moodleId: m.moodleId, localUserId: m.localUserId }, 'MoodleService:addLocalUsersToMoodleGroup - could not find local moodle_user row for persisted moodle id');
+                                }
+                            }
+
+                            if (!localIdMoodleUser) {
+                                // If we still don't have a local id, skip persisting user_course to avoid FK violation
+                                Logger.warn({ moodleId: m.moodleId, localUserId: m.localUserId }, 'MoodleService:addLocalUsersToMoodleGroup - skipping user_course persist because local moodle_users row not found');
+                                continue;
+                            }
+
+                            await this.userCourseRepository.addUserToCourse({
+                                id_user: m.localUserId,
+                                id_course: course.id_course,
+                                id_moodle_user: Number(localIdMoodleUser),
+                                enrollment_date: new Date(),
+                                completion_percentage: '0',
+                                time_spent: 0,
+                            } as any);
+                        } catch (ucErr: any) {
+                            Logger.warn({ ucErr, localUserId: m.localUserId, courseId: course.id_course }, 'MoodleService:addLocalUsersToMoodleGroup - failed to persist user_course enrollment');
+                        }
+                    }
+                } catch (enrolErr: any) {
+                    Logger.warn({ enrolErr, toEnrollCount: toEnroll.length }, 'MoodleService:addLocalUsersToMoodleGroup - enrol_manual_enrol_users failed');
+                    // continue — we'll still try to add to group individually below; failures will be captured
+                }
+            }
+        } catch (e) {
+            Logger.warn({ e }, 'MoodleService:addLocalUsersToMoodleGroup - failed to fetch enrolled users');
+        }
+
+        // Build members array for Moodle payload and diagnostic logging
+    const membersPayload = members.map(m => ({ groupid: moodleGroupId as number, userid: m.moodleId }));
+
+        // First attempt: send `members` as an array-of-objects and let request() encode it in Moodle's expected nested form.
+        try {
+            const paramsTry: MoodleParams = { members: membersPayload };
+            const res = await this.request<boolean>('core_group_add_group_members', { method: 'post', params: paramsTry });
+
+            // Persist membership locally for all successfully mapped users
+            const addResult = await this.groupService.addUsersToGroup(id_group, members.map(m => m.localUserId));
+            addedCount = addResult.addedIds.length;
+            for (const fid of addResult.failedIds || []) {
+                details.push({ userId: fid, error: 'Failed to persist local membership' });
+            }
+
+            return {
+                success: details.length === 0,
+                message: `Added ${addedCount} users to Moodle group ${moodleGroupId}`,
+                importedData: { groupId: id_group, usersImported: addedCount },
+                details: details.length > 0 ? details : undefined,
+            } as ImportResult;
+        } catch (errArray: any) {
+            Logger.warn({ errArray, membersLength: members.length, id_group }, 'MoodleService:addLocalUsersToMoodleGroup - bulk add (array-of-objects) failed, trying explicit keys');
+            // Second attempt: try explicit members[0][groupid]=... encoding (older Moodle variants may expect this)
+            const params: MoodleParams = {};
+            members.forEach((m, idx) => {
+                params[`members[${idx}][groupid]`] = moodleGroupId as any;
+                params[`members[${idx}][userid]`] = m.moodleId as any;
+            });
+            try {
+                const res2 = await this.request<boolean>('core_group_add_group_members', { method: 'post', params });
+
+                const addResult = await this.groupService.addUsersToGroup(id_group, members.map(m => m.localUserId));
+                addedCount = addResult.addedIds.length;
+                for (const fid of addResult.failedIds || []) {
+                    details.push({ userId: fid, error: 'Failed to persist local membership' });
+                }
+
+                return {
+                    success: details.length === 0,
+                    message: `Added ${addedCount} users to Moodle group ${moodleGroupId}`,
+                    importedData: { groupId: id_group, usersImported: addedCount },
+                    details: details.length > 0 ? details : undefined,
+                } as ImportResult;
+            } catch (err: any) {
+                Logger.warn({ err, membersLength: members.length, id_group }, 'MoodleService:addLocalUsersToMoodleGroup - bulk add failed, trying per-user');
+                // Fallback: try per-user to identify which ones succeed
+                for (const m of members) {
+                    const singleParams: MoodleParams = {};
+                    singleParams[`members[0][groupid]`] = moodleGroupId as any;
+                    singleParams[`members[0][userid]`] = m.moodleId as any;
+                    try {
+                        await this.request<boolean>('core_group_add_group_members', { method: 'post', params: singleParams });
+                        // Persist locally
+                        try {
+                            await this.groupService.addUserToGroup({ id_group, id_user: m.localUserId });
+                            addedCount++;
+                        } catch (localErr: any) {
+                            details.push({ userId: m.localUserId, error: 'Added in Moodle but failed to persist locally' });
+                        }
+                    } catch (singleErr: any) {
+                        details.push({ userId: m.localUserId, error: singleErr?.message || String(singleErr) });
+                    }
+                }
+
+                return {
+                    success: addedCount > 0 && details.length === 0,
+                    message: `Attempted adding users to Moodle group ${moodleGroupId}; added ${addedCount}, errors ${details.length}`,
+                    importedData: { groupId: id_group, usersImported: addedCount },
+                    details: details.length > 0 ? details : undefined,
+                } as ImportResult;
+            }
         }
     }
 

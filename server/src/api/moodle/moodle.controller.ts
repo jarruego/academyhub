@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Param, ParseIntPipe, Post, UseGuards, Body } from '@nestjs/common';
 import { MoodleService } from './moodle.service';
 import { MoodleCourseListResponse, MoodleGroupListResponse, ImportResult } from 'src/dto/moodle/import.dto';
 import { RoleGuard } from 'src/guards/role.guard';
@@ -106,6 +106,27 @@ export class MoodleController {
      */
     async pushGroupToMoodle(@Param('groupId', ParseIntPipe) groupId: number) {
         return await this.moodleService.pushLocalGroupToMoodle(groupId);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('groups/:groupId/add-members')
+    /**
+     * Add selected local users to the Moodle group corresponding to the local group.
+     * Body: { userIds: number[] }
+     */
+    async addMembersToMoodle(@Param('groupId', ParseIntPipe) groupId: number, @Body('userIds') userIds: number[]) {
+        return await this.moodleService.addLocalUsersToMoodleGroup(groupId, Array.isArray(userIds) ? userIds : []);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('groups/:groupId/add-members/preview')
+    /**
+     * Preview which users would be created in Moodle for the provided local userIds.
+     * Returns suggested usernames/passwords but does NOT create anything.
+     */
+    async previewAddMembersToMoodle(@Param('groupId', ParseIntPipe) groupId: number, @Body('userIds') userIds: number[]) {
+        const ids = Array.isArray(userIds) ? userIds : [];
+        return await this.moodleService.getUsersToCreateInMoodle(ids);
     }
 
     @UseGuards(RoleGuard([Role.ADMIN]))

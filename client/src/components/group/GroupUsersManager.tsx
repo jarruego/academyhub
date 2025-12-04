@@ -13,6 +13,7 @@ import { BonificationModal } from '../courses/BonificationModal';
 import { User } from '../../shared/types/user/user';
 import { USERS_TABLE_COLUMNS } from '../../constants/tables/users-table-columns.constant';
 import { useSyncMoodleGroupMembersMutation } from '../../hooks/api/moodle/use-sync-moodle-group-members.mutation';
+import useMoodleGroupMembersApi from '../../hooks/api/moodle/use-moodle-group-members.api';
 import useExportUsersToMailCsv from '../../hooks/api/groups/use-export-users-mail-csv';
 import useExportUsersToSmsCsv from '../../hooks/api/groups/use-export-users-sms-csv';
 
@@ -44,6 +45,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const { mutateAsync: syncMoodleGroupMembers, isPending: syncMoodleGroupMembersPending } = useSyncMoodleGroupMembersMutation();
 
   const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(groupId ? String(groupId) : undefined);
+  const { previewUsersToCreate, addUsers } = useMoodleGroupMembersApi();
   const exportUsersToMailCsv = useExportUsersToMailCsv();
   const exportUsersToSmsCsv = useExportUsersToSmsCsv();
 
@@ -182,7 +184,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
               icon={<TeamOutlined />}
               onClick={() => groupId ? setIsManageModalOpen(true) : null}
             >
-              Gestionar Usuarios del Grupo
+              Gestionar Usuarios
             </Button>
             <Button
               type="default"
@@ -288,6 +290,138 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
             </Button>
             <Button
               type="default"
+              icon={<SaveOutlined style={{ color: '#fa8c16' }} />}
+              onClick={async () => {
+                if (!groupId) return;
+                if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para subir a Moodle');
+
+                try {
+                  const toCreate = await previewUsersToCreate(Number(groupId), selectedUserIds);
+                  // If there are users to create, show modal with details and ask confirmation
+                  if (Array.isArray(toCreate) && toCreate.length > 0) {
+                    modal.confirm({
+                      title: `Se crearán ${toCreate.length} usuario(s) en Moodle`,
+                      width: 700,
+                      content: (
+                        <div>
+                          <p>Los siguientes usuarios no tienen cuenta en Moodle y se crearán si continúas:</p>
+                          <ul style={{ maxHeight: 300, overflowY: 'auto' }}>{toCreate.map((t: any) => (
+                            <li key={t.localUserId} style={{ marginBottom: 6 }}>
+                              <strong>{t.name || `Usuario ${t.localUserId}`}</strong>
+                              {t.email ? ` — ${t.email}` : ''}
+                              <div>Usuario sugerido: <code>{t.suggestedUsername}</code></div>
+                            </li>
+                          ))}</ul>
+                          <p style={{ marginTop: 8 }}><em>Se generará una contraseña segura para cada cuenta. Se almacenará localmente en el mapeo de Moodle.</em></p>
+                        </div>
+                      ),
+                      onOk: async () => {
+                        try {
+                          const resp = await addUsers(Number(groupId), selectedUserIds);
+                          const result = (resp as any)?.data;
+                          if (result?.success) {
+                            messageApi.success(result.message || 'Usuarios añadidos a Moodle');
+                            if (result.details && result.details.length > 0) {
+                              const max = 10;
+                              const items = result.details.slice(0, max).map((d: any, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
+                              const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+                              setTimeout(() => {
+                                modal.info({
+                                  title: 'Algunos usuarios no pudieron añadirse',
+                                  width: 600,
+                                  content: (
+                                    <div>
+                                      <p>{extractSummary(result.message)}</p>
+                                      <ul style={{ marginTop: 8 }}>{items}</ul>
+                                      {more}
+                                    </div>
+                                  )
+                                });
+                              }, 100);
+                            }
+                            refetch();
+                          } else {
+                            if (result?.details && result.details.length > 0) {
+                              const max = 10;
+                              const items = result.details.slice(0, max).map((d: any, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
+                              const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+                              setTimeout(() => {
+                                modal.error({
+                                  title: 'Error al añadir usuarios a Moodle',
+                                  width: 600,
+                                  content: (
+                                    <div>
+                                      <p>{extractSummary(result.message)}</p>
+                                      <ul style={{ marginTop: 8 }}>{items}</ul>
+                                      {more}
+                                    </div>
+                                  )
+                                });
+                              }, 100);
+                            } else {
+                              messageApi.error(result?.error || result?.message || 'Error al añadir usuarios a Moodle');
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Error añadiendo usuarios a Moodle:', err);
+                          messageApi.error('Error al subir usuarios a Moodle');
+                        }
+                      },
+                      okText: 'Crear y subir',
+                      cancelText: 'Cancelar',
+                    });
+                  } else {
+                    // No users to create — simple confirmation
+                    modal.confirm({
+                      title: 'Subir usuarios a Moodle',
+                      content: `¿Deseas añadir ${selectedUserIds.length} usuario(s) seleccionados al grupo de Moodle asociado?`,
+                      onOk: async () => {
+                        try {
+                          const resp = await addUsers(Number(groupId), selectedUserIds);
+                          const result = (resp as any)?.data;
+                          if (result?.success) {
+                            messageApi.success(result.message || 'Usuarios añadidos a Moodle');
+                            if (result.details && result.details.length > 0) {
+                              const max = 10;
+                              const items = result.details.slice(0, max).map((d: any, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
+                              const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+                              setTimeout(() => {
+                                modal.info({
+                                  title: 'Algunos usuarios no pudieron añadirse',
+                                  width: 600,
+                                  content: (
+                                    <div>
+                                      <p>{extractSummary(result.message)}</p>
+                                      <ul style={{ marginTop: 8 }}>{items}</ul>
+                                      {more}
+                                    </div>
+                                  )
+                                });
+                              }, 100);
+                            }
+                            refetch();
+                          } else {
+                            messageApi.error(result?.error || result?.message || 'Error al añadir usuarios a Moodle');
+                          }
+                        } catch (err) {
+                          console.error('Error añadiendo usuarios a Moodle:', err);
+                          messageApi.error('Error al subir usuarios a Moodle');
+                        }
+                      }
+                    });
+                  }
+                } catch (err) {
+                  console.error('Error previsualizando usuarios a crear en Moodle:', err);
+                  messageApi.error('No se pudo previsualizar la creación de usuarios en Moodle');
+                }
+              }}
+              
+              disabled={isGroupLoading}
+            >
+              Subir a Moodle
+            </Button>
+            <Button
+              type="default"
               icon={<MailOutlined />}
               onClick={async () => {
                 if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
@@ -338,7 +472,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         <div style={{ display: 'flex', gap: 8 }}>
           <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0}>Marcar ≥ 75%</Button>
           <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
-            Bonificar + XML FUNDAE
+            Bonificar+XML
           </Button>
         </div>
       </div>
