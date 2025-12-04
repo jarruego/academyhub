@@ -6,7 +6,7 @@ import { MoodleGroup, CreatedGroupResponseItem } from 'src/types/moodle/group';
 import { MoodleUser, ExtendedMoodleUser } from 'src/types/moodle/user';
 import { MoodleCourseWithImportStatus, MoodleGroupWithImportStatus, ImportResult } from 'src/dto/moodle/import.dto';
 import { DatabaseService } from 'src/database/database.service';
-import { organizationSettingsTable } from 'src/database/schema/tables/organization_settings.table';
+import { organizationSettingsTable, OrganizationSettingsSelectModel } from 'src/database/schema/tables/organization_settings.table';
 import { eq } from 'drizzle-orm';
 import { DATABASE_PROVIDER } from 'src/database/database.module';
 import { QueryOptions, Transaction } from 'src/database/repository/repository';
@@ -20,7 +20,8 @@ import { MoodleUserService } from '../moodle-user/moodle-user.service';
 import { GroupService } from '../group/group.service';
 import { CourseModality } from 'src/types/course/course-modality.enum';
 import { UserCourseInsertModel } from 'src/database/schema/tables/user_course.table';
-import { UserInsertModel, UserUpdateModel } from 'src/database/schema/tables/user.table';
+import { UserInsertModel, UserUpdateModel, UserSelectModel } from 'src/database/schema/tables/user.table';
+import { MoodleUserInsertModel, MoodleUserSelectModel } from 'src/database/schema/tables/moodle_user.table';
 import { UserGroupSelectModel } from 'src/database/schema/tables/user_group.table';
 import { generatePassword } from 'src/utils/generate-password';
 
@@ -172,20 +173,22 @@ export class MoodleService {
     private async resolveMoodleToken(centerId?: number): Promise<string | undefined> {
         try {
             // Try to find a token configured in the DB
-            let rows: any[] = [];
+            let rows: OrganizationSettingsSelectModel[] = [];
             if (typeof centerId === 'number') {
                 rows = await this.databaseService.db.select().from(organizationSettingsTable).where(eq(organizationSettingsTable.center_id, centerId)).limit(1);
             } else {
                 rows = await this.databaseService.db.select().from(organizationSettingsTable).limit(1);
             }
+
             if (rows && rows.length > 0) {
-                const row = rows[0] as any;
-                const secrets = row.encrypted_secrets ?? {};
+                const row: OrganizationSettingsSelectModel = rows[0];
+                const secrets = (row.encrypted_secrets ?? {}) as Record<string, unknown>;
+
                 // Support multiple keys historically used for storing the token.
                 const candidates = ['moodle_token', 'moodle_token_plain', 'moodleToken', 'moodle_token_encrypted', 'token'];
                 for (const key of candidates) {
-                    const enc = secrets[key];
-                    if (enc) {
+                    const enc: unknown = secrets[key];
+                    if (enc !== undefined && enc !== null) {
                         // If value is a string, assume plaintext (legacy/dev).
                         if (typeof enc === 'string') {
                             // Try to encrypt and persist the plaintext token so future reads use the secure form.
@@ -197,36 +200,42 @@ export class MoodleService {
                                     try {
                                         await this.databaseService.db.update(organizationSettingsTable).set({ encrypted_secrets: newSecrets }).where(eq(organizationSettingsTable.id, row.id));
                                         Logger.log({ key }, 'MoodleService:resolveMoodleToken - encrypted plaintext token in DB');
-                                    } catch (updErr) {
+                                    } catch (updErr: unknown) {
                                         Logger.warn({ updErr }, 'MoodleService:resolveMoodleToken - failed to persist encrypted token');
                                     }
                                     // Return decrypted value from the encrypted object to ensure consistent behavior
                                     return decryptSecret(encrypted);
                                 }
-                            } catch (e) {
-                                Logger.warn({ e }, 'MoodleService:resolveMoodleToken - encryption attempt failed; falling back to plaintext');
+                            } catch (err: unknown) {
+                                Logger.warn({ err }, 'MoodleService:resolveMoodleToken - encryption attempt failed; falling back to plaintext');
                                 return enc;
                             }
                             return enc;
                         }
                         try {
                             return decryptSecret(enc);
-                        } catch (e) {
-                            Logger.warn({ err: e, key }, `MoodleService:resolveMoodleToken - failed to decrypt token for key=${key}; trying next`);
+                        } catch (err: unknown) {
+                            Logger.warn({ err, key }, `MoodleService:resolveMoodleToken - failed to decrypt token for key=${key}; trying next`);
                         }
                     }
                 }
+
                 // Also support nested shape like { moodle: { token: '...' } }
-                if (secrets.moodle && typeof secrets.moodle === 'object') {
-                    const nested = (secrets.moodle as Record<string, unknown>).token;
+                const maybeMoodle = secrets['moodle'];
+                if (maybeMoodle && typeof maybeMoodle === 'object') {
+                    const nested = (maybeMoodle as Record<string, unknown>)['token'];
                     if (nested) {
                         if (typeof nested === 'string') return nested;
-                        try { return decryptSecret(nested); } catch (e) { Logger.warn({ e }, 'MoodleService:resolveMoodleToken - failed to decrypt nested token'); }
+                        try {
+                            return decryptSecret(nested);
+                        } catch (err: unknown) {
+                            Logger.warn({ err }, 'MoodleService:resolveMoodleToken - failed to decrypt nested token');
+                        }
                     }
                 }
             }
-        } catch (e) {
-            Logger.warn({ e }, 'MoodleService:resolveMoodleToken - DB lookup failed, falling back to env');
+        } catch (err: unknown) {
+            Logger.warn({ err }, 'MoodleService:resolveMoodleToken - DB lookup failed, falling back to env');
         }
 
         return this.MOODLE_TOKEN;
@@ -238,7 +247,7 @@ export class MoodleService {
      */
     private async resolveMoodleUrl(centerId?: number): Promise<string | undefined> {
         try {
-            let rows: any[] = [];
+            let rows: OrganizationSettingsSelectModel[] = [];
             if (typeof centerId === 'number') {
                 rows = await this.databaseService.db.select().from(organizationSettingsTable).where(eq(organizationSettingsTable.center_id, centerId)).limit(1);
             } else {
@@ -246,25 +255,32 @@ export class MoodleService {
             }
 
             if (rows && rows.length > 0) {
-                const row = rows[0] as any;
-                const enc = row.encrypted_secrets?.moodle_url;
-                if (enc) {
+                const row: OrganizationSettingsSelectModel = rows[0];
+                const maybeEncrypted = row.encrypted_secrets;
+                const enc = (maybeEncrypted && typeof maybeEncrypted === 'object') ? (maybeEncrypted as Record<string, unknown>)['moodle_url'] : undefined;
+                if (enc !== undefined && enc !== null) {
                     if (typeof enc === 'string') return enc;
                     try {
                         return decryptSecret(enc);
-                    } catch (e) {
-                        Logger.warn({ err: e }, 'MoodleService:resolveMoodleUrl - failed to decrypt url; falling back to settings/env');
+                    } catch (err: unknown) {
+                        Logger.warn({ err }, 'MoodleService:resolveMoodleUrl - failed to decrypt url; falling back to settings/env');
                     }
                 }
 
                 // Try settings.moodle.url or a couple of common alternatives
-                const s = row.settings ?? {};
-                if (s.moodle?.url) return s.moodle.url;
-                if (s.moodle_url) return s.moodle_url;
-                if (s.moodleUrl) return s.moodleUrl;
+                const s = (row.settings ?? {}) as Record<string, unknown>;
+                const maybeMoodle = s['moodle'];
+                if (maybeMoodle && typeof maybeMoodle === 'object') {
+                    const url = (maybeMoodle as Record<string, unknown>)['url'];
+                    if (typeof url === 'string') return url;
+                }
+                const alt1 = s['moodle_url'];
+                if (typeof alt1 === 'string') return alt1;
+                const alt2 = s['moodleUrl'];
+                if (typeof alt2 === 'string') return alt2;
             }
-        } catch (e) {
-            Logger.warn({ e }, 'MoodleService:resolveMoodleUrl - DB lookup failed, falling back to env');
+        } catch (err: unknown) {
+            Logger.warn({ err }, 'MoodleService:resolveMoodleUrl - DB lookup failed, falling back to env');
         }
 
         return this.MOODLE_URL;
@@ -341,8 +357,9 @@ export class MoodleService {
                     await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
                         moodle_username: mu.username,
                     });
-                } catch (mErr: any) {
-                    Logger.error({ mErr, moodleUserId: mu.id, localMoodleUserId: existingMoodleUser.id_moodle_user }, 'MoodleService:syncMoodleGroupMembers - moodle_user update failed');
+                } catch (mErr: unknown) {
+                    const mErrForLog = mErr instanceof Error ? { message: mErr.message, stack: mErr.stack } : String(mErr);
+                    Logger.error({ mErr: mErrForLog, moodleUserId: mu.id, localMoodleUserId: existingMoodleUser.id_moodle_user }, 'MoodleService:syncMoodleGroupMembers - moodle_user update failed');
                     throw mErr;
                 }
 
@@ -627,14 +644,16 @@ export class MoodleService {
                         await this.moodleUserService.update(local.id_moodle_user, { moodle_username: newUsername }, { transaction });
                         updated++;
                         updatedIds.push(local.id_moodle_user);
-                    } catch (err: any) {
-                        Logger.error({ err, moodleId: mu.id, localId: local.id_moodle_user }, 'MoodleService:syncUsernamesFromMoodle - update failed');
-                        errors.push({ moodleId: mu.id, id_moodle_user: local.id_moodle_user, error: err.message || String(err) });
+                    } catch (err: unknown) {
+                        const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                        Logger.error({ err: errForLog, moodleId: mu.id, localId: local.id_moodle_user }, 'MoodleService:syncUsernamesFromMoodle - update failed');
+                        errors.push({ moodleId: mu.id, id_moodle_user: local.id_moodle_user, error: err instanceof Error ? err.message : String(err) });
                         // continue with next user
                     }
-                } catch (err: any) {
-                    Logger.error({ err, moodleId: mu.id }, 'MoodleService:syncUsernamesFromMoodle - find failed');
-                    errors.push({ moodleId: mu.id, error: err.message || String(err) });
+                } catch (err: unknown) {
+                    const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                    Logger.error({ err: errForLog, moodleId: mu.id }, 'MoodleService:syncUsernamesFromMoodle - find failed');
+                    errors.push({ moodleId: mu.id, error: err instanceof Error ? err.message : String(err) });
                 }
             }
 
@@ -1143,7 +1162,12 @@ export class MoodleService {
             } else {
                 // For creation we may need to use a custom plugin endpoint (itop_training) if enabled in organization settings
                 const orgRow = await this.organizationRepository.findFirst();
-                const itopEnabled = !!(orgRow && (orgRow.settings as any)?.plugins && (orgRow.settings as any).plugins.itop_training === true);
+                let itopEnabled = false;
+                if (orgRow) {
+                    const settings = orgRow.settings ?? {};
+                    const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
+                    itopEnabled = !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
+                }
 
                 if (itopEnabled) {
                     // Prepare params for the custom block_gestion_grupos_create_group_custom1
@@ -1171,16 +1195,27 @@ export class MoodleService {
                         enddate,
                     };
 
-                    const res = await this.request<any, MoodleParams>('block_gestion_grupos_create_group_custom1', { method: 'post', params: customParams });
+                    const res = await this.request<unknown, MoodleParams>('block_gestion_grupos_create_group_custom1', { method: 'post', params: customParams });
 
-                    // Try to extract an id from response if present
+                    // Try to extract an id from response if present (safe narrowing)
                     let createdId: number | undefined;
-                    if (res) {
-                        if (typeof res === 'number') createdId = res;
-                        else if (res.id) createdId = Number(res.id);
-                        else if (res.groupid) createdId = Number(res.groupid);
-                        else if (res.moodleid) createdId = Number(res.moodleid);
-                        else if (Array.isArray(res) && res[0] && (res[0].id ?? res[0].groupid)) createdId = Number(res[0].id ?? res[0].groupid);
+                    if (res !== undefined && res !== null) {
+                        if (typeof res === 'number') {
+                            createdId = res;
+                        } else if (typeof res === 'string' && !Number.isNaN(Number(res))) {
+                            createdId = Number(res);
+                        } else if (typeof res === 'object') {
+                            // object responses may include id, groupid, moodleid or be an array
+                            const r = res as Record<string, unknown>;
+                            if (r['id'] !== undefined && (typeof r['id'] === 'number' || typeof r['id'] === 'string')) createdId = Number(r['id']);
+                            else if (r['groupid'] !== undefined && (typeof r['groupid'] === 'number' || typeof r['groupid'] === 'string')) createdId = Number(r['groupid']);
+                            else if (r['moodleid'] !== undefined && (typeof r['moodleid'] === 'number' || typeof r['moodleid'] === 'string')) createdId = Number(r['moodleid']);
+                            else if (Array.isArray(res) && res.length > 0 && typeof res[0] === 'object') {
+                                const first = res[0] as Record<string, unknown>;
+                                if (first['id'] !== undefined && (typeof first['id'] === 'number' || typeof first['id'] === 'string')) createdId = Number(first['id']);
+                                else if (first['groupid'] !== undefined && (typeof first['groupid'] === 'number' || typeof first['groupid'] === 'string')) createdId = Number(first['groupid']);
+                            }
+                        }
                     }
 
                     if (createdId) {
@@ -1209,9 +1244,10 @@ export class MoodleService {
 
                 return { success: true, moodleGroupId: createdId, message: 'Group created in Moodle and local record updated' };
             }
-        } catch (err: any) {
-            Logger.error({ err, id_group }, 'MoodleService:pushLocalGroupToMoodle');
-            throw new InternalServerErrorException(err?.message || 'Error creating/updating group in Moodle');
+        } catch (err: unknown) {
+            const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+            Logger.error({ err: errForLog, id_group }, 'MoodleService:pushLocalGroupToMoodle');
+            throw new InternalServerErrorException(err instanceof Error ? err.message : String(err) || 'Error creating/updating group in Moodle');
         }
     }
 
@@ -1237,9 +1273,10 @@ export class MoodleService {
             // On success, clear local moodle_id so local DB reflects deletion
             await this.groupRepository.update(id_group, { moodle_id: null });
             return { success: true, moodleGroupId: moodleId, message: 'Group deleted in Moodle and local record updated' };
-        } catch (err: any) {
-            Logger.error({ err, id_group, moodleId }, 'MoodleService:deleteLocalGroupFromMoodle');
-            throw new InternalServerErrorException(err?.message || 'Error deleting group in Moodle');
+        } catch (err: unknown) {
+            const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+            Logger.error({ err: errForLog, id_group, moodleId }, 'MoodleService:deleteLocalGroupFromMoodle');
+            throw new InternalServerErrorException(err instanceof Error ? err.message : String(err) || 'Error deleting group in Moodle');
         }
     }
 
@@ -1251,14 +1288,16 @@ export class MoodleService {
      */
     async upsertLocalUsersToMoodle(localUserIds: number[]): Promise<Array<{ localUserId: number; moodleId: number; id_moodle_user?: number }>> {
         const mappings: Array<{ localUserId: number; moodleId: number; id_moodle_user?: number }> = [];
-        const toCreate: Array<{ localUserId: number; user: any; password: string }> = [];
+    // Reuse the generated `UserSelectModel` and pick only the fields we need here
+    type LocalUser = Pick<UserSelectModel, 'id_user' | 'name' | 'first_surname' | 'email' | 'dni'>;
+        const toCreate: Array<{ localUserId: number; user: LocalUser; password: string }> = [];
 
         // First, collect existing mappings and those missing
         for (const id_user of localUserIds) {
             try {
-                const muRows = await this.moodleUserService.findByUserId(id_user);
+                const muRows: MoodleUserSelectModel[] = await this.moodleUserService.findByUserId(id_user);
                 if (muRows && muRows.length > 0) {
-                    const main = muRows.find((r: any) => r.is_main_user) || muRows[0];
+                    const main = muRows.find((r) => r.is_main_user) || muRows[0];
                     if (main && main.moodle_id) mappings.push({ localUserId: id_user, moodleId: main.moodle_id, id_moodle_user: main.id_moodle_user });
                     else {
                         // treat as missing
@@ -1279,7 +1318,7 @@ export class MoodleService {
         if (toCreate.length === 0) return mappings;
 
     // Build Moodle payload for core_user_create_users
-    const usersPayload: any[] = toCreate.map(tc => {
+    const usersPayload: Array<Record<string, unknown>> = toCreate.map(tc => {
             const firstname = (tc.user.name || '').slice(0, 100) || 'User';
             const lastname = (tc.user.first_surname || '').slice(0, 100) || 'Surname';
             // username: prefer normalized dni (lowercase, alphanumeric) if available
@@ -1322,14 +1361,15 @@ export class MoodleService {
                     const c = created[i];
                     const original = toCreate[i];
                     try {
-                        const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: c.id, moodle_username: c.username, moodle_password: original.password, is_main_user: true } as any);
-                        mappings.push({ localUserId: original.localUserId, moodleId: c.id, id_moodle_user: (mu as any)?.insertId ?? undefined });
+                        const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: c.id, moodle_username: c.username, moodle_password: original.password, is_main_user: true } as MoodleUserInsertModel);
+                        const insertId = (mu as unknown as { insertId?: number })?.insertId;
+                        mappings.push({ localUserId: original.localUserId, moodleId: c.id, id_moodle_user: insertId ?? undefined });
                     } catch (innerErr) {
                         Logger.error({ innerErr, created: c, localUserId: original.localUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to persist moodle_user');
                     }
                 }
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Bulk creation failed. Try per-user creation with a simple username fallback strategy
             Logger.warn({ err, toCreateLength: toCreate.length }, 'MoodleService:upsertLocalUsersToMoodle - bulk create failed, falling back to per-user creation');
             for (const original of toCreate) {
@@ -1366,9 +1406,8 @@ export class MoodleService {
                             createdUsername = singleCreate[0].username;
                             break;
                         }
-                    } catch (singleErr: any) {
+                    } catch (singleErr: unknown) {
                         // If error suggests username conflict, try next attempt. Otherwise log and continue to next user.
-                        const msg = singleErr?.message ?? '';
                         Logger.warn({ singleErr, localUserId: original.localUserId, tryName }, 'MoodleService:upsertLocalUsersToMoodle - per-user create failed');
                         // continue to next attempt
                     }
@@ -1376,8 +1415,9 @@ export class MoodleService {
 
                 if (createdId && createdUsername) {
                     try {
-                        const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: createdId, moodle_username: createdUsername, moodle_password: password, is_main_user: true } as any);
-                        mappings.push({ localUserId: original.localUserId, moodleId: createdId, id_moodle_user: (mu as any)?.insertId ?? undefined });
+                        const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: createdId, moodle_username: createdUsername, moodle_password: password, is_main_user: true } as MoodleUserInsertModel);
+                        const insertId = (mu as unknown as { insertId?: number })?.insertId;
+                        mappings.push({ localUserId: original.localUserId, moodleId: createdId, id_moodle_user: insertId ?? undefined });
                     } catch (innerErr) {
                         Logger.error({ innerErr, createdId, createdUsername, localUserId: original.localUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to persist moodle_user after per-user create');
                     }
@@ -1462,19 +1502,20 @@ export class MoodleService {
         const missingIds: number[] = [];
         for (const id_user of userIds) {
             try {
-                const muRows = await this.moodleUserService.findByUserId(id_user);
+                const muRows: MoodleUserSelectModel[] = await this.moodleUserService.findByUserId(id_user);
                 if (!muRows || muRows.length === 0) {
                     missingIds.push(id_user);
                     continue;
                 }
-                const main = muRows.find((r: any) => r.is_main_user) || muRows[0];
+                const main = muRows.find((r) => r.is_main_user) || muRows[0];
                 if (!main || !main.moodle_id) {
                     missingIds.push(id_user);
                     continue;
                 }
                 members.push({ localUserId: id_user, moodleId: main.moodle_id, id_moodle_user: main.id_moodle_user });
-            } catch (err: any) {
-                Logger.warn({ err, id_user }, 'MoodleService:addLocalUsersToMoodleGroup - findByUserId failed');
+            } catch (err: unknown) {
+                const ierr = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                Logger.warn({ err: ierr, id_user }, 'MoodleService:addLocalUsersToMoodleGroup - findByUserId failed');
                 missingIds.push(id_user);
             }
         }
@@ -1486,8 +1527,9 @@ export class MoodleService {
                 for (const c of created) {
                     members.push({ localUserId: c.localUserId, moodleId: c.moodleId, id_moodle_user: c.id_moodle_user });
                 }
-            } catch (e: any) {
-                Logger.warn({ e, missingCount: missingIds.length }, 'MoodleService:addLocalUsersToMoodleGroup - failed creating missing Moodle users');
+            } catch (e: unknown) {
+                const ierr = e instanceof Error ? { message: e.message, stack: e.stack } : String(e);
+                Logger.warn({ e: ierr, missingCount: missingIds.length }, 'MoodleService:addLocalUsersToMoodleGroup - failed creating missing Moodle users');
                 for (const id of missingIds) details.push({ userId: id, error: 'No Moodle account linked for this user and creation failed' });
             }
         }
@@ -1509,9 +1551,9 @@ export class MoodleService {
                 // Use Moodle's manual enrol webservice. We'll use roleid=5 (student) by default.
                 const STUDENT_ROLE_ID = 5;
                 toEnroll.forEach((m, idx) => {
-                    enrolParams[`enrolments[${idx}][roleid]`] = STUDENT_ROLE_ID as any;
-                    enrolParams[`enrolments[${idx}][userid]`] = m.moodleId as any;
-                    enrolParams[`enrolments[${idx}][courseid]`] = course.moodle_id as any;
+                    enrolParams[`enrolments[${idx}][roleid]`] = STUDENT_ROLE_ID;
+                    enrolParams[`enrolments[${idx}][userid]`] = m.moodleId;
+                    enrolParams[`enrolments[${idx}][courseid]`] = course.moodle_id;
                 });
 
                 try {
@@ -1527,12 +1569,13 @@ export class MoodleService {
                             let localIdMoodleUser: number | undefined = undefined;
                             if (typeof m.id_moodle_user === 'number') {
                                 localIdMoodleUser = Number(m.id_moodle_user);
-                            } else {
+                                } else {
                                 try {
                                     const mu = await this.moodleUserService.findByMoodleId(Number(m.moodleId));
-                                    if (mu && (mu as any).id_moodle_user) localIdMoodleUser = (mu as any).id_moodle_user;
-                                } catch (findErr: any) {
-                                    Logger.warn({ findErr, moodleId: m.moodleId, localUserId: m.localUserId }, 'MoodleService:addLocalUsersToMoodleGroup - could not find local moodle_user row for persisted moodle id');
+                                    if (mu && (mu as unknown as { id_moodle_user?: number }).id_moodle_user) localIdMoodleUser = (mu as unknown as { id_moodle_user?: number }).id_moodle_user;
+                                } catch (findErr: unknown) {
+                                    const ferr = findErr instanceof Error ? { message: findErr.message, stack: findErr.stack } : String(findErr);
+                                    Logger.warn({ findErr: ferr, moodleId: m.moodleId, localUserId: m.localUserId }, 'MoodleService:addLocalUsersToMoodleGroup - could not find local moodle_user row for persisted moodle id');
                                 }
                             }
 
@@ -1542,25 +1585,29 @@ export class MoodleService {
                                 continue;
                             }
 
-                            await this.userCourseRepository.addUserToCourse({
+                            const uc: UserCourseInsertModel = {
                                 id_user: m.localUserId,
                                 id_course: course.id_course,
                                 id_moodle_user: Number(localIdMoodleUser),
                                 enrollment_date: new Date(),
                                 completion_percentage: '0',
                                 time_spent: 0,
-                            } as any);
-                        } catch (ucErr: any) {
-                            Logger.warn({ ucErr, localUserId: m.localUserId, courseId: course.id_course }, 'MoodleService:addLocalUsersToMoodleGroup - failed to persist user_course enrollment');
+                            };
+                            await this.userCourseRepository.addUserToCourse(uc);
+                        } catch (ucErr: unknown) {
+                            const uerr = ucErr instanceof Error ? { message: ucErr.message, stack: ucErr.stack } : String(ucErr);
+                            Logger.warn({ ucErr: uerr, localUserId: m.localUserId, courseId: course.id_course }, 'MoodleService:addLocalUsersToMoodleGroup - failed to persist user_course enrollment');
                         }
                     }
-                } catch (enrolErr: any) {
-                    Logger.warn({ enrolErr, toEnrollCount: toEnroll.length }, 'MoodleService:addLocalUsersToMoodleGroup - enrol_manual_enrol_users failed');
+                } catch (enrolErr: unknown) {
+                    const eerr = enrolErr instanceof Error ? { message: enrolErr.message, stack: enrolErr.stack } : String(enrolErr);
+                    Logger.warn({ enrolErr: eerr, toEnrollCount: toEnroll.length }, 'MoodleService:addLocalUsersToMoodleGroup - enrol_manual_enrol_users failed');
                     // continue — we'll still try to add to group individually below; failures will be captured
                 }
             }
         } catch (e) {
-            Logger.warn({ e }, 'MoodleService:addLocalUsersToMoodleGroup - failed to fetch enrolled users');
+            const errObj = e instanceof Error ? { message: e.message, stack: e.stack } : String(e);
+            Logger.warn({ e: errObj }, 'MoodleService:addLocalUsersToMoodleGroup - failed to fetch enrolled users');
         }
 
         // Build members array for Moodle payload and diagnostic logging
@@ -1578,13 +1625,14 @@ export class MoodleService {
             const existingIds = addResult.existingIds || [];
             addedCount = (addedIds.length ?? 0) + (existingIds.length ?? 0);
             // Mark local user_group rows as synced with Moodle for both newly added and existing users
-            for (const userId of [...addedIds, ...existingIds]) {
+                for (const userId of [...addedIds, ...existingIds]) {
                 try {
                     await this.userGroupRepository.updateById(userId, id_group, { moodle_synced_at: new Date() });
-                } catch (updErr: any) {
+                } catch (updErr: unknown) {
+                    const uerr = updErr instanceof Error ? { message: updErr.message, stack: updErr.stack } : String(updErr);
                     Logger.warn({
-                        message: updErr?.message ?? String(updErr),
-                        stack: updErr?.stack,
+                        message: uerr && typeof uerr === 'object' ? (uerr as { message?: string }).message : String(uerr),
+                        stack: uerr && typeof uerr === 'object' ? (uerr as { stack?: string }).stack : undefined,
                         userId,
                         id_group
                     }, 'MoodleService:addLocalUsersToMoodleGroup - failed to set moodle_synced_at on user_group');
@@ -1600,13 +1648,14 @@ export class MoodleService {
                 importedData: { groupId: id_group, usersImported: addedCount },
                 details: details.length > 0 ? details : undefined,
             } as ImportResult;
-        } catch (errArray: any) {
-            Logger.warn({ errArray, membersLength: members.length, id_group }, 'MoodleService:addLocalUsersToMoodleGroup - bulk add (array-of-objects) failed, trying explicit keys');
+        } catch (errArray: unknown) {
+            const errForLog = errArray instanceof Error ? { message: errArray.message, stack: errArray.stack } : String(errArray);
+            Logger.warn({ errArray: errForLog, membersLength: members.length, id_group }, 'MoodleService:addLocalUsersToMoodleGroup - bulk add (array-of-objects) failed, trying explicit keys');
             // Second attempt: try explicit members[0][groupid]=... encoding (older Moodle variants may expect this)
             const params: MoodleParams = {};
             members.forEach((m, idx) => {
-                params[`members[${idx}][groupid]`] = moodleGroupId as any;
-                params[`members[${idx}][userid]`] = m.moodleId as any;
+                params[`members[${idx}][groupid]`] = moodleGroupId;
+                params[`members[${idx}][userid]`] = m.moodleId;
             });
             try {
                 const res2 = await this.request<boolean>('core_group_add_group_members', { method: 'post', params });
@@ -1619,10 +1668,11 @@ export class MoodleService {
                 for (const userId of [...addedIds, ...existingIds]) {
                     try {
                         await this.userGroupRepository.updateById(userId, id_group, { moodle_synced_at: new Date() });
-                    } catch (updErr: any) {
+                    } catch (updErr: unknown) {
+                        const uerr = updErr instanceof Error ? { message: updErr.message, stack: updErr.stack } : String(updErr);
                         Logger.warn({
-                            message: updErr?.message ?? String(updErr),
-                            stack: updErr?.stack,
+                            message: uerr && typeof uerr === 'object' ? (uerr as { message?: string }).message : String(uerr),
+                            stack: uerr && typeof uerr === 'object' ? (uerr as { stack?: string }).stack : undefined,
                             userId,
                             id_group
                         }, 'MoodleService:addLocalUsersToMoodleGroup - failed to set moodle_synced_at on user_group');
@@ -1638,13 +1688,14 @@ export class MoodleService {
                     importedData: { groupId: id_group, usersImported: addedCount },
                     details: details.length > 0 ? details : undefined,
                 } as ImportResult;
-            } catch (err: any) {
-                Logger.warn({ err, membersLength: members.length, id_group }, 'MoodleService:addLocalUsersToMoodleGroup - bulk add failed, trying per-user');
+            } catch (err: unknown) {
+                const errLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                Logger.warn({ err: errLog, membersLength: members.length, id_group }, 'MoodleService:addLocalUsersToMoodleGroup - bulk add failed, trying per-user');
                 // Fallback: try per-user to identify which ones succeed
                 for (const m of members) {
                     const singleParams: MoodleParams = {};
-                    singleParams[`members[0][groupid]`] = moodleGroupId as any;
-                    singleParams[`members[0][userid]`] = m.moodleId as any;
+                    singleParams[`members[0][groupid]`] = moodleGroupId;
+                    singleParams[`members[0][userid]`] = m.moodleId;
                     try {
                         await this.request<boolean>('core_group_add_group_members', { method: 'post', params: singleParams });
                         // Persist locally
@@ -1653,20 +1704,23 @@ export class MoodleService {
                             // mark as synced
                             try {
                                 await this.userGroupRepository.updateById(m.localUserId, id_group, { moodle_synced_at: new Date() });
-                            } catch (updErr: any) {
+                            } catch (updErr: unknown) {
+                                const uerr = updErr instanceof Error ? { message: updErr.message, stack: updErr.stack } : String(updErr);
                                 Logger.warn({
-                                    message: updErr?.message ?? String(updErr),
-                                    stack: updErr?.stack,
+                                    message: uerr && typeof uerr === 'object' ? (uerr as { message?: string }).message : String(uerr),
+                                    stack: uerr && typeof uerr === 'object' ? (uerr as { stack?: string }).stack : undefined,
                                     localUserId: m.localUserId,
                                     id_group
                                 }, 'MoodleService:addLocalUsersToMoodleGroup - failed to set moodle_synced_at on user_group (per-user)');
                             }
                             addedCount++;
-                        } catch (localErr: any) {
-                            details.push({ userId: m.localUserId, error: 'Added in Moodle but failed to persist locally' });
+                        } catch (localErr: unknown) {
+                            const lmsg = localErr instanceof Error ? localErr.message : String(localErr);
+                            details.push({ userId: m.localUserId, error: 'Added in Moodle but failed to persist locally: ' + lmsg });
                         }
-                    } catch (singleErr: any) {
-                        details.push({ userId: m.localUserId, error: singleErr?.message || String(singleErr) });
+                    } catch (singleErr: unknown) {
+                        const serr = singleErr instanceof Error ? singleErr.message : String(singleErr);
+                        details.push({ userId: m.localUserId, error: serr });
                     }
                 }
 
