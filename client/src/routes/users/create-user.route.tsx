@@ -69,11 +69,18 @@ export default function CreateUserRoute() {
 
   const submit: SubmitHandler<z.infer<typeof CREATE_USER_FORM>> = async (values) => {
     try {
-      await createUser({
+      const created = await createUser({
         ...values,
         birth_date: values.birth_date ? dayjs(values.birth_date).utc().toDate() : null,
         registration_date: values.registration_date ? dayjs(values.registration_date).utc().toDate() : null,
       });
+      // If the mutation returned the created user, navigate to its detail page.
+      // The API returns the created user object with `id_user` when available.
+      if (created?.id_user) {
+        navigate(`/users/${created.id_user}`);
+        return;
+      }
+
       navigate('/users');
     } catch (error) {
       modal.error({

@@ -139,6 +139,35 @@ export class MoodleController {
     }
 
     @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('users/:id/add-to-moodle')
+    /**
+     * Create a single local user in Moodle (if not exists) and persist mapping.
+     */
+    async addUserToMoodle(@Param('id', ParseIntPipe) id: number) {
+        return await this.moodleService.upsertLocalUsersToMoodle([id]);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('users/:id/update-in-moodle')
+    /**
+     * Update an existing Moodle user from local data. Requires the local user to be
+     * already linked to a Moodle account (moodle_id present in moodle_users table).
+     */
+    async updateUserInMoodle(@Param('id', ParseIntPipe) id: number) {
+        return await this.moodleService.updateLocalUserInMoodle(id);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('users/:id/preview-add-to-moodle')
+    /**
+     * Preview which data would be created in Moodle for a single local user.
+     * Returns suggested username/password but does NOT create anything.
+     */
+    async previewAddUserToMoodle(@Param('id', ParseIntPipe) id: number) {
+        return await this.moodleService.getUsersToCreateInMoodle([id]);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
     @Post('import-all')
     async importMoodleCourses(@Query('skipUsers') skipUsers?: string) {
         // Accepts skipUsers as query param (e.g., /import-all?skipUsers=true)

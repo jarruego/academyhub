@@ -18,6 +18,7 @@ interface Props {
 
 const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
   const [messageApi, contextHolder] = message.useMessage();
+  const [modal, modalContextHolder] = Modal.useModal();
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
@@ -61,6 +62,48 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
 
   const handleDeleteUsers = async () => {
     if (!groupId || selectedGroupUserIds.length === 0) return;
+
+    // Determine if any selected users are linked to Moodle (use moodle_synced_at or id_moodle_user if present)
+    const linkedUsers = (groupUsersData || []).filter(u => selectedGroupUserIds.includes(u.id_user)).filter(u => {
+      // Some backends expose `moodle_synced_at` or `id_moodle_user` on the user object
+      // We'll treat presence of either as an indicator the user is linked in Moodle
+      const maybe = u as unknown as Record<string, unknown>;
+      return !!maybe['moodle_synced_at'] || !!maybe['id_moodle_user'];
+    });
+
+    if (linkedUsers.length > 0) {
+      // Show confirmation modal warning about Moodle linkage and that current deletion only removes local association
+  modal.confirm({
+        title: `Eliminar ${selectedGroupUserIds.length} usuario(s) del grupo?`,
+        width: 600,
+        content: (
+          <div>
+            <p>Has seleccionado <strong>{selectedGroupUserIds.length}</strong> usuario(s). {linkedUsers.length > 0 ? (
+              <span><strong>{linkedUsers.length}</strong> de ellos están vinculados a Moodle.</span>
+            ) : null}</p>
+            <p style={{ color: '#fa8c16' }}><strong>Importante:</strong> Esta acción eliminará la asociación en la base de datos local. No eliminará automáticamente a los usuarios del grupo en Moodle.</p>
+            <p>Si deseas también eliminar a los usuarios de Moodle, debes hacerlo desde la interfaz de Moodle o pedir que implementemos la opción "Eliminar también en Moodle" en el servidor.</p>
+            <p>¿Deseas continuar?</p>
+          </div>
+        ),
+        okText: 'Eliminar localmente',
+        cancelText: 'Cancelar',
+        onOk: async () => {
+          try {
+            await Promise.all(selectedGroupUserIds.map(id_user => deleteUserFromGroup({ id_group: parseInt(String(groupId), 10), id_user })));
+            messageApi.success('Usuarios eliminados exitosamente (solo localmente)');
+            setSelectedGroupUserIds([]);
+            await refetchUsers();
+          } catch (err) {
+            console.error('Error eliminando usuarios del grupo', err);
+            messageApi.error('No se pudo eliminar a los usuarios');
+          }
+        }
+      });
+      return;
+    }
+
+    // No linked users: proceed without extra warning
     try {
       await Promise.all(selectedGroupUserIds.map(id_user => deleteUserFromGroup({ id_group: parseInt(String(groupId), 10), id_user })));
       messageApi.success('Usuarios eliminados exitosamente');
@@ -99,7 +142,8 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
       styles={{ body: { minHeight: '80vh', maxHeight: '92vh', overflow: 'hidden', padding: 16 } }}
       destroyOnClose
     >
-      {contextHolder}
+    {contextHolder}
+    {modalContextHolder}
 
   <div style={{ display: 'flex', gap: 16, height: 'calc(80vh - 80px)' }}>
         {/* Left: All users (DB) */}

@@ -5,6 +5,7 @@ import { useDeleteUserMutation } from "../../hooks/api/users/use-delete-user.mut
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
 import { useUserCoursesQuery } from "../../hooks/api/users/use-user-courses.query";
 import { Button, Form, Input, Modal, Checkbox, Select, Tabs, DatePicker } from "antd";
+import { CloudUploadOutlined } from '@ant-design/icons';
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect, useState } from "react";
 // composed hook will handle moodle updates when saving a user
@@ -18,6 +19,9 @@ import { DocumentType } from "../../shared/types/user/document-type.enum";
 import { AddUserToCenterSection } from "../../routes/users/user-center-detail-section";
 import { MoodleUsersSection } from "./moodle-users-section";
 import { UserCoursesSection } from "./user-courses-section";
+import usePreviewAddUserToMoodle from "../../hooks/api/moodle/use-preview-add-user-to-moodle.api";
+import { useAddUserToMoodleMutation } from "../../hooks/api/moodle/use-add-user-to-moodle.mutation";
+import { useUpdateUserInMoodleMutation } from '../../hooks/api/moodle/use-update-user-in-moodle.mutation';
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { SALARY_GROUP_OPTIONS, EDUCATION_LEVEL_OPTIONS } from '../../constants/options/user-options';
@@ -108,6 +112,7 @@ const navigate = useNavigate();
   const [moodlePassword, setMoodlePassword] = useState<string | undefined>(undefined);
   // Moodle updates are handled by the composed hook
 
+  const { mutateAsync: updateUserInMoodle } = useUpdateUserInMoodleMutation();
   // Detectar cambios en el campo dni y autocompletar document_type
   const dniValue = watch("dni");
   useEffect(() => {
@@ -144,6 +149,10 @@ const navigate = useNavigate();
       setMoodlePassword(undefined);
     }
   }, [moodleUsers]);
+
+  // Hooks to preview/create a single user in Moodle
+  const { preview } = usePreviewAddUserToMoodle();
+  const { mutateAsync: addUserToMoodle } = useAddUserToMoodleMutation();
 
   useEffect(() => {
     const prevTitle = document.title;
@@ -188,7 +197,10 @@ const navigate = useNavigate();
           moodlePassword: moodlePassword ?? null,
           moodleUsers,
         });
-        navigate(location.state?.from || '/users');
+        // Keep the user on the detail page and let the user query refresh
+        // (the update mutation invalidates the ['user', userId] query),
+        // show a success message instead of navigating away.
+        modal.success({ title: 'Usuario guardado', content: 'Los datos se han guardado correctamente.' });
       } catch (err: any) {
         // Distinguish errors coming from moodle update
         if (err && (err as any).type === 'moodle') {
@@ -226,9 +238,31 @@ const navigate = useNavigate();
   };
 
   const handleDelete = async () => {
+    // If user has a Moodle mapping, inform that deletion only affects local DB
+    const hasMoodleMapping = !!(moodleUsers && moodleUsers.length > 0) || !!(userData as any).id_moodle_user;
+    let confirmContent: React.ReactNode = 'Esta acción no se puede deshacer.';
+    if (hasMoodleMapping) {
+      const main = moodleUsers && moodleUsers.length > 0 ? (moodleUsers.find((mu: any) => (mu as any).is_main_user) || moodleUsers[0]) : undefined;
+      const moodleId = (main && (main as any).moodle_id) ?? (userData as any).id_moodle_user;
+      const moodleUsername = (main && (main as any).moodle_username) ?? (userData as any).moodle_username;
+      let details = '';
+      if (moodleUsername && moodleId) details = `(usuario: ${moodleUsername}, moodle_id: ${moodleId})`;
+      else if (moodleUsername) details = `(usuario: ${moodleUsername})`;
+      else if (moodleId) details = `(moodle_id: ${moodleId})`;
+
+      confirmContent = (
+        <div>
+          <p>Esta acción no se puede deshacer.</p>
+          <p>
+            Atención: este usuario está vinculado a Moodle {details}. Al eliminarlo se borrará únicamente de la base de datos local; la cuenta en Moodle NO será eliminada automáticamente.
+          </p>
+        </div>
+      );
+    }
+
     modal.confirm({
       title: "¿Seguro que desea eliminar este usuario?",
-      content: "Esta acción no se puede deshacer.",
+      content: confirmContent,
       okText: "Eliminar",
       okType: "danger",
       cancelText: "Cancelar",
@@ -239,7 +273,7 @@ const navigate = useNavigate();
         } catch {
           modal.error({
             title: "Error al eliminar el usuario",
-            content: "No se pudo eliminar el usuario. Inténtelo de nuevo.",
+            content: "No se pudo eliminar el usuario. Compruebe que no pertenece a ningún grupo o curso.",
           });
         }
       },
@@ -343,7 +377,7 @@ const navigate = useNavigate();
             </Form.Item>
           </div>
           {moodleUsers && moodleUsers.length > 0 && (
-            <div style={{ display: 'flex', gap: '16px', marginTop: 8 }}>
+            <div style={{ display: 'flex', gap: '16px', marginTop: 8, alignItems: 'center' }}>
               <Form.Item label="Username Moodle" name="moodle_username" style={{ flex: 1 }}>
                 <Controller
                   name="moodle_username"
@@ -378,9 +412,9 @@ const navigate = useNavigate();
                   )}
                 />
               </Form.Item>
-              {/* Debug UI removed */}
             </div>
           )}
+          {/* Button to upload this single user to Moodle when no mapping exists (moved to bottom actions) */}
           <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
             <Form.Item label="Dirección" name="address" style={{ flex: 3, minWidth: '40ch' }}>
               <Controller name="address" control={control} render={({ field }) => <Input {...field} id="address" autoComplete="street-address" value={field.value ?? undefined} />} />
@@ -556,11 +590,78 @@ const navigate = useNavigate();
           <Form.Item label="Observaciones" name="observations">
             <Controller name="observations" control={control} render={({ field }) => <Input.TextArea {...field} id="observations" autoComplete="off" value={field.value ?? undefined} rows={3} />} />
           </Form.Item>
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start', alignItems: 'center' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
             <AuthzHide roles={[Role.ADMIN]}>
-            <Button type="primary" htmlType="submit" data-testid="save-user">Guardar</Button>
-            <Button type="primary" danger onClick={handleDelete}>Eliminar Usuario</Button>
+              <Button type="primary" htmlType="submit" data-testid="save-user">Guardar</Button>
+              {/* Subir a Moodle button placed between Guardar and Eliminar Usuario */}
+              <Button
+                type="default"
+                icon={<CloudUploadOutlined style={{ color: '#f56b00' }} />}
+                onClick={async () => {
+                  try {
+                    const previewItems = await preview(userId);
+
+                    // If there are users to create, offer to create them
+                    if (previewItems && previewItems.length > 0) {
+                      const item = previewItems[0];
+                      modal.confirm({
+                        title: `Se crearán ${previewItems.length} usuario(s) en Moodle`,
+                        content: (
+                          <div>
+                            <p>Los siguientes usuarios no tienen cuenta en Moodle y se crearán si continúas:</p>
+                            <ul>
+                              <li>{`${item.name} — ${item.email}`}</li>
+                            </ul>
+                            <p>Usuario sugerido: <strong>{item.suggestedUsername}</strong></p>
+                            <p>Se generará una contraseña segura para cada cuenta. Se almacenará localmente en el mapeo de Moodle.</p>
+                          </div>
+                        ),
+                        okText: 'Crear y subir',
+                        cancelText: 'Cancelar',
+                        onOk: async () => {
+                          try {
+                            await addUserToMoodle({ userId });
+                            modal.success({ title: 'Usuario creado', content: 'El usuario ha sido creado en Moodle y el mapeo se ha guardado.' });
+                          } catch (err) {
+                            modal.error({ title: 'Error al crear usuario', content: 'No se pudo crear el usuario en Moodle. Revisa los logs del servidor.' });
+                          }
+                        }
+                      });
+                      return;
+                    }
+
+                    // No preview items -> user likely already exists in Moodle
+                    // If we have a local moodle mapping, offer to update Moodle with current data
+                    const hasMoodleMapping = !!(moodleUsers && moodleUsers.length > 0) || !!(userData as any).id_moodle_user;
+                    if (hasMoodleMapping) {
+                      modal.confirm({
+                        title: 'Actualizar usuario en Moodle',
+                        content: 'Este usuario ya tiene una cuenta en Moodle. ¿Desea actualizar sus datos en Moodle (usuario, contraseña, correo, etc.) con los datos actuales de la ficha)?',
+                        okText: 'Actualizar en Moodle',
+                        cancelText: 'Cancelar',
+                        onOk: async () => {
+                          try {
+                            await updateUserInMoodle({ userId });
+                            modal.success({ title: 'Usuario actualizado', content: 'Los datos del usuario se han enviado a Moodle correctamente.' });
+                          } catch (err) {
+                            modal.error({ title: 'Error al actualizar usuario', content: 'No se pudo actualizar el usuario en Moodle. Revisa los logs del servidor.' });
+                          }
+                        }
+                      });
+                      return;
+                    }
+
+                    // Otherwise inform that there is no data to create/update
+                    modal.info({ title: 'Usuario en Moodle', content: 'Este usuario ya tiene una cuenta en Moodle o no hay datos suficientes para crearla/actualizarla.' });
+                  } catch (err) {
+                    modal.error({ title: 'Error', content: 'No se pudo previsualizar la creación en Moodle.' });
+                  }
+                }}
+              >
+                Subir a Moodle
+              </Button>
+              <Button type="primary" danger onClick={handleDelete}>Eliminar Usuario</Button>
             </AuthzHide>
           </div>
         </Form>

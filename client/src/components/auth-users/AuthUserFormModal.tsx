@@ -19,6 +19,7 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
   // response type is AuthUser, but request data is AuthUserFormValues; keep the axios helper untyped here to avoid mismatched generic
   const authRequest = useAuthenticatedAxios<AuthUser>();
   const [loading, setLoading] = useState(false);
+  const [modal, modalContextHolder] = Modal.useModal();
 
   // sync form when user changes or when opening in create mode
   useEffect(() => {
@@ -41,7 +42,9 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
   const title = mode === 'create' ? 'Crear usuario de autenticación' : (user ? `Editar usuario: ${user.username}` : 'Editar usuario');
 
   return (
-    <Modal
+    <>
+      {modalContextHolder}
+      <Modal
       title={title}
       open={open}
       onCancel={() => { onClose(); form.resetFields(); }}
@@ -64,7 +67,7 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
           // do not auto-close here; let parent decide (parent may want to switch to edit mode after create)
           form.resetFields();
         } catch (err) {
-          Modal.error({ title: 'Error', content: mode === 'create' ? 'No se pudo crear el usuario.' : 'No se pudo actualizar el usuario.' });
+          modal.error({ title: 'Error', content: mode === 'create' ? 'No se pudo crear el usuario.' : 'No se pudo actualizar el usuario.' });
         } finally {
           setLoading(false);
         }
@@ -101,6 +104,7 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
           </Select>
         </Form.Item>
       </Form>
-    </Modal>
+      </Modal>
+    </>
   );
 }

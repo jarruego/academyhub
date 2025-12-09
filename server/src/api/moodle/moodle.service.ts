@@ -1470,6 +1470,79 @@ export class MoodleService {
     }
 
     /**
+     * Update an existing Moodle user with current local data.
+     * Requires that a moodle_users mapping exists for the local user and that
+     * `moodle_id` is present. Calls Moodle's core_user_update_users webservice and
+     * persists any username/password changes locally.
+     */
+    async updateLocalUserInMoodle(id_user: number): Promise<{ success: boolean; moodleId?: number; message?: string }> {
+        // Ensure mapping exists
+        const muRows = await this.moodleUserService.findByUserId(id_user);
+        if (!muRows || muRows.length === 0) throw new HttpException('Local user is not linked to Moodle', HttpStatus.BAD_REQUEST);
+
+        const main = muRows.find(r => r.is_main_user) || muRows[0];
+        if (!main || !main.moodle_id) throw new HttpException('Local user has no moodle_id', HttpStatus.BAD_REQUEST);
+
+        // Load local user
+        const u = await this.userRepository.findById(id_user);
+        if (!u) throw new HttpException('Local user not found', HttpStatus.NOT_FOUND);
+
+        const normalizeDni = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+        // Build payload for core_user_update_users
+        let username = main.moodle_username ?? '';
+        if (!username) {
+            if (u.dni) {
+                const n = normalizeDni(u.dni);
+                username = n.length > 0 ? n : '';
+            }
+            if (!username) {
+                if (u.email && typeof u.email === 'string' && u.email.includes('@')) {
+                    username = u.email.split('@')[0] + '_' + id_user;
+                } else {
+                    username = 'user_' + id_user;
+                }
+            }
+        }
+        username = String(username).slice(0, 100);
+
+        const payload: Record<string, unknown> = {
+            id: main.moodle_id,
+            username,
+            firstname: (u.name || '').slice(0, 100) || 'User',
+            lastname: (u.first_surname || '').slice(0, 100) || 'Surname',
+            email: u.email || `${username}@example.local`,
+            idnumber: u.dni ?? ''
+        };
+
+        // Include password if we have one stored locally
+        if (main.moodle_password) payload['password'] = main.moodle_password;
+
+        try {
+            // Moodle expects an array under `users` for core_user_update_users
+            await this.request('core_user_update_users', { method: 'post', params: { users: [payload] } });
+
+            // Persist possible changes to local moodle_user record (username/password)
+            const updateData: Record<string, unknown> = {};
+            if (payload.username && payload.username !== main.moodle_username) updateData['moodle_username'] = payload.username;
+            if (payload.password && payload.password !== main.moodle_password) updateData['moodle_password'] = payload.password;
+            if (Object.keys(updateData).length > 0 && main.id_moodle_user) {
+                try {
+                    await this.moodleUserService.update(main.id_moodle_user, updateData as any);
+                } catch (innerErr) {
+                    Logger.warn({ innerErr, id_user, id_moodle_user: main.id_moodle_user }, 'MoodleService:updateLocalUserInMoodle - failed to persist local moodle_user update');
+                }
+            }
+
+            return { success: true, moodleId: main.moodle_id, message: 'User updated in Moodle' };
+        } catch (err: unknown) {
+            const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+            Logger.error({ err: errForLog, id_user, moodleId: main.moodle_id }, 'MoodleService:updateLocalUserInMoodle');
+            throw new InternalServerErrorException(err instanceof Error ? err.message : String(err) || 'Error updating user in Moodle');
+        }
+    }
+
+    /**
      * Adds local users to the corresponding Moodle group.
      * If the local group has no moodle_id, it will be created first (pushLocalGroupToMoodle).
      * Returns an ImportResult-like object with per-user details for failures.

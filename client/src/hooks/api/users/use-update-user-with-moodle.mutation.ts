@@ -14,8 +14,8 @@ export function useUpdateUserWithMoodleMutation(userId: number) {
   const { updateMainFor } = useUpdateMoodleUserMutation(userId);
 
   async function mutateAsync(payload: Payload) {
-    // First update the local user
-    await updateUser(payload.userInfo);
+    // First update the local user and obtain the updated user
+    const updated = await updateUser(payload.userInfo);
 
     // Then attempt to update Moodle main user if applicable
     try {
@@ -27,6 +27,8 @@ export function useUpdateUserWithMoodleMutation(userId: number) {
       e.original = err;
       throw e;
     }
+
+    return updated;
   }
 
   return { mutateAsync };
