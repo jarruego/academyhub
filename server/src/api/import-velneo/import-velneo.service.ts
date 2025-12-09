@@ -1458,6 +1458,10 @@ export class ImportVelneoService {
             const timeSeconds = parseTimeToSeconds(row.time_spent_seconds ?? row.time_spent ?? row.TIME_SPENT ?? row.time_spent_raw);
             if (completionPct !== undefined) ugUpdate.completion_percentage = String(completionPct);
             if (timeSeconds !== undefined) ugUpdate.time_spent = timeSeconds;
+            // mark moodle sync timestamp when this group is linked to Moodle
+            try {
+              if (group && group.moodle_id) ugUpdate.moodle_synced_at = new Date();
+            } catch (e) {}
             if (Object.keys(ugUpdate).length > 0) {
               await this.groupService.updateUserInGroup(group.id_group, user!.id_user, ugUpdate);
             }

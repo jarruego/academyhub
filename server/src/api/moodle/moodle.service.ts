@@ -1546,7 +1546,6 @@ export class MoodleService {
             const enrolledIds = new Set(enrolled.map(u => Number(u.id)));
             const toEnroll = members.filter(m => !enrolledIds.has(Number(m.moodleId)));
             if (toEnroll.length > 0) {
-                Logger.log({ count: toEnroll.length, courseMoodleId: course.moodle_id }, 'MoodleService:addLocalUsersToMoodleGroup - enrolling missing users into course');
                 const enrolParams: MoodleParams = {};
                 // Use Moodle's manual enrol webservice. We'll use roleid=5 (student) by default.
                 const STUDENT_ROLE_ID = 5;
@@ -1558,7 +1557,6 @@ export class MoodleService {
 
                 try {
                     await this.request<boolean>('enrol_manual_enrol_users', { method: 'post', params: enrolParams });
-                    Logger.log({ count: toEnroll.length }, 'MoodleService:addLocalUsersToMoodleGroup - enrol_manual_enrol_users succeeded');
                     // Persist enrollment locally: create or update user_course rows with id_moodle_user
                     for (const m of toEnroll) {
                         try {
