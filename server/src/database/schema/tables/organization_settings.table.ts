@@ -1,10 +1,13 @@
 import { pgTable, serial, integer, jsonb, text, integer as intCol, timestamp } from "drizzle-orm/pg-core";
-import { centerTable } from "./center.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 export const organizationSettingsTable = pgTable('organization_settings', {
     id: serial().primaryKey(),
-    center_id: integer().notNull().references(() => centerTable.id_center),
+    // Note: center_id is intentionally NOT declared as a foreign key reference.
+    // It represents the id of the center the organization settings relate to
+    // but is left unreferenced so it can remain flexible for future features
+    // (e.g. per-center settings) without enforcing DB-level FK constraints.
+    center_id: integer().notNull(),
     settings: jsonb().notNull(),
     logo_path: text(),
     signature_path: text(),
