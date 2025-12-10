@@ -7,6 +7,7 @@ import {
   organizationSettingsTable,
 } from "src/database/schema/tables/organization_settings.table";
 import { eq } from "drizzle-orm";
+import { InsertResult } from 'src/database/types/insert-result';
 
 @Injectable()
 export class OrganizationRepository extends Repository {
@@ -20,7 +21,7 @@ export class OrganizationRepository extends Repository {
     return rows?.[0] ?? null;
   }
 
-  async create(data: OrganizationSettingsInsertModel, options?: QueryOptions): Promise<{ insertId?: number }> {
+  async create(data: OrganizationSettingsInsertModel, options?: QueryOptions): Promise<InsertResult> {
     const result = await this.query(options).insert(organizationSettingsTable).values(data).returning({ insertId: organizationSettingsTable.id });
     return result?.[0] ?? {};
   }

@@ -10,6 +10,7 @@ import {
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { MoodleUser } from "src/types/moodle/user";
+import { resolveInsertId } from 'src/utils/db';
 
 @Injectable()
 export class MoodleUserService {
@@ -100,8 +101,9 @@ export class MoodleUserService {
         return existingMoodleUser;
       } else {
         // Crear nuevo usuario de Moodle
-        const result = await this.moodleUserRepository.create(data, { transaction });
-        return await this.moodleUserRepository.findById(result.insertId, { transaction });
+  const result = await this.moodleUserRepository.create(data, { transaction });
+  const newId = resolveInsertId(result as unknown);
+  return await this.moodleUserRepository.findById(Number(newId), { transaction });
       }
     });
   }
@@ -132,8 +134,9 @@ export class MoodleUserService {
         moodle_password: moodlePassword,
       };
 
-      const result = await this.moodleUserRepository.create(data, { transaction });
-      return await this.moodleUserRepository.findById(result.insertId, { transaction });
+  const result = await this.moodleUserRepository.create(data, { transaction });
+  const newId = resolveInsertId(result as unknown);
+  return await this.moodleUserRepository.findById(Number(newId), { transaction });
     });
   }
 

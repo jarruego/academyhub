@@ -6,6 +6,7 @@ import { users } from "src/database/schema";
 import { FilterUserDTO } from "src/dto/user/filter-user.dto";
 import type { UsersColumns } from "src/database/schema";
 import { DbCondition } from "src/database/types/db-expression";
+import { InsertResult } from 'src/database/types/insert-result';
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
 import { centers } from "src/database/schema";
 
@@ -24,7 +25,7 @@ export class UserRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(data: UserInsertModel, options?: QueryOptions): Promise<{ insertId: number }> {
+  async create(data: UserInsertModel, options?: QueryOptions): Promise<InsertResult> {
     const result = await this.query(options)
       .insert(userTable)
       .values(data)

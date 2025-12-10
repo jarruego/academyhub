@@ -3,6 +3,7 @@ import { QueryOptions, Repository } from "../repository";
 import { UserCourseInsertModel, userCourseTable, UserCourseUpdateModel, UserCourseSelectModel } from "src/database/schema/tables/user_course.table";
 import { courseTable, CourseSelectModel } from "src/database/schema/tables/course.table";
 import { and, eq, sql, desc } from "drizzle-orm";
+import type { InsertResult } from 'src/database/types/insert-result';
 
 // Tipo para el resultado del JOIN usando los tipos base de Drizzle
 export type UserCourseWithCourse = UserCourseSelectModel & {
@@ -11,8 +12,9 @@ export type UserCourseWithCourse = UserCourseSelectModel & {
 
 @Injectable()
 export class UserCourseRepository extends Repository {
-    async create(data: UserCourseInsertModel, options?: QueryOptions) {
-        return await this.query(options).insert(userCourseTable).values(data);
+    async create(data: UserCourseInsertModel, options?: QueryOptions): Promise<InsertResult> {
+        const result = await this.query(options).insert(userCourseTable).values(data).returning({ insertId: userCourseTable.id_user });
+        return result?.[0] ?? {};
     }
 
     async updateById(userId: number, courseId: number, data: UserCourseUpdateModel, options?: QueryOptions) {

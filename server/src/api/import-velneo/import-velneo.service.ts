@@ -21,6 +21,7 @@ import { GroupUpdateModel } from 'src/database/schema/tables/group.table';
 import { UserCourseInsertModel, UserCourseUpdateModel } from 'src/database/schema/tables/user_course.table';
 import { CourseUpdateModel } from 'src/database/schema/tables/course.table';
 import { eq, and } from 'drizzle-orm';
+import { resolveInsertId } from 'src/utils/db';
 
 type Phase = 'users' | 'companies' | 'associate' | 'courses' | 'groups';
 
@@ -414,8 +415,9 @@ export class ImportVelneoService {
       const insertResult = await this.userService.create(payload as any) as any;
       let created: any = null;
       try {
-        // userService.create returns { insertId } from repository. Fetch the full user row.
-        const newId = insertResult?.insertId || insertResult?.insert_id || insertResult?.id || null;
+        // userService.create may return different shapes depending on the repo/driver.
+        // Use resolveInsertId to standardize extraction of the numeric id.
+        const newId = resolveInsertId(insertResult as unknown);
         if (newId) {
           created = await this.userService.findById(Number(newId));
         }
@@ -552,10 +554,12 @@ export class ImportVelneoService {
           const fetched = await this.companyService.findByCIF ? await this.companyService.findByCIF(cif) : null;
           if (fetched) { companyByCif.set(key, fetched); return fetched; }
         } catch (e) {}
-        if (createdRes && (createdRes.id_company || createdRes.id || createdRes.insertId || createdRes.insert_id)) {
-          // intentar recuperar por id si es posible
-          const newId = createdRes.id_company || createdRes.id || createdRes.insertId || createdRes.insert_id;
-          try { const fetchedById = await this.companyService.findOne ? await this.companyService.findOne(Number(newId)) : null; if (fetchedById) { companyByCif.set(key, fetchedById); return fetchedById; } } catch (e) {}
+        if (createdRes) {
+          // Prefer id_company if present (repository-specific), otherwise resolve common insert id shapes
+          const newId = createdRes.id_company ?? resolveInsertId(createdRes as unknown);
+          if (newId) {
+            try { const fetchedById = await this.companyService.findOne ? await this.companyService.findOne(Number(newId)) : null; if (fetchedById) { companyByCif.set(key, fetchedById); return fetchedById; } } catch (e) {}
+          }
         }
   // fallback: devolver el objeto createdRes tal cual si no hay otra opción
         if (createdRes) { companyByCif.set(key, createdRes); return createdRes; }
@@ -795,7 +799,7 @@ export class ImportVelneoService {
         let created = await this.centerService.create(createPayload as any) as any;
   // created puede ser metadatos de insert; intentar recuperar por id devuelto o por nombre+compañía
         try {
-          const newId = created?.insertId || created?.insert_id || created?.id || created?.id_center || null;
+          const newId = created?.id_center ?? resolveInsertId(created as unknown);
           if (newId) {
             const fetched = await this.centerService.findById(Number(newId)) as any;
             if (fetched) created = fetched;
@@ -973,7 +977,7 @@ export class ImportVelneoService {
         // ensure persisted object
         let persisted: any = created;
         try {
-          const newId = created?.id_course || created?.id || created?.insertId || created?.insert_id || null;
+          const newId = created?.id_course ?? resolveInsertId(created as unknown);
           if (newId && this.courseService.findById) {
             const f = await this.courseService.findById(Number(newId)); if (f) persisted = f;
           }
@@ -1055,7 +1059,7 @@ export class ImportVelneoService {
   // created puede ser metadatos de insert; intentar resolver/recuperar la fila persistida
         let persisted: any = created;
         try {
-          const newId = created?.id_group || created?.id || created?.insertId || created?.insert_id || null;
+          const newId = created?.id_group ?? resolveInsertId(created as unknown);
           if (newId && this.groupService.findById) {
             const f = await this.groupService.findById(Number(newId)); if (f) persisted = f;
           }

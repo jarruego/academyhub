@@ -7,6 +7,7 @@ import { userTable, UserSelectModel } from "src/database/schema/tables/user.tabl
 import { groupTable } from "src/database/schema/tables/group.table";
 import { userCourseTable } from "src/database/schema/tables/user_course.table";
 import { centers } from "src/database/schema";
+import { InsertResult } from 'src/database/types/insert-result';
 import { companyTable } from "src/database/schema/tables/company.table";
 
 // Enriched user shape returned by findUsersInGroupByIds
@@ -23,7 +24,7 @@ export type UserWithEnrollmentInfo = UserSelectModel & {
 
 @Injectable()
 export class UserGroupRepository extends Repository {
-    async create(data: UserGroupInsertModel, options?: QueryOptions) {
+    async create(data: UserGroupInsertModel, options?: QueryOptions): Promise<InsertResult> {
         const q = this.query(options);
 
         // Si no viene indicado id_role, asignar el rol por defecto 'student'.
@@ -40,7 +41,8 @@ export class UserGroupRepository extends Repository {
         }
 
     const insertData: UserGroupInsertModel = { ...data, id_role: roleId };
-    return await q.insert(userGroupTable).values(insertData);
+    const result = await q.insert(userGroupTable).values(insertData).returning({ insertId: userGroupTable.id_user });
+    return result?.[0] ?? {};
     }
 
     async updateById(userId: number, groupId: number, data: UserGroupUpdateModel, options?: QueryOptions) {

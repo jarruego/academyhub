@@ -3,6 +3,7 @@ import { QueryOptions, Repository } from "../repository";
 import { CenterInsertModel, CenterSelectModel, centerTable, CenterUpdateModel } from "src/database/schema/tables/center.table";
 import { eq, ilike, and } from "drizzle-orm"; 
 import { DbCondition } from "src/database/types/db-expression";
+import { InsertResult } from 'src/database/types/insert-result';
 import { UserCenterInsertModel, userCenterTable, UserCenterUpdateModel } from "src/database/schema/tables/user_center.table";
 
 @Injectable()
@@ -27,11 +28,12 @@ export class CenterRepository extends Repository {
         return await this.query(options).select().from(centerTable).where(and(...where));
     }
 
-    async create(data: CenterInsertModel, options?: QueryOptions) {
+    async create(data: CenterInsertModel, options?: QueryOptions): Promise<InsertResult> {
         const result = await this.query(options)
             .insert(centerTable)
-            .values(data);
-        return result;
+            .values(data)
+            .returning({ insertId: centerTable.id_center });
+        return result?.[0] ?? {};
     }
 
     async update(id: number, data: CenterUpdateModel, options?: QueryOptions) {
@@ -49,11 +51,12 @@ export class CenterRepository extends Repository {
         return result;
     }
 
-    async addUserToCenter(data: UserCenterInsertModel, options?: QueryOptions) {
+    async addUserToCenter(data: UserCenterInsertModel, options?: QueryOptions): Promise<InsertResult> {
         const result = await this.query(options)
             .insert(userCenterTable)
-            .values(data);
-        return result;
+            .values(data)
+            .returning({ insertId: userCenterTable.id_user });
+        return result?.[0] ?? {};
     }
 
     async findByCompanyId(companyId: number, options?: QueryOptions) {

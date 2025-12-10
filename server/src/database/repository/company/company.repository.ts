@@ -3,6 +3,7 @@ import { QueryOptions, Repository } from "../repository";
 import { CompanyInsertModel, CompanySelectModel, companyTable, CompanyUpdateModel } from "src/database/schema/tables/company.table";
 import { eq, ilike, and } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
+import { InsertResult } from 'src/database/types/insert-result';
 
 @Injectable()
 export class CompanyRepository extends Repository {
@@ -12,11 +13,12 @@ export class CompanyRepository extends Repository {
         return rows?.[0];
     }
 
-    async create(data: CompanyInsertModel, options?: QueryOptions) {
+    async create(data: CompanyInsertModel, options?: QueryOptions): Promise<InsertResult> {
         const result = await this.query(options)
             .insert(companyTable)
-            .values(data);
-        return result;
+            .values(data)
+            .returning({ insertId: companyTable.id_company });
+        return result?.[0] ?? {};
     }
 
     async update(id: number, data: CompanyUpdateModel, options?: QueryOptions) {

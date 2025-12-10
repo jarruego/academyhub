@@ -313,7 +313,7 @@ export class CourseService {
           email: moodleUser.email,
         } as UserInsertModel, { transaction });
         
-        userId = userResult.insertId;
+        userId = Number(resolveInsertId(userResult as unknown));
         
         // Crear usuario de Moodle asociado
         const moodleUserResult = await this.moodleUserService.create({
@@ -322,7 +322,7 @@ export class CourseService {
           moodle_username: moodleUser.username,
         }, { transaction });
         
-        moodleUserId = moodleUserResult.insertId;
+        moodleUserId = Number(resolveInsertId(moodleUserResult as unknown));
       }
 
       // Crear/actualizar inscripción al curso

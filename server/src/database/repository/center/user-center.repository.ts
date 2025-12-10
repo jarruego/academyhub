@@ -2,11 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { and, eq } from "drizzle-orm";
 import { UserCenterInsertModel, userCenterTable, UserCenterUpdateModel } from "src/database/schema/tables/user_center.table";
+import { InsertResult } from 'src/database/types/insert-result';
 
 @Injectable()
 export class UserCenterRepository extends Repository {
-    async create(data: UserCenterInsertModel, options?: QueryOptions) {
-        return await this.query(options).insert(userCenterTable).values(data);
+    async create(data: UserCenterInsertModel, options?: QueryOptions): Promise<InsertResult> {
+        const result = await this.query(options).insert(userCenterTable).values(data).returning({ insertId: userCenterTable.id_user });
+        return result?.[0] ?? {};
     }
 
     async updateById(userId: number, centerId: number, data: UserCenterUpdateModel, options?: QueryOptions) {

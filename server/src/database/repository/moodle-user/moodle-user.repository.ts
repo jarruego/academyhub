@@ -8,6 +8,7 @@ import {
 } from "src/database/schema/tables/moodle_user.table";
 import { eq, ilike, and } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
+import { InsertResult } from 'src/database/types/insert-result';
 
 @Injectable()
 export class MoodleUserRepository extends Repository {
@@ -20,7 +21,7 @@ export class MoodleUserRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(data: MoodleUserInsertModel, options?: QueryOptions): Promise<{ insertId: number }> {
+  async create(data: MoodleUserInsertModel, options?: QueryOptions): Promise<InsertResult> {
     const result = await this.query(options)
       .insert(moodleUserTable)
       .values(data)

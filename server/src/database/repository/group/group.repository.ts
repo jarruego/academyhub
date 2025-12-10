@@ -4,6 +4,8 @@ import { GroupInsertModel, GroupSelectModel, groupTable, GroupUpdateModel } from
 import { eq, ilike, and } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
 import { MoodleGroup } from "src/types/moodle/group";
+import { InsertResult } from 'src/database/types/insert-result';
+import resolveInsertId from 'src/utils/db';
 
 @Injectable()
 export class GroupRepository extends Repository {
@@ -17,11 +19,12 @@ export class GroupRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(data: GroupInsertModel, options?: QueryOptions) {
+  async create(data: GroupInsertModel, options?: QueryOptions): Promise<InsertResult> {
     const result = await this.query(options)
       .insert(groupTable)
-      .values(data).returning({ id: groupTable.id_group });
-    return result;
+      .values(data)
+      .returning({ insertId: groupTable.id_group });
+    return result?.[0] ?? {};
   }
 
   async update(id: number, data: GroupUpdateModel, options?: QueryOptions) {
@@ -78,7 +81,9 @@ export class GroupRepository extends Repository {
         end_date: null,
       };
       const newGroup = await this.create(data, options);
-      return await this.findById(newGroup[0].id, options);
+      const newId = resolveInsertId(newGroup as unknown);
+      if (!newId) return null;
+      return await this.findById(newId, options);
     }
   }
 

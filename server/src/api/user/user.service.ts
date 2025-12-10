@@ -18,6 +18,7 @@ import { CompanyRepository } from "src/database/repository/company/company.repos
 import { users } from "src/database/schema";
 import { FilterUserDTO } from "src/dto/user/filter-user.dto";
 import { PaginatedUsersResult, UserWithCenters } from "src/types/user/paginated-users.interface";
+import { resolveInsertId } from 'src/utils/db';
 
 @Injectable()
 export class UserService {
@@ -40,7 +41,14 @@ export class UserService {
 
   async create(userInsertModel: UserInsertModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.userRepository.create(userInsertModel, { transaction });
+      const res = await this.userRepository.create(userInsertModel, { transaction });
+      // Use shared helper to resolve various driver return shapes (insertId, insert_id, id or arrays)
+      const newId = resolveInsertId(res as unknown);
+      if (newId) {
+        return await this.userRepository.findById(Number(newId), { transaction });
+      }
+      // If repository did not return insert id for some reason, return the raw result
+      return res;
     });
   }
 
@@ -190,8 +198,9 @@ export class UserService {
         
         // Para now, crear usuarios sin datos de Moodle directamente
         // TODO: Implementar lógica de Moodle cuando se defina cómo asociar cursos
-        const result = await this.userRepository.create(user, { transaction });
-        userId = result.insertId;
+  const result = await this.userRepository.create(user, { transaction });
+  const maybeId = resolveInsertId(result as unknown);
+  userId = Number(maybeId);
         
         createdUsers.push(userId);
         

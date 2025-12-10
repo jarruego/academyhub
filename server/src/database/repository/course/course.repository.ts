@@ -3,6 +3,7 @@ import { QueryOptions, Repository } from "../repository";
 import { CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { eq, ilike, and } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
+import { InsertResult } from 'src/database/types/insert-result';
 // user_course_moodle_role removed: roles are now managed via user_roles + user_group.id_role
 
 @Injectable()
@@ -13,11 +14,12 @@ export class CourseRepository extends Repository {
     return rows?.[0];
   }
 
-  async create(data: CourseInsertModel, options?: QueryOptions) {
+  async create(data: CourseInsertModel, options?: QueryOptions): Promise<InsertResult> {
     const result = await this.query(options)
       .insert(courseTable)
-      .values(data).returning({id: courseTable.id_course});
-    return result;
+      .values(data)
+      .returning({ insertId: courseTable.id_course });
+    return result?.[0] ?? {};
   }
 
   async update(id: number, data: CourseUpdateModel, options?: QueryOptions) {

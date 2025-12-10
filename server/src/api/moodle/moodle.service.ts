@@ -8,6 +8,7 @@ import { MoodleCourseWithImportStatus, MoodleGroupWithImportStatus, ImportResult
 import { DatabaseService } from 'src/database/database.service';
 import { organizationSettingsTable, OrganizationSettingsSelectModel } from 'src/database/schema/tables/organization_settings.table';
 import { eq } from 'drizzle-orm';
+import { resolveInsertId } from 'src/utils/db';
 import { DATABASE_PROVIDER } from 'src/database/database.module';
 import { QueryOptions, Transaction } from 'src/database/repository/repository';
 import { CourseRepository } from 'src/database/repository/course/course.repository';
@@ -779,8 +780,10 @@ export class MoodleService {
                 await this.courseRepository.update(existingCourse.id_course, data, { transaction });
                 return await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
             } else {
-                const [{ id }] = await this.courseRepository.create(data, { transaction });
-                return await this.courseRepository.findById(id, { transaction });
+                const created = await this.courseRepository.create(data, { transaction });
+                const newId = resolveInsertId(created as unknown);
+                if (!newId) throw new InternalServerErrorException('Failed to create course');
+                return await this.courseRepository.findById(newId, { transaction });
             }
         };
 
@@ -846,7 +849,7 @@ export class MoodleService {
                                 moodle_id: moodleUser.id,
                                 moodle_username: moodleUser.username,
                             }, { transaction });
-                            moodleUserId = moodleUserResult.insertId;
+                            moodleUserId = Number(resolveInsertId(moodleUserResult as unknown));
                             // Logger.log({ userId, moodleUserId }, 'create MoodleUser by DNI OK');
                         } catch (err) {
                             Logger.error({ err, userId, moodleUser }, 'create MoodleUser by DNI ERROR');
@@ -855,12 +858,12 @@ export class MoodleService {
                     } else {
                         // No existe usuario Moodle ni local por DNI: crear usuario local y registro Moodle
                         try {
-                            const userResult = await this.userRepository.create({
+                        const userResult = await this.userRepository.create({
                                 name: moodleUser.firstname,
                                 first_surname: moodleUser.lastname,
                                 email: moodleUser.email,
                             } as UserInsertModel, { transaction });
-                            userId = userResult.insertId;
+                            userId = Number(resolveInsertId(userResult as unknown));
                         } catch (err) {
                             Logger.error({ err, moodleUser }, 'create User ERROR');
                             throw err;
@@ -872,7 +875,7 @@ export class MoodleService {
                                 moodle_id: moodleUser.id,
                                 moodle_username: moodleUser.username,
                             }, { transaction });
-                            moodleUserId = moodleUserResult.insertId;
+                            moodleUserId = Number(resolveInsertId(moodleUserResult as unknown));
                         } catch (err) {
                             Logger.error({ err, userId, moodleUser }, 'create MoodleUser for new user ERROR');
                             throw err;
@@ -1362,7 +1365,7 @@ export class MoodleService {
                     const original = toCreate[i];
                     try {
                         const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: c.id, moodle_username: c.username, moodle_password: original.password, is_main_user: true } as MoodleUserInsertModel);
-                        const insertId = (mu as unknown as { insertId?: number })?.insertId;
+                        const insertId = resolveInsertId(mu as unknown);
                         mappings.push({ localUserId: original.localUserId, moodleId: c.id, id_moodle_user: insertId ?? undefined });
                     } catch (innerErr) {
                         Logger.error({ innerErr, created: c, localUserId: original.localUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to persist moodle_user');
@@ -1416,7 +1419,7 @@ export class MoodleService {
                 if (createdId && createdUsername) {
                     try {
                         const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: createdId, moodle_username: createdUsername, moodle_password: password, is_main_user: true } as MoodleUserInsertModel);
-                        const insertId = (mu as unknown as { insertId?: number })?.insertId;
+                        const insertId = resolveInsertId(mu as unknown);
                         mappings.push({ localUserId: original.localUserId, moodleId: createdId, id_moodle_user: insertId ?? undefined });
                     } catch (innerErr) {
                         Logger.error({ innerErr, createdId, createdUsername, localUserId: original.localUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to persist moodle_user after per-user create');
@@ -1930,13 +1933,13 @@ export class MoodleService {
                         }
                     } else {
                         // Crear nuevo usuario principal
-                        const userResult = await this.userRepository.create({
+                                                const userResult = await this.userRepository.create({
                             name: moodleUser.firstname,
                             first_surname: moodleUser.lastname,
                             email: moodleUser.email,
                         } as UserInsertModel, { transaction });
 
-                        userId = userResult.insertId;
+                                                userId = Number(resolveInsertId(userResult as unknown));
 
                         // Crear usuario de Moodle asociado
                         await this.moodleUserService.create({
@@ -1996,13 +1999,13 @@ export class MoodleService {
                     }, { transaction });
                 } else {
                     // Crear nuevo usuario principal
-                    const userResult = await this.userRepository.create({
+                                                const userResult = await this.userRepository.create({
                         name: moodleUser.firstname,
                         first_surname: moodleUser.lastname,
                         email: moodleUser.email,
                     } as UserInsertModel, { transaction });
 
-                    userId = userResult.insertId;
+                                        userId = Number(resolveInsertId(userResult as unknown));
 
                     // Crear usuario de Moodle asociado
                     await this.moodleUserService.create({
