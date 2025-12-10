@@ -403,7 +403,7 @@ export class ImportVelneoService {
         registration_date: null, birth_date: null, gender: 'Other', professional_category: null,
         salary_group: 0, disability: false, terrorism_victim: false, gender_violence_victim: false,
         education_level: row.education_level || null, address: null, postal_code: null, city: null, province: null, country: null,
-        observations: null, seasonalWorker: false, erteLaw: false, accreditationDiploma: 'N'
+        observations: null, seasonalWorker: false, erteLaw: false, accreditationDiploma: 'S'
       };
         // last-resort safety: if payload is essentially empty (no name/dni/nss/email/surname), do not create
         try {

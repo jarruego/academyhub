@@ -107,7 +107,7 @@ async function main() {
       observations: "Sin observaciones",
       seasonalWorker: false,
       erteLaw: false,
-      accreditationDiploma: "N"
+      accreditationDiploma: "S"
     },
     {
       name: "Ana",
@@ -215,7 +215,7 @@ async function main() {
       observations: "Usuario extra 1",
       seasonalWorker: false,
       erteLaw: false,
-      accreditationDiploma: "N"
+      accreditationDiploma: "S"
     },
     {
       name: "Elena",
@@ -269,7 +269,7 @@ async function main() {
       observations: "Usuario avanzado 1",
       seasonalWorker: false,
       erteLaw: false,
-      accreditationDiploma: "N"
+      accreditationDiploma: "S"
     },
     {
       name: "Lucía",
@@ -324,7 +324,7 @@ async function main() {
       observations: "Usuario nuevo 1",
       seasonalWorker: false,
       erteLaw: false,
-      accreditationDiploma: "N"
+      accreditationDiploma: "S"
     },
     {
       name: "Patricia",
@@ -378,7 +378,7 @@ async function main() {
       observations: "Usuario nuevo 3",
       seasonalWorker: false,
       erteLaw: false,
-      accreditationDiploma: "N"
+      accreditationDiploma: "S"
     },
     {
       name: "Beatriz",
@@ -432,7 +432,7 @@ async function main() {
       observations: "Usuario nuevo 5",
       seasonalWorker: false,
       erteLaw: false,
-      accreditationDiploma: "N"
+      accreditationDiploma: "S"
     },
     {
       name: "Cristina",
@@ -486,7 +486,7 @@ async function main() {
       observations: "Usuario nuevo 7",
       seasonalWorker: false,
       erteLaw: false,
-      accreditationDiploma: "N"
+      accreditationDiploma: "S"
     }
   ];
   // Insertar usuarios de prueba
