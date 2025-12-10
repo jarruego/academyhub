@@ -2,18 +2,18 @@ import { Inject, Injectable } from "@nestjs/common";
 import { UserRepository } from "src/database/repository/user/user.repository";
 import { MoodleUserService } from "../moodle-user/moodle-user.service";
 import { QueryOptions } from "src/database/repository/repository";
-import { GroupRepository } from "src/database/repository/group/group.repository";
 import { GroupService } from "../group/group.service";
 import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
 import { UserInsertModel, UserSelectModel, UserUpdateModel } from "src/database/schema/tables/user.table";
+import { MoodleUserSelectModel } from 'src/database/schema/tables/moodle_user.table';
 import { UserCenterSelectModel } from "src/database/schema/tables/user_center.table";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { CenterRepository } from "src/database/repository/center/center.repository";
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
-import { eq, ilike, or, sql, and, count } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
+import { DbCondition } from 'src/database/types/db-expression';
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
-import { centers } from "src/database/schema";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 import { users } from "src/database/schema";
 import { FilterUserDTO } from "src/dto/user/filter-user.dto";
@@ -144,7 +144,7 @@ export class UserService {
    */
   async findAllMinimal(filter: Partial<FilterUserDTO> = {}, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      const where: any[] = [];
+  const where: DbCondition[] = [];
       if (filter.dni) where.push(sql`unaccent(lower(${users.dni})) LIKE unaccent(lower(${`%${filter.dni}%`}))`);
       if (filter.name) where.push(sql`unaccent(lower(${users.name})) LIKE unaccent(lower(${`%${filter.name}%`}))`);
 
@@ -162,6 +162,21 @@ export class UserService {
 
   async delete(id: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      // If the user has any moodle_user mappings, delete them first to avoid FK
+      try {
+        const moodleRows: MoodleUserSelectModel[] = await this.moodleUserService.findByUserId(id, { transaction });
+        if (Array.isArray(moodleRows) && moodleRows.length > 0) {
+          for (const mr of moodleRows) {
+            if (mr && mr.id_moodle_user) {
+              await this.moodleUserService.delete(mr.id_moodle_user, { transaction });
+            }
+          }
+        }
+      } catch (e) {
+        // Log & continue - do not block deletion if we can't remove moodle mappings
+        // (but prefer failing loudly in future if desired)
+      }
+
       return await this.userRepository.delete(id, { transaction });
     });
   }
