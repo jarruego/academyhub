@@ -573,10 +573,13 @@ export class ImportVelneoService {
     const findOrCreateCenter = async (company: any, row: any) => {
       // (removed verbose per-row debug log)
   const centerNameRaw = (row.center_name || row.CENTER_NAME || '').toString().trim();
+  // prefer sage field for import_id generation when present in CSV
+  const centerNameSageRaw = (row.center_name_sage || row.CENTER_NAME_SAGE || '').toString().trim();
   const employerNumber = (row.employer_number || row.EMPLOYER_NUMBER || '').toString().trim();
       const companyId = company?.id_company;
       const norm = (s: string) => normalizeString(String(s || '').trim());
       const centerName = norm(centerNameRaw);
+      const centerNameSage = norm(centerNameSageRaw);
 
   // Nota: el `id_center` del CSV solo tiene significado dentro del propio archivo CSV
   // y NO debe usarse para emparejar filas en la BD. En su lugar preferimos emparejar
@@ -629,9 +632,10 @@ export class ImportVelneoService {
       }
 
   // 1) Preferir emparejar centros de la BD por su `import_id` (normalizado) usando el nombre del CSV
-      if (companyId && centerName) {
-        // prefer matching by a company-prefixed import_id: `${companyId}_${centerName}`
-        const expectedImportId = String(companyId) + '_' + centerName;
+      if (companyId && (centerNameSage || centerName)) {
+        // prefer matching by a company-prefixed import_id using `center_name_sage` when available
+        // fallback to normalized centerName if sage field is absent
+        const expectedImportId = String(companyId) + '_' + (centerNameSage || centerName);
         for (const c of allCenters) {
           if (!c) continue;
           if (String(c.id_company) !== String(companyId)) continue;
@@ -750,7 +754,7 @@ export class ImportVelneoService {
         if (employerNumber) createPayload.employer_number = employerNumber;
   // almacenar el identificador import_id con el prefijo de companyId: `${companyId}_${centerName}`
   // para que futuras importaciones puedan emparejarlo de manera única por compañía
-  if (centerName) createPayload.import_id = String(companyId) + '_' + centerName;
+  if (centerNameSage || centerName) createPayload.import_id = String(companyId) + '_' + (centerNameSage || centerName);
 
         // Reserva optimista en caché para evitar que otra fila del mismo CSV cree
         // el mismo centro en paralelo. La reserva se limpia/reemplaza tras la creación
@@ -768,9 +772,9 @@ export class ImportVelneoService {
               try {
                 // demote to debug: re-querying reserved placeholder is diagnostic information
                 // (removed verbose reserved placeholder log)
-                // intentar recuperar por import_id
-                if (centerName && this.centerService.findAll) {
-                  const expectedImportId = String(companyId) + '_' + centerName;
+                // intentar recuperar por import_id (usar campo sage si existe)
+                if ((centerNameSage || centerName) && this.centerService.findAll) {
+                  const expectedImportId = String(companyId) + '_' + (centerNameSage || centerName);
                   const found = await this.centerService.findAll({ import_id: expectedImportId, id_company: companyId } as any);
                   if (found && found.length) {
                     const fc = Array.isArray(found) ? found[0] : found;
@@ -791,7 +795,7 @@ export class ImportVelneoService {
             }
           }
           // poner placeholder reservado para bloquear otras creaciones concurrentes
-          const placeholder: any = { center_name: createPayload.center_name, id_company: companyId, import_id: String(companyId) + '_' + centerName, _reserved: true };
+          const placeholder: any = { center_name: createPayload.center_name, id_company: companyId, import_id: String(companyId) + '_' + (centerNameSage || centerName), _reserved: true };
           centerCache.set(cacheKey, placeholder);
           try { allCenters.push(placeholder); } catch (e) {}
         } catch (e) { /* no-fatal, continuar a crear */ }

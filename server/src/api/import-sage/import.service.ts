@@ -1213,7 +1213,12 @@ export class ImportService {
      */
     private async createNewUser(data: ProcessedUserData) {
         // Eliminado log de inicio de createNewUser para acelerar el proceso
-        
+
+        // Small DNI normalization helper (matches other importers)
+        const normalizeDni = (raw?: string) => String(raw ?? '').trim().replace(/[\.\-\s]/g, '').toUpperCase();
+        const rawDni = normalizeDni(data.dni || '');
+        const document_type = rawDni && /^[XYZ]/i.test(rawDni) ? DocumentType.NIE : DocumentType.DNI;
+
         const newUser: UserInsertModel = {
             name: data.name!,
             first_surname: data.first_surname,
@@ -1226,11 +1231,12 @@ export class ImportService {
             nss: data.nss || null,
             registration_date: new Date(),
             phone: null,
-            document_type: DocumentType.DNI,
+            document_type: document_type,
             gender: Gender.OTHER,
-            disability: null,
-            terrorism_victim: null,
-            gender_violence_victim: null,
+            // Set explicit defaults to avoid NULLs from imports
+            disability: false,
+            terrorism_victim: false,
+            gender_violence_victim: false,
             education_level: null,
             address: null,
             postal_code: null,
@@ -1240,7 +1246,7 @@ export class ImportService {
             observations: null,
             seasonalWorker: false,
             erteLaw: false,
-            accreditationDiploma: 'N'
+            accreditationDiploma: 'S'
         };
 
 
