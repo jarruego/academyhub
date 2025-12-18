@@ -1612,6 +1612,17 @@ export class ImportVelneoService {
       }
     }
 
+    // Post-phase: if we just ran 'users', mark main moodle_users by highest moodle_id (Velneo only, not Sage)
+    if (phase === 'users') {
+      try {
+        this.logger.log(`[import] marking main moodle_users by highest moodle_id...`);
+        await this.moodleUserService.setMainUserByHighestMoodleId();
+        this.logger.log(`[import] main moodle_users marked`);
+      } catch (e) {
+        this.logger.error('[import] failed to mark main moodle_users: ' + String((e as any)?.message || e));
+      }
+    }
+
     this.logger.log(`Import finalizado. Filas: ${i}. Errores: ${errors.length}. OK: ${results.length}`);
     return { success: errors.length === 0, results, errors };
   }

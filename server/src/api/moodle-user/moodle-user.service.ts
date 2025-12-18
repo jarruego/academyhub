@@ -11,6 +11,8 @@ import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
 import { MoodleUser } from "src/types/moodle/user";
 import { resolveInsertId } from 'src/utils/db';
+import { userTable } from 'src/database/schema/tables/user.table';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export class MoodleUserService {
@@ -187,6 +189,7 @@ export class MoodleUserService {
   /**
    * Para cada usuario local, marcar solo un registro de moodle_users como is_main_user = true.
    * Criterio: el registro con mayor moodle_id será el main; el resto quedarán a false.
+   * También actualiza moodle_username: el main recibe DNI en minúsculas, los demás DNI+moodle_id.
    */
   async setMainUserByHighestMoodleId(options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
@@ -203,15 +206,53 @@ export class MoodleUserService {
       let updated = 0;
 
       for (const [userIdStr, rows] of Object.entries(groups)) {
+        const userId = Number(userIdStr);
+        
+        // Obtener DNI del usuario local
+        const [localUser] = await transaction.select({ dni: userTable.dni }).from(userTable).where(eq(userTable.id_user, userId));
+        const dni = localUser?.dni ? String(localUser.dni).trim().toLowerCase() : null;
+
         // encontrar el moodle_id máximo
         const maxRow = rows.reduce((prev, cur) => (cur.moodle_id > prev.moodle_id ? cur : prev), rows[0]);
 
+        if (!dni) {
+          // Sin DNI, solo actualizar is_main_user
+          for (const row of rows) {
+            const shouldBeMain = row.id_moodle_user === maxRow.id_moodle_user;
+            if (row.is_main_user !== shouldBeMain) {
+              await this.moodleUserRepository.update(row.id_moodle_user, { is_main_user: shouldBeMain }, { transaction });
+              updated++;
+            }
+          }
+          continue;
+        }
+
+        // FASE 1: Asignar usernames temporales únicos para evitar conflictos de unicidad
+        for (const row of rows) {
+          const tempUsername = `temp_${row.id_moodle_user}_${Date.now()}`;
+          if (row.moodle_username !== tempUsername) {
+            await this.moodleUserRepository.update(row.id_moodle_user, { 
+              moodle_username: tempUsername 
+            }, { transaction });
+          }
+        }
+
+        // Verificar si el DNI simple ya está en uso por OTRO usuario (fuera de este grupo)
+        const currentMoodleUserIds = rows.map(r => r.id_moodle_user);
+        const existingWithDni = await this.moodleUserRepository.findByUsername(dni, { transaction });
+        const dniAlreadyTaken = existingWithDni && !currentMoodleUserIds.includes(existingWithDni.id_moodle_user);
+
+        // FASE 2: Asignar usernames finales e is_main_user
         for (const row of rows) {
           const shouldBeMain = row.id_moodle_user === maxRow.id_moodle_user;
-          if (row.is_main_user !== shouldBeMain) {
-            await this.moodleUserRepository.update(row.id_moodle_user, { is_main_user: shouldBeMain }, { transaction });
-            updated++;
-          }
+          // Si el DNI ya está tomado por otro usuario, usar formato dni_moodleid incluso para el main
+          const finalUsername = (shouldBeMain && !dniAlreadyTaken) ? dni : `${dni}_${row.moodle_id}`;
+          
+          await this.moodleUserRepository.update(row.id_moodle_user, { 
+            is_main_user: shouldBeMain,
+            moodle_username: finalUsername
+          }, { transaction });
+          updated++;
         }
       }
 
