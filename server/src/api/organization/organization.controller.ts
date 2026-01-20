@@ -34,7 +34,7 @@ export class OrganizationController {
     if (!type || (type !== 'logo' && type !== 'signature')) throw new BadRequestException('Invalid type; must be "logo" or "signature"');
 
   // Ensure uploads dir
-  const uploadsRoot = path.join(process.cwd(), 'public', 'uploads', 'organization');
+  const uploadsRoot = path.join(process.cwd(), 'uploads', 'organization');
   await fs.mkdir(uploadsRoot, { recursive: true });
   // read current settings (to know previous asset path) before writing new file
   const s = await this.organizationService.getSettings();
@@ -49,8 +49,8 @@ export class OrganizationController {
 
   await fs.writeFile(filepath, file.buffer);
 
-    // Update DB: set path relative to public
-    const relPath = `/uploads/organization/${filename}`;
+    // Update DB: set path to protected endpoint
+    const relPath = `/api/files/organization/${filename}`;
   // get existing row id (first row)
   // NOTE: we already read `s` earlier before writing, but re-use its id here
   const id = s?.id;
@@ -68,10 +68,10 @@ export class OrganizationController {
 
     // If there was a previous file different from the new one, try to remove it.
     try {
-      if (prevPath && prevPath !== relPath && prevPath.startsWith('/uploads/organization/')) {
-        // build filesystem path safely by stripping leading slash
-        const relative = prevPath.replace(/^\/+/, '');
-        const oldFsPath = path.join(process.cwd(), 'public', relative);
+      if (prevPath && prevPath !== relPath && prevPath.startsWith('/api/files/organization/')) {
+        // Extract filename from path
+        const filename = prevPath.split('/').pop();
+        const oldFsPath = path.join(process.cwd(), 'uploads', 'organization', filename!);
         await fs.unlink(oldFsPath).catch((err) => {
           this.logger.warn(`Could not delete old asset ${oldFsPath}: ${err?.message ?? err}`);
         });
