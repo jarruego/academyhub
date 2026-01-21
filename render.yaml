@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: academyhub-server
+    env: node
+    rootDir: server
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Add your real values or mark as synced/secret in Render UI
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PORT
+        sync: false
