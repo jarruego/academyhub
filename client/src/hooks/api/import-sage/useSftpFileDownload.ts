@@ -1,11 +1,12 @@
 import { useAuthInfo } from '../../../providers/auth/auth.context';
+import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 export const useSftpFileDownload = () => {
   const { authInfo: { token } } = useAuthInfo();
 
   const downloadFile = async () => {
     try {
-      const response = await fetch('/api/import/sftp/download', {
+      const response = await fetch(`${getApiHost()}/import/sftp/download`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuthInfo } from '../../../providers/auth/auth.context';
+import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 export interface SftpConnectionStatus {
   isConnected: boolean;
@@ -8,7 +9,7 @@ export interface SftpConnectionStatus {
 }
 
 const fetchSftpConnection = async (token: string): Promise<SftpConnectionStatus> => {
-  const response = await fetch('/api/import/sftp/check-connection', {
+  const response = await fetch(`${getApiHost()}/import/sftp/check-connection`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     },
