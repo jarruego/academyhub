@@ -6,7 +6,7 @@ export const useSftpFileDownload = () => {
 
   const downloadFile = async () => {
     try {
-      const response = await fetch(`${getApiHost()}/import/sftp/download`, {
+      const response = await fetch(`${getApiHost()}/api/import/sftp/download`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

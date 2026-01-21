@@ -9,7 +9,7 @@ export interface SftpConnectionStatus {
 }
 
 const fetchSftpConnection = async (token: string): Promise<SftpConnectionStatus> => {
-  const response = await fetch(`${getApiHost()}/import/sftp/check-connection`, {
+  const response = await fetch(`${getApiHost()}/api/import/sftp/check-connection`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     },
