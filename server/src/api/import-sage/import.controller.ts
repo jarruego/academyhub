@@ -522,6 +522,20 @@ export class ImportController {
     }
 
     /**
+     * Endpoint de prueba para diagnosticar conexión
+     */
+    @Get('sftp/ping')
+    @ApiOperation({ summary: 'Ping de prueba para diagnosticar conexión' })
+    @ApiResponse({ 
+        status: 200, 
+        description: 'Pong'
+    })
+    async ping() {
+        this.logger.log('[PING] Endpoint de prueba llamado');
+        return { pong: true, timestamp: new Date().toISOString() };
+    }
+
+    /**
      * Verificar conexión SFTP
      */
     @Get('sftp/check-connection')
