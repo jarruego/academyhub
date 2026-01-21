@@ -10,11 +10,13 @@ import {
     UseGuards,
     HttpStatus,
     HttpException,
-    Query
+    Query,
+    Res
 } from "@nestjs/common";
+import { Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags, ApiOperation, ApiConsumes, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
-import { IsEnum, IsOptional, IsNumber } from "class-validator";
+import { IsEnum, IsOptional, IsNumber, IsString } from "class-validator";
 import { RoleGuard } from "src/guards/role.guard";
 import { Role } from "src/guards/role.enum";
 import { ImportService } from "./import.service";
@@ -25,6 +27,12 @@ import { DecisionAction } from "src/database/schema/tables/import.table";
 class UploadCSVResponseDto {
     jobId: string;
     message: string;
+}
+
+class UploadCsvFromFtpDto {
+    @IsOptional()
+    @IsString()
+    path?: string;
 }
 
 class JobStatusResponseDto {
@@ -146,6 +154,20 @@ export class ImportController {
                 HttpStatus.INTERNAL_SERVER_ERROR
             );
         }
+    }
+
+    /**
+     * Lanzar importación obteniendo el CSV desde un servidor FTP
+     */
+    @Post('upload-csv-ftp')
+    @ApiOperation({ summary: 'Iniciar importación SAGE descargando el CSV desde FTP' })
+    @ApiResponse({ status: 201, description: 'Importación iniciada desde FTP', type: UploadCSVResponseDto })
+    async uploadCSVFromFtp(@Body() body: UploadCsvFromFtpDto = {} as UploadCsvFromFtpDto): Promise<UploadCSVResponseDto> {
+        const jobId = await this.importService.startImportJobFromFtp(body.path);
+        return {
+            jobId,
+            message: 'Importación iniciada desde FTP'
+        };
     }
 
     /**
@@ -494,5 +516,52 @@ export class ImportController {
     })
     async getFailedUsersStats() {
         return await this.importService.getFailedUsersStats();
+    }
+
+    /**
+     * Verificar conexión SFTP
+     */
+    @Get('sftp/check-connection')
+    @ApiOperation({ summary: 'Verificar conexión al servidor SFTP' })
+    @ApiResponse({ 
+        status: 200, 
+        description: 'Estado de la conexión SFTP obtenido exitosamente'
+    })
+    async checkSftpConnection() {
+        return await this.importService.checkSftpConnection();
+    }
+
+    /**
+     * Descargar archivo SFTP
+     */
+    @Get('sftp/download')
+    @ApiOperation({ summary: 'Descargar el archivo SFTP' })
+    @ApiResponse({ 
+        status: 200, 
+        description: 'Archivo descargado exitosamente',
+        content: {
+            'text/csv': {
+                schema: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    })
+    async downloadSftpFile(@Res() res: Response) {
+        try {
+            const { buffer, filename } = await this.importService.downloadSftpFile();
+            
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+            res.setHeader('Content-Length', buffer.length);
+            
+            res.end(buffer);
+        } catch (error) {
+            throw new HttpException(
+                `Error descargando archivo SFTP: ${error instanceof Error ? error.message : String(error)}`,
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
     }
 }

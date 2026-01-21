@@ -18,7 +18,7 @@ import { ApiModule } from './api/api.module';
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: "30d" },
+      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
     }),
     DatabaseModule,
     AuthModule,

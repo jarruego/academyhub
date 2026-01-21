@@ -30,6 +30,7 @@
     "@nestjs/throttler": "^6.3.0",
     "@types/multer": "^2.0.0",
     "axios": "^1.7.9",
+    "ssh2-sftp-client": "^9.1.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "csv-parser": "^3.2.0",

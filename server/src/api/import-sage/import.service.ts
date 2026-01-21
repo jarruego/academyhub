@@ -4,7 +4,8 @@ import { DATABASE_PROVIDER } from "src/database/database.module";
 import { eq, and, or, desc, isNotNull, sql, gte, lte } from "drizzle-orm";
 import { distance } from "fastest-levenshtein";
 import * as csvParser from "csv-parser";
-import { Readable } from "stream";
+import { Readable, Writable } from "stream";
+import Client from "ssh2-sftp-client";
 
 // Schemas
 import { 
@@ -84,6 +85,68 @@ export class ImportService {
         } catch (error: any) {
             this.logger.error(`Error iniciando trabajo de importación: ${error?.message || error}`);
             throw error;
+        }
+    }
+
+    /**
+     * Inicia un trabajo de importación obteniendo el CSV desde un servidor SFTP.
+     * Las credenciales y la ruta se leen de variables de entorno por defecto, pero pueden
+     * sobreescribirse mediante remotePath.
+     */
+    async startImportJobFromFtp(remotePath?: string): Promise<string> {
+        const sftpHost = process.env.SFTP_SAGE_HOST;
+        const sftpUser = process.env.SFTP_SAGE_USER;
+        const sftpPassword = process.env.SFTP_SAGE_PASSWORD;
+        const sftpPort = process.env.SFTP_SAGE_PORT ? Number(process.env.SFTP_SAGE_PORT) : 22;
+        const sftpPath = remotePath || process.env.SFTP_SAGE_PATH;
+
+        if (!sftpHost || !sftpUser || !sftpPassword || !sftpPath) {
+            throw new Error('Faltan variables de entorno SFTP_SAGE_HOST/USER/PASSWORD/PATH para importar desde SFTP');
+        }
+
+        this.logger.log(`Descargando CSV SAGE desde SFTP ${sftpHost}:${sftpPort} ruta=${sftpPath}`);
+
+        const { buffer, filename } = await this.downloadCsvFromSftp({
+            host: sftpHost,
+            port: sftpPort,
+            user: sftpUser,
+            password: sftpPassword,
+            remotePath: sftpPath,
+        });
+
+        return this.startImportJob(buffer, filename);
+    }
+
+    private async downloadCsvFromSftp(params: {
+        host: string;
+        port: number;
+        user: string;
+        password: string;
+        remotePath: string;
+    }): Promise<{ buffer: Buffer; filename: string }> {
+        const client = new Client();
+
+        try {
+            await client.connect({
+                host: params.host,
+                port: params.port,
+                username: params.user,
+                password: params.password,
+            });
+
+            const buffer = await client.get(params.remotePath);
+            const filename = params.remotePath.split('/')?.pop() || 'import.csv';
+
+            if (!buffer.length) {
+                throw new Error('El fichero descargado desde SFTP está vacío');
+            }
+
+            return { buffer, filename };
+        } catch (error) {
+            this.logger.error(`Error descargando CSV desde SFTP: ${error instanceof Error ? error.message : String(error)}`);
+            throw error;
+        } finally {
+            await client.end();
         }
     }
 
@@ -2322,5 +2385,86 @@ export class ImportService {
             this.logger.error('Error revirtiendo decisión:', error.message);
             throw new Error(`Error revirtiendo decisión: ${error.message}`);
         }
+    }
+
+    /**
+     * Verifica la conexión al servidor SFTP
+     */
+    async checkSftpConnection(): Promise<{ isConnected: boolean; message: string; filename?: string }> {
+        const sftpHost = process.env.SFTP_SAGE_HOST;
+        const sftpUser = process.env.SFTP_SAGE_USER;
+        const sftpPassword = process.env.SFTP_SAGE_PASSWORD;
+        const sftpPort = process.env.SFTP_SAGE_PORT ? Number(process.env.SFTP_SAGE_PORT) : 22;
+        const sftpPath = process.env.SFTP_SAGE_PATH;
+
+        if (!sftpHost || !sftpUser || !sftpPassword || !sftpPath) {
+            return {
+                isConnected: false,
+                message: 'Faltan variables de entorno SFTP_SAGE_HOST/USER/PASSWORD/PATH'
+            };
+        }
+
+        const client = new Client();
+
+        try {
+            await client.connect({
+                host: sftpHost,
+                port: sftpPort,
+                username: sftpUser,
+                password: sftpPassword,
+            });
+
+            // Verificar que el archivo existe
+            const exists = await client.exists(sftpPath);
+            
+            if (!exists) {
+                return {
+                    isConnected: false,
+                    message: `Archivo no encontrado en la ruta: ${sftpPath}`
+                };
+            }
+
+            // Obtener información del archivo
+            const fileInfo = await client.stat(sftpPath);
+            const filename = sftpPath.split('/')?.pop() || 'import.csv';
+
+            return {
+                isConnected: true,
+                message: `Conexión exitosa. Archivo disponible: ${filename} (${fileInfo.size} bytes)`,
+                filename
+            };
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Error verificando conexión SFTP: ${errorMsg}`);
+            return {
+                isConnected: false,
+                message: `Error de conexión: ${errorMsg}`
+            };
+        } finally {
+            await client.end();
+        }
+    }
+
+    /**
+     * Descarga el archivo SFTP como Buffer
+     */
+    async downloadSftpFile(): Promise<{ buffer: Buffer; filename: string }> {
+        const sftpHost = process.env.SFTP_SAGE_HOST;
+        const sftpUser = process.env.SFTP_SAGE_USER;
+        const sftpPassword = process.env.SFTP_SAGE_PASSWORD;
+        const sftpPort = process.env.SFTP_SAGE_PORT ? Number(process.env.SFTP_SAGE_PORT) : 22;
+        const sftpPath = process.env.SFTP_SAGE_PATH;
+
+        if (!sftpHost || !sftpUser || !sftpPassword || !sftpPath) {
+            throw new Error('Faltan variables de entorno SFTP_SAGE_HOST/USER/PASSWORD/PATH para descargar desde SFTP');
+        }
+
+        return this.downloadCsvFromSftp({
+            host: sftpHost,
+            port: sftpPort,
+            user: sftpUser,
+            password: sftpPassword,
+            remotePath: sftpPath,
+        });
     }
 }

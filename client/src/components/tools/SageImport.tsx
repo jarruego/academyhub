@@ -4,10 +4,12 @@ import {
     UploadOutlined, 
     CheckSquareOutlined, 
     CheckCircleOutlined,
-    HistoryOutlined 
+    HistoryOutlined,
+    CloudDownloadOutlined
 } from '@ant-design/icons';
 import { 
     ImportCSVComponent,
+    ImportFTPComponent,
     PendingDecisionsComponent,
     ProcessedDecisionsComponent,
     ImportJobsHistoryComponent
@@ -28,6 +30,16 @@ const SageImport: React.FC = () => {
                 </span>
             ),
             children: <ImportCSVComponent />
+        },
+        {
+            key: 'ftp',
+            label: (
+                <span>
+                    <CloudDownloadOutlined />
+                    Importar desde FTP
+                </span>
+            ),
+            children: <ImportFTPComponent />
         },
         {
             key: 'decisions',
