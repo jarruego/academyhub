@@ -67,16 +67,16 @@ export class ImportService {
         try {
             // Intentar leer de BD
             const settings = await this.databaseService.db.query.organization_settings.findFirst();
-            this.logger.debug(`Settings encontrados: ${settings ? 'SÍ' : 'NO'}`);
+            this.logger.log(`[getSftpConfig] Settings encontrados: ${settings ? 'SÍ' : 'NO'}`);
             
             const settingsObj = settings?.settings as Record<string, any> | undefined;
-            this.logger.debug(`settingsObj: ${settingsObj ? JSON.stringify(settingsObj) : 'undefined'}`);
+            this.logger.log(`[getSftpConfig] settingsObj presente: ${!!settingsObj}`);
             
             const sftp = settingsObj?.sftp;
-            this.logger.debug(`sftp config: ${sftp ? JSON.stringify(sftp) : 'undefined'}`);
+            this.logger.log(`[getSftpConfig] sftp config presente: ${!!sftp}`);
 
             if (sftp?.host && sftp?.user && sftp?.password && sftp?.path) {
-                this.logger.log('Usando configuración SFTP de BD');
+                this.logger.log('[getSftpConfig] Usando configuración SFTP de BD');
                 return {
                     host: sftp.host,
                     port: sftp.port ? Number(sftp.port) : 22,
@@ -85,10 +85,10 @@ export class ImportService {
                     path: sftp.path,
                 };
             } else {
-                this.logger.debug(`Campos SFTP faltantes - host: ${!!sftp?.host}, user: ${!!sftp?.user}, password: ${!!sftp?.password}, path: ${!!sftp?.path}`);
+                this.logger.log(`[getSftpConfig] Campos SFTP faltantes - host: ${!!sftp?.host}, user: ${!!sftp?.user}, password: ${!!sftp?.password}, path: ${!!sftp?.path}`);
             }
         } catch (error) {
-            this.logger.debug(`Error al leer configuración SFTP de BD: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`[getSftpConfig] Error al leer configuración SFTP de BD: ${error instanceof Error ? error.message : String(error)}`);
         }
 
         // Fallback a variables de entorno

@@ -11,7 +11,8 @@ import {
     HttpStatus,
     HttpException,
     Query,
-    Res
+    Res,
+    Logger
 } from "@nestjs/common";
 import { Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -106,6 +107,8 @@ class RevertDecisionDto {
 @Controller('api/import')
 @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
 export class ImportController {
+    private readonly logger = new Logger(ImportController.name);
+
     constructor(
         private readonly importService: ImportService,
         private readonly jobService: JobService
@@ -528,7 +531,10 @@ export class ImportController {
         description: 'Estado de la conexión SFTP obtenido exitosamente'
     })
     async checkSftpConnection() {
-        return await this.importService.checkSftpConnection();
+        this.logger.log('[checkSftpConnection] Endpoint llamado');
+        const result = await this.importService.checkSftpConnection();
+        this.logger.log(`[checkSftpConnection] Resultado: ${JSON.stringify(result)}`);
+        return result;
     }
 
     /**
