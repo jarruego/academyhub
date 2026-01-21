@@ -33,6 +33,13 @@ export class OrganizationService {
       responsable_dni: '',
     },
     moodle: { url: '' },
+    sftp: {
+      host: '',
+      port: 22,
+      user: '',
+      password: '',
+      path: '',
+    },
     plugins: {
       itop_training: false,
       configurable_reports: false,
