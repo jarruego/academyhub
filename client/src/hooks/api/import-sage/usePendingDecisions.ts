@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PendingDecision, ProcessDecisionRequest } from '../../../types/import.types';
 import { useAuthInfo } from '../../../providers/auth/auth.context';
+import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 const fetchPendingDecisions = async (source?: string, token?: string): Promise<PendingDecision[]> => {
     const url = source 
-        ? `/api/import/pending-decisions?source=${encodeURIComponent(source)}`
-        : '/api/import/pending-decisions';
+        ? `${getApiHost()}/api/import/pending-decisions?source=${encodeURIComponent(source)}`
+        : `${getApiHost()}/api/import/pending-decisions`;
     
     const response = await fetch(url, {
         headers: {
@@ -25,7 +26,7 @@ const processDecision = async (
     data: ProcessDecisionRequest,
     token: string
 ): Promise<void> => {
-    const response = await fetch(`/api/import/process-decision/${decisionId}`, {
+    const response = await fetch(`${getApiHost()}/api/import/process-decision/${decisionId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',

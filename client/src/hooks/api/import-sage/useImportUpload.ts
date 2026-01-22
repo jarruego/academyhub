@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { UploadResponse } from '../../../types/import.types';
 import { useAuthInfo } from '../../../providers/auth/auth.context';
+import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 const uploadCSV = async (formData: FormData, token: string): Promise<UploadResponse> => {
-    const response = await fetch('/api/import/upload-csv', {
+    const response = await fetch(`${getApiHost()}/api/import/upload-csv`, {
         method: 'POST',
         body: formData,
         headers: {

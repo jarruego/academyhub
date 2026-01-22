@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ProcessedDecision, RevertDecisionRequest } from '../../../types/import.types';
 import { useAuthInfo } from '../../../providers/auth/auth.context';
+import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 interface ProcessedDecisionsFilters {
     action?: string;
@@ -12,7 +13,7 @@ const fetchProcessedDecisions = async (
     filters?: ProcessedDecisionsFilters,
     token?: string
 ): Promise<ProcessedDecision[]> => {
-    let url = '/api/import/processed-decisions';
+    let baseUrl = '/api/import/processed-decisions';
     const params = new URLSearchParams();
     
     if (filters?.action) {
@@ -29,10 +30,10 @@ const fetchProcessedDecisions = async (
     }
     
     if (params.toString()) {
-        url += `?${params.toString()}`;
+        baseUrl += `?${params.toString()}`;
     }
 
-    const response = await fetch(url, {
+    const response = await fetch(`${getApiHost()}${baseUrl}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },
@@ -50,7 +51,7 @@ const revertDecision = async (
     data: RevertDecisionRequest,
     token: string
 ): Promise<void> => {
-    const response = await fetch(`/api/import/revert-decision/${decisionId}`, {
+    const response = await fetch(`${getApiHost()}/api/import/revert-decision/${decisionId}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',

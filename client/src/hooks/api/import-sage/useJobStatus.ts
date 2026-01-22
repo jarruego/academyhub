@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { JobStatus } from '../../../types/import.types';
 import { useAuthInfo } from '../../../providers/auth/auth.context';
+import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 const fetchJobStatus = async (jobId: string, token: string): Promise<JobStatus> => {
-    const response = await fetch(`/api/import/job-status/${jobId}`, {
+    const response = await fetch(`${getApiHost()}/api/import/job-status/${jobId}`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },

@@ -1,13 +1,14 @@
 import { useMutation } from '@tanstack/react-query';
 import { UploadResponse } from '../../../types/import.types';
 import { useAuthInfo } from '../../../providers/auth/auth.context';
+import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 interface FtpPayload {
   path?: string;
 }
 
 const startImportFromFtp = async (payload: FtpPayload, token: string): Promise<UploadResponse> => {
-  const response = await fetch('/api/import/upload-csv-ftp', {
+  const response = await fetch(`${getApiHost()}/api/import/upload-csv-ftp`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

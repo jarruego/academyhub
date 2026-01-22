@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { JobInfo } from '../../../types/import.types';
 import { useAuthInfo } from '../../../providers/auth/auth.context';
+import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 const fetchRecentJobs = async (limit?: number, token?: string): Promise<JobInfo[]> => {
     const url = limit 
-        ? `/api/import/jobs?limit=${limit}`
-        : '/api/import/jobs';
+        ? `${getApiHost()}/api/import/jobs?limit=${limit}`
+        : `${getApiHost()}/api/import/jobs`;
     
     const response = await fetch(url, {
         headers: {
@@ -21,7 +22,7 @@ const fetchRecentJobs = async (limit?: number, token?: string): Promise<JobInfo[
 };
 
 const fetchActiveJobs = async (token: string): Promise<JobInfo[]> => {
-    const response = await fetch('/api/import/active-jobs', {
+    const response = await fetch(`${getApiHost()}/api/import/active-jobs`, {
         headers: {
             'Authorization': `Bearer ${token}`,
         },
