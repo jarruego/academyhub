@@ -9,14 +9,7 @@ import "dotenv/config";
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  const allowedOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-    : true; // En producción sin CORS_ORIGINS, permitir todos (será restrictivo cuando esté configurado)
-
-  app.enableCors({
-    origin: allowedOrigins,
-    credentials: true,
-  });
+  app.enableCors();
   // Serve static files from `public` so requests to /uploads/* map to server/public/uploads/*
   app.useStaticAssets(path.join(process.cwd(), 'public'));
 // Configura el uso de pipes globales en la aplicación, específicamente un ValidationPipe.
