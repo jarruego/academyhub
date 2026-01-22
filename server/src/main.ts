@@ -9,9 +9,9 @@ import "dotenv/config";
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  const allowedOrigins = process.env.CORS_ORIGINS 
-    ? process.env.CORS_ORIGINS.split(',')
-    : ['http://localhost:5173'];
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+    : true; // En producción sin CORS_ORIGINS, permitir todos (será restrictivo cuando esté configurado)
 
   app.enableCors({
     origin: allowedOrigins,
