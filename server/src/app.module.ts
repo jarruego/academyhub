@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './guards/auth/auth.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { ApiModule } from './api/api.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ApiModule } from './api/api.module';
     DatabaseModule,
     AuthModule,
     ApiModule,
+    SchedulerModule,
   ],
   controllers: [],
   providers: [
