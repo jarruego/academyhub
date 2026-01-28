@@ -34,8 +34,10 @@ export default function ImportVelneoScreen() {
       });
       message.success(res.data.message || 'Importación iniciada correctamente');
       options.onSuccess && options.onSuccess(res.data, file);
-    } catch (err) {
-      message.error('Error al subir el archivo');
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || 'Error desconocido al subir el archivo';
+      message.error(`Error: ${errorMsg}`);
+      console.error('Upload error:', err?.response || err);
       options.onError && options.onError(err);
     } finally {
       setLoading(false);
