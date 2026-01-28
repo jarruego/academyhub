@@ -193,4 +193,13 @@ export class MoodleController {
             return { success: false, message };
         }
     }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
+    @Get('active-courses-progress')
+    /**
+     * Get active courses with groups whose end_date >= NOW() - 24h.
+     */
+    async getActiveCoursesProgress() {
+        return await this.moodleService.getActiveCoursesProgress();
+    }
 }

@@ -21,7 +21,7 @@ export class SageImportTask implements ScheduledTask {
     }
 
     get runOnStartup(): boolean {
-        return (process.env.SAGE_IMPORT_RUN_ON_STARTUP || 'false').toLowerCase() === 'true';
+        return false; // Las importaciones programadas nunca se ejecutan al arrancar
     }
 
     async execute(): Promise<void> {

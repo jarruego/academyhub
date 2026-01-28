@@ -435,6 +435,59 @@ export class MoodleService {
         } as ImportResult;
     }
 
+    /**
+     * Returns active courses (groups with end_date >= NOW() - 24h)
+     * along with their active groups.
+     */
+    async getActiveCoursesProgress(): Promise<Array<{
+        id_course: number;
+        course_name: string;
+        moodle_id: number | null;
+        groups: Array<{
+            id_group: number;
+            group_name: string;
+            moodle_id: number | null;
+            end_date: Date | null;
+        }>;
+    }>> {
+        const rows = await this.groupRepository.findActiveGroupsWithCourse();
+
+        const courseMap = new Map<number, {
+            id_course: number;
+            course_name: string;
+            moodle_id: number | null;
+            groups: Array<{
+                id_group: number;
+                group_name: string;
+                moodle_id: number | null;
+                end_date: Date | null;
+            }>;
+        }>();
+
+        for (const row of rows) {
+            const course = row.course;
+            const group = row.group;
+
+            if (!courseMap.has(course.id_course)) {
+                courseMap.set(course.id_course, {
+                    id_course: course.id_course,
+                    course_name: course.course_name,
+                    moodle_id: course.moodle_id ?? null,
+                    groups: [],
+                });
+            }
+
+            const entry = courseMap.get(course.id_course)!;
+            entry.groups.push({
+                id_group: group.id_group,
+                group_name: group.group_name,
+                moodle_id: group.moodle_id ?? null,
+                end_date: group.end_date ?? null,
+            });
+        }
+
+        return Array.from(courseMap.values());
+    }
 
     async getAllUsers(): Promise<MoodleUser[]> {
         // Primero obtener usuarios básicos para obtener los IDs
@@ -515,7 +568,7 @@ export class MoodleService {
 
     /**
      * Este método hace una solicitud a la API 'core_group_get_group_members' para obtener los IDs de los miembros
-     * del grupo especificado. Luego, obtiene los detalles de cada usuario por su ID utilizando el método `getUserById`.
+     * del grupo especificado. Luego, obtiene los detalles de usuarios en batch para mayor eficiencia.
      */
     async getGroupUsers(groupId: number): Promise<MoodleUser[]> {
         const data = await this.request<Array<{ groupid: number, userids: number[] }>>('core_group_get_group_members', {
@@ -525,11 +578,30 @@ export class MoodleService {
         });
 
         const userIds = data.find(group => group.groupid === groupId)?.userids || [];
-        const users = [];
-        for (const userId of userIds) {
-            const user = await this.getUserById(userId);
-            users.push(user);
+        
+        // Fetch user details in chunks to reduce API calls
+        const chunkSize = 200;
+        const chunks: number[][] = [];
+        for (let i = 0; i < userIds.length; i += chunkSize) {
+            chunks.push(userIds.slice(i, i + chunkSize));
         }
+
+        const users: MoodleUser[] = [];
+        for (const chunk of chunks) {
+            try {
+                const batch = await this.request<Array<MoodleUser>>('core_user_get_users_by_field', {
+                    params: {
+                        field: 'id',
+                        values: chunk
+                    },
+                    method: 'post'
+                });
+                if (Array.isArray(batch)) users.push(...batch);
+            } catch (err) {
+                Logger.error({ err, chunkLength: chunk.length }, 'MoodleService:getGroupUsers - chunk failed');
+            }
+        }
+
         return users;
     }
 

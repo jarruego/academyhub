@@ -36,7 +36,6 @@ ENABLE_CRON_SCHEDULER=true
 # --- Tarea: Importación SAGE ---
 SAGE_IMPORT_ENABLED=true
 SAGE_IMPORT_CRON=0 2 * * *         # 2:00 AM todos los días
-SAGE_IMPORT_RUN_ON_STARTUP=false
 
 # Timezone (opcional, por defecto UTC)
 SCHEDULER_TIMEZONE=UTC
@@ -198,7 +197,7 @@ export class CleanupJobsTask implements ScheduledTask {
     }
 
     get runOnStartup(): boolean {
-        return (process.env.CLEANUP_JOBS_RUN_ON_STARTUP || 'false').toLowerCase() === 'true';
+        return false; // Las importaciones programadas nunca se ejecutan al arrancar
     }
 
     async execute(): Promise<void> {
@@ -256,28 +255,17 @@ CLEANUP_JOBS_DAYS=30               # Eliminar trabajos de más de 30 días
 
 ## Testing
 
-### Opción 1: Arrancar con ejecución inmediata
+### Opción 1: Testing con cron cada minuto (para verificar rápidamente)
 
 ```env
 ENABLE_CRON_SCHEDULER=true
 SAGE_IMPORT_ENABLED=true
-SAGE_IMPORT_CRON=0 2 * * *
-SAGE_IMPORT_RUN_ON_STARTUP=true
-```
-
-Esto ejecutará la importación **al arrancar la app**, luego a las 2:00 AM diarios.
-
-### Opción 2: Testing con cron cada minuto
-
-```env
 SAGE_IMPORT_CRON=* * * * *         # Cada minuto
-# o
-SAGE_IMPORT_CRON=*/5 * * * *       # Cada 5 minutos
 ```
 
 Cámbialo después de verificar que funciona.
 
-### Opción 3: Testing manual
+### Opción 2: Testing manual
 
 Usa el endpoint de importación FTP directamente desde la UI:
 

@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { GroupInsertModel, GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
-import { eq, ilike, and } from "drizzle-orm";
+import { courseTable } from "src/database/schema/tables/course.table";
+import { eq, ilike, and, sql } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
 import { MoodleGroup } from "src/types/moodle/group";
 import { InsertResult } from 'src/database/types/insert-result';
@@ -90,5 +91,23 @@ export class GroupRepository extends Repository {
   async findGroupsByCourseId(courseId: number, options?: QueryOptions) {
     const rows = await this.query(options).select().from(groupTable).where(eq(groupTable.id_course, courseId));
     return rows;
+  }
+
+  /**
+   * Active groups: end_date >= NOW() - 24h (grace period).
+   * Returns groups with their course info in a single query.
+   */
+  async findActiveGroupsWithCourse(options?: QueryOptions) {
+    const now = new Date();
+    const threshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    return await this.query(options)
+      .select({ group: groupTable, course: courseTable })
+      .from(groupTable)
+      .innerJoin(courseTable, eq(groupTable.id_course, courseTable.id_course))
+      .where(and(
+        sql`${groupTable.end_date} is not null`,
+        sql`${groupTable.end_date} >= ${threshold}`
+      ));
   }
 }

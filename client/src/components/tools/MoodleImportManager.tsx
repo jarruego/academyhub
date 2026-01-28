@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Button, Tag, Typography, Space, Card, Modal, message, Spin } from 'antd';
+import { Table, Button, Tag, Typography, Space, Card, Modal, message, Spin, Tabs } from 'antd';
 import { ExpandAltOutlined, ReloadOutlined, ImportOutlined, CloudDownloadOutlined } from '@ant-design/icons';
 import { useMoodleCoursesQuery } from '../../hooks/api/moodle/use-moodle-courses.query';
 import { useMoodleGroupsByCourseQuery } from '../../hooks/api/moodle/use-moodle-groups-by-course.query';
@@ -9,6 +9,7 @@ import { useReimportMoodleMutation } from '../../hooks/api/moodle/use-reimport-m
 import { MoodleCourseWithImportStatus, MoodleGroupWithImportStatus } from '../../shared/types/moodle-import';
 import { AuthzHide } from '../permissions/authz-hide';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
+import { ActiveCoursesProgressTab } from './ActiveCoursesProgressTab';
 
 const { Title, Text } = Typography;
 
@@ -322,8 +323,8 @@ export const MoodleImportManager: React.FC = () => {
     );
   };
 
-  return (
-    <div>
+  const importCoursesContent = (
+    <>
       <Modal
         open={!!importingAll}
         footer={null}
@@ -445,6 +446,17 @@ export const MoodleImportManager: React.FC = () => {
           </div>
         </Modal>
       </AuthzHide>
+    </>
+  );
+
+  return (
+    <div>
+      <Tabs
+        items={[
+          { key: 'import', label: 'Importar Cursos', children: importCoursesContent },
+          { key: 'active', label: 'Cursos Activos', children: <ActiveCoursesProgressTab /> },
+        ]}
+      />
     </div>
   );
 }
