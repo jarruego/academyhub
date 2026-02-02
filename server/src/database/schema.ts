@@ -11,6 +11,7 @@ import { userCenterTable } from "./schema/tables/user_center.table";
 import { userCourseTable } from "./schema/tables/user_course.table";
 import { importJobTable, importDecisionsTable } from "./schema/tables/import.table";
 import { organizationSettingsTable } from "./schema/tables/organization_settings.table";
+import { schedulerLockTable } from "./schema/tables/scheduler_lock.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality } from "./schema/tables/course.table";
@@ -29,6 +30,7 @@ export const user_course = userCourseTable;
 export const import_jobs = importJobTable;
 export const import_decisions = importDecisionsTable;
 export const organization_settings = organizationSettingsTable;
+export const scheduler_locks = schedulerLockTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
