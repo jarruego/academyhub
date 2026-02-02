@@ -233,23 +233,51 @@ export class JobService {
     }
 
     /**
-     * Recupera trabajos interrumpidos para reanudar
+     * ===== CLEANUP AUTOMÁTICO POST-DEPLOY =====
+     * Recupera trabajos interrumpidos en PROCESSING (huérfanos después de deploy)
+     * Se ejecuta automáticamente al iniciar la app via OnModuleInit
      */
-    async recoverInterruptedJobs() {
-        const interruptedJobs = await this.databaseService.db
+    async cleanupOrphanedJobs(): Promise<number> {
+        const orphanedJobs = await this.databaseService.db
             .select()
             .from(import_jobs)
             .where(eq(import_jobs.status, ImportJobStatus.PROCESSING));
 
-        for (const job of interruptedJobs) {
-            await this.updateJobStatus(
-                job.job_id, 
-                ImportJobStatus.FAILED, 
-                'Trabajo interrumpido - servidor reiniciado'
-            );
+        if (orphanedJobs.length === 0) {
+            this.logger.debug('✅ No hay trabajos huérfanos en PROCESSING');
+            return 0;
         }
 
-        this.logger.log(`Recuperados ${interruptedJobs.length} trabajos interrumpidos`);
-        return interruptedJobs.length;
+        this.logger.warn(`⚠️ Encontrados ${orphanedJobs.length} trabajos en PROCESSING (huérfanos post-deploy)`);
+
+        for (const job of orphanedJobs) {
+            try {
+                const completedAt = new Date();
+                const errorMessage = `❌ CANCELADO AUTOMÁTICAMENTE: Trabajo interrumpido durante deploy. Reanuda la importación para continuar.`;
+                
+                await this.databaseService.db
+                    .update(import_jobs)
+                    .set({
+                        status: ImportJobStatus.CANCELLED,
+                        error_message: errorMessage,
+                        completed_at: completedAt
+                    })
+                    .where(eq(import_jobs.job_id, job.job_id));
+
+                this.logger.warn(`🔄 Cancelado trabajo huérfano: ${job.job_id}`);
+            } catch (error) {
+                this.logger.error(`Error cancelando trabajo huérfano ${job.job_id}:`, error);
+            }
+        }
+
+        this.logger.log(`✅ Cleanup completado: ${orphanedJobs.length} trabajos cancelados`);
+        return orphanedJobs.length;
+    }
+
+    /**
+     * Alias para compatibilidad - llamado desde recoverInterruptedJobs
+     */
+    async recoverInterruptedJobs() {
+        return await this.cleanupOrphanedJobs();
     }
 }
