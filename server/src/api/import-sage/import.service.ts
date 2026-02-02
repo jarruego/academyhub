@@ -49,12 +49,164 @@ import { Gender } from "src/types/user/gender.enum";
 export class ImportService {
     private readonly logger = new Logger(ImportService.name);
 
+    // ===== OPTIMIZACIÓN EGRESS: Cache en memoria para reducir queries =====
+    private companiesCache: Map<string, any> = new Map(); // key: CIF o import_id
+    private centersCache: Map<string, any> = new Map();   // key: import_id
+    private usersCache: Map<string, any> = new Map();     // key: DNI o NSS
+
     constructor(
         @Inject(DATABASE_PROVIDER) 
         private readonly databaseService: DatabaseService,
     ) {}
 
     /**
+     * ===== OPTIMIZACIÓN EGRESS =====
+     * Precarga todas las empresas, centros y usuarios en memoria
+     * para evitar miles de queries individuales durante la importación
+     */
+    private async preloadDataForImport(): Promise<void> {
+        const startTime = Date.now();
+        this.logger.log('🚀 Precargando datos en memoria para optimizar queries...');
+
+        // Limpiar caches anteriores
+        this.companiesCache.clear();
+        this.centersCache.clear();
+        this.usersCache.clear();
+
+        try {
+            // Precargar empresas (solo columnas necesarias)
+            const companiesData = await this.databaseService.db
+                .select({
+                    id_company: companies.id_company,
+                    cif: companies.cif,
+                    company_name: companies.company_name,
+                    import_id: companies.import_id
+                })
+                .from(companies);
+
+            for (const company of companiesData) {
+                if (company.cif) this.companiesCache.set(`cif:${company.cif}`, company);
+                if (company.import_id) this.companiesCache.set(`import_id:${company.import_id}`, company);
+            }
+            this.logger.log(`✅ Precargadas ${companiesData.length} empresas`);
+
+            // Precargar centros (solo columnas necesarias)
+            const centersData = await this.databaseService.db
+                .select({
+                    id_center: centers.id_center,
+                    center_name: centers.center_name,
+                    id_company: centers.id_company,
+                    import_id: centers.import_id,
+                    employer_number: centers.employer_number
+                })
+                .from(centers);
+
+            for (const center of centersData) {
+                if (center.import_id) this.centersCache.set(center.import_id, center);
+            }
+            this.logger.log(`✅ Precargados ${centersData.length} centros`);
+
+            // Precargar usuarios (solo columnas necesarias para matching)
+            const usersData = await this.databaseService.db
+                .select({
+                    id_user: users.id_user,
+                    dni: users.dni,
+                    nss: users.nss,
+                    email: users.email,
+                    name: users.name,
+                    first_surname: users.first_surname,
+                    second_surname: users.second_surname
+                })
+                .from(users);
+
+            for (const user of usersData) {
+                if (user.dni) this.usersCache.set(`dni:${user.dni}`, user);
+                if (user.nss) this.usersCache.set(`nss:${user.nss}`, user);
+                if (user.email) this.usersCache.set(`email:${user.email}`, user);
+            }
+            this.logger.log(`✅ Precargados ${usersData.length} usuarios`);
+
+            const elapsed = Date.now() - startTime;
+            this.logger.log(`✅ Precarga completada en ${elapsed}ms`);
+        } catch (error) {
+            this.logger.error(`❌ Error en precarga: ${error instanceof Error ? error.message : String(error)}`);
+            // No lanzar error, continuar con queries normales si falla la precarga
+        }
+    }
+
+    /**
+     * Busca empresa en cache primero, si no existe hace query
+     */
+    private async findCompanyOptimized(cif: string, importId: string): Promise<any | null> {
+        // Buscar en cache
+        let company = this.companiesCache.get(`cif:${cif}`);
+        if (company) return company;
+
+        company = this.companiesCache.get(`import_id:${importId}`);
+        if (company) return company;
+
+        // Si no está en cache, hacer query y cachear
+        const result = await this.databaseService.db
+            .select()
+            .from(companies)
+            .where(or(eq(companies.cif, cif), eq(companies.import_id, importId)))
+            .limit(1);
+
+        if (result.length > 0) {
+            const found = result[0];
+            this.companiesCache.set(`cif:${found.cif}`, found);
+            if (found.import_id) this.companiesCache.set(`import_id:${found.import_id}`, found);
+            return found;
+        }
+
+        return null;
+    }
+
+    /**
+     * Busca centro en cache primero, si no existe hace query
+     */
+    private async findCenterOptimized(importId: string): Promise<any | null> {
+        // Buscar en cache
+        const center = this.centersCache.get(importId);
+        if (center) return center;
+
+        // Si no está en cache, hacer query y cachear
+        const result = await this.databaseService.db
+            .select()
+            .from(centers)
+            .where(eq(centers.import_id, importId))
+            .limit(1);
+
+        if (result.length > 0) {
+            const found = result[0];
+            this.centersCache.set(importId, found);
+            return found;
+        }
+
+        return null;
+    }
+
+    /**
+     * Busca usuario en cache primero por DNI/NSS/email
+     */
+    private findUserInCache(dni?: string, nss?: string, email?: string): any | null {
+        if (dni) {
+            const user = this.usersCache.get(`dni:${dni}`);
+            if (user) return user;
+        }
+        if (nss) {
+            const user = this.usersCache.get(`nss:${nss}`);
+            if (user) return user;
+        }
+        if (email) {
+            const user = this.usersCache.get(`email:${email}`);
+            if (user) return user;
+        }
+        return null;
+    }
+
+    /**
+
      * Obtiene configuración SFTP primero de BD, luego de variables de entorno
      */
     private async getSftpConfig(): Promise<{
@@ -215,6 +367,9 @@ export class ImportService {
     private async processCSVBackground(jobId: string, buffer: Buffer, filename: string): Promise<void> {
         try {
             await this.updateJobStatus(jobId, ImportJobStatus.PROCESSING);
+            
+            // ===== OPTIMIZACIÓN EGRESS: Precargar datos en memoria =====
+            await this.preloadDataForImport();
             
             const csvData = await this.parseCSV(buffer);
             const totalRows = csvData.length;
@@ -705,7 +860,7 @@ export class ImportService {
     }
 
     /**
-     * Busca o crea una empresa
+     * Busca o crea una empresa (OPTIMIZADO con cache)
      */
     private async findOrCreateCompany(data: ProcessedUserData) {
         // Validar datos requeridos
@@ -713,20 +868,10 @@ export class ImportService {
             throw new Error(`Datos de empresa incompletos: name="${data.company_name}", cif="${data.company_cif}"`);
         }
 
-        // Buscar por CIF o import_id
-        const existing = await this.databaseService.db
-            .select()
-            .from(companies)
-            .where(
-                or(
-                    eq(companies.cif, data.company_cif),
-                    eq(companies.import_id, data.company_import_id)
-                )
-            )
-            .limit(1);
-
-        if (existing.length > 0) {
-            return existing[0];
+        // ===== OPTIMIZACIÓN: Buscar en cache primero =====
+        const existing = await this.findCompanyOptimized(data.company_cif, data.company_import_id);
+        if (existing) {
+            return existing;
         }
 
         // Crear nueva empresa
@@ -742,11 +887,15 @@ export class ImportService {
             .values(newCompany)
             .returning();
 
+        // Agregar al cache
+        this.companiesCache.set(`cif:${created.cif}`, created);
+        if (created.import_id) this.companiesCache.set(`import_id:${created.import_id}`, created);
+
         return created;
     }
 
     /**
-     * Busca o crea un centro
+     * Busca o crea un centro (OPTIMIZADO con cache)
      */
     private async findOrCreateCenter(data: ProcessedUserData, companyId: number) {
         // Si no hay center_name, usar "DESCONOCIDO"
@@ -758,16 +907,11 @@ export class ImportService {
         // Siempre usamos import_id prefijado con companyId: `${companyId}_${normalizedCenter}`
         const expectedImportId = `${companyId}_${normalizedCenter}`;
 
-        // Si es DESCONOCIDO mantenemos el patrón companyId_desconocido
+        // ===== OPTIMIZACIÓN: Buscar en cache primero =====
         if (centerName === 'DESCONOCIDO') {
             const importId = `${companyId}_desconocido`;
-            const existing = await this.databaseService.db
-                .select()
-                .from(centers)
-                .where(eq(centers.import_id, importId))
-                .limit(1);
-
-            if (existing.length > 0) return existing[0];
+            let existing = await this.findCenterOptimized(importId);
+            if (existing) return existing;
 
             const newCenter: CenterInsertModel = {
                 center_name: centerName,
@@ -781,31 +925,39 @@ export class ImportService {
                 .values(newCenter)
                 .returning();
 
+            // Agregar al cache
+            this.centersCache.set(importId, created);
             this.logger.warn(`🏢 Centro DESCONOCIDO creado para empresa ID ${companyId} (usuario sin centro definido)`);
             return created;
         }
 
-        // Para centros normales: intentar matching por import_id prefijado (exacto), prefijo sobre la parte normalized y fallback por nombre
+        // Para centros normales: intentar matching por import_id prefijado (exacto)
         // 1) exact match por import_id completo (companyId_normalizedCenter)
-        let existing = await this.databaseService.db
-            .select()
-            .from(centers)
-            .where(eq(centers.import_id, expectedImportId))
-            .limit(1);
+        let existing = await this.findCenterOptimized(expectedImportId);
+        if (existing) return existing;
 
-        if (existing.length > 0) return existing[0];
+        // 2) prefix match: buscar en cache si hay algún centro que empiece con el prefijo
+        for (const [key, center] of this.centersCache.entries()) {
+            if (key.startsWith(`${companyId}_${normalizedCenter}`) && center.id_company === companyId) {
+                return center;
+            }
+        }
 
-        // 2) prefix match: import_id comienza por companyId_normalizedCenter (esto permite GUADALQUIV -> GUADALQUIVIR)
-        existing = await this.databaseService.db
+        // 3) Si no está en cache, hacer query compleja de prefix match
+        const prefixMatches = await this.databaseService.db
             .select()
             .from(centers)
             .where(sql`${centers.import_id} LIKE ${expectedImportId + '%'}`)
             .limit(1);
 
-        if (existing.length > 0) return existing[0];
+        if (prefixMatches.length > 0) {
+            const found = prefixMatches[0];
+            this.centersCache.set(found.import_id, found);
+            return found;
+        }
 
-        // 3) fallback: comparar el center_name de la BD normalizado contra el CSV normalizado (sin prefijo)
-        existing = await this.databaseService.db
+        // 4) fallback: comparar el center_name de la BD normalizado contra el CSV normalizado (sin prefijo)
+        const nameMatches = await this.databaseService.db
             .select()
             .from(centers)
             .where(
@@ -816,7 +968,11 @@ export class ImportService {
             )
             .limit(1);
 
-        if (existing.length > 0) return existing[0];
+        if (nameMatches.length > 0) {
+            const found = nameMatches[0];
+            this.centersCache.set(found.import_id, found);
+            return found;
+        }
 
         // No encontrado -> crear nuevo centro con import_id = `${companyId}_${normalizedCenter}`
         const newCenter: CenterInsertModel = {
@@ -830,6 +986,9 @@ export class ImportService {
             .insert(centers)
             .values(newCenter)
             .returning();
+
+        // Agregar al cache
+        this.centersCache.set(expectedImportId, created);
 
         return created;
     }
@@ -890,43 +1049,68 @@ export class ImportService {
     }
 
     /**
-     * Procesa un usuario (buscar, crear o decisión manual)
+     * Procesa un usuario (buscar, crear o decisión manual) - OPTIMIZADO
      */
     private async processUser(data: ProcessedUserData): Promise<ProcessingResult> {
-        // 1. Buscar por DNI exacto
-        const existingByDni = await this.databaseService.db
-            .select()
-            .from(users)
-            .where(eq(users.dni, data.dni))
-            .limit(1);
+        // ===== OPTIMIZACIÓN: Buscar en cache primero por DNI =====
+        let existingByDni = this.findUserInCache(data.dni, undefined, undefined);
+        
+        // Si no está en cache, hacer query
+        if (!existingByDni) {
+            const result = await this.databaseService.db
+                .select()
+                .from(users)
+                .where(eq(users.dni, data.dni))
+                .limit(1);
+            
+            if (result.length > 0) {
+                existingByDni = result[0];
+                // Agregar al cache
+                this.usersCache.set(`dni:${existingByDni.dni}`, existingByDni);
+                if (existingByDni.nss) this.usersCache.set(`nss:${existingByDni.nss}`, existingByDni);
+                if (existingByDni.email) this.usersCache.set(`email:${existingByDni.email}`, existingByDni);
+            }
+        }
 
-        if (existingByDni.length > 0) {
+        if (existingByDni) {
             // Usuario existe, actualizar campos faltantes
-            const user = existingByDni[0];
-            const updates = this.buildUserUpdates(user, data);
+            const updates = this.buildUserUpdates(existingByDni, data);
             
             if (Object.keys(updates).length > 0) {
                 await this.databaseService.db
                     .update(users)
                     .set(updates)
-                    .where(eq(users.id_user, user.id_user));
+                    .where(eq(users.id_user, existingByDni.id_user));
                 
-                return { success: true, action: 'updated', user_id: user.id_user };
+                return { success: true, action: 'updated', user_id: existingByDni.id_user };
             }
 
-            return { success: true, action: 'linked', user_id: user.id_user };
+            return { success: true, action: 'linked', user_id: existingByDni.id_user };
         }
 
-        // 2. Buscar por NSS si existe (para evitar duplicados)
+        // 2. Buscar por NSS si existe (para evitar duplicados) - OPTIMIZADO
         if (data.nss) {
-            const existingByNSS = await this.databaseService.db
-                .select()
-                .from(users)
-                .where(eq(users.nss, data.nss))
-                .limit(1);
+            let existingByNSS = this.findUserInCache(undefined, data.nss, undefined);
+            
+            // Si no está en cache, hacer query
+            if (!existingByNSS) {
+                const result = await this.databaseService.db
+                    .select()
+                    .from(users)
+                    .where(eq(users.nss, data.nss))
+                    .limit(1);
 
-            if (existingByNSS.length > 0) {
-                const user = existingByNSS[0];
+                if (result.length > 0) {
+                    existingByNSS = result[0];
+                    // Agregar al cache
+                    this.usersCache.set(`nss:${existingByNSS.nss}`, existingByNSS);
+                    if (existingByNSS.dni) this.usersCache.set(`dni:${existingByNSS.dni}`, existingByNSS);
+                    if (existingByNSS.email) this.usersCache.set(`email:${existingByNSS.email}`, existingByNSS);
+                }
+            }
+
+            if (existingByNSS) {
+                const user = existingByNSS;
                 this.logger.warn(`Usuario con NSS ${data.nss} ya existe: ${user.name} ${user.first_surname} (DNI: ${user.dni}). Nuevo registro: ${data.name} ${data.first_surname} (DNI: ${data.dni})`);
                 
                 const matchForNSS = {

@@ -28,6 +28,9 @@ export const useSftpConnection = () => {
   return useQuery<SftpConnectionStatus, Error>({
     queryKey: ['sftp-connection'],
     queryFn: () => fetchSftpConnection(token),
-    refetchInterval: 30000, // Verificar cada 30 segundos
+    // Solo al entrar o volver a la pestaña (sin polling constante)
+    refetchOnWindowFocus: true,
+    refetchInterval: false,
+    staleTime: 5 * 60 * 1000,
   });
 };

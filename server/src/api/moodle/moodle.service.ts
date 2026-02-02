@@ -42,6 +42,10 @@ export class MoodleService {
     private readonly MOODLE_URL = process.env.MOODLE_URL;
     // Keep env var as fallback; DB-configured token will take precedence when present
     private readonly MOODLE_TOKEN = process.env.MOODLE_TOKEN;
+    
+    // ===== OPTIMIZACIÓN EGRESS: Cache para Moodle sync =====
+    private progressCache: Map<string, number | null> = new Map();
+    private readonly logger = new Logger(MoodleService.name);
 
     constructor(
         @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
@@ -296,10 +300,73 @@ export class MoodleService {
     }
 
     /**
+     * ===== OPTIMIZACIÓN EGRESS =====
+     * Precarga el progreso de todos los usuarios para un curso en bulk
+     * en lugar de hacer queries individuales (evita N+1 queries)
+     */
+    private async preloadCourseProgress(courseId: number, userIds: number[]): Promise<void> {
+        if (userIds.length === 0 || !courseId) return;
+        
+        const startTime = Date.now();
+        this.logger.log(`🚀 Precargando progreso para ${userIds.length} usuarios en curso ${courseId}...`);
+
+        try {
+            // Fetch progress para cada usuario y cachear
+            let processed = 0;
+            for (const userId of userIds) {
+                try {
+                    const progress = await this.getUserProgressInCourse({ id: userId } as MoodleUser, courseId);
+                    const cacheKey = `progress:${courseId}:${userId}`;
+                    this.progressCache.set(cacheKey, progress?.completion_percentage ?? null);
+                    processed++;
+                } catch (err) {
+                    // Log pero no bloquear - usar valor por defecto si falla
+                    this.logger.debug(`No progress found for user ${userId} in course ${courseId}`);
+                    const cacheKey = `progress:${courseId}:${userId}`;
+                    this.progressCache.set(cacheKey, null);
+                }
+            }
+            
+            const elapsed = Date.now() - startTime;
+            this.logger.log(`✅ Precarga de progreso completada: ${processed}/${userIds.length} en ${elapsed}ms`);
+        } catch (error) {
+            this.logger.error(`❌ Error en precarga de progreso: ${error instanceof Error ? error.message : String(error)}`);
+            // No lanzar error, continuar con queries normales
+        }
+    }
+
+    /**
+     * Obtiene progreso del cache si está disponible, sino lo fetch normalmente
+     */
+    private async getProgressOptimized(userId: number, courseId: number): Promise<number | null> {
+        const cacheKey = `progress:${courseId}:${userId}`;
+        
+        // Buscar en cache
+        if (this.progressCache.has(cacheKey)) {
+            return this.progressCache.get(cacheKey) ?? null;
+        }
+
+        // Si no está en cache, hacer query y cachear
+        try {
+            const progress = await this.getUserProgressInCourse({ id: userId } as MoodleUser, courseId);
+            this.progressCache.set(cacheKey, progress?.completion_percentage ?? null);
+            return progress?.completion_percentage ?? null;
+        } catch (err) {
+            this.logger.debug(`Could not fetch progress for user ${userId}`);
+            this.progressCache.set(cacheKey, null);
+            return null;
+        }
+    }
+
+    /**
      * Sync members of a Moodle group by fetching Moodle group members and
      * updating each corresponding local user/group record one-by-one.
      * This performs per-user updates (no single big transaction) so failures
      * on individual users do not abort the whole operation.
+     * 
+     * ===== OPTIMIZACIÓN EGRESS =====
+     * Ahora precarga el progreso de TODOS los usuarios en bulk antes del loop
+     * en lugar de hacer queries individuales (evita N+1 queries masivo)
      */
     async syncMoodleGroupMembers(moodleGroupId: number): Promise<ImportResult> {
         const errors: Array<{ userId?: number; username?: string; error: string }> = [];
@@ -335,6 +402,13 @@ export class MoodleService {
         } catch (err) {
             Logger.warn({ err, moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch enrolled users for role mapping');
             // proceed without enrolled roles map or parentCourse
+        }
+
+        // ===== OPTIMIZACIÓN EGRESS: Precargar progreso de todos los usuarios =====
+        if (parentCourse && parentCourse.moodle_id) {
+            const userIds = moodleUsers.map(u => u.id);
+            this.progressCache.clear(); // Limpiar cache anterior
+            await this.preloadCourseProgress(parentCourse.moodle_id, userIds);
         }
 
         for (const mu of moodleUsers) {
@@ -395,8 +469,9 @@ export class MoodleService {
                 // per-user progress details for temporary tracing.
                 try {
                     if (parentCourse && parentCourse.moodle_id) {
-                        const progress = await this.getUserProgressInCourse(mu, parentCourse.moodle_id);
-                        const completion = progress?.completion_percentage ?? null;
+                        // ===== OPTIMIZACIÓN EGRESS =====
+                        // Ahora usa cache en lugar de queries individuales por usuario
+                        const completion = await this.getProgressOptimized(mu.id, parentCourse.moodle_id);
 
                         // Persist as string to match existing schema (e.g. "0", "75").
                         // If completion is null, persist '0' to avoid nulls in UI.
