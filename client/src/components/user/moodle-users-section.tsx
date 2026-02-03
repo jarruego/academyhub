@@ -1,16 +1,17 @@
 import { Table, Tag, Spin, Alert, Button, Popconfirm, message, Tooltip } from "antd";
-import { FileProtectOutlined } from '@ant-design/icons';
+import { FileProtectOutlined, CloudDownloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
 import type { MoodleUserSelectModel } from '../../shared/types/moodle/moodle-user.types';
 
-import { useQueries, UseQueryResult } from '@tanstack/react-query';
+import { useQueries, UseQueryResult, useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { getApiHost } from '../../utils/api/get-api-host.util';
 import type { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
 import { useSetMainMoodleUserMutation } from '../../hooks/api/moodle-users/use-set-main-moodle-user.mutation';
+import { useState } from 'react';
 
 interface MoodleUsersSectionProps {
   userId: number;
@@ -22,6 +23,8 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
   const setMainMutation = useSetMainMoodleUserMutation(userId);
   const { data: orgSettings } = useOrganizationSettingsQuery();
   const [messageApi, messageContextHolder] = message.useMessage();
+  const [syncingMoodleId, setSyncingMoodleId] = useState<number | null>(null);
+  const queryClient = useQueryClient();
   const certificatesPluginEnabled = Boolean(
     orgSettings?.settings && (orgSettings.settings as any).plugins?.certificates === true,
   );
@@ -100,6 +103,39 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
       title: 'Moodle ID',
       dataIndex: 'moodle_id',
       key: 'moodle_id',
+      render: (moodleId: number | null | undefined) => {
+        const canSync = Boolean(moodleId);
+        const isSyncing = moodleId != null && syncingMoodleId === moodleId;
+        const syncTip = !canSync ? 'Sin moodle_id asociado' : 'Traer datos del usuario desde Moodle';
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>{moodleId ?? '-'}</span>
+            <Tooltip title={syncTip}>
+              <Button
+                size="small"
+                icon={<CloudDownloadOutlined />}
+                loading={isSyncing}
+                disabled={!canSync || isSyncing}
+                aria-label="Traer usuario desde Moodle"
+                onClick={async () => {
+                  if (!moodleId) return;
+                  setSyncingMoodleId(moodleId);
+                  try {
+                    await request({ method: 'POST', url: `${getApiHost()}/moodle/users/${moodleId}/sync` });
+                    await queryClient.invalidateQueries({ queryKey: ['moodle-users', userId] });
+                    messageApi.success('Usuario sincronizado desde Moodle');
+                  } catch (err) {
+                    messageApi.error('No se pudo traer los datos desde Moodle');
+                  } finally {
+                    setSyncingMoodleId(null);
+                  }
+                }}
+              />
+            </Tooltip>
+          </div>
+        );
+      },
     },
     {
       title: 'Username Moodle',
@@ -159,6 +195,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
         const target = moodleBase ? `${moodleBase}mod/customcert/my_certificates.php?userid=${record.moodle_id}` : undefined;
         const disabled = !certificatesPluginEnabled || !target;
         const tip = !certificatesPluginEnabled ? 'Plugin de certificados no habilitado' : (!target ? 'URL de Moodle no configurada' : 'Ver certificados');
+
         return (
           <div style={{ display: 'flex', gap: 8 }}>
             <Tooltip title={tip}>

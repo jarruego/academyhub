@@ -413,13 +413,36 @@ export class MoodleService {
 
         for (const mu of moodleUsers) {
             try {
-                // Update-only behavior: we only update existing local user and moodle_user
-                // records. We do NOT create new users or alter group memberships here.
-                const existingMoodleUser = await this.moodleUserService.findByMoodleId(mu.id);
+                // First, ensure the Moodle user exists in local DB
+                let existingMoodleUser = await this.moodleUserService.findByMoodleId(mu.id);
+                
                 if (!existingMoodleUser) {
-                    // No local mapping found: record and continue
-                    errors.push({ userId: mu.id, username: mu.username, error: 'No local moodle_user mapping found' });
-                    continue;
+                    // User doesn't exist: try to create/associate using upsertMoodleUserByGroup
+                    // This will: 1) Look for existing user by DNI, 2) Create user if not found, 3) Associate with Moodle
+                    try {
+                        // Enrich roles in moodleUser from enrolled users map if not present
+                        if ((!mu.roles || mu.roles.length === 0) && enrolledRolesMap.has(mu.id)) {
+                            mu.roles = enrolledRolesMap.get(mu.id) ?? [];
+                        }
+                        
+                        await this.upsertMoodleUserByGroup(mu, localGroup.id_group);
+                        
+                        // Reload the created user
+                        existingMoodleUser = await this.moodleUserService.findByMoodleId(mu.id);
+                        
+                        if (!existingMoodleUser) {
+                            // Still doesn't exist after creation attempt: record error and skip
+                            errors.push({ userId: mu.id, username: mu.username, error: 'Failed to create or map moodle_user' });
+                            continue;
+                        }
+                        
+                        Logger.log({ moodleUserId: mu.id, username: mu.username }, 'MoodleService:syncMoodleGroupMembers - created new moodle_user mapping');
+                    } catch (createErr: unknown) {
+                        const createErrForLog = createErr instanceof Error ? { message: createErr.message, stack: createErr.stack } : String(createErr);
+                        Logger.error({ createErr: createErrForLog, moodleUserId: mu.id, username: mu.username }, 'MoodleService:syncMoodleGroupMembers - failed to create moodle_user');
+                        errors.push({ userId: mu.id, username: mu.username, error: 'Failed to create moodle_user: ' + (createErr instanceof Error ? createErr.message : String(createErr)) });
+                        continue;
+                    }
                 }
 
                 // Do NOT overwrite local user's personal data (name, surname, email) from Moodle.
@@ -435,7 +458,8 @@ export class MoodleService {
                 } catch (mErr: unknown) {
                     const mErrForLog = mErr instanceof Error ? { message: mErr.message, stack: mErr.stack } : String(mErr);
                     Logger.error({ mErr: mErrForLog, moodleUserId: mu.id, localMoodleUserId: existingMoodleUser.id_moodle_user }, 'MoodleService:syncMoodleGroupMembers - moodle_user update failed');
-                    throw mErr;
+                    errors.push({ userId: mu.id, username: mu.username, error: 'Failed to update moodle_username: ' + (mErr instanceof Error ? mErr.message : String(mErr)) });
+                    continue; // Skip to next user instead of throwing
                 }
 
                 // Resolve and update role in user_group using roles provided by Moodle or
@@ -491,6 +515,14 @@ export class MoodleService {
                     const progErrForLog = progErr instanceof Error ? { message: progErr.message, stack: progErr.stack } : String(progErr);
                     Logger.warn({ progErr: progErrForLog, moodleUserId: mu.id }, 'MoodleService:syncMoodleGroupMembers - could not fetch user progress');
                     // don't block overall sync on progress fetch failures
+
+                                // Mark the user_group as synced (downloaded from Moodle)
+                                try {
+                                    await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { moodle_synced_at: new Date() });
+                                } catch (syncErr: unknown) {
+                                    const errForLog = syncErr instanceof Error ? { message: syncErr.message, stack: syncErr.stack } : String(syncErr);
+                                    Logger.warn({ syncErr: errForLog, userId: existingMoodleUser.id_user, groupId: localGroup.id_group }, 'MoodleService:syncMoodleGroupMembers - could not update moodle_synced_at');
+                                }
                 }
 
                 updated += 1;

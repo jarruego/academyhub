@@ -1,12 +1,16 @@
-import { Controller, Get, Query, Param, ParseIntPipe, Post, UseGuards, Body } from '@nestjs/common';
+import { Controller, Get, Query, Param, ParseIntPipe, Post, UseGuards, Body, NotFoundException } from '@nestjs/common';
 import { MoodleService } from './moodle.service';
 import { MoodleCourseListResponse, MoodleGroupListResponse, ImportResult } from 'src/dto/moodle/import.dto';
 import { RoleGuard } from 'src/guards/role.guard';
 import { Role } from 'src/guards/role.enum';
+import { MoodleUserService } from '../moodle-user/moodle-user.service';
 
 @Controller('moodle')
 export class MoodleController {
-    constructor(private readonly moodleService: MoodleService) {}
+    constructor(
+        private readonly moodleService: MoodleService,
+        private readonly moodleUserService: MoodleUserService,
+    ) {}
 
     @Get('users')
     async getAllUsers() {
@@ -165,6 +169,22 @@ export class MoodleController {
      */
     async previewAddUserToMoodle(@Param('id', ParseIntPipe) id: number) {
         return await this.moodleService.getUsersToCreateInMoodle([id]);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN]))
+    @Post('users/:moodleId/sync')
+    /**
+     * Fetch a single user from Moodle and update the local moodle_user mapping
+     * (username and linkage) for the associated local user.
+     */
+    async syncSingleMoodleUser(@Param('moodleId', ParseIntPipe) moodleId: number) {
+        const existing = await this.moodleUserService.findByMoodleId(moodleId);
+        if (!existing) {
+            throw new NotFoundException(`No local moodle_user mapping found for moodle_id ${moodleId}`);
+        }
+
+        const moodleUser = await this.moodleService.getUserById(moodleId);
+        return await this.moodleUserService.upsertFromMoodleUser(moodleUser, existing.id_user);
     }
 
     @UseGuards(RoleGuard([Role.ADMIN]))
