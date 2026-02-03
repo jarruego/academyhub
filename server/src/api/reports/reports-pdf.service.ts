@@ -41,6 +41,8 @@ export class ReportsPdfService {
       if (c !== 0) return c;
       const d = String(a.course_name ?? '').localeCompare(String(b.course_name ?? ''));
       if (d !== 0) return d;
+      const p = Number(b.completion_percentage ?? 0) - Number(a.completion_percentage ?? 0);
+      if (p !== 0) return p;
       return String(a.first_surname ?? '').localeCompare(String(b.first_surname ?? '')) || String(a.second_surname ?? '').localeCompare(String(b.second_surname ?? ''));
     });
 
