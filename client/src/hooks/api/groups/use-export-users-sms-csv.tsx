@@ -4,7 +4,7 @@ import { getApiHost } from '../../../utils/api/get-api-host.util';
 import type { User } from '../../../shared/types/user/user';
 import type { MoodleUserSelectModel } from '../../../shared/types/moodle/moodle-user.types';
 import type { Course } from '../../../shared/types/course/course';
-import { buildCsv, saveCsv, safeFilename } from '../../../utils/export-utils';
+import { saveCsv, safeFilename } from '../../../utils/export-utils';
 
 type ExportRow = [string, string, string];
 
@@ -81,8 +81,17 @@ export const useExportUsersToSmsCsv = () => {
       return [telefono, message, 'MECOHISA'];
     });
 
-    // Build CSV using shared helper (no header)
-    const csv = buildCsv(rows);
+    // Build SMS CSV with strict format:
+    // - separator: ;
+    // - message field ALWAYS quoted with double quotes (escape inner quotes)
+    // - phone and sender NOT quoted
+    // - UTF-8 without BOM
+    const csv = rows
+      .map(([phone, msg, sender]) => {
+        const safeMsg = String(msg ?? '').replace(/"/g, '""');
+        return `${String(phone ?? '')};"${safeMsg}";${String(sender ?? '')}`;
+      })
+      .join('\r\n');
     const filename = safeFilename(`${(groupName ?? courseShortName ?? 'grupo')}_SMS.csv`);
     const saved = await saveCsv(csv, filename);
     if (saved.cancelled) return { filename: '', rowsCount: 0 };
