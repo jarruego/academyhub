@@ -181,7 +181,7 @@ export class ReportsRepository extends Repository {
       .innerJoin(courseTable, eq(groupTable.id_course, courseTable.id_course))
       .leftJoin(userRolesTable, eq(userGroupTable.id_role, userRolesTable.id_role))
       .leftJoin(userCourseTable, and(eq(userCourseTable.id_user, userTable.id_user), eq(userCourseTable.id_course, courseTable.id_course)))
-      .leftJoin(moodleUserTable, eq(moodleUserTable.id_user, userTable.id_user))
+      .leftJoin(moodleUserTable, and(eq(moodleUserTable.id_user, userTable.id_user), eq(moodleUserTable.is_main_user, true)))
       .leftJoin(userCenterTable, and(eq(userCenterTable.id_user, userTable.id_user), eq(userCenterTable.is_main_center, true)))
       .leftJoin(centers, eq(userCenterTable.id_center, centers.id_center))
       .leftJoin(companyTable, eq(centers.id_company, companyTable.id_company))
