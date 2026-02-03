@@ -472,12 +472,14 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
             </Button>
           </AuthzHide>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0}>Marcar ≥ 75%</Button>
-          <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
-            Bonificar+XML
-          </Button>
-        </div>
+        <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0}>Marcar ≥ 75%</Button>
+            <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
+              Bonificar+XML
+            </Button>
+          </div>
+        </AuthzHide>
       </div>
 
       <Table<User>
