@@ -84,15 +84,17 @@ export class ReportsPdfService {
       // reset style for table
       try { doc.fillColor('black'); doc.font('Helvetica'); } catch (e) { }
 
-      // Table: Usuario | Clave | Alumno | %
+      // Table: Usuario | [Clave] | Alumno | % (Clave is optional based on includePasswords)
       const leftMargin = doc.page.margins?.left ?? 40;
       const rightMargin = doc.page.margins?.right ?? 40;
       const pageWidth = doc.page.width - leftMargin - rightMargin;
       const colUsuario = 120;
-      const colClave = 100;
+      const colClave = opts?.includePasswords ? 100 : 0;
       const colPercent = 60;
       const colAlumno = Math.max(80, Math.floor(pageWidth - (colUsuario + colClave + colPercent)));
-      const colWidths = [colUsuario, colClave, colAlumno, colPercent];
+      const colWidths = opts?.includePasswords 
+        ? [colUsuario, colClave, colAlumno, colPercent]
+        : [colUsuario, colAlumno, colPercent];
       const startX = doc.x;
       const colPositions = colWidths.map((w, i) => startX + colWidths.slice(0, i).reduce((s, v) => s + v, 0));
       const lineHeight = 12;
@@ -100,10 +102,16 @@ export class ReportsPdfService {
       // header - draw all headers using the same baseline to avoid staggered wrapping
       doc.font('Helvetica-Bold').fontSize(9);
       const headerY = doc.y;
-      doc.text('Usuario', colPositions[0], headerY, { width: colWidths[0], ellipsis: true });
-      doc.text('Clave', colPositions[1], headerY, { width: colWidths[1], ellipsis: true });
-      doc.text('Alumno', colPositions[2], headerY, { width: colWidths[2], ellipsis: true });
-      doc.text('%', colPositions[3], headerY, { width: colWidths[3], ellipsis: true });
+      if (opts?.includePasswords) {
+        doc.text('Usuario', colPositions[0], headerY, { width: colWidths[0], ellipsis: true });
+        doc.text('Clave', colPositions[1], headerY, { width: colWidths[1], ellipsis: true });
+        doc.text('Alumno', colPositions[2], headerY, { width: colWidths[2], ellipsis: true });
+        doc.text('%', colPositions[3], headerY, { width: colWidths[3], ellipsis: true });
+      } else {
+        doc.text('Usuario', colPositions[0], headerY, { width: colWidths[0], ellipsis: true });
+        doc.text('Alumno', colPositions[1], headerY, { width: colWidths[1], ellipsis: true });
+        doc.text('%', colPositions[2], headerY, { width: colWidths[2], ellipsis: true });
+      }
       // advance cursor below header
       doc.y = headerY + lineHeight;
       doc.moveDown(0.2);
@@ -120,10 +128,16 @@ export class ReportsPdfService {
           // redraw header on new page using fixed baseline
           doc.font('Helvetica-Bold').fontSize(9);
           const headerY2 = doc.y;
-          doc.text('Usuario', colPositions[0], headerY2, { width: colWidths[0], ellipsis: true });
-          doc.text('Clave', colPositions[1], headerY2, { width: colWidths[1], ellipsis: true });
-          doc.text('Alumno', colPositions[2], headerY2, { width: colWidths[2], ellipsis: true });
-          doc.text('%', colPositions[3], headerY2, { width: colWidths[3], ellipsis: true });
+          if (opts?.includePasswords) {
+            doc.text('Usuario', colPositions[0], headerY2, { width: colWidths[0], ellipsis: true });
+            doc.text('Clave', colPositions[1], headerY2, { width: colWidths[1], ellipsis: true });
+            doc.text('Alumno', colPositions[2], headerY2, { width: colWidths[2], ellipsis: true });
+            doc.text('%', colPositions[3], headerY2, { width: colWidths[3], ellipsis: true });
+          } else {
+            doc.text('Usuario', colPositions[0], headerY2, { width: colWidths[0], ellipsis: true });
+            doc.text('Alumno', colPositions[1], headerY2, { width: colWidths[1], ellipsis: true });
+            doc.text('%', colPositions[2], headerY2, { width: colWidths[2], ellipsis: true });
+          }
           doc.y = headerY2 + lineHeight;
           doc.moveDown(0.2);
           doc.font('Helvetica').fontSize(9);
@@ -135,10 +149,16 @@ export class ReportsPdfService {
         const alumno = `${String(r.first_surname ?? '').toUpperCase()} ${String(r.second_surname ?? '').toUpperCase()}, ${String(r.name ?? '')}`.trim();
         const pct = `${Number(r.completion_percentage ?? 0)}%`;
 
-        doc.text(usuario, colPositions[0], currentY, { width: colWidths[0], ellipsis: true });
-        doc.text(clave, colPositions[1], currentY, { width: colWidths[1], ellipsis: true });
-        doc.text(alumno, colPositions[2], currentY, { width: colWidths[2], ellipsis: true });
-        doc.text(pct, colPositions[3], currentY, { width: colWidths[3], ellipsis: true });
+        if (opts?.includePasswords) {
+          doc.text(usuario, colPositions[0], currentY, { width: colWidths[0], ellipsis: true });
+          doc.text(clave, colPositions[1], currentY, { width: colWidths[1], ellipsis: true });
+          doc.text(alumno, colPositions[2], currentY, { width: colWidths[2], ellipsis: true });
+          doc.text(pct, colPositions[3], currentY, { width: colWidths[3], ellipsis: true });
+        } else {
+          doc.text(usuario, colPositions[0], currentY, { width: colWidths[0], ellipsis: true });
+          doc.text(alumno, colPositions[1], currentY, { width: colWidths[1], ellipsis: true });
+          doc.text(pct, colPositions[2], currentY, { width: colWidths[2], ellipsis: true });
+        }
 
         currentY += lineHeight;
         doc.y = currentY;
