@@ -1,16 +1,22 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { App, Button, Form, Input, Modal } from "antd";
+import { App, Button, Form, Input, Modal, Tabs, Table } from "antd";
 import { useCenterQuery } from "../../hooks/api/centers/use-center.query";
 import { useUpdateCenterMutation } from "../../hooks/api/centers/use-update-center.mutation";
 import { useDeleteCenterMutation } from "../../hooks/api/centers/use-delete-center.mutation";
 import { useCompanyQuery } from "../../hooks/api/companies/use-company.query";
-import { useEffect } from "react";
+import { useUsersQuery } from "../../hooks/api/users/use-users.query";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { User } from "../../shared/types/user/user";
+import { TablePaginationConfig } from "antd/es/table";
+import { useDebounce } from "../../hooks/use-debounce";
+import { normalizeSearch } from "../../utils/normalize-search";
+import useTableScroll from "../../hooks/use-table-scroll";
 
 const CENTER_FORM_SCHEMA = z.object({
   id_center: z.number(),
@@ -39,6 +45,31 @@ export default function EditCenterRoute() {
   });
   const [modal, contextHolder] = Modal.useModal();
 
+  // Estado para la pestaña activa
+  const searchParams = new URLSearchParams(location.search);
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabParam || "1");
+
+  // Estado para la tabla de usuarios
+  const [searchText, setSearchText] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
+  const debouncedSearchText = useDebounce(searchText, 500);
+  const normalizedSearchText = useMemo(() => normalizeSearch(debouncedSearchText), [debouncedSearchText]);
+
+  // Refs para el scroll de la tabla
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const controlsRef = useRef<HTMLDivElement | null>(null);
+  const tableScrollY = useTableScroll(wrapperRef, controlsRef);
+
+  // Query para usuarios del centro
+  const { data: usersResponse, isLoading: isUsersLoading } = useUsersQuery({
+    page: currentPage,
+    limit: pageSize,
+    search: normalizedSearchText,
+    id_center: id_center,
+  });
+
   useEffect(() => {
     document.title = `Detalle del Centro ${id_center}`;
   }, [id_center]);
@@ -49,7 +80,39 @@ export default function EditCenterRoute() {
     }
   }, [centerData, reset]);
 
-  if (isCenterLoading || (centerData && isCompanyLoading)) return <div>Cargando...</div>;
+  // Manejar cambio de pestaña y actualizar URL
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    const newSearchParams = new URLSearchParams(location.search);
+    newSearchParams.set("tab", key);
+    navigate(`${location.pathname}?${newSearchParams.toString()}`, { replace: true });
+  };
+
+  // Manejar búsqueda en la tabla de usuarios
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleTableChange = (pagination: TablePaginationConfig) => {
+    setCurrentPage(pagination.current || 1);
+    setPageSize(pagination.pageSize || 100);
+  };
+
+  const paginationConfig = useMemo(() => ({
+    current: currentPage,
+    pageSize: pageSize,
+    total: usersResponse?.total || 0,
+    showSizeChanger: true,
+    showQuickJumper: true,
+    showTotal: (total: number, range: [number, number]) => 
+      `${range[0]}-${range[1]} de ${total} usuarios`,
+    pageSizeOptions: ['50', '100', '200', '500'],
+    onChange: (page: number, size: number) => {
+      setCurrentPage(page);
+      setPageSize(size);
+    }
+  }), [currentPage, pageSize, usersResponse?.total]);
 
   const submit: SubmitHandler<z.infer<typeof CENTER_FORM_SCHEMA>> = async (data) => {
     try {
@@ -83,9 +146,11 @@ export default function EditCenterRoute() {
     });
   };
 
-  return (
+  if (isCenterLoading || (centerData && isCompanyLoading)) return <div>Cargando...</div>;
+
+  // Contenido de la pestaña "Datos del Centro"
+  const centerDataTab = (
     <div>
-      {contextHolder}
       {companyData && (
         <div style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center' }}>
           <label htmlFor="company_name_display" style={{ marginRight: 8, fontWeight: 500 }}>
@@ -155,6 +220,95 @@ export default function EditCenterRoute() {
           </AuthzHide>
         </div>
       </Form>
+    </div>
+  );
+
+  // Contenido de la pestaña "Usuarios"
+  const usersTab = (
+    <div ref={wrapperRef}>
+      <div ref={controlsRef} style={{ marginBottom: 16 }}>
+        <Input.Search 
+          placeholder="Buscar usuarios (nombre, apellido, email, DNI)" 
+          style={{ maxWidth: 400 }} 
+          value={searchText}
+          onChange={handleSearch}
+          loading={isUsersLoading}
+          allowClear
+        />
+      </div>
+      <Table 
+        rowKey="id_user" 
+        sortDirections={['ascend', 'descend']}
+        loading={isUsersLoading}
+        dataSource={usersResponse?.data || []}
+        pagination={paginationConfig}
+        onChange={handleTableChange}
+        scroll={{ x: 'max-content', y: tableScrollY }}
+        columns={[
+          {
+            title: 'DNI',
+            dataIndex: 'dni',
+            sorter: (a: User, b: User) => (a.dni ?? '').localeCompare(b.dni ?? ''),
+            width: 120,
+          },
+          {
+            title: 'Nombre',
+            dataIndex: 'name',
+            sorter: (a: User, b: User) => (a.name ?? '').localeCompare(b.name ?? ''),
+            width: 150,
+          },
+          {
+            title: 'Apellidos',
+            dataIndex: 'first_surname',
+            sorter: (a: User, b: User) => (a.first_surname ?? '').localeCompare(b.first_surname ?? ''),
+            width: 200,
+            render: (_, user: User) => `${user.first_surname ?? ''} ${user.second_surname ?? ''}`.trim(),
+          },
+          {
+            title: 'Email',
+            dataIndex: 'email',
+            sorter: (a: User, b: User) => (a.email ?? '').localeCompare(b.email ?? ''),
+            width: 200,
+          },
+          {
+            title: 'NSS',
+            dataIndex: 'nss',
+            sorter: (a: User, b: User) => (a.nss ?? '').localeCompare(b.nss ?? ''),
+            width: 160,
+          }
+        ]} 
+        onRow={(record: User) => ({
+          onDoubleClick: () => {
+              const uid = Number(record.id_user);
+              if (!Number.isFinite(uid)) return;
+              const url = `${window.location.origin}/users/${uid}`;
+              window.open(url, '_blank', 'noopener,noreferrer');
+            },
+          style: { cursor: 'pointer' }
+        })}
+      />
+    </div>
+  );
+
+  return (
+    <div>
+      {contextHolder}
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={handleTabChange}
+        items={[
+          {
+            key: "1",
+            label: "Datos del Centro",
+            children: centerDataTab,
+          },
+          {
+            key: "2",
+            label: "Usuarios",
+            children: usersTab,
+          },
+        ]}
+      />
     </div>
   );
 }
