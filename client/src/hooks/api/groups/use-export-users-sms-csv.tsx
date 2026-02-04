@@ -45,7 +45,10 @@ export const useExportUsersToSmsCsv = () => {
 
   // Filter out users without phone — SMS export requires a phone number
   const withPhone = selected.filter(u => String(u.phone ?? '').trim() !== '');
-  if (withPhone.length === 0) throw new Error('No hay usuarios con teléfono para exportar');
+  if (withPhone.length === 0) {
+    const missingPhoneNames = selected.map(u => `${u.name} ${u.first_surname}`).join(', ');
+    throw new Error(`Usuarios sin teléfono: ${missingPhoneNames}. Por favor, registra números de teléfono para poder exportar a SMS.`);
+  }
 
   // Obtain course short name only when needed (lazy fetch). The caller can pass either the
     // short name string or a course id (number|string). If course id is provided we fetch the

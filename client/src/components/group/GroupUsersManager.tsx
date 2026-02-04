@@ -463,7 +463,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
                   messageApi.success(`CSV SMS exportado correctamente (${result.rowsCount} filas)`);
                 } catch (err) {
                   console.error('Error exportando SMS CSV', err);
-                  messageApi.error('Error al exportar SMS CSV');
+                  const errMsg = err instanceof Error ? err.message : String(err);
+                  messageApi.error(`Error al exportar SMS CSV: ${errMsg}`);
                 }
               }}
               disabled={isGroupLoading}
