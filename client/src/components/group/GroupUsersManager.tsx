@@ -12,7 +12,8 @@ import { useCreateBonificationFileMutation } from '../../hooks/api/groups/use-cr
 import { useUpdateUserEnrollmentCenterMutation } from '../../hooks/api/groups/use-update-user-enrollment-center.mutation';
 import { BonificationModal } from '../courses/BonificationModal';
 import { User } from '../../shared/types/user/user';
-import { USERS_TABLE_COLUMNS } from '../../constants/tables/users-table-columns.constant';
+import { USERS_TABLE_COLUMNS, filterUsersTimeSpentColumn } from '../../constants/tables/users-table-columns.constant';
+import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
 import { useSyncMoodleGroupMembersMutation } from '../../hooks/api/moodle/use-sync-moodle-group-members.mutation';
 import useMoodleGroupMembersApi from '../../hooks/api/moodle/use-moodle-group-members.api';
 import useExportUsersToMailCsv from '../../hooks/api/groups/use-export-users-mail-csv';
@@ -34,6 +35,12 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
     return idx !== -1 ? text.slice(0, idx) : text;
   };
   const { data: usersData, isLoading, refetch } = useUsersByGroupQuery(groupId ? Number(groupId) : null);
+  const { data: orgSettings } = useOrganizationSettingsQuery();
+  const itopTrainingEnabled = useMemo(() => {
+    const settings = orgSettings?.settings ?? {};
+    const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
+    return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
+  }, [orgSettings]);
 
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [selectedCenters, setSelectedCenters] = useState<Record<number, number>>({});
@@ -140,8 +147,9 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
     } as any;
 
     // Removed separate 'M' column — keep only the Moodle (previously G) column which indicates sync
-    return [groupSyncedColumn, ...USERS_TABLE_COLUMNS];
-  }, [usersData]);
+    const baseColumns = filterUsersTimeSpentColumn(USERS_TABLE_COLUMNS, itopTrainingEnabled);
+    return [groupSyncedColumn, ...baseColumns];
+  }, [usersData, itopTrainingEnabled]);
 
   // Compute totals for footer: total students and students with >=75% completion
   const { totalStudents, studentsAtOrAbove75 } = useMemo(() => {
@@ -529,6 +537,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         onCancel={() => setIsBonificationModalOpen(false)}
         onOk={handleConfirmBonification}
         users={usersData || []}
+        itopTrainingEnabled={itopTrainingEnabled}
         selectedUserIds={selectedUserIds}
         selectedCenters={selectedCenters}
         setSelectedCenters={setSelectedCenters}

@@ -24,6 +24,22 @@ export class ReportsPdfService {
   ) { }
 
   /**
+   * Reports may include time_spent only when itop_training is enabled in organization settings.
+   */
+  private async isItopTrainingEnabled(): Promise<boolean> {
+    try {
+      const orgRow = await this.organizationRepository.findFirst();
+      if (!orgRow) return false;
+      const settings = orgRow.settings ?? {};
+      const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
+      return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
+    } catch (e) {
+      this.logger.warn({ e }, 'ReportsPdfService:isItopTrainingEnabled - failed to read organization settings');
+      return false;
+    }
+  }
+
+  /**
    * Stream a simple tabular 'dedication' PDF grouped by center -> course using the shared PdfService
    */
   async streamDedicationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string }) {
@@ -58,6 +74,7 @@ export class ReportsPdfService {
     const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
     this.pdfService.streamDocumentToResponse(doc, res, 'report-dedication.pdf');
 
+    const showTimeSpent = await this.isItopTrainingEnabled();
     for (let gi = 0; gi < groups.length; gi++) {
       const g = groups[gi];
       if (gi > 0) doc.addPage();
@@ -98,18 +115,18 @@ export class ReportsPdfService {
         return `${seconds}s`;
       };
 
-      // Table: Usuario | [Clave] | Alumno | Tiempo | % (Clave is optional based on includePasswords)
+      // Table: Usuario | [Clave] | Alumno | [Tiempo] | % (Tiempo only when itop_training is enabled)
       const leftMargin = doc.page.margins?.left ?? 40;
       const rightMargin = doc.page.margins?.right ?? 40;
       const pageWidth = doc.page.width - leftMargin - rightMargin;
       const colUsuario = 120;
       const colClave = opts?.includePasswords ? 100 : 0;
-      const colTiempo = 90;
+      const colTiempo = showTimeSpent ? 90 : 0;
       const colPercent = 60;
       const colAlumno = Math.max(80, Math.floor(pageWidth - (colUsuario + colClave + colTiempo + colPercent)));
-      const colWidths = opts?.includePasswords 
-        ? [colUsuario, colClave, colAlumno, colTiempo, colPercent]
-        : [colUsuario, colAlumno, colTiempo, colPercent];
+      const colWidths = opts?.includePasswords
+        ? (showTimeSpent ? [colUsuario, colClave, colAlumno, colTiempo, colPercent] : [colUsuario, colClave, colAlumno, colPercent])
+        : (showTimeSpent ? [colUsuario, colAlumno, colTiempo, colPercent] : [colUsuario, colAlumno, colPercent]);
       const startX = doc.x;
       const colPositions = colWidths.map((w, i) => startX + colWidths.slice(0, i).reduce((s, v) => s + v, 0));
       const lineHeight = 12;
@@ -121,13 +138,21 @@ export class ReportsPdfService {
         doc.text('Usuario', colPositions[0], headerY, { width: colWidths[0], ellipsis: true });
         doc.text('Clave', colPositions[1], headerY, { width: colWidths[1], ellipsis: true });
         doc.text('Alumno', colPositions[2], headerY, { width: colWidths[2], ellipsis: true });
-        doc.text('Tiempo', colPositions[3], headerY, { width: colWidths[3], ellipsis: true });
-        doc.text('%', colPositions[4], headerY, { width: colWidths[4], ellipsis: true });
+        if (showTimeSpent) {
+          doc.text('Tiempo', colPositions[3], headerY, { width: colWidths[3], ellipsis: true });
+          doc.text('%', colPositions[4], headerY, { width: colWidths[4], ellipsis: true });
+        } else {
+          doc.text('%', colPositions[3], headerY, { width: colWidths[3], ellipsis: true });
+        }
       } else {
         doc.text('Usuario', colPositions[0], headerY, { width: colWidths[0], ellipsis: true });
         doc.text('Alumno', colPositions[1], headerY, { width: colWidths[1], ellipsis: true });
-        doc.text('Tiempo', colPositions[2], headerY, { width: colWidths[2], ellipsis: true });
-        doc.text('%', colPositions[3], headerY, { width: colWidths[3], ellipsis: true });
+        if (showTimeSpent) {
+          doc.text('Tiempo', colPositions[2], headerY, { width: colWidths[2], ellipsis: true });
+          doc.text('%', colPositions[3], headerY, { width: colWidths[3], ellipsis: true });
+        } else {
+          doc.text('%', colPositions[2], headerY, { width: colWidths[2], ellipsis: true });
+        }
       }
       // advance cursor below header
       doc.y = headerY + lineHeight;
@@ -149,13 +174,21 @@ export class ReportsPdfService {
             doc.text('Usuario', colPositions[0], headerY2, { width: colWidths[0], ellipsis: true });
             doc.text('Clave', colPositions[1], headerY2, { width: colWidths[1], ellipsis: true });
             doc.text('Alumno', colPositions[2], headerY2, { width: colWidths[2], ellipsis: true });
-            doc.text('Tiempo', colPositions[3], headerY2, { width: colWidths[3], ellipsis: true });
-            doc.text('%', colPositions[4], headerY2, { width: colWidths[4], ellipsis: true });
+            if (showTimeSpent) {
+              doc.text('Tiempo', colPositions[3], headerY2, { width: colWidths[3], ellipsis: true });
+              doc.text('%', colPositions[4], headerY2, { width: colWidths[4], ellipsis: true });
+            } else {
+              doc.text('%', colPositions[3], headerY2, { width: colWidths[3], ellipsis: true });
+            }
           } else {
             doc.text('Usuario', colPositions[0], headerY2, { width: colWidths[0], ellipsis: true });
             doc.text('Alumno', colPositions[1], headerY2, { width: colWidths[1], ellipsis: true });
-            doc.text('Tiempo', colPositions[2], headerY2, { width: colWidths[2], ellipsis: true });
-            doc.text('%', colPositions[3], headerY2, { width: colWidths[3], ellipsis: true });
+            if (showTimeSpent) {
+              doc.text('Tiempo', colPositions[2], headerY2, { width: colWidths[2], ellipsis: true });
+              doc.text('%', colPositions[3], headerY2, { width: colWidths[3], ellipsis: true });
+            } else {
+              doc.text('%', colPositions[2], headerY2, { width: colWidths[2], ellipsis: true });
+            }
           }
           doc.y = headerY2 + lineHeight;
           doc.moveDown(0.2);
@@ -173,13 +206,21 @@ export class ReportsPdfService {
           doc.text(usuario, colPositions[0], currentY, { width: colWidths[0], ellipsis: true });
           doc.text(clave, colPositions[1], currentY, { width: colWidths[1], ellipsis: true });
           doc.text(alumno, colPositions[2], currentY, { width: colWidths[2], ellipsis: true });
-          doc.text(tiempo, colPositions[3], currentY, { width: colWidths[3], ellipsis: true });
-          doc.text(pct, colPositions[4], currentY, { width: colWidths[4], ellipsis: true });
+          if (showTimeSpent) {
+            doc.text(tiempo, colPositions[3], currentY, { width: colWidths[3], ellipsis: true });
+            doc.text(pct, colPositions[4], currentY, { width: colWidths[4], ellipsis: true });
+          } else {
+            doc.text(pct, colPositions[3], currentY, { width: colWidths[3], ellipsis: true });
+          }
         } else {
           doc.text(usuario, colPositions[0], currentY, { width: colWidths[0], ellipsis: true });
           doc.text(alumno, colPositions[1], currentY, { width: colWidths[1], ellipsis: true });
-          doc.text(tiempo, colPositions[2], currentY, { width: colWidths[2], ellipsis: true });
-          doc.text(pct, colPositions[3], currentY, { width: colWidths[3], ellipsis: true });
+          if (showTimeSpent) {
+            doc.text(tiempo, colPositions[2], currentY, { width: colWidths[2], ellipsis: true });
+            doc.text(pct, colPositions[3], currentY, { width: colWidths[3], ellipsis: true });
+          } else {
+            doc.text(pct, colPositions[2], currentY, { width: colWidths[2], ellipsis: true });
+          }
         }
 
         currentY += lineHeight;

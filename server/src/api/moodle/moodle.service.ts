@@ -359,6 +359,22 @@ export class MoodleService {
     }
 
     /**
+     * Returns true when organization settings enable the itop_training plugin.
+     */
+    private async isItopTrainingEnabled(): Promise<boolean> {
+        try {
+            const orgRow = await this.organizationRepository.findFirst();
+            if (!orgRow) return false;
+            const settings = orgRow.settings ?? {};
+            const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
+            return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
+        } catch (err) {
+            this.logger.warn({ err }, 'MoodleService:isItopTrainingEnabled - failed to read organization settings');
+            return false;
+        }
+    }
+
+    /**
      * Fetch user stats from the custom block_advanced_reports API.
      * Returns a map keyed by moodle user id with numeric values.
      */
@@ -518,11 +534,16 @@ export class MoodleService {
             this.progressCache.clear(); // Limpiar cache anterior
             await this.preloadCourseProgress(parentCourse.moodle_id, userIds);
 
-            try {
-                dedicationByUser = await this.getAdvancedReportsUserStats(parentCourse.moodle_id, 'platformdedicationtime', moodleGroupId);
-            } catch (err: unknown) {
-                const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
-                this.logger.warn({ err: errForLog, courseId: parentCourse.moodle_id, groupId: moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch platformdedicationtime');
+            const itopEnabled = await this.isItopTrainingEnabled();
+            if (itopEnabled) {
+                try {
+                    dedicationByUser = await this.getAdvancedReportsUserStats(parentCourse.moodle_id, 'platformdedicationtime', moodleGroupId);
+                } catch (err: unknown) {
+                    const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                    this.logger.warn({ err: errForLog, courseId: parentCourse.moodle_id, groupId: moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch platformdedicationtime');
+                }
+            } else {
+                this.logger.log({ courseId: parentCourse.moodle_id, groupId: moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - itop_training disabled, skipping time_spent sync');
             }
         }
 

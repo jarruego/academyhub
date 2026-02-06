@@ -2,7 +2,7 @@ import { Modal, Table, Button, Select, App } from "antd";
 import type { ColumnGroupType, ColumnType } from "antd/es/table";
 import { User } from "../../shared/types/user/user";
 import React from "react";
-import { USERS_TABLE_COLUMNS } from "../../constants/tables/users-table-columns.constant";
+import { USERS_TABLE_COLUMNS, filterUsersTimeSpentColumn } from "../../constants/tables/users-table-columns.constant";
 import type { UseMutationResult } from '@tanstack/react-query';
 import type { UpdateUserEnrollmentCenterPayload } from '../../hooks/api/groups/use-update-user-enrollment-center.mutation';
 
@@ -11,6 +11,7 @@ interface BonificationModalProps {
   onCancel: () => void;
   onOk: () => void;
   users: User[];
+  itopTrainingEnabled: boolean;
   selectedUserIds: number[];
   selectedCenters: Record<number, number>;
   setSelectedCenters: React.Dispatch<React.SetStateAction<Record<number, number>>>;
@@ -28,6 +29,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
   onCancel,
   onOk,
   users,
+  itopTrainingEnabled,
   selectedUserIds,
   selectedCenters,
   setSelectedCenters,
@@ -102,7 +104,10 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
         );
       }
     },
-    ...USERS_TABLE_COLUMNS.filter(col => col.title !== 'Centro' && col.title !== 'Empresa'),
+    ...filterUsersTimeSpentColumn(
+      USERS_TABLE_COLUMNS.filter(col => col.title !== 'Centro' && col.title !== 'Empresa'),
+      itopTrainingEnabled
+    ),
     {
       title: 'Acciones',
       key: 'acciones',

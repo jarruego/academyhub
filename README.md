@@ -63,6 +63,16 @@ The platform integrates with Moodle using the following official web services:
 | core_user_get_users                              | General user search                         |
 | core_user_get_users_by_field                     | Search users by specific fields             |
 
+### Optional Custom Moodle Plugins
+
+Some deployments use a custom Moodle plugin (itop_training). When enabled, AcademyHub can fetch student dedication time and show the **Tiempo usado** column in reports and PDFs.
+
+- **Custom WS function**: `block_advanced_reports_get_userstats`
+- **Stat used**: `platformdedicationtime`
+- **Config flag**: `organization_settings.settings.plugins.itop_training = true`
+
+If the flag is **false** (or missing), the platform will skip the custom API call and hide time_spent in the UI/PDFs.
+
 ### Moodle Configuration (Optional)
 
 For enhanced user matching and data cross-referencing, AcademyHub can optionally use the following configuration in your Moodle instance:

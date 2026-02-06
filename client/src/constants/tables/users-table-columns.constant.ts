@@ -81,3 +81,12 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
         return center?.company_name ?? '-';
       } },
 ]
+
+/**
+ * Filter the time_spent column when the itop_training plugin is disabled.
+ * This keeps shared tables consistent across the app.
+ */
+export const filterUsersTimeSpentColumn = (columns: ColumnProps<User>[], includeTimeSpent: boolean) => {
+  if (includeTimeSpent) return columns;
+  return columns.filter(col => col.title !== 'Tiempo usado');
+};

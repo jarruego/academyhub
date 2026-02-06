@@ -7,6 +7,7 @@ import type { Dayjs } from 'dayjs';
 import { Table, TablePaginationConfig, Select, Space, DatePicker, Input, Button, Modal, Checkbox } from 'antd';
 import type { SorterResult, FilterValue, SortOrder } from 'antd/es/table/interface';
 import { useReportsQuery, ReportsQueryParams } from '../../hooks/api/reports/use-reports.query';
+import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
 import { useCoursesQuery } from '../../hooks/api/courses/use-courses.query';
 import { useGroupsQuery } from '../../hooks/api/groups/use-groups.query';
 import { useCompaniesQuery } from '../../hooks/api/companies/use-companies.query';
@@ -53,6 +54,13 @@ export default function ReportsRoute() {
   const [selectedCourse, setSelectedCourse] = useState<number | undefined>(undefined);
   const [selectedGroup, setSelectedGroup] = useState<number[]>([]);
   const [completionFilter, setCompletionFilter] = useState<'all' | 'gte75' | 'eq100'>('all');
+
+  const { data: orgSettings } = useOrganizationSettingsQuery();
+  const itopTrainingEnabled = useMemo(() => {
+    const settings = orgSettings?.settings ?? {};
+    const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
+    return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
+  }, [orgSettings]);
 
   // Default to sort by group end date (newest first)
   const [sortField, setSortField] = useState<string | undefined>('group_end_date');
@@ -183,7 +191,7 @@ export default function ReportsRoute() {
     { title: 'Empresa', dataIndex: 'company_name', key: 'company_name', sorter: true },
     { title: 'Centro', dataIndex: 'center_name', key: 'center_name', sorter: true },
   { title: 'Progreso', dataIndex: 'completion_percentage', key: 'completion_percentage', sorter: true },
-  { title: 'Tiempo usado', dataIndex: 'time_spent', key: 'time_spent', sorter: true, render: (val?: number | null) => formatTimeSpent(val) },
+  ...(itopTrainingEnabled ? [{ title: 'Tiempo usado', dataIndex: 'time_spent', key: 'time_spent', sorter: true, render: (val?: number | null) => formatTimeSpent(val) }] : []),
   { title: 'Nombre', dataIndex: 'name', key: 'name', sorter: true },
     { title: 'Apellido 1', dataIndex: 'first_surname', key: 'first_surname', sorter: true },
     { title: 'Apellido 2', dataIndex: 'second_surname', key: 'second_surname', sorter: true },
@@ -198,7 +206,7 @@ export default function ReportsRoute() {
     { title: 'ID Moodle', dataIndex: 'moodle_id', key: 'moodle_id', sorter: true },
     { title: 'Usuario Moodle', dataIndex: 'moodle_username', key: 'moodle_username', sorter: true },
     { title: 'Password Moodle', dataIndex: 'moodle_password', key: 'moodle_password', sorter: true },
-  ]), []);
+  ]), [itopTrainingEnabled]);
 
   // Ensure each column has a minimum width so the table keeps readable columns
   // when there are many columns. We add a cell style with minWidth; the Table
