@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { MoodleUserRepository } from "src/database/repository/moodle-user/moodle-user.repository";
 import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
+import { UserGroupRepository } from 'src/database/repository/group/user-group.repository';
 import { QueryOptions } from "src/database/repository/repository";
 import { 
   MoodleUserInsertModel, 
@@ -19,6 +20,7 @@ export class MoodleUserService {
   constructor(
     private readonly moodleUserRepository: MoodleUserRepository,
     private readonly userCourseRepository: UserCourseRepository,
+    private readonly userGroupRepository: UserGroupRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
   ) { }
 
@@ -147,6 +149,12 @@ export class MoodleUserService {
    */
   async unlinkUserFromMoodle(moodleUserId: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const moodleUser = await this.moodleUserRepository.findById(moodleUserId, { transaction });
+      if (moodleUser?.id_user) {
+        await this.userGroupRepository.clearMoodleSyncedAtByUserId(moodleUser.id_user, { transaction });
+      }
+      // Clear FK references in user_course before deleting moodle_user
+      await this.userCourseRepository.clearMoodleUserId(moodleUserId, { transaction });
       return await this.moodleUserRepository.delete(moodleUserId, { transaction });
     });
   }

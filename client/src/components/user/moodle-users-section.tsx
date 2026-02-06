@@ -1,5 +1,5 @@
 import { Table, Tag, Spin, Alert, Button, Popconfirm, message, Tooltip } from "antd";
-import { FileProtectOutlined, CloudDownloadOutlined } from '@ant-design/icons';
+import { FileProtectOutlined, CloudDownloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
@@ -11,6 +11,7 @@ import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.u
 import { getApiHost } from '../../utils/api/get-api-host.util';
 import type { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
 import { useSetMainMoodleUserMutation } from '../../hooks/api/moodle-users/use-set-main-moodle-user.mutation';
+import { useUnlinkMoodleUserMutation } from '../../hooks/api/moodle-users/use-unlink-moodle-user.mutation';
 import { useState } from 'react';
 
 interface MoodleUsersSectionProps {
@@ -21,6 +22,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
   const { data: moodleUsers, isLoading, error } = useMoodleUsersByUserIdQuery(userId);
   const request = useAuthenticatedAxios();
   const setMainMutation = useSetMainMoodleUserMutation(userId);
+  const unlinkMutation = useUnlinkMoodleUserMutation(userId);
   const { data: orgSettings } = useOrganizationSettingsQuery();
   const [messageApi, messageContextHolder] = message.useMessage();
   const [syncingMoodleId, setSyncingMoodleId] = useState<number | null>(null);
@@ -180,7 +182,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
     },
     // action column: open Moodle certificates for this moodle_id
     {
-      title: 'Cert.',
+      title: 'Acciones',
       key: 'actions',
       render: (_v, record: MoodleUserSelectModel) => {
         // build moodle base origin from org settings if available
@@ -197,7 +199,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
         const tip = !certificatesPluginEnabled ? 'Plugin de certificados no habilitado' : (!target ? 'URL de Moodle no configurada' : 'Ver certificados');
 
         return (
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Tooltip title={tip}>
               <Button
                 size="small"
@@ -207,6 +209,35 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
                 onClick={() => !disabled && target && window.open(target, '_blank', 'noopener,noreferrer')}
               />
             </Tooltip>
+            <Popconfirm
+              title="¿Desvincular este usuario de Moodle?"
+              description={
+                <div style={{ fontSize: 12 }}>
+                  Esta acción elimina la asociación en la base de datos local.
+                  <br />
+                  La cuenta seguirá existiendo en Moodle y deberá eliminarse manualmente.
+                </div>
+              }
+              okText="Desvincular"
+              cancelText="Cancelar"
+              okButtonProps={{ danger: true }}
+              onConfirm={async () => {
+                try {
+                  await unlinkMutation.mutateAsync(record.id_moodle_user);
+                  messageApi.success('Usuario desvinculado de Moodle (solo local)');
+                } catch (err) {
+                  messageApi.error('No se pudo desvincular el usuario');
+                }
+              }}
+            >
+              <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                aria-label="Desvincular usuario de Moodle"
+                loading={unlinkMutation.isPending}
+              />
+            </Popconfirm>
           </div>
         );
       }

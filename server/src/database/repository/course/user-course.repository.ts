@@ -64,6 +64,13 @@ export class UserCourseRepository extends Repository {
         return result;
     }
 
+    async clearMoodleUserId(moodleUserId: number, options?: QueryOptions) {
+        return await this.query(options)
+            .update(userCourseTable)
+            .set({ id_moodle_user: null })
+            .where(eq(userCourseTable.id_moodle_user, moodleUserId));
+    }
+
     async findCoursesByUserId(userId: number, options?: QueryOptions): Promise<UserCourseWithCourse[]> {
         return await this.query(options)
             .select({

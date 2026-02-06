@@ -122,6 +122,13 @@ export class UserGroupRepository extends Repository {
         return result;
     }
 
+    async clearMoodleSyncedAtByUserId(id_user: number, options?: QueryOptions) {
+        return await this.query(options)
+            .update(userGroupTable)
+            .set({ moodle_synced_at: null })
+            .where(eq(userGroupTable.id_user, id_user));
+    }
+
     async deleteUserFromGroup(id_group: number, id_user: number, options?: QueryOptions) {
         const result = await this.query(options)
             .delete(userGroupTable)
