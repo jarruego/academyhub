@@ -18,6 +18,8 @@ export type UserWithEnrollmentInfo = UserSelectModel & {
     enrollment_company_cif?: string | null;
     // id_moodle_user associated to the user's enrollment in the course (nullable)
     id_moodle_user?: number | null;
+    // Time spent in course (from user_course)
+    time_spent?: number | null;
     // Fecha/hora local en la que este usuario fue añadido al grupo en Moodle (nullable)
     moodle_synced_at?: Date | null;
 };
@@ -79,6 +81,7 @@ export class UserGroupRepository extends Repository {
         return rows.map((r) => ({
             ...r.users,
             completion_percentage: r.user_course.completion_percentage,
+            time_spent: r.user_course.time_spent ?? null,
             id_role: r.user_group?.id_role,
             role_shortname: r.role?.role_shortname,
             enrollment_center_id: r.user_group?.id_center,
@@ -106,6 +109,7 @@ export class UserGroupRepository extends Repository {
             enrollment_company_cif: r.company?.cif,
             // for this variant we don't have user_course joined; id_moodle_user will be null
             id_moodle_user: null,
+            time_spent: null,
             moodle_synced_at: r.user_group?.moodle_synced_at ?? null,
         }));
     }

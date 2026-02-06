@@ -18,6 +18,18 @@ import { ReportRow } from '../../shared/types/reports/report-row';
 import { PaginationResult } from '../../shared/types/pagination';
 import type { Center } from '../../shared/types/center/center';
 
+const formatTimeSpent = (value?: number | null) => {
+  if (value === null || value === undefined) return '-';
+  const total = Number(value);
+  if (!Number.isFinite(total) || total < 0) return '-';
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = Math.floor(total % 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${seconds}s`;
+};
+
 export default function ReportsRoute() {
   useEffect(() => {
     document.title = "Informes";
@@ -171,6 +183,7 @@ export default function ReportsRoute() {
     { title: 'Empresa', dataIndex: 'company_name', key: 'company_name', sorter: true },
     { title: 'Centro', dataIndex: 'center_name', key: 'center_name', sorter: true },
   { title: 'Progreso', dataIndex: 'completion_percentage', key: 'completion_percentage', sorter: true },
+  { title: 'Tiempo usado', dataIndex: 'time_spent', key: 'time_spent', sorter: true, render: (val?: number | null) => formatTimeSpent(val) },
   { title: 'Nombre', dataIndex: 'name', key: 'name', sorter: true },
     { title: 'Apellido 1', dataIndex: 'first_surname', key: 'first_surname', sorter: true },
     { title: 'Apellido 2', dataIndex: 'second_surname', key: 'second_surname', sorter: true },

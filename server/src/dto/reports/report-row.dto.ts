@@ -52,6 +52,9 @@ export class ReportRowDTO {
   completion_percentage?: number | string;
 
   @ApiPropertyOptional()
+  time_spent?: number | null;
+
+  @ApiPropertyOptional()
   course_name?: string;
 
   @ApiPropertyOptional()

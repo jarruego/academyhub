@@ -43,6 +43,9 @@ export const useReportsQuery = (params?: ReportsQueryParams) => {
         throw err;
       }
     },
-    staleTime: 1000 * 60 * 2, // cache 2 minutes
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 };

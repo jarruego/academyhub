@@ -508,6 +508,25 @@ export class MoodleService {
                             const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
                             Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_course: localGroup.id_course }, 'MoodleService:syncMoodleGroupMembers - could not persist completion_percentage to user_course');
                         }
+
+                        try {
+                            // Keep user_group completion in sync for reports and group views
+                            await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { completion_percentage: completionValue });
+                        } catch (upErr: unknown) {
+                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                            Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_group: localGroup.id_group }, 'MoodleService:syncMoodleGroupMembers - could not persist completion_percentage to user_group');
+                        }
+
+                        try {
+                            // Sync time_spent from user_course into user_group when available
+                            const uc = await this.userCourseRepository.findByCourseAndUserId(localGroup.id_course, existingMoodleUser.id_user);
+                            if (uc?.time_spent !== undefined && uc?.time_spent !== null) {
+                                await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { time_spent: uc.time_spent });
+                            }
+                        } catch (upErr: unknown) {
+                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                            Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_group: localGroup.id_group }, 'MoodleService:syncMoodleGroupMembers - could not persist time_spent to user_group');
+                        }
                     } else {
                         // No parent course Moodle id: skip per-user progress fetch
                     }

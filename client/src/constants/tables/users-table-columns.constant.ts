@@ -7,6 +7,18 @@ import { Progress } from "antd";
 // optional `is_enrollment_center` flag that the backend may include.
 type Center = UserCenter & { is_enrollment_center?: boolean };
 
+const formatTimeSpent = (value?: number | null) => {
+  if (value === null || value === undefined) return '-';
+  const total = Number(value);
+  if (!Number.isFinite(total) || total < 0) return '-';
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = Math.floor(total % 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return `${seconds}s`;
+};
+
 export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
     // { title: 'ID', dataIndex: ['id_user'], sorter: {
     //     compare: (a, b) =>  a.id_user > b.id_user ? 1 : -1,
@@ -39,6 +51,9 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
             strokeColor: percent >= 75 ? '#52c41a' : '#ff4d4f',
         });
     } },
+    { title: 'Tiempo usado', dataIndex: ['time_spent'], sorter: {
+      compare: (a, b) => (Number(a.time_spent) || 0) - (Number(b.time_spent) || 0),
+    }, render: (_: unknown, user: User) => formatTimeSpent(user.time_spent) },
   { title: 'Centro',
       sorter: {
         compare: (a, b) => {
