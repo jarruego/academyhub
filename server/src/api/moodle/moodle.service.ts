@@ -359,6 +359,113 @@ export class MoodleService {
     }
 
     /**
+     * Fetch user stats from the custom block_advanced_reports API.
+     * Returns a map keyed by moodle user id with numeric values.
+     */
+    private async getAdvancedReportsUserStats(courseId: number, stat: string, groupId?: number): Promise<Map<number, number>> {
+        const params: MoodleParams = { courseid: courseId, stat };
+        if (groupId) params['groupid'] = groupId;
+
+        const raw = await this.request<unknown>('block_advanced_reports_get_userstats', { params, method: 'post' });
+
+        const debugEnabled = String(process.env.DEBUG_MOODLE_STATS ?? '').toLowerCase() === 'true';
+        if (debugEnabled) {
+            const rawKeys = (raw && typeof raw === 'object') ? Object.keys(raw as Record<string, unknown>) : undefined;
+            this.logger.log({ courseId, stat, groupId, rawType: typeof raw, rawKeys }, 'MoodleService:getAdvancedReportsUserStats - raw response meta');
+        }
+
+        const candidates: unknown[] = [];
+        if (Array.isArray(raw)) candidates.push(...raw);
+        if (raw && typeof raw === 'object') {
+            const r = raw as Record<string, unknown>;
+            if (Array.isArray(r.data)) candidates.push(...r.data);
+            if (Array.isArray(r.users)) candidates.push(...r.users);
+            if (Array.isArray(r.results)) candidates.push(...r.results);
+            if (Array.isArray(r.stats)) candidates.push(...r.stats);
+
+            // Shallow recursive scan for array values in nested objects
+            const scanArrays = (obj: Record<string, unknown>, depth: number) => {
+                if (depth <= 0) return;
+                for (const val of Object.values(obj)) {
+                    if (Array.isArray(val)) {
+                        candidates.push(...val);
+                    } else if (val && typeof val === 'object') {
+                        scanArrays(val as Record<string, unknown>, depth - 1);
+                    }
+                }
+            };
+            scanArrays(r, 2);
+        }
+
+        const map = new Map<number, number>();
+        const parseTimeStringToSeconds = (input: unknown): number | null => {
+            if (typeof input !== 'string') return null;
+            const str = input.trim();
+            if (!str) return null;
+            // Accept formats like "06h 14m 24s" or "6h" or "14m" or "24s"
+            const match = /(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?/i.exec(str);
+            if (!match) return null;
+            const h = match[1] ? Number(match[1]) : 0;
+            const m = match[2] ? Number(match[2]) : 0;
+            const s = match[3] ? Number(match[3]) : 0;
+            if (![h, m, s].every(n => Number.isFinite(n))) return null;
+            return (h * 3600) + (m * 60) + s;
+        };
+        let parsed = 0;
+        let invalid = 0;
+        for (const item of candidates) {
+            if (!item || typeof item !== 'object') continue;
+            const row = item as Record<string, unknown>;
+            const userIdRaw = row.userid ?? row.user_id ?? row.id ?? row.moodleid ?? row.moodle_user_id;
+            const valueRaw = row.value ?? row.statvalue ?? row.time_spent ?? row[stat];
+            const userId = Number(userIdRaw);
+            const parsedValue = Number(valueRaw);
+            const value = Number.isFinite(parsedValue) ? parsedValue : (parseTimeStringToSeconds(valueRaw) ?? NaN);
+            if (Number.isFinite(userId) && Number.isFinite(value)) {
+                map.set(userId, value);
+                parsed += 1;
+            } else {
+                invalid += 1;
+                if (debugEnabled && invalid <= 5) {
+                    this.logger.warn({ sample: row, userIdRaw, valueRaw }, 'MoodleService:getAdvancedReportsUserStats - unparsed row');
+                }
+            }
+        }
+
+        // Fallback: handle map-like objects (userid -> value)
+        if (map.size === 0 && raw && typeof raw === 'object') {
+            const entries = Object.entries(raw as Record<string, unknown>);
+            let mapped = 0;
+            for (const [k, v] of entries) {
+                const userId = Number(k);
+                const value = Number(v);
+                if (Number.isFinite(userId) && Number.isFinite(value)) {
+                    map.set(userId, value);
+                    mapped += 1;
+                }
+            }
+            if (debugEnabled && mapped > 0) {
+                this.logger.log({ courseId, stat, groupId, mapped }, 'MoodleService:getAdvancedReportsUserStats - parsed map-like response');
+            }
+        }
+
+        if (debugEnabled) {
+            this.logger.log({ courseId, stat, groupId, candidates: candidates.length, parsed, invalid, mapSize: map.size }, 'MoodleService:getAdvancedReportsUserStats - parsed summary');
+            if (candidates.length === 0) {
+                try {
+                    const rawJson = JSON.stringify(raw);
+                    const sample = rawJson.length > 2000 ? `${rawJson.slice(0, 2000)}...` : rawJson;
+                    this.logger.warn({ courseId, stat, groupId, rawSample: sample }, 'MoodleService:getAdvancedReportsUserStats - raw payload sample (no candidates)');
+                } catch (e) {
+                    this.logger.warn({ courseId, stat, groupId }, 'MoodleService:getAdvancedReportsUserStats - raw payload not serializable');
+                }
+            }
+        }
+
+        return map;
+    }
+
+    /**
      * Sync members of a Moodle group by fetching Moodle group members and
      * updating each corresponding local user/group record one-by-one.
      * This performs per-user updates (no single big transaction) so failures
@@ -391,6 +498,7 @@ export class MoodleService {
         // course here so we can request per-user completion status when available.
         const enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
         let parentCourse: { id_course?: number; moodle_id?: number } | null = null;
+        let dedicationByUser: Map<number, number> | null = null;
         try {
             parentCourse = localGroup.id_course ? await this.courseRepository.findById(localGroup.id_course) : null;
             if (parentCourse && parentCourse.moodle_id) {
@@ -409,6 +517,13 @@ export class MoodleService {
             const userIds = moodleUsers.map(u => u.id);
             this.progressCache.clear(); // Limpiar cache anterior
             await this.preloadCourseProgress(parentCourse.moodle_id, userIds);
+
+            try {
+                dedicationByUser = await this.getAdvancedReportsUserStats(parentCourse.moodle_id, 'platformdedicationtime', moodleGroupId);
+            } catch (err: unknown) {
+                const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                this.logger.warn({ err: errForLog, courseId: parentCourse.moodle_id, groupId: moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch platformdedicationtime');
+            }
         }
 
         for (const mu of moodleUsers) {
@@ -517,15 +632,26 @@ export class MoodleService {
                             Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_group: localGroup.id_group }, 'MoodleService:syncMoodleGroupMembers - could not persist completion_percentage to user_group');
                         }
 
-                        try {
-                            // Sync time_spent from user_course into user_group when available
-                            const uc = await this.userCourseRepository.findByCourseAndUserId(localGroup.id_course, existingMoodleUser.id_user);
-                            if (uc?.time_spent !== undefined && uc?.time_spent !== null) {
-                                await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { time_spent: uc.time_spent });
+                        if (dedicationByUser) {
+                            const rawTime = dedicationByUser.get(mu.id);
+                            if (rawTime !== undefined && rawTime !== null) {
+                                const timeSpent = Math.max(0, Math.round(Number(rawTime)));
+                                if (Number.isFinite(timeSpent)) {
+                                    try {
+                                        await this.userCourseRepository.updateById(existingMoodleUser.id_user, localGroup.id_course, { time_spent: timeSpent });
+                                    } catch (upErr: unknown) {
+                                        const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                                        Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_course: localGroup.id_course }, 'MoodleService:syncMoodleGroupMembers - could not persist time_spent to user_course');
+                                    }
+
+                                    try {
+                                        await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { time_spent: timeSpent });
+                                    } catch (upErr: unknown) {
+                                        const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                                        Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_group: localGroup.id_group }, 'MoodleService:syncMoodleGroupMembers - could not persist time_spent to user_group');
+                                    }
+                                }
                             }
-                        } catch (upErr: unknown) {
-                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
-                            Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_group: localGroup.id_group }, 'MoodleService:syncMoodleGroupMembers - could not persist time_spent to user_group');
                         }
                     } else {
                         // No parent course Moodle id: skip per-user progress fetch
