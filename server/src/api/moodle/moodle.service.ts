@@ -1699,6 +1699,8 @@ export class MoodleService {
                 email: tc.user.email || `${username}@example.local`,
                 auth: 'manual',
                 idnumber: tc.user.dni ?? '',
+                confirmed: 1,
+                suspended: 0,
             };
         });
 
@@ -1747,7 +1749,17 @@ export class MoodleService {
                 let createdId: number | null = null;
                 let createdUsername: string | null = null;
                 for (const tryName of attempts) {
-                    const payload = [{ username: tryName, password, firstname, lastname, email: original.user.email || `${tryName}@example.local`, auth: 'manual', idnumber: original.user.dni ?? '' }];
+                    const payload = [{
+                        username: tryName,
+                        password,
+                        firstname,
+                        lastname,
+                        email: original.user.email || `${tryName}@example.local`,
+                        auth: 'manual',
+                        idnumber: original.user.dni ?? '',
+                        confirmed: 1,
+                        suspended: 0,
+                    }];
                     try {
                         const singleCreate = await this.request<Array<{ id: number; username: string }>>('core_user_create_users', { method: 'post', params: { users: payload } });
                         if (Array.isArray(singleCreate) && singleCreate.length > 0) {
