@@ -1699,8 +1699,6 @@ export class MoodleService {
                 email: tc.user.email || `${username}@example.local`,
                 auth: 'manual',
                 idnumber: tc.user.dni ?? '',
-                confirmed: 1,
-                suspended: 0,
             };
         });
 
@@ -1757,8 +1755,6 @@ export class MoodleService {
                         email: original.user.email || `${tryName}@example.local`,
                         auth: 'manual',
                         idnumber: original.user.dni ?? '',
-                        confirmed: 1,
-                        suspended: 0,
                     }];
                     try {
                         const singleCreate = await this.request<Array<{ id: number; username: string }>>('core_user_create_users', { method: 'post', params: { users: payload } });
