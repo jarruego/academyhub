@@ -1646,7 +1646,7 @@ export class MoodleService {
                 await this.request('core_user_update_users', {
                     method: 'post',
                     params: {
-                        users: [{ id: moodleUserId, description: '', descriptionformat: 1 }],
+                        users: [{ id: moodleUserId, description: '' }],
                     },
                 });
             } catch (err: unknown) {
