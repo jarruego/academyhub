@@ -1720,6 +1720,7 @@ export class MoodleService {
                 timezone: '99',
                 mailformat: 1,
                 maildisplay: 2,
+                customfields: tc.user.dni ? [{ shortname: 'dni', value: String(tc.user.dni) }] : [],
             };
         });
 
@@ -1784,6 +1785,7 @@ export class MoodleService {
                         timezone: '99',
                         mailformat: 1,
                         maildisplay: 2,
+                        customfields: original.user.dni ? [{ shortname: 'dni', value: String(original.user.dni) }] : [],
                     }];
                     try {
                         const singleCreate = await this.request<Array<{ id: number; username: string }>>('core_user_create_users', { method: 'post', params: { users: payload } });
