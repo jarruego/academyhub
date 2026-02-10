@@ -1641,6 +1641,20 @@ export class MoodleService {
     type LocalUser = Pick<UserSelectModel, 'id_user' | 'name' | 'first_surname' | 'email' | 'dni'>;
         const toCreate: Array<{ localUserId: number; user: LocalUser; password: string }> = [];
 
+        const ensureProfileInitialized = async (moodleUserId: number) => {
+            try {
+                await this.request('core_user_update_users', {
+                    method: 'post',
+                    params: {
+                        users: [{ id: moodleUserId, description: '', descriptionformat: 1 }],
+                    },
+                });
+            } catch (err: unknown) {
+                const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                Logger.warn({ err: errForLog, moodleUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to initialize description/format');
+            }
+        };
+
         // First, collect existing mappings and those missing
         for (const id_user of localUserIds) {
             try {
@@ -1700,7 +1714,6 @@ export class MoodleService {
                 auth: 'manual',
                 idnumber: tc.user.dni ?? '',
                 description: '',
-                descriptionformat: 1,
                 city: '',
                 country: '',
                 lang: 'es',
@@ -1718,6 +1731,7 @@ export class MoodleService {
                     const c = created[i];
                     const original = toCreate[i];
                     try {
+                        if (c?.id) await ensureProfileInitialized(c.id);
                         const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: c.id, moodle_username: c.username, moodle_password: original.password, is_main_user: true } as MoodleUserInsertModel);
                         const insertId = resolveInsertId(mu as unknown);
                         mappings.push({ localUserId: original.localUserId, moodleId: c.id, id_moodle_user: insertId ?? undefined });
@@ -1764,7 +1778,6 @@ export class MoodleService {
                         auth: 'manual',
                         idnumber: original.user.dni ?? '',
                         description: '',
-                        descriptionformat: 1,
                         city: '',
                         country: '',
                         lang: 'es',
@@ -1788,6 +1801,7 @@ export class MoodleService {
 
                 if (createdId && createdUsername) {
                     try {
+                        await ensureProfileInitialized(createdId);
                         const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: createdId, moodle_username: createdUsername, moodle_password: password, is_main_user: true } as MoodleUserInsertModel);
                         const insertId = resolveInsertId(mu as unknown);
                         mappings.push({ localUserId: original.localUserId, moodleId: createdId, id_moodle_user: insertId ?? undefined });
