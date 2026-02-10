@@ -15,13 +15,13 @@ export class UserController {
     private readonly moodleService: MoodleService,
   ) {}
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Post()
   async create(@Body() createUserDTO: CreateUserDTO) {
     return this.userService.create(createUserDTO);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateUserDTO: UpdateUserDTO) {
     const numericId = parseInt(id, 10);

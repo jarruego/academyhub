@@ -100,7 +100,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
                     PRINCIPAL
                   </Button>
                 ) : (
-                  <AuthzHide roles={[Role.ADMIN]}>
+                  <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
                     <Popconfirm
                       title="Marcar este centro como principal?"
                       onConfirm={async () => {

@@ -13,6 +13,8 @@ import type { UserCourseWithCourse } from '../../shared/types/user-course/user-c
 import { useSetMainMoodleUserMutation } from '../../hooks/api/moodle-users/use-set-main-moodle-user.mutation';
 import { useUnlinkMoodleUserMutation } from '../../hooks/api/moodle-users/use-unlink-moodle-user.mutation';
 import { useState } from 'react';
+import { AuthzHide } from "../permissions/authz-hide";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 interface MoodleUsersSectionProps {
   userId: number;
@@ -209,35 +211,37 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
                 onClick={() => !disabled && target && window.open(target, '_blank', 'noopener,noreferrer')}
               />
             </Tooltip>
-            <Popconfirm
-              title="¿Desvincular este usuario de Moodle?"
-              description={
-                <div style={{ fontSize: 12 }}>
-                  Esta acción elimina la asociación en la base de datos local.
-                  <br />
-                  La cuenta seguirá existiendo en Moodle y deberá eliminarse manualmente.
-                </div>
-              }
-              okText="Desvincular"
-              cancelText="Cancelar"
-              okButtonProps={{ danger: true }}
-              onConfirm={async () => {
-                try {
-                  await unlinkMutation.mutateAsync(record.id_moodle_user);
-                  messageApi.success('Usuario desvinculado de Moodle (solo local)');
-                } catch (err) {
-                  messageApi.error('No se pudo desvincular el usuario');
+            <AuthzHide roles={[Role.ADMIN]}>
+              <Popconfirm
+                title="¿Desvincular este usuario de Moodle?"
+                description={
+                  <div style={{ fontSize: 12 }}>
+                    Esta acción elimina la asociación en la base de datos local.
+                    <br />
+                    La cuenta seguirá existiendo en Moodle y deberá eliminarse manualmente.
+                  </div>
                 }
-              }}
-            >
-              <Button
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                aria-label="Desvincular usuario de Moodle"
-                loading={unlinkMutation.isPending}
-              />
-            </Popconfirm>
+                okText="Desvincular"
+                cancelText="Cancelar"
+                okButtonProps={{ danger: true }}
+                onConfirm={async () => {
+                  try {
+                    await unlinkMutation.mutateAsync(record.id_moodle_user);
+                    messageApi.success('Usuario desvinculado de Moodle (solo local)');
+                  } catch (err) {
+                    messageApi.error('No se pudo desvincular el usuario');
+                  }
+                }}
+              >
+                <Button
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  aria-label="Desvincular usuario de Moodle"
+                  loading={unlinkMutation.isPending}
+                />
+              </Popconfirm>
+            </AuthzHide>
           </div>
         );
       }

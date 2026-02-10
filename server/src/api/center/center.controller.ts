@@ -19,7 +19,7 @@ export class CenterController {
     return this.centerService.create(createCenterDTO);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Put('users-main-center')
   async updateUsersMainCenter(@Body() body: UpdateUsersMainCenterDTO) {
     await this.centerService.updateUsersMainCenters(body.users);

@@ -592,7 +592,7 @@ const navigate = useNavigate();
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start', alignItems: 'center' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-            <AuthzHide roles={[Role.ADMIN]}>
+            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
               <Button type="primary" htmlType="submit" data-testid="save-user">Guardar</Button>
               {/* Subir a Moodle button placed between Guardar and Eliminar Usuario */}
               <Button
@@ -661,6 +661,8 @@ const navigate = useNavigate();
               >
                 Subir a Moodle
               </Button>
+            </AuthzHide>
+            <AuthzHide roles={[Role.ADMIN]}>
               <Button type="primary" danger onClick={handleDelete}>Eliminar Usuario</Button>
             </AuthzHide>
           </div>

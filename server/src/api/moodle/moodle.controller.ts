@@ -142,7 +142,7 @@ export class MoodleController {
         return await this.moodleService.deleteLocalGroupFromMoodle(groupId);
     }
 
-    @UseGuards(RoleGuard([Role.ADMIN]))
+    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
     @Post('users/:id/add-to-moodle')
     /**
      * Create a single local user in Moodle (if not exists) and persist mapping.
@@ -151,7 +151,7 @@ export class MoodleController {
         return await this.moodleService.upsertLocalUsersToMoodle([id]);
     }
 
-    @UseGuards(RoleGuard([Role.ADMIN]))
+    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
     @Post('users/:id/update-in-moodle')
     /**
      * Update an existing Moodle user from local data. Requires the local user to be
@@ -161,7 +161,7 @@ export class MoodleController {
         return await this.moodleService.updateLocalUserInMoodle(id);
     }
 
-    @UseGuards(RoleGuard([Role.ADMIN]))
+    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
     @Post('users/:id/preview-add-to-moodle')
     /**
      * Preview which data would be created in Moodle for a single local user.
