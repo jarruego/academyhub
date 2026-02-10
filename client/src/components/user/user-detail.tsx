@@ -8,6 +8,7 @@ import { Button, Form, Input, Modal, Checkbox, Select, Tabs, DatePicker } from "
 import { CloudUploadOutlined } from '@ant-design/icons';
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect, useState } from "react";
+import type { MouseEvent } from "react";
 // composed hook will handle moodle updates when saving a user
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,6 +26,7 @@ import { useUpdateUserInMoodleMutation } from '../../hooks/api/moodle/use-update
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { SALARY_GROUP_OPTIONS, EDUCATION_LEVEL_OPTIONS } from '../../constants/options/user-options';
+import { useRole } from "../../utils/permissions/use-role";
 
 
 function nullsToUndefined<T>(obj: T): T {
@@ -84,6 +86,14 @@ type Props = {
 export default function UserDetail({ userId }: Props) {
 const navigate = useNavigate();
   const location = useLocation();
+  const role = useRole();
+  const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
+  const preventReadOnlyClick = (e: MouseEvent<HTMLElement>) => {
+    if (!canEdit) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
   
   const [modal, contextHolder] = Modal.useModal();
 
@@ -288,16 +298,16 @@ const navigate = useNavigate();
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Form.Item label="ID" name="id_user" style={{ flex: 1 }}>
-              <Controller name="id_user" control={control} render={({ field }) => <Input {...field} id="id_user" autoComplete="off" disabled data-testid="user-id" />} />
+              <Controller name="id_user" control={control} render={({ field }) => <Input {...field} id="id_user" autoComplete="off" readOnly data-testid="user-id" />} />
             </Form.Item>
             <Form.Item label="Nombre" name="name" style={{ flex: 2 }} help={errors.name?.message} validateStatus={errors.name ? "error" : undefined}>
-              <Controller name="name" control={control} render={({ field }) => <Input {...field} id="name" autoComplete="given-name" data-testid="user-name" />} />
+              <Controller name="name" control={control} render={({ field }) => <Input {...field} id="name" autoComplete="given-name" data-testid="user-name" readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="Apellido 1" name="first_surname" style={{ flex: 2 }} help={errors.first_surname?.message} validateStatus={errors.first_surname ? "error" : undefined}>
-              <Controller name="first_surname" control={control} render={({ field }) => <Input {...field} id="first_surname" autoComplete="family-name" data-testid="user-first-surname" />} />
+              <Controller name="first_surname" control={control} render={({ field }) => <Input {...field} id="first_surname" autoComplete="family-name" data-testid="user-first-surname" readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="Apellido 2" name="second_surname" style={{ flex: 2 }}>
-              <Controller name="second_surname" control={control} render={({ field }) => <Input {...field} id="second_surname" autoComplete="additional-name" value={field.value ?? undefined} />} />
+              <Controller name="second_surname" control={control} render={({ field }) => <Input {...field} id="second_surname" autoComplete="additional-name" value={field.value ?? undefined} readOnly={!canEdit} />} />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
@@ -322,21 +332,21 @@ const navigate = useNavigate();
               />
             </Form.Item>
             <Form.Item label="DNI" name="dni" style={{ width: '15ch' }}>
-              <Controller name="dni" control={control} render={({ field }) => <Input {...field} id="dni" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} />} />
+              <Controller name="dni" control={control} render={({ field }) => <Input {...field} id="dni" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="NSS (Seg.Social)" name="nss" style={{ width: '20ch' }}>
-              <Controller name="nss" control={control} render={({ field }) => <Input {...field} id="nss" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} />} />
+              <Controller name="nss" control={control} render={({ field }) => <Input {...field} id="nss" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="Categoría Profesional" name="professional_category" style={{ flex: 1 }}>
-              <Controller name="professional_category" control={control} render={({ field }) => <Input {...field} id="professional_category" autoComplete="organization-title" value={field.value ?? undefined} />} />
+              <Controller name="professional_category" control={control} render={({ field }) => <Input {...field} id="professional_category" autoComplete="organization-title" value={field.value ?? undefined} readOnly={!canEdit} />} />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Form.Item label="Email" name="email" style={{ flex: 1 }}>
-              <Controller name="email" control={control} render={({ field }) => <Input {...field} id="email" autoComplete="email" data-testid="user-email" />} />
+              <Controller name="email" control={control} render={({ field }) => <Input {...field} id="email" autoComplete="email" data-testid="user-email" readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="Teléfono" name="phone" style={{ flex: 1 }}>
-              <Controller name="phone" control={control} render={({ field }) => <Input {...field} id="phone" autoComplete="tel" value={field.value ?? undefined} data-testid="user-phone" />} />
+              <Controller name="phone" control={control} render={({ field }) => <Input {...field} id="phone" autoComplete="tel" value={field.value ?? undefined} data-testid="user-phone" readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="Fecha de Nacimiento" name="birth_date" style={{ flex: 1 }} help={errors.birth_date?.message} validateStatus={errors.birth_date ? "error" : undefined}>
               <Controller 
@@ -347,9 +357,11 @@ const navigate = useNavigate();
                     {...field}
                     id="birth_date"
                     value={field.value ? dayjs(field.value) : null}
-                    onChange={(date) => field.onChange(date ? date.toDate() : null)}
+                    onChange={(date) => canEdit && field.onChange(date ? date.toDate() : null)}
                     format="DD/MM/YYYY"
                     placeholder="Seleccionar fecha"
+                    inputReadOnly={!canEdit}
+                    open={canEdit ? undefined : false}
                     style={{ width: '100%' }}
                   />
                 )}
@@ -364,9 +376,12 @@ const navigate = useNavigate();
                     {...field}
                     id="gender"
                     value={field.value ?? undefined}
-                    onChange={field.onChange}
+                    onChange={canEdit ? field.onChange : undefined}
                     placeholder="Seleccione sexo"
                     status={fieldState.invalid ? "error" : undefined}
+                    open={canEdit ? undefined : false}
+                    showSearch={canEdit}
+                    allowClear={canEdit}
                   >
                     <Select.Option value={Gender.MALE}>Masculino</Select.Option>
                     <Select.Option value={Gender.FEMALE}>Femenino</Select.Option>
@@ -388,9 +403,11 @@ const navigate = useNavigate();
                       id="moodle_username"
                       value={field.value ?? moodleUsername ?? ''}
                       onChange={(e) => {
+                        if (!canEdit) return;
                         field.onChange(e);
                         setMoodleUsername(e.target.value);
                       }}
+                      readOnly={!canEdit}
                     />
                   )}
                 />
@@ -405,9 +422,11 @@ const navigate = useNavigate();
                       id="moodle_password"
                       value={field.value ?? moodlePassword ?? ''}
                       onChange={(e) => {
+                        if (!canEdit) return;
                         field.onChange(e);
                         setMoodlePassword(e.target.value);
                       }}
+                      readOnly={!canEdit}
                     />
                   )}
                 />
@@ -417,19 +436,19 @@ const navigate = useNavigate();
           {/* Button to upload this single user to Moodle when no mapping exists (moved to bottom actions) */}
           <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
             <Form.Item label="Dirección" name="address" style={{ flex: 3, minWidth: '40ch' }}>
-              <Controller name="address" control={control} render={({ field }) => <Input {...field} id="address" autoComplete="street-address" value={field.value ?? undefined} />} />
+              <Controller name="address" control={control} render={({ field }) => <Input {...field} id="address" autoComplete="street-address" value={field.value ?? undefined} readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="Código Postal" name="postal_code" style={{ flex: 1, minWidth: '10ch' }}>
-              <Controller name="postal_code" control={control} render={({ field }) => <Input {...field} id="postal_code" autoComplete="postal-code" value={field.value ?? undefined} />} />
+              <Controller name="postal_code" control={control} render={({ field }) => <Input {...field} id="postal_code" autoComplete="postal-code" value={field.value ?? undefined} readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="Ciudad" name="city" style={{ flex: 1, minWidth: '10ch' }}>
-              <Controller name="city" control={control} render={({ field }) => <Input {...field} id="city" autoComplete="address-level2" value={field.value ?? undefined} />} />
+              <Controller name="city" control={control} render={({ field }) => <Input {...field} id="city" autoComplete="address-level2" value={field.value ?? undefined} readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="Provincia" name="province" style={{ flex: 1, minWidth: '10ch' }}>
-              <Controller name="province" control={control} render={({ field }) => <Input {...field} id="province" autoComplete="address-level1" value={field.value ?? undefined} />} />
+              <Controller name="province" control={control} render={({ field }) => <Input {...field} id="province" autoComplete="address-level1" value={field.value ?? undefined} readOnly={!canEdit} />} />
             </Form.Item>
             <Form.Item label="País" name="country" style={{ flex: 1, minWidth: '10ch' }}>
-              <Controller name="country" control={control} render={({ field }) => <Input {...field} id="country" autoComplete="country-name" value={field.value ?? undefined} />} />
+              <Controller name="country" control={control} render={({ field }) => <Input {...field} id="country" autoComplete="country-name" value={field.value ?? undefined} readOnly={!canEdit} />} />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
@@ -446,12 +465,15 @@ const navigate = useNavigate();
                       id="salary_group"
                       value={field.value ?? undefined}
                       onChange={(val) => {
+                        if (!canEdit) return;
                         // val can be undefined when cleared
                         if (typeof val === 'undefined' || val === null) field.onChange(null);
                         else field.onChange(Number(val));
                       }}
-                      allowClear
+                      allowClear={canEdit}
                       placeholder="Selecciona grupo de cotización"
+                      open={canEdit ? undefined : false}
+                      showSearch={canEdit}
                     >
                       {options.map(o => (
                         <Select.Option key={o.value} value={o.value}>
@@ -478,11 +500,14 @@ const navigate = useNavigate();
                       id="education_level"
                       value={currentValue}
                       onChange={(val) => {
+                        if (!canEdit) return;
                         if (typeof val === 'undefined' || val === null) field.onChange(null);
                         else field.onChange(Number(val));
                       }}
-                      allowClear
+                      allowClear={canEdit}
                       placeholder="Selecciona nivel educativo"
+                      open={canEdit ? undefined : false}
+                      showSearch={canEdit}
                     >
                       {options.map(o => (
                         <Select.Option key={o.value} value={o.value}>
@@ -505,6 +530,8 @@ const navigate = useNavigate();
                     {...field}
                     id="disability"
                     checked={!!field.value}
+                    onChange={canEdit ? field.onChange : undefined}
+                    onClick={preventReadOnlyClick}
                   >
                     Discapacidad
                   </Checkbox>
@@ -520,6 +547,8 @@ const navigate = useNavigate();
                     {...field}
                     id="terrorism_victim"
                     checked={!!field.value}
+                    onChange={canEdit ? field.onChange : undefined}
+                    onClick={preventReadOnlyClick}
                   >
                     Víctima de Terrorismo
                   </Checkbox>
@@ -535,6 +564,8 @@ const navigate = useNavigate();
                     {...field}
                     id="gender_violence_victim"
                     checked={!!field.value}
+                    onChange={canEdit ? field.onChange : undefined}
+                    onClick={preventReadOnlyClick}
                   >
                     Víctima de Violencia de Género
                   </Checkbox>
@@ -550,6 +581,8 @@ const navigate = useNavigate();
                     {...field}
                     id="seasonalWorker"
                     checked={!!field.value}
+                    onChange={canEdit ? field.onChange : undefined}
+                    onClick={preventReadOnlyClick}
                   >
                     Trabajador fijo-discontinuo
                   </Checkbox>
@@ -565,6 +598,8 @@ const navigate = useNavigate();
                     {...field}
                     id="erteLaw"
                     checked={!!field.value}
+                    onChange={canEdit ? field.onChange : undefined}
+                    onClick={preventReadOnlyClick}
                   >
                     ERTE RD Ley
                   </Checkbox>
@@ -579,7 +614,8 @@ const navigate = useNavigate();
                   <Checkbox
                     id="accreditationDiploma"
                     checked={field.value === "S"}
-                    onChange={e => field.onChange(e.target.checked ? "S" : "N")}
+                    onChange={e => canEdit && field.onChange(e.target.checked ? "S" : "N")}
+                    onClick={preventReadOnlyClick}
                   >
                     Diploma acreditativo
                   </Checkbox>
@@ -588,7 +624,7 @@ const navigate = useNavigate();
             </Form.Item>
           </div>
           <Form.Item label="Observaciones" name="observations">
-            <Controller name="observations" control={control} render={({ field }) => <Input.TextArea {...field} id="observations" autoComplete="off" value={field.value ?? undefined} rows={3} />} />
+            <Controller name="observations" control={control} render={({ field }) => <Input.TextArea {...field} id="observations" autoComplete="off" value={field.value ?? undefined} rows={3} readOnly={!canEdit} />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start', alignItems: 'center' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>

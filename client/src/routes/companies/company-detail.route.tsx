@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { CIF_SCHEMA } from "../../schemas/cif.schema";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { useRole } from "../../utils/permissions/use-role";
 
 const COMPANY_FORM_SCHEMA = z.object({
   id_company: z.number(),
@@ -24,6 +25,8 @@ const COMPANY_FORM_SCHEMA = z.object({
 
 export default function CompanyDetailRoute() {
   const navigate = useNavigate();
+  const role = useRole();
+  const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
   const { id_company } = useParams();
   const { data: companyData, isLoading: isCompanyLoading } = useCompanyQuery(id_company || "");
   const { mutateAsync: updateCompany } = useUpdateCompanyMutation(id_company || "");
@@ -51,6 +54,7 @@ export default function CompanyDetailRoute() {
   if (isCompanyLoading) return <div>Cargando...</div>;
 
   const submit: SubmitHandler<z.infer<typeof COMPANY_FORM_SCHEMA>> = async (info) => {
+    if (!canEdit) return;
     await updateCompany(info);
     navigate('/companies');
   }
@@ -93,7 +97,7 @@ export default function CompanyDetailRoute() {
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
             <Form.Item label="ID" name="id_company" style={{ maxWidth: '35px' }}>
-              <Controller name="id_company" control={control} render={({ field }) => <Input id="id_company" data-testid="id_company" {...field} disabled />} />
+              <Controller name="id_company" control={control} render={({ field }) => <Input id="id_company" data-testid="id_company" {...field} readOnly />} />
             </Form.Item>
             <Form.Item
               label="CIF"
@@ -101,7 +105,7 @@ export default function CompanyDetailRoute() {
               help={errors.cif?.message}
               validateStatus={errors.cif ? "error" : undefined}
             >
-              <Controller name="cif" control={control} render={({ field }) => <Input id="cif" data-testid="cif" {...field} />} />
+              <Controller name="cif" control={control} render={({ field }) => <Input id="cif" data-testid="cif" {...field} readOnly={!canEdit} />} />
             </Form.Item>
           </div>
           <Form.Item
@@ -110,7 +114,7 @@ export default function CompanyDetailRoute() {
             help={errors.company_name?.message}
             validateStatus={errors.company_name ? "error" : undefined}
           >
-            <Controller name="company_name" control={control} render={({ field }) => <Input id="company_name" autoComplete="organization" data-testid="company_name" {...field} />} />
+            <Controller name="company_name" control={control} render={({ field }) => <Input id="company_name" autoComplete="organization" data-testid="company_name" {...field} readOnly={!canEdit} />} />
           </Form.Item>
           <Form.Item
             label="Razón Social"
@@ -118,11 +122,11 @@ export default function CompanyDetailRoute() {
             help={errors.corporate_name?.message}
             validateStatus={errors.corporate_name ? "error" : undefined}
           >
-            <Controller name="corporate_name" control={control} render={({ field }) => <Input id="corporate_name" autoComplete="organization" data-testid="corporate_name" {...field} />} />
+            <Controller name="corporate_name" control={control} render={({ field }) => <Input id="corporate_name" autoComplete="organization" data-testid="corporate_name" {...field} readOnly={!canEdit} />} />
           </Form.Item>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-            <AuthzHide roles={[Role.ADMIN]}>
+            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">Guardar</Button>
             <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />} data-testid="delete-company">Eliminar Empresa</Button>
             </AuthzHide>
@@ -152,7 +156,7 @@ export default function CompanyDetailRoute() {
               style: { cursor: 'pointer' }
             })}
           />
-          <AuthzHide roles={[Role.ADMIN]}>
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter}>
             Añadir Centro
           </Button>

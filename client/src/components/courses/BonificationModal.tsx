@@ -5,6 +5,8 @@ import React from "react";
 import { USERS_TABLE_COLUMNS, filterUsersTimeSpentColumn } from "../../constants/tables/users-table-columns.constant";
 import type { UseMutationResult } from '@tanstack/react-query';
 import type { UpdateUserEnrollmentCenterPayload } from '../../hooks/api/groups/use-update-user-enrollment-center.mutation';
+import { useRole } from "../../utils/permissions/use-role";
+import { Role } from "../../hooks/api/auth/use-login.mutation";
 
 interface BonificationModalProps {
   open: boolean;
@@ -40,6 +42,9 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
   onRemoveUser,
   contextHolder,
 }) => {
+  const role = useRole();
+  const canEdit = role === Role.ADMIN || role === Role.MANAGER;
+
   const columns: (ColumnGroupType<User> | ColumnType<User>)[] = [
     {
       title: 'Centro (empresa)',
@@ -73,6 +78,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
                 )
               }))}
               allowClear
+              disabled={!canEdit}
               onChange={val => setSelectedCenters(prev => ({ ...prev, [user.id_user]: val }))}
             />
             {selected && (
@@ -80,6 +86,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
                 type="primary"
                 size="small"
                 loading={updateUserEnrollmentCenterMutation.isPending}
+                disabled={!canEdit}
                 onClick={() => {
                   if (!groupId) {
                     message.error('Group ID desconocido');
@@ -112,7 +119,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
       title: 'Acciones',
       key: 'acciones',
       render: (_: unknown, record: User) => (
-        <Button danger size="small" onClick={() => onRemoveUser(record.id_user)}>
+        <Button danger size="small" disabled={!canEdit} onClick={() => onRemoveUser(record.id_user)}>
           Quitar
         </Button>
       ),

@@ -17,6 +17,7 @@ import GroupUsersManager from '../../components/group/GroupUsersManager';
 import UserDetail from "../../components/user/user-detail";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { useRole } from "../../utils/permissions/use-role";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -35,6 +36,14 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
 
 export default function CourseDetailRoute() {
   const { message } = App.useApp();
+  const role = useRole();
+  const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
+  const preventReadOnlyClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (!canEdit) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
   const navigate = useNavigate();
   const { id_course } = useParams();
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
@@ -175,7 +184,7 @@ export default function CourseDetailRoute() {
         <div style={{ display: 'flex', gap: '16px' }}>
           {courseData?.moodle_id ? (
             <Form.Item label="ID Moodle" name="moodle_id" style={{ width: 140 }}>
-              <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" disabled value={field.value ?? ''} />} />
+              <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" readOnly value={field.value ?? ''} />} />
             </Form.Item>
           ) : null}
           <Form.Item
@@ -186,7 +195,7 @@ export default function CourseDetailRoute() {
             help={errors.course_name?.message}
             validateStatus={errors.course_name ? "error" : undefined}
           >
-            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" value={field.value ?? ''} />} />
+            <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" value={field.value ?? ''} readOnly={!canEdit} />} />
           </Form.Item>
           <Form.Item
             label="Nombre corto"
@@ -196,7 +205,7 @@ export default function CourseDetailRoute() {
             help={errors.short_name?.message}
             validateStatus={errors.short_name ? "error" : undefined}
           >
-            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" value={field.value ?? ''} />} />
+            <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" value={field.value ?? ''} readOnly={!canEdit} />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
@@ -213,8 +222,14 @@ export default function CourseDetailRoute() {
                 <DatePicker
                   {...field}
                   value={field.value ? dayjs(field.value) : null}
-                  onChange={date => field.onChange(date ? date.toDate() : null)}
+                  onChange={date => {
+                    if (!canEdit) return;
+                    field.onChange(date ? date.toDate() : null);
+                  }}
                   id="start_date"
+                  inputReadOnly={!canEdit}
+                  open={canEdit ? undefined : false}
+                  allowClear={canEdit}
                 />
               )}
             />
@@ -232,8 +247,14 @@ export default function CourseDetailRoute() {
                 <DatePicker
                   {...field}
                   value={field.value ? dayjs(field.value) : null}
-                  onChange={date => field.onChange(date ? date.toDate() : null)}
+                  onChange={date => {
+                    if (!canEdit) return;
+                    field.onChange(date ? date.toDate() : null);
+                  }}
                   id="end_date"
+                  inputReadOnly={!canEdit}
+                  open={canEdit ? undefined : false}
+                  allowClear={canEdit}
                 />
               )}
             />
@@ -249,7 +270,18 @@ export default function CourseDetailRoute() {
               name="modality"
               control={control}
               render={({ field }) => (
-                <Select {...field} id="modality" data-testid="modality">
+                <Select
+                  {...field}
+                  id="modality"
+                  data-testid="modality"
+                  onChange={(value) => {
+                    if (!canEdit) return;
+                    field.onChange(value);
+                  }}
+                  open={canEdit ? undefined : false}
+                  showSearch={canEdit}
+                  allowClear={canEdit}
+                >
                   {Object.values(CourseModality).map((modality) => (
                     <Select.Option key={modality} value={modality} data-testid={`modality-option-${modality}`}>
                       {modality}
@@ -268,7 +300,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="hours"
               control={control}
-              render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" style={{ width: 80 }} value={field.value ?? ''} />}
+              render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" style={{ width: 80 }} value={field.value ?? ''} readOnly={!canEdit} />}
             />
           </Form.Item>
           <Form.Item
@@ -280,7 +312,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="price_per_hour"
               control={control}
-              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" style={{ width: 100 }} value={field.value ?? ''} />}
+              render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" style={{ width: 100 }} value={field.value ?? ''} readOnly={!canEdit} />}
             />
           </Form.Item>
           <Form.Item
@@ -292,7 +324,7 @@ export default function CourseDetailRoute() {
             <Controller
               name="fundae_id"
               control={control}
-              render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} value={field.value ?? ''} />}
+              render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} value={field.value ?? ''} readOnly={!canEdit} />}
             />
           </Form.Item>
           <Form.Item
@@ -310,6 +342,8 @@ export default function CourseDetailRoute() {
                   {...field}
                   id="active"
                   checked={!!field.value}
+                  onChange={canEdit ? field.onChange : undefined}
+                  onClick={preventReadOnlyClick}
                 >
                   {""}
                 </Checkbox>
@@ -368,8 +402,10 @@ export default function CourseDetailRoute() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
-          <AuthzHide roles={[Role.ADMIN]}>
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
             <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-course">Guardar Curso</Button>
+          </AuthzHide>
+          <AuthzHide roles={[Role.ADMIN]}>
             <Button icon={<DeleteOutlined />} type="primary" danger onClick={handleDelete}>Eliminar Curso</Button>
           </AuthzHide>
         </div>

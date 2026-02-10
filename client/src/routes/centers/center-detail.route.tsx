@@ -12,6 +12,7 @@ import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { useRole } from "../../utils/permissions/use-role";
 import { User } from "../../shared/types/user/user";
 import { TablePaginationConfig } from "antd/es/table";
 import { useDebounce } from "../../hooks/use-debounce";
@@ -36,6 +37,8 @@ export default function EditCenterRoute() {
   const { id_center } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const role = useRole();
+  const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
   const { data: centerData, isLoading: isCenterLoading } = useCenterQuery(id_center || "");
   const { data: companyData, isLoading: isCompanyLoading } = useCompanyQuery(centerData?.id_company ? String(centerData.id_company) : "");
   const { mutateAsync: updateCenter } = useUpdateCenterMutation(id_center || "");
@@ -159,7 +162,7 @@ export default function EditCenterRoute() {
           <Input 
             id="company_name_display" 
             value={companyData.corporate_name} 
-            disabled 
+            readOnly
             style={{ width: 400, flex: 1 }} 
           />
           <Button
@@ -177,19 +180,19 @@ export default function EditCenterRoute() {
             help={errors.id_center?.message}
             validateStatus={errors.id_center ? "error" : undefined}
           >
-            <Controller name="id_center" control={control} render={({ field }) => <Input id="id_center" {...field} disabled data-testid="center-id" />} />
+            <Controller name="id_center" control={control} render={({ field }) => <Input id="id_center" {...field} readOnly data-testid="center-id" />} />
           </Form.Item>
           <Form.Item label="Nombre del centro" name="center_name"
             help={errors.center_name?.message}
             validateStatus={errors.center_name ? "error" : undefined}
           >
-            <Controller name="center_name" control={control} render={({ field }) => <Input id="center_name" autoComplete="organization" {...field} data-testid="center-name" />} />
+            <Controller name="center_name" control={control} render={({ field }) => <Input id="center_name" autoComplete="organization" {...field} readOnly={!canEdit} data-testid="center-name" />} />
           </Form.Item>
           <Form.Item label="Número de patronal" name="employer_number"
             help={errors.employer_number?.message}
             validateStatus={errors.employer_number ? "error" : undefined}
           >
-            <Controller name="employer_number" control={control} render={({ field }) => <Input id="employer_number" autoComplete="off" {...field} value={field.value ?? undefined} data-testid="employer-number" />} />
+            <Controller name="employer_number" control={control} render={({ field }) => <Input id="employer_number" autoComplete="off" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="employer-number" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
@@ -197,24 +200,24 @@ export default function EditCenterRoute() {
             help={errors.contact_person?.message}
             validateStatus={errors.contact_person ? "error" : undefined}
           >
-            <Controller name="contact_person" control={control} render={({ field }) => <Input id="contact_person" autoComplete="name" {...field} value={field.value ?? undefined} data-testid="contact-person" />} />
+            <Controller name="contact_person" control={control} render={({ field }) => <Input id="contact_person" autoComplete="name" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="contact-person" />} />
           </Form.Item>
           <Form.Item label="Teléfono de contacto" name="contact_phone"
             help={errors.contact_phone?.message}
             validateStatus={errors.contact_phone ? "error" : undefined}
           >
-            <Controller name="contact_phone" control={control} render={({ field }) => <Input id="contact_phone" autoComplete="tel" {...field} value={field.value ?? undefined} data-testid="contact-phone" />} />
+            <Controller name="contact_phone" control={control} render={({ field }) => <Input id="contact_phone" autoComplete="tel" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="contact-phone" />} />
           </Form.Item>
           <Form.Item label="Email de contacto" name="contact_email"
             help={errors.contact_email?.message}
             validateStatus={errors.contact_email ? "error" : undefined}
           >
-            <Controller name="contact_email" control={control} render={({ field }) => <Input id="contact_email" autoComplete="email" {...field} value={field.value ?? undefined} data-testid="contact-email" />} />
+            <Controller name="contact_email" control={control} render={({ field }) => <Input id="contact_email" autoComplete="email" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="contact-email" />} />
           </Form.Item>
         </div>
         <div style={{ display: 'flex', gap: '16px' }}>
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-          <AuthzHide roles={[Role.ADMIN]}>
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-center">Guardar</Button>
           <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Centro</Button>
           </AuthzHide>

@@ -17,6 +17,7 @@ import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { useRole } from "../../utils/permissions/use-role";
 dayjs.extend(utc);
 
 const GROUP_FORM_SCHEMA = z.object({
@@ -42,6 +43,8 @@ export default function EditGroupRoute() {
   });
   const [modal, contextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
+  const role = useRole();
+  const canEdit = role === Role.ADMIN || role === Role.MANAGER;
   const pushGroupMutation = usePushGroupToMoodleMutation();
   const deleteMoodleGroupMutation = useDeleteMoodleGroupMutation();
   const { data: usersInGroup } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
@@ -147,14 +150,14 @@ export default function EditGroupRoute() {
               <Controller
                 name="fundae_id"
                 control={control}
-                render={({ field }) => <Input id="fundae_id" autoComplete="off" {...field} value={field.value ?? ""} />}
+                render={({ field }) => <Input id="fundae_id" autoComplete="off" {...field} value={field.value ?? ""} disabled={!canEdit} />}
               />
             </Form.Item>
             <Form.Item label="Nombre del grupo" name="group_name"
               help={errors.group_name?.message}
               validateStatus={errors.group_name ? "error" : undefined}
             >
-              <Controller name="group_name" control={control} render={({ field }) => <Input id="group_name" autoComplete="off" {...field} data-testid="group-name" />} />
+              <Controller name="group_name" control={control} render={({ field }) => <Input id="group_name" autoComplete="off" {...field} data-testid="group-name" disabled={!canEdit} />} />
             </Form.Item>
             <Form.Item label="Fecha Inicio" name="start_date"
               help={errors.start_date?.message}
@@ -169,6 +172,7 @@ export default function EditGroupRoute() {
                     value={field.value ? dayjs(field.value) : null}
                     onChange={date => field.onChange(date ? date.toDate() : null)}
                     id="start_date"
+                    disabled={!canEdit}
                   />
                 )}
               />
@@ -186,6 +190,7 @@ export default function EditGroupRoute() {
                     value={field.value ? dayjs(field.value) : null}
                     onChange={date => field.onChange(date ? date.toDate() : null)}
                     id="end_date"
+                    disabled={!canEdit}
                   />
                 )}
               />
@@ -195,7 +200,7 @@ export default function EditGroupRoute() {
             help={errors.description?.message}
             validateStatus={errors.description ? "error" : undefined}
           >
-            <Controller name="description" control={control} render={({ field }) => <Input id="description" autoComplete="off" {...field} value={field.value ?? ""} data-testid="group-description" />} />
+            <Controller name="description" control={control} render={({ field }) => <Input id="description" autoComplete="off" {...field} value={field.value ?? ""} data-testid="group-description" disabled={!canEdit} />} />
           </Form.Item>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             {/* Moodle status */}
@@ -271,10 +276,12 @@ export default function EditGroupRoute() {
             </AuthzHide>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
-            <AuthzHide roles={[Role.ADMIN]}>
-            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-group">Guardar</Button>
-            <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Grupo</Button>
-            </AuthzHide>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-group" disabled={!canEdit}>
+              Guardar
+            </Button>
+            <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />} disabled={!canEdit}>
+              Eliminar Grupo
+            </Button>
           </div>
         </Form>
       ),

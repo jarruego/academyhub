@@ -7,7 +7,7 @@ import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.q
 import { useDeleteUserFromGroupMutation } from '../../hooks/api/groups/use-delete-user-from-group.mutation';
 import { useDebounce } from '../../hooks/use-debounce';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
-import { AuthzHide } from '../permissions/authz-hide';
+import { useRole } from '../../utils/permissions/use-role';
 import { User } from '../../shared/types/user/user';
 
 interface Props {
@@ -19,6 +19,8 @@ interface Props {
 const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [modal, modalContextHolder] = Modal.useModal();
+  const role = useRole();
+  const canEdit = role === Role.ADMIN || role === Role.MANAGER;
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
@@ -157,11 +159,9 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
               aria-label="Buscar usuarios"
               style={{ flex: 1 }}
             />
-            <AuthzHide roles={[Role.ADMIN]}>
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleSaveUsers} disabled={selectedUserIds.length === 0}>
-                Añadir al Grupo
-              </Button>
-            </AuthzHide>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleSaveUsers} disabled={!canEdit || selectedUserIds.length === 0}>
+              Añadir al Grupo
+            </Button>
           </div>
 
           <div style={{ flex: 1, minHeight: 0 }}>
@@ -186,13 +186,13 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
                   if (size) setPageSize(size);
                 }
               }}
-              rowSelection={{
+              rowSelection={canEdit ? {
                 ...rowSelection,
                 getCheckboxProps: (record: User) => ({
                   id: `add-user-checkbox-${record.id_user}`,
                   name: `add-user-checkbox-${record.id_user}`,
                 }),
-              }}
+              } : undefined}
               onRow={(record) => ({
                 onDoubleClick: () => {
                   const uid = Number(record.id_user);
@@ -216,11 +216,9 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <h3 style={{ margin: 0 }}>Usuarios del Grupo</h3>
-            <AuthzHide roles={[Role.ADMIN]}>
-              <Button type="primary" danger onClick={handleDeleteUsers} icon={<DeleteOutlined />} disabled={selectedGroupUserIds.length === 0}>
-                Eliminar del Grupo
-              </Button>
-            </AuthzHide>
+            <Button type="primary" danger onClick={handleDeleteUsers} icon={<DeleteOutlined />} disabled={!canEdit || selectedGroupUserIds.length === 0}>
+              Eliminar del Grupo
+            </Button>
           </div>
 
           <div style={{ flex: 1, minHeight: 0 }}>
@@ -236,13 +234,13 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
               dataSource={groupUsersData}
               loading={isGroupUsersLoading}
               pagination={{ pageSize: 10, showSizeChanger: false }}
-              rowSelection={{
+              rowSelection={canEdit ? {
                 ...groupUserRowSelection,
                 getCheckboxProps: (record: User) => ({
                   id: `remove-user-checkbox-${record.id_user}`,
                   name: `remove-user-checkbox-${record.id_user}`,
                 }),
-              }}
+              } : undefined}
               onRow={(record) => ({
                 onDoubleClick: () => {
                   const uid = Number(record.id_user);
