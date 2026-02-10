@@ -189,7 +189,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   {notificationContextHolder}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <AuthzHide roles={[Role.ADMIN]}>
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
             <Button
               type="default"
               icon={<TeamOutlined />}
