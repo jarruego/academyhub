@@ -171,7 +171,7 @@ export class MoodleController {
         return await this.moodleService.getUsersToCreateInMoodle([id]);
     }
 
-    @UseGuards(RoleGuard([Role.ADMIN]))
+    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
     @Post('users/:moodleId/sync')
     /**
      * Fetch a single user from Moodle and update the local moodle_user mapping

@@ -115,28 +115,30 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>{moodleId ?? '-'}</span>
-            <Tooltip title={syncTip}>
-              <Button
-                size="small"
-                icon={<CloudDownloadOutlined />}
-                loading={isSyncing}
-                disabled={!canSync || isSyncing}
-                aria-label="Traer usuario desde Moodle"
-                onClick={async () => {
-                  if (!moodleId) return;
-                  setSyncingMoodleId(moodleId);
-                  try {
-                    await request({ method: 'POST', url: `${getApiHost()}/moodle/users/${moodleId}/sync` });
-                    await queryClient.invalidateQueries({ queryKey: ['moodle-users', userId] });
-                    messageApi.success('Usuario sincronizado desde Moodle');
-                  } catch (err) {
-                    messageApi.error('No se pudo traer los datos desde Moodle');
-                  } finally {
-                    setSyncingMoodleId(null);
-                  }
-                }}
-              />
-            </Tooltip>
+            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+              <Tooltip title={syncTip}>
+                <Button
+                  size="small"
+                  icon={<CloudDownloadOutlined />}
+                  loading={isSyncing}
+                  disabled={!canSync || isSyncing}
+                  aria-label="Traer usuario desde Moodle"
+                  onClick={async () => {
+                    if (!moodleId) return;
+                    setSyncingMoodleId(moodleId);
+                    try {
+                      await request({ method: 'POST', url: `${getApiHost()}/moodle/users/${moodleId}/sync` });
+                      await queryClient.invalidateQueries({ queryKey: ['moodle-users', userId] });
+                      messageApi.success('Usuario sincronizado desde Moodle');
+                    } catch (err) {
+                      messageApi.error('No se pudo traer los datos desde Moodle');
+                    } finally {
+                      setSyncingMoodleId(null);
+                    }
+                  }}
+                />
+              </Tooltip>
+            </AuthzHide>
           </div>
         );
       },
@@ -159,24 +161,26 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Tag color={record.is_main_user ? 'green' : 'blue'}>{username}</Tag>
             {!record.is_main_user && (
-              <Popconfirm
-                title={
-                  <div>
-                    <div>Marcar esta cuenta como principal?</div>
-                    <div style={{ fontSize: 12, marginTop: 6 }}>
-                      La cuenta principal será la que se utilice para dar de alta cursos y grupos en Moodle.
+              <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+                <Popconfirm
+                  title={
+                    <div>
+                      <div>Marcar esta cuenta como principal?</div>
+                      <div style={{ fontSize: 12, marginTop: 6 }}>
+                        La cuenta principal será la que se utilice para dar de alta cursos y grupos en Moodle.
+                      </div>
+                      <div style={{ fontSize: 12, marginTop: 6 }}>
+                        Consulte antes con el administrador de Moodle si no está seguro.
+                      </div>
                     </div>
-                    <div style={{ fontSize: 12, marginTop: 6 }}>
-                      Consulte antes con el administrador de Moodle si no está seguro.
-                    </div>
-                  </div>
-                }
-                onConfirm={handleSetMain}
-                okText="Sí"
-                cancelText="No"
-              >
-                <Button size="small">Hacer principal</Button>
-              </Popconfirm>
+                  }
+                  onConfirm={handleSetMain}
+                  okText="Sí"
+                  cancelText="No"
+                >
+                  <Button size="small">Hacer principal</Button>
+                </Popconfirm>
+              </AuthzHide>
             )}
           </div>
         );

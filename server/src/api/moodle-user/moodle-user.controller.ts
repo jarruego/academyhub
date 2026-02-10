@@ -67,7 +67,7 @@ export class MoodleUserController {
     return this.moodleUserService.delete(numericId);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Post('/:id/set-main')
   @ApiOperation({ summary: 'Marcar una cuenta de Moodle como principal para el usuario local asociado' })
   @ApiResponse({ status: 200, description: 'Cuenta marcada como principal exitosamente' })
