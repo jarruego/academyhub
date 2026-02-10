@@ -25,6 +25,7 @@ import { UserInsertModel, UserUpdateModel, UserSelectModel } from 'src/database/
 import { MoodleUserInsertModel, MoodleUserSelectModel } from 'src/database/schema/tables/moodle_user.table';
 import { UserGroupSelectModel } from 'src/database/schema/tables/user_group.table';
 import { generatePassword } from 'src/utils/generate-password';
+import { link } from 'fs';
 
 type RequestOptions<D extends MoodleParams = MoodleParams> = {
     params?: D;
@@ -1967,6 +1968,27 @@ export class MoodleService {
             const enrolledIds = new Set(enrolled.map(u => Number(u.id)));
             const toEnroll = members.filter(m => !enrolledIds.has(Number(m.moodleId)));
             if (toEnroll.length > 0) {
+                // Resolve enrolment dates (prefer group dates, fallback to course dates)
+                const toDate = (v?: Date | string | null) => {
+                    if (!v) return null;
+                    const dt = v instanceof Date ? v : new Date(String(v));
+                    return Number.isNaN(dt.getTime()) ? null : dt;
+                };
+                const startDate = toDate(localGroup.start_date ?? course.start_date ?? null);
+                const endDate = toDate(localGroup.end_date ?? course.end_date ?? null);
+                const toUnixSeconds = (d: Date | null, endOfDay = false) => {
+                    if (!d) return undefined;
+                    const dt = new Date(d);
+                    if (endOfDay) {
+                        dt.setHours(23, 59, 59, 0);
+                    } else {
+                        dt.setHours(0, 0, 0, 0);
+                    }
+                    return Math.floor(dt.getTime() / 1000);
+                };
+                const enrolStart = toUnixSeconds(startDate, false);
+                const enrolEnd = toUnixSeconds(endDate, true);
+
                 const enrolParams: MoodleParams = {};
                 // Use Moodle's manual enrol webservice. We'll use roleid=5 (student) by default.
                 const STUDENT_ROLE_ID = 5;
@@ -1974,6 +1996,8 @@ export class MoodleService {
                     enrolParams[`enrolments[${idx}][roleid]`] = STUDENT_ROLE_ID;
                     enrolParams[`enrolments[${idx}][userid]`] = m.moodleId;
                     enrolParams[`enrolments[${idx}][courseid]`] = course.moodle_id;
+                    if (enrolStart !== undefined) enrolParams[`enrolments[${idx}][timestart]`] = enrolStart;
+                    if (enrolEnd !== undefined) enrolParams[`enrolments[${idx}][timeend]`] = enrolEnd;
                 });
 
                 try {
