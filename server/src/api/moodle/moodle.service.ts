@@ -7,7 +7,7 @@ import { MoodleUser, ExtendedMoodleUser } from 'src/types/moodle/user';
 import { MoodleCourseWithImportStatus, MoodleGroupWithImportStatus, ImportResult } from 'src/dto/moodle/import.dto';
 import { DatabaseService } from 'src/database/database.service';
 import { organizationSettingsTable, OrganizationSettingsSelectModel } from 'src/database/schema/tables/organization_settings.table';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { resolveInsertId } from 'src/utils/db';
 import { DATABASE_PROVIDER } from 'src/database/database.module';
 import { QueryOptions, Transaction } from 'src/database/repository/repository';
@@ -26,6 +26,9 @@ import { MoodleUserInsertModel, MoodleUserSelectModel } from 'src/database/schem
 import { UserGroupSelectModel } from 'src/database/schema/tables/user_group.table';
 import { generatePassword } from 'src/utils/generate-password';
 import { link } from 'fs';
+import { userCenterTable } from 'src/database/schema/tables/user_center.table';
+import { centers } from 'src/database/schema';
+import { companyTable } from 'src/database/schema/tables/company.table';
 
 type RequestOptions<D extends MoodleParams = MoodleParams> = {
     params?: D;
@@ -37,6 +40,26 @@ type RequestOptions<D extends MoodleParams = MoodleParams> = {
 // of the same. This narrows `any` while remaining flexible for Moodle payloads.
 type MoodleParamsValue = string | number | boolean | object | Array<string | number | boolean | object> | null | undefined;
 type MoodleParams = Record<string, MoodleParamsValue>;
+
+type MoodleCustomFieldConfig = { shortname: string; source: string };
+type MoodleUserCustomField = { shortname: string; value: string };
+type MoodleUserCreatePayload = {
+    username: string;
+    password: string;
+    firstname: string;
+    lastname: string;
+    email: string;
+    auth: 'manual';
+    idnumber: string;
+    description: string;
+    city: string;
+    country: string;
+    lang: string;
+    timezone: string;
+    mailformat: number;
+    maildisplay: number;
+    customfields?: MoodleUserCustomField[];
+};
 
 @Injectable()
 export class MoodleService {
@@ -290,6 +313,70 @@ export class MoodleService {
         }
 
         return this.MOODLE_URL;
+    }
+
+    /**
+     * Resolve Moodle custom fields configuration from organization settings.
+     * Expected shape: settings.moodle.customfields = [{ shortname: 'DNI', source: 'dni' }, ...]
+     */
+    private async resolveMoodleCustomFields(centerId?: number): Promise<MoodleCustomFieldConfig[]> {
+        try {
+            let rows: OrganizationSettingsSelectModel[] = [];
+            if (typeof centerId === 'number') {
+                rows = await this.databaseService.db.select().from(organizationSettingsTable).where(eq(organizationSettingsTable.center_id, centerId)).limit(1);
+            } else {
+                rows = await this.databaseService.db.select().from(organizationSettingsTable).limit(1);
+            }
+
+            if (rows && rows.length > 0) {
+                const row: OrganizationSettingsSelectModel = rows[0];
+                const settings = (row.settings ?? {}) as Record<string, unknown>;
+                const moodle = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['moodle'] : undefined;
+                const customFields = (moodle && typeof moodle === 'object') ? (moodle as Record<string, unknown>)['customfields'] : undefined;
+                const altCustomFields = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['moodle_customfields'] : undefined;
+                const raw = Array.isArray(customFields) ? customFields : (Array.isArray(altCustomFields) ? altCustomFields : []);
+
+                return raw
+                    .filter((c) => c && typeof c === 'object')
+                    .map((c) => {
+                        const r = c as Record<string, unknown>;
+                        return {
+                            shortname: String(r['shortname'] ?? '').trim(),
+                            source: String(r['source'] ?? '').trim(),
+                        } as MoodleCustomFieldConfig;
+                    })
+                    .filter((c) => c.shortname.length > 0 && c.source.length > 0);
+            }
+        } catch (err: unknown) {
+            Logger.warn({ err }, 'MoodleService:resolveMoodleCustomFields - failed to read organization settings');
+        }
+
+        return [];
+    }
+
+    private async resolveUserCompanyInfo(userId: number): Promise<{ company_name?: string | null; company_cif?: string | null } | null> {
+        try {
+            const main = await this.databaseService.db
+                .select({ company_name: companyTable.company_name, company_cif: companyTable.cif })
+                .from(userCenterTable)
+                .innerJoin(centers, eq(userCenterTable.id_center, centers.id_center))
+                .innerJoin(companyTable, eq(centers.id_company, companyTable.id_company))
+                .where(and(eq(userCenterTable.id_user, userId), eq(userCenterTable.is_main_center, true)))
+                .limit(1);
+            if (main && main.length > 0) return main[0] ?? null;
+
+            const fallback = await this.databaseService.db
+                .select({ company_name: companyTable.company_name, company_cif: companyTable.cif })
+                .from(userCenterTable)
+                .innerJoin(centers, eq(userCenterTable.id_center, centers.id_center))
+                .innerJoin(companyTable, eq(centers.id_company, companyTable.id_company))
+                .where(eq(userCenterTable.id_user, userId))
+                .limit(1);
+            return fallback?.[0] ?? null;
+        } catch (err: unknown) {
+            Logger.warn({ err, userId }, 'MoodleService:resolveUserCompanyInfo - failed to resolve company data');
+            return null;
+        }
     }
 
     /**
@@ -1638,7 +1725,7 @@ export class MoodleService {
     async upsertLocalUsersToMoodle(localUserIds: number[]): Promise<Array<{ localUserId: number; moodleId: number; id_moodle_user?: number }>> {
         const mappings: Array<{ localUserId: number; moodleId: number; id_moodle_user?: number }> = [];
     // Reuse the generated `UserSelectModel` and pick only the fields we need here
-    type LocalUser = Pick<UserSelectModel, 'id_user' | 'name' | 'first_surname' | 'email' | 'dni'>;
+    type LocalUser = Pick<UserSelectModel, 'id_user' | 'name' | 'first_surname' | 'second_surname' | 'email' | 'dni'>;
         const toCreate: Array<{ localUserId: number; user: LocalUser; password: string }> = [];
 
         const ensureProfileInitialized = async (moodleUserId: number) => {
@@ -1654,6 +1741,10 @@ export class MoodleService {
                 Logger.warn({ err: errForLog, moodleUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to initialize description/format');
             }
         };
+
+        const customFieldDefs = await this.resolveMoodleCustomFields();
+        const customFieldsByUserId = new Map<number, MoodleUserCustomField[]>();
+        const needsCompany = customFieldDefs.some((d) => d.source === 'company_name' || d.source === 'company_cif');
 
         // First, collect existing mappings and those missing
         for (const id_user of localUserIds) {
@@ -1680,8 +1771,45 @@ export class MoodleService {
 
         if (toCreate.length === 0) return mappings;
 
+        if (customFieldDefs.length > 0) {
+            for (const tc of toCreate) {
+                let companyInfo: { company_name?: string | null; company_cif?: string | null } | null = null;
+                if (needsCompany) {
+                    companyInfo = await this.resolveUserCompanyInfo(tc.localUserId);
+                }
+
+                const fields: MoodleUserCustomField[] = [];
+                for (const def of customFieldDefs) {
+                    let value: unknown;
+                    switch (def.source) {
+                        case 'dni':
+                            value = tc.user.dni;
+                            break;
+                        case 'company_name':
+                            value = companyInfo?.company_name;
+                            break;
+                        case 'company_cif':
+                            value = companyInfo?.company_cif;
+                            break;
+                        default:
+                            value = undefined;
+                            break;
+                    }
+
+                    const str = value !== undefined && value !== null ? String(value).trim() : '';
+                    if (str.length > 0) {
+                        fields.push({ shortname: def.shortname, value: str });
+                    }
+                }
+
+                if (fields.length > 0) {
+                    customFieldsByUserId.set(tc.localUserId, fields);
+                }
+            }
+        }
+
     // Build Moodle payload for core_user_create_users
-    const usersPayload: Array<Record<string, unknown>> = toCreate.map(tc => {
+    const usersPayload: MoodleUserCreatePayload[] = toCreate.map(tc => {
             const firstname = (tc.user.name || '').slice(0, 100) || 'User';
             const lastname = (tc.user.first_surname || '').slice(0, 100) || 'Surname';
             // username: prefer normalized dni (lowercase, alphanumeric) if available
@@ -1705,7 +1833,7 @@ export class MoodleService {
             // generate a password according to rules if not already set
             const password = tc.password || generatePassword(8);
 
-            return {
+            const payload: MoodleUserCreatePayload = {
                 username,
                 password,
                 firstname,
@@ -1720,8 +1848,14 @@ export class MoodleService {
                 timezone: '99',
                 mailformat: 1,
                 maildisplay: 2,
-                customfields: tc.user.dni ? [{ shortname: 'dni', value: String(tc.user.dni) }] : [],
             };
+
+            const customFields = customFieldsByUserId.get(tc.localUserId);
+            if (customFields && customFields.length > 0) {
+                payload['customfields'] = customFields;
+            }
+
+            return payload;
         });
 
         try {
@@ -1770,7 +1904,7 @@ export class MoodleService {
                 let createdId: number | null = null;
                 let createdUsername: string | null = null;
                 for (const tryName of attempts) {
-                    const payload = [{
+                    const payload: MoodleUserCreatePayload[] = [{
                         username: tryName,
                         password,
                         firstname,
@@ -1785,8 +1919,11 @@ export class MoodleService {
                         timezone: '99',
                         mailformat: 1,
                         maildisplay: 2,
-                        customfields: original.user.dni ? [{ shortname: 'dni', value: String(original.user.dni) }] : [],
                     }];
+                    const customFields = customFieldsByUserId.get(original.localUserId);
+                    if (customFields && customFields.length > 0) {
+                        payload[0]['customfields'] = customFields;
+                    }
                     try {
                         const singleCreate = await this.request<Array<{ id: number; username: string }>>('core_user_create_users', { method: 'post', params: { users: payload } });
                         if (Array.isArray(singleCreate) && singleCreate.length > 0) {
