@@ -1699,6 +1699,14 @@ export class MoodleService {
                 email: tc.user.email || `${username}@example.local`,
                 auth: 'manual',
                 idnumber: tc.user.dni ?? '',
+                description: '',
+                descriptionformat: 1,
+                city: '',
+                country: '',
+                lang: 'es',
+                timezone: '99',
+                mailformat: 1,
+                maildisplay: 2,
             };
         });
 
@@ -1755,6 +1763,14 @@ export class MoodleService {
                         email: original.user.email || `${tryName}@example.local`,
                         auth: 'manual',
                         idnumber: original.user.dni ?? '',
+                        description: '',
+                        descriptionformat: 1,
+                        city: '',
+                        country: '',
+                        lang: 'es',
+                        timezone: '99',
+                        mailformat: 1,
+                        maildisplay: 2,
                     }];
                     try {
                         const singleCreate = await this.request<Array<{ id: number; username: string }>>('core_user_create_users', { method: 'post', params: { users: payload } });
