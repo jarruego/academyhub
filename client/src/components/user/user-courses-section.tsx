@@ -4,6 +4,7 @@ import type { ColumnType } from 'antd/es/table';
 import { useUserCoursesQuery } from '../../hooks/api/users/use-user-courses.query';
 import { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
+import type { SettingsMap } from '../../shared/types/organization/organization';
 import { useMoodleUsersByUserIdQuery } from '../../hooks/api/moodle-users/use-moodle-users-by-user-id.query';
 
 interface UserCoursesSectionProps {
@@ -14,22 +15,31 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
   const { data: userCourses, isLoading } = useUserCoursesQuery(userId);
   const { data: orgSettings } = useOrganizationSettingsQuery();
   const { data: moodleUsers } = useMoodleUsersByUserIdQuery(userId);
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+  const getBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
+  const getString = (value: unknown): value is string => typeof value === 'string';
   const moodleUserId = React.useMemo(() => {
     if (!moodleUsers || !moodleUsers.length) return undefined;
-    const main = (moodleUsers as any).find((mu: any) => mu.is_main_user) || moodleUsers[0];
+    const main = moodleUsers.find((mu) => mu.is_main_user) || moodleUsers[0];
     return main?.moodle_id ?? undefined;
   }, [moodleUsers]);
 
+  const settings: SettingsMap | undefined = orgSettings?.settings ?? undefined;
+  const plugins = isRecord(settings?.plugins) ? settings?.plugins : undefined;
+  const certificatesEnabled = getBoolean(plugins?.certificates) ? plugins?.certificates : false;
+  const moodleConfig = isRecord(settings?.moodle) ? settings?.moodle : undefined;
+  const moodleUrl = getString(moodleConfig?.url) ? moodleConfig?.url : '';
+
   const showCertificatesButton = Boolean(
-    orgSettings?.settings &&
-      (orgSettings.settings as any).plugins?.certificates === true &&
-      ((orgSettings.settings as any).moodle?.url ?? '') &&
+    certificatesEnabled &&
+      moodleUrl &&
       moodleUserId !== undefined,
   );
 
   const moodleBaseUrl = React.useMemo(() => {
     try {
-      const raw = (orgSettings?.settings as any)?.moodle?.url ?? '';
+      const raw = moodleUrl ?? '';
       if (!raw) return undefined;
       const u = new URL(raw);
       return `${u.origin}/`;
