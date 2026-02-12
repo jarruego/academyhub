@@ -82,7 +82,7 @@ export class MoodleController {
         return await this.moodleService.importSpecificMoodleGroup(moodleGroupId);
     }
 
-    @UseGuards(RoleGuard([Role.ADMIN]))
+    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
     @Post('groups/:moodleGroupId/sync-members')
     async syncMoodleGroupMembers(@Param('moodleGroupId', ParseIntPipe) moodleGroupId: number): Promise<ImportResult> {
         const result = await this.moodleService.syncMoodleGroupMembers(moodleGroupId);
@@ -112,7 +112,7 @@ export class MoodleController {
         return await this.moodleService.pushLocalGroupToMoodle(groupId);
     }
 
-    @UseGuards(RoleGuard([Role.ADMIN]))
+    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
     @Post('groups/:groupId/add-members')
     /**
      * Add selected local users to the Moodle group corresponding to the local group.
@@ -122,7 +122,7 @@ export class MoodleController {
         return await this.moodleService.addLocalUsersToMoodleGroup(groupId, Array.isArray(userIds) ? userIds : []);
     }
 
-    @UseGuards(RoleGuard([Role.ADMIN]))
+    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
     @Post('groups/:groupId/add-members/preview')
     /**
      * Preview which users would be created in Moodle for the provided local userIds.
