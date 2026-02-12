@@ -62,7 +62,7 @@ export class UserController {
     return this.moodleService.importMoodleUsers();
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Post('bulk-create-and-add-to-group/:id_group')
   async bulkCreateAndAddToGroup(@Param('id_group', ParseIntPipe) id_group: number, @Body() users: CreateUserDTO[]) {
     if (!Number.isFinite(id_group) || id_group <= 0) {
@@ -71,7 +71,7 @@ export class UserController {
     return this.userService.bulkCreateAndAddToGroup(users, id_group);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Post('bulk-update')
   async bulkUpdate(@Body() updates: { id_user: number; data: UpdateUserDTO }[]) {
     // Basic validation

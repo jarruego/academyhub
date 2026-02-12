@@ -29,7 +29,7 @@ export class GroupController {
     return this.groupService.create(createGroupDTO);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateGroupDTO: UpdateGroupDTO) {
     const numericId = parseInt(id, 10);
@@ -47,8 +47,7 @@ export class GroupController {
     return this.groupService.findAll(filter);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
-  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @Post(':id/users/bulk-add')
   async bulkAddUsersToGroup(@Param('id', new ParseIntPipe()) id: number, @Body() body: { userIds: number[] }) {
     if (!body || !Array.isArray(body.userIds)) throw new BadRequestException('Invalid payload: expected { userIds: number[] }');

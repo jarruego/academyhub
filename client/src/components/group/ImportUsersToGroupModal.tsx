@@ -9,6 +9,8 @@ import { useBulkAddUsersToGroupMutation } from '../../hooks/api/groups/use-bulk-
 import { useBulkUpdateUsersMutation } from '../../hooks/api/users/use-bulk-update-users.mutation';
 import { useAllUsersLookupQuery } from '../../hooks/api/users/use-users.query';
 import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
+import { useRole } from '../../utils/permissions/use-role';
+import { Role } from '../../hooks/api/auth/use-login.mutation';
 
 interface Props {
   open: boolean;
@@ -28,6 +30,8 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
   const [messageApi, messageContextHolder] = message.useMessage();
   const { data: existingUsers } = useAllUsersLookupQuery();
   const { data: groupData } = useGroupQuery(groupId ? String(groupId) : undefined);
+  const role = useRole();
+  const canEdit = role === Role.ADMIN || role === Role.MANAGER;
 
   const normalizeDni = (v: unknown) => String(v ?? '').trim().replace(/[\.\-\s]/g, '').toUpperCase();
 
@@ -180,7 +184,7 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
     >
       {messageContextHolder}
       <Upload beforeUpload={handleUpload}>
-        <Button icon={<UploadOutlined />}>Seleccionar Archivo</Button>
+        <Button icon={<UploadOutlined />} disabled={!canEdit}>Seleccionar Archivo</Button>
       </Upload>
       <div style={{ maxHeight: '64vh', overflowY: 'auto', marginTop: 16 }}>
         <Table<EnrichedUserImport>
@@ -200,18 +204,18 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
             { title: 'Apellido 2 BD', dataIndex: ['dbUser', 'second_surname'], render: (value: User['second_surname']) => value || '-', align: 'left' },
           ]}
           dataSource={displayedUsers}
-          rowSelection={{
+          rowSelection={canEdit ? {
             ...rowSelection,
             getCheckboxProps: (record: EnrichedUserImport) => ({ id: `user-checkbox-${record.DNI}`, name: `user-checkbox-${record.DNI}` }),
-          }}
+          } : undefined}
           rowClassName={(record: EnrichedUserImport) => record.existsInDB ? '' : 'import-row-not-found'}
           style={{ marginTop: 0 }}
         />
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <Button type="primary" onClick={handleImportUsers}>Importar al Grupo</Button>
-        <Button type="default" style={{ marginLeft: 12 }} onClick={handleUpdateSelected}>Actualizar BD</Button>
+        <Button type="primary" onClick={handleImportUsers} disabled={!canEdit}>Importar al Grupo</Button>
+        <Button type="default" style={{ marginLeft: 12 }} onClick={handleUpdateSelected} disabled={!canEdit}>Actualizar BD</Button>
       </div>
     </Modal>
   );
