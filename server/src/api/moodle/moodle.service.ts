@@ -42,7 +42,7 @@ type MoodleParamsValue = string | number | boolean | object | Array<string | num
 type MoodleParams = Record<string, MoodleParamsValue>;
 
 type MoodleCustomFieldConfig = { shortname: string; source: string };
-type MoodleUserCustomField = { shortname: string; value: string };
+type MoodleUserCustomField = { type: string; shortname: string; value: string };
 type MoodleUserCreatePayload = {
     username: string;
     password: string;
@@ -113,39 +113,37 @@ export class MoodleService {
             // If method is POST, send params in the request body as form-encoded to avoid URL length limits (414)
             if (method === 'post') {
                 const body = new URLSearchParams();
-                for (const [k, v] of Object.entries(params) as [string, MoodleParamsValue][]) {
-                    if (Array.isArray(v)) {
-                        // If array items are objects (e.g., users payload), encode as nested Moodle params:
-                        // key[index][prop]=value — Moodle expects this structure for many WS functions.
-                        if (v.length > 0 && v.every(item => item && typeof item === 'object')) {
-                            for (let idx = 0; idx < v.length; idx++) {
-                                const item = v[idx] as Record<string, unknown>;
+                
+                // Recursive function to encode nested objects and arrays for Moodle's expected format
+                const encodeParam = (key: string, value: unknown) => {
+                    if (Array.isArray(value)) {
+                        // Check if it's an array of objects (e.g., users, customfields)
+                        if (value.length > 0 && value.every(item => item && typeof item === 'object')) {
+                            for (let idx = 0; idx < value.length; idx++) {
+                                const item = value[idx] as Record<string, unknown>;
                                 for (const [prop, val] of Object.entries(item)) {
-                                    if (Array.isArray(val)) {
-                                        for (const sub of val) {
-                                            body.append(`${k}[${idx}][${prop}][]`, String(sub));
-                                        }
-                                    } else if (val && typeof val === 'object') {
-                                        body.append(`${k}[${idx}][${prop}]`, JSON.stringify(val));
-                                    } else if (val !== undefined && val !== null) {
-                                        body.append(`${k}[${idx}][${prop}]`, String(val));
-                                    }
+                                    encodeParam(`${key}[${idx}][${prop}]`, val);
                                 }
                             }
                         } else {
-                            for (const item of v) {
-                                if (item && typeof item === 'object') {
-                                    body.append(`${k}[]`, JSON.stringify(item));
-                                } else {
-                                    body.append(`${k}[]`, String(item));
-                                }
+                            // Simple array of primitives
+                            for (const item of value) {
+                                body.append(`${key}[]`, String(item));
                             }
                         }
-                    } else if (v && typeof v === 'object') {
-                        body.append(k, JSON.stringify(v));
-                    } else if (v !== undefined && v !== null) {
-                        body.append(k, String(v));
+                    } else if (value && typeof value === 'object') {
+                        // Nested object: encode each property recursively
+                        for (const [prop, val] of Object.entries(value as Record<string, unknown>)) {
+                            encodeParam(`${key}[${prop}]`, val);
+                        }
+                    } else if (value !== undefined && value !== null) {
+                        // Primitive value
+                        body.append(key, String(value));
                     }
+                };
+                
+                for (const [k, v] of Object.entries(params) as [string, MoodleParamsValue][]) {
+                    encodeParam(k, v);
                 }
 
                 const response = await axios.request<R, AxiosResponse<R>>({
@@ -1728,14 +1726,26 @@ export class MoodleService {
     type LocalUser = Pick<UserSelectModel, 'id_user' | 'name' | 'first_surname' | 'second_surname' | 'email' | 'dni'>;
         const toCreate: Array<{ localUserId: number; user: LocalUser; password: string }> = [];
 
-        const ensureProfileInitialized = async (moodleUserId: number) => {
+        const ensureProfileInitialized = async (moodleUserId: number, customFields?: MoodleUserCustomField[]) => {
             try {
+                // Note: Moodle 3.9.4 does not support updating customfields via core_user_update_users
+                // Custom fields must be set manually in Moodle or through a different API
+                const updatePayload: Record<string, unknown> = { id: moodleUserId, description: '' };
+                // Commenting out customfields - not supported in Moodle 3.9.4
+                // if (customFields && customFields.length > 0) {
+                //     updatePayload.customfields = customFields;
+                // }
                 await this.request('core_user_update_users', {
                     method: 'post',
                     params: {
-                        users: [{ id: moodleUserId, description: '' }],
+                        users: [updatePayload],
                     },
                 });
+                
+                // Log custom fields that need to be set manually
+                if (customFields && customFields.length > 0) {
+                    Logger.warn({ moodleUserId, customFields }, 'MoodleService:upsertLocalUsersToMoodle - Custom fields not set (not supported in Moodle 3.9.4). Please set manually in Moodle or ensure fields are not required.');
+                }
             } catch (err: unknown) {
                 const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
                 Logger.warn({ err: errForLog, moodleUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to initialize description/format');
@@ -1798,7 +1808,7 @@ export class MoodleService {
 
                     const str = value !== undefined && value !== null ? String(value).trim() : '';
                     if (str.length > 0) {
-                        fields.push({ shortname: def.shortname, value: str });
+                        fields.push({ type: 'text', shortname: def.shortname, value: str });
                     }
                 }
 
@@ -1808,8 +1818,8 @@ export class MoodleService {
             }
         }
 
-    // Build Moodle payload for core_user_create_users
-    const usersPayload: MoodleUserCreatePayload[] = toCreate.map(tc => {
+        // Build Moodle payload for core_user_create_users (without customfields - we'll update them after creation)
+        const usersPayload: MoodleUserCreatePayload[] = toCreate.map(tc => {
             const firstname = (tc.user.name || '').slice(0, 100) || 'User';
             const lastname = (tc.user.first_surname || '').slice(0, 100) || 'Surname';
             // username: prefer normalized dni (lowercase, alphanumeric) if available
@@ -1849,11 +1859,7 @@ export class MoodleService {
                 mailformat: 1,
                 maildisplay: 2,
             };
-
-            const customFields = customFieldsByUserId.get(tc.localUserId);
-            if (customFields && customFields.length > 0) {
-                payload['customfields'] = customFields;
-            }
+            // customfields will be set via core_user_update_users after creation
 
             return payload;
         });
@@ -1866,7 +1872,10 @@ export class MoodleService {
                     const c = created[i];
                     const original = toCreate[i];
                     try {
-                        if (c?.id) await ensureProfileInitialized(c.id);
+                        if (c?.id) {
+                            const customFields = customFieldsByUserId.get(original.localUserId);
+                            await ensureProfileInitialized(c.id, customFields);
+                        }
                         const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: c.id, moodle_username: c.username, moodle_password: original.password, is_main_user: true } as MoodleUserInsertModel);
                         const insertId = resolveInsertId(mu as unknown);
                         mappings.push({ localUserId: original.localUserId, moodleId: c.id, id_moodle_user: insertId ?? undefined });
@@ -1920,10 +1929,7 @@ export class MoodleService {
                         mailformat: 1,
                         maildisplay: 2,
                     }];
-                    const customFields = customFieldsByUserId.get(original.localUserId);
-                    if (customFields && customFields.length > 0) {
-                        payload[0]['customfields'] = customFields;
-                    }
+                    // customfields will be set via core_user_update_users after creation
                     try {
                         const singleCreate = await this.request<Array<{ id: number; username: string }>>('core_user_create_users', { method: 'post', params: { users: payload } });
                         if (Array.isArray(singleCreate) && singleCreate.length > 0) {
@@ -1940,7 +1946,8 @@ export class MoodleService {
 
                 if (createdId && createdUsername) {
                     try {
-                        await ensureProfileInitialized(createdId);
+                        const customFields = customFieldsByUserId.get(original.localUserId);
+                        await ensureProfileInitialized(createdId, customFields);
                         const mu = await this.moodleUserService.create({ id_user: original.localUserId, moodle_id: createdId, moodle_username: createdUsername, moodle_password: password, is_main_user: true } as MoodleUserInsertModel);
                         const insertId = resolveInsertId(mu as unknown);
                         mappings.push({ localUserId: original.localUserId, moodleId: createdId, id_moodle_user: insertId ?? undefined });
