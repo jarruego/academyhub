@@ -5,6 +5,7 @@ import { useUsersQuery } from '../../hooks/api/users/use-users.query';
 import { useAddUserToGroupMutation } from '../../hooks/api/groups/use-add-user-to-group.mutation';
 import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.query';
 import { useDeleteUserFromGroupMutation } from '../../hooks/api/groups/use-delete-user-from-group.mutation';
+import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
 import { useDebounce } from '../../hooks/use-debounce';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useRole } from '../../utils/permissions/use-role';
@@ -22,9 +23,11 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
   const role = useRole();
   const canEdit = role === Role.ADMIN || role === Role.MANAGER;
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [groupSearchTerm, setGroupSearchTerm] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(10);
   const debouncedSearch = useDebounce(searchTerm, 400);
+  const debouncedGroupSearch = useDebounce(groupSearchTerm, 400);
 
   const normalizedSearch = useMemo(() => {
     if (!debouncedSearch) return '';
@@ -36,8 +39,19 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
       .toLowerCase();
   }, [debouncedSearch]);
 
+  const normalizedGroupSearch = useMemo(() => {
+    if (!debouncedGroupSearch) return '';
+    return debouncedGroupSearch
+      .trim()
+      .replace(/\s+/g, ' ')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  }, [debouncedGroupSearch]);
+
   const { data: usersResponse, isLoading: isUsersLoading } = useUsersQuery({ page: currentPage, limit: pageSize, search: normalizedSearch });
   const usersData = usersResponse?.data ?? [];
+  const { data: groupData } = useGroupQuery(groupId ? String(groupId) : undefined);
   const { mutateAsync: addUserToGroup } = useAddUserToGroupMutation();
   const { data: groupUsersData, isLoading: isGroupUsersLoading, refetch: refetchUsers } = useUsersByGroupQuery(groupId ? parseInt(String(groupId), 10) : null);
   const { mutateAsync: deleteUserFromGroup } = useDeleteUserFromGroupMutation();
@@ -132,11 +146,24 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
   };
 
   const filteredUsersData = usersData?.filter(user => !groupUsersData?.some(groupUser => groupUser.id_user === user.id_user)) ?? [];
+  const filteredGroupUsersData = useMemo(() => {
+    if (!groupUsersData || groupUsersData.length === 0) return groupUsersData ?? [];
+    if (!normalizedGroupSearch) return groupUsersData;
+    return groupUsersData.filter((u) => {
+      const name = `${u.name ?? ''} ${u.first_surname ?? ''} ${u.second_surname ?? ''}`.trim();
+      const email = u.email ?? '';
+      const haystack = `${name} ${email}`
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      return haystack.includes(normalizedGroupSearch);
+    });
+  }, [groupUsersData, normalizedGroupSearch]);
 
   return (
     <Modal
       centered
-      title={`Añadir usuarios al grupo ${groupId ?? ''}`}
+      title={`Añadir usuarios al grupo ${groupData?.group_name ?? groupId ?? ''}`}
       open={open}
       onCancel={onClose}
       footer={null}
@@ -169,9 +196,8 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
               id="all-users-table"
               rowKey="id_user"
               columns={[
-                { title: 'ID', dataIndex: 'id_user' },
-                { title: 'Nombre', dataIndex: 'name' },
-                { title: 'Apellidos', dataIndex: 'surname' },
+                { title: 'Nombre', dataIndex: 'name', sorter: (a: User, b: User) => (a.name || '').localeCompare(b.name || '') },
+                { title: 'Apellidos', dataIndex: 'first_surname', sorter: (a: User, b: User) => (`${a.first_surname ?? ''} ${a.second_surname ?? ''}`).localeCompare(`${b.first_surname ?? ''} ${b.second_surname ?? ''}`), render: (_: unknown, user: User) => `${user.first_surname ?? ''} ${user.second_surname ?? ''}`.trim() },
                 { title: 'Email', dataIndex: 'email' },
               ]}
               dataSource={filteredUsersData}
@@ -216,9 +242,19 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <h3 style={{ margin: 0 }}>Usuarios del Grupo</h3>
-            <Button type="primary" danger onClick={handleDeleteUsers} icon={<DeleteOutlined />} disabled={!canEdit || selectedGroupUserIds.length === 0}>
-              Eliminar del Grupo
-            </Button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Input
+                id="group-user-search"
+                placeholder="Buscar usuarios del grupo"
+                value={groupSearchTerm}
+                onChange={e => setGroupSearchTerm(e.target.value)}
+                aria-label="Buscar usuarios del grupo"
+                style={{ width: 240 }}
+              />
+              <Button type="primary" danger onClick={handleDeleteUsers} icon={<DeleteOutlined />} disabled={!canEdit || selectedGroupUserIds.length === 0}>
+                Eliminar del Grupo
+              </Button>
+            </div>
           </div>
 
           <div style={{ flex: 1, minHeight: 0 }}>
@@ -226,14 +262,13 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
               id="group-users-table"
               rowKey="id_user"
               columns={[
-                { title: 'ID', dataIndex: 'id_user' },
-                { title: 'Nombre', dataIndex: 'name' },
-                { title: 'Apellidos', dataIndex: 'surname' },
+                { title: 'Nombre', dataIndex: 'name', sorter: (a: User, b: User) => (a.name || '').localeCompare(b.name || '') },
+                { title: 'Apellidos', dataIndex: 'first_surname', sorter: (a: User, b: User) => (`${a.first_surname ?? ''} ${a.second_surname ?? ''}`).localeCompare(`${b.first_surname ?? ''} ${b.second_surname ?? ''}`), render: (_: unknown, user: User) => `${user.first_surname ?? ''} ${user.second_surname ?? ''}`.trim() },
                 { title: 'Email', dataIndex: 'email' },
               ]}
-              dataSource={groupUsersData}
+              dataSource={filteredGroupUsersData}
               loading={isGroupUsersLoading}
-              pagination={{ pageSize: 10, showSizeChanger: false }}
+              pagination={false}
               rowSelection={canEdit ? {
                 ...groupUserRowSelection,
                 getCheckboxProps: (record: User) => ({
