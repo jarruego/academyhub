@@ -18,6 +18,7 @@ import UserDetail from "../../components/user/user-detail";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
+import { Group } from "../../shared/types/group/group";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -48,21 +49,20 @@ export default function CourseDetailRoute() {
   const { id_course } = useParams();
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
   const { data: groupsData, isLoading: isGroupsLoading } = useGroupsQuery(id_course || "");
-  // Keep groups sorted by group_name for consistent display
+  // Sort groups by start_date first (ascending), then group_name (ascending) as secondary
   const sortedGroups = useMemo(() => {
     const list = groupsData ?? [];
-    // Sort by end_date descending (latest end_date first).
-    // If end_date is missing/null, place those groups at the end.
     return [...list].sort((a, b) => {
       const toMillis = (d: string | Date | null | undefined) => {
-        if (!d) return Number.NEGATIVE_INFINITY; // treat missing dates as smallest so they appear last when sorting desc
+        if (!d) return Number.POSITIVE_INFINITY; // missing dates go last
         const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
-        return Number.isFinite(t) ? t : Number.NEGATIVE_INFINITY;
+        return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
       };
-      const aTime = toMillis(a?.end_date);
-      const bTime = toMillis(b?.end_date);
-      // Descending: later dates first
-      return bTime - aTime;
+      const aStart = toMillis(a.start_date);
+      const bStart = toMillis(b.start_date);
+      if (aStart !== bStart) return aStart - bStart; // ascending by start_date
+      // tie-breaker: group_name ascending
+      return (a.group_name ?? '').localeCompare(b.group_name ?? '');
     });
   }, [groupsData]);
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
@@ -361,12 +361,44 @@ export default function CourseDetailRoute() {
                 </Button>
               </AuthzHide>
             </div>
-            <Table
+            <Table<Group>
               rowKey="id_group"
               columns={[
-                { title: 'Nombre del grupo', dataIndex: 'group_name' },
-                { title: 'Fecha Inicio', dataIndex: 'start_date', render: (d: string | Date | null) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
-                { title: 'Fecha Fin', dataIndex: 'end_date', render: (d: string | Date | null) => d ? dayjs(d).format('DD/MM/YYYY') : '-' },
+                {
+                  title: 'Nombre del grupo',
+                  dataIndex: 'group_name',
+                  sorter: (a: Group, b: Group) => (a.group_name ?? '').localeCompare(b.group_name ?? ''),
+                  sortDirections: ['ascend', 'descend'],
+                },
+                {
+                  title: 'Fecha Inicio',
+                  dataIndex: 'start_date',
+                  render: (d: string | Date | null) => d ? dayjs(d).format('DD/MM/YYYY') : '-',
+                  sorter: (a: Group, b: Group) => {
+                    const toMillis = (d: string | Date | null | undefined) => {
+                      if (!d) return Number.POSITIVE_INFINITY;
+                      const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
+                      return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+                    };
+                    return toMillis(a.start_date) - toMillis(b.start_date);
+                  },
+                  sortDirections: ['ascend', 'descend'],
+                  defaultSortOrder: 'ascend',
+                },
+                {
+                  title: 'Fecha Fin',
+                  dataIndex: 'end_date',
+                  render: (d: string | Date | null) => d ? dayjs(d).format('DD/MM/YYYY') : '-',
+                  sorter: (a: Group, b: Group) => {
+                    const toMillis = (d: string | Date | null | undefined) => {
+                      if (!d) return Number.POSITIVE_INFINITY;
+                      const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
+                      return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+                    };
+                    return toMillis(a.end_date) - toMillis(b.end_date);
+                  },
+                  sortDirections: ['ascend', 'descend'],
+                },
               ]}
               dataSource={sortedGroups}
               loading={isGroupsLoading}
