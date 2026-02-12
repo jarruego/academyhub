@@ -49,18 +49,18 @@ export default function CourseDetailRoute() {
   const { id_course } = useParams();
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
   const { data: groupsData, isLoading: isGroupsLoading } = useGroupsQuery(id_course || "");
-  // Sort groups by start_date first (ascending), then group_name (ascending) as secondary
+  // Sort groups by start_date first (descending - most recent first), then group_name (ascending) as secondary
   const sortedGroups = useMemo(() => {
     const list = groupsData ?? [];
     return [...list].sort((a, b) => {
       const toMillis = (d: string | Date | null | undefined) => {
-        if (!d) return Number.POSITIVE_INFINITY; // missing dates go last
+        if (!d) return Number.NEGATIVE_INFINITY; // missing dates go last when sorting desc
         const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
-        return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+        return Number.isFinite(t) ? t : Number.NEGATIVE_INFINITY;
       };
       const aStart = toMillis(a.start_date);
       const bStart = toMillis(b.start_date);
-      if (aStart !== bStart) return aStart - bStart; // ascending by start_date
+      if (aStart !== bStart) return bStart - aStart; // descending by start_date (most recent first)
       // tie-breaker: group_name ascending
       return (a.group_name ?? '').localeCompare(b.group_name ?? '');
     });
@@ -376,14 +376,14 @@ export default function CourseDetailRoute() {
                   render: (d: string | Date | null) => d ? dayjs(d).format('DD/MM/YYYY') : '-',
                   sorter: (a: Group, b: Group) => {
                     const toMillis = (d: string | Date | null | undefined) => {
-                      if (!d) return Number.POSITIVE_INFINITY;
+                      if (!d) return Number.NEGATIVE_INFINITY;
                       const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
-                      return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+                      return Number.isFinite(t) ? t : Number.NEGATIVE_INFINITY;
                     };
-                    return toMillis(a.start_date) - toMillis(b.start_date);
+                    return toMillis(b.start_date) - toMillis(a.start_date);
                   },
                   sortDirections: ['ascend', 'descend'],
-                  defaultSortOrder: 'ascend',
+                  defaultSortOrder: 'descend',
                 },
                 {
                   title: 'Fecha Fin',
