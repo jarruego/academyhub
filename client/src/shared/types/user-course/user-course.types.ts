@@ -25,7 +25,13 @@ export interface CourseSelectModel {
   updatedAt: Date;
 }
 
+export interface CourseGroupSummary {
+  id_group: number;
+  group_name: string;
+}
+
 // Tipo compuesto para el resultado del JOIN
 export type UserCourseWithCourse = UserCourseSelectModel & {
   course: CourseSelectModel;
+  groups?: CourseGroupSummary[];
 };

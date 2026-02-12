@@ -245,7 +245,18 @@ export class UserService {
 
   async findCoursesByUserId(id_user: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.userCourseRepository.findCoursesByUserId(id_user, { transaction });
+      const courses = await this.userCourseRepository.findCoursesByUserId(id_user, { transaction });
+      const enriched = await Promise.all(
+        (courses || []).map(async (course) => {
+          const groups = await this.userGroupRepository.findGroupsByUserAndCourse(
+            id_user,
+            course.id_course,
+            { transaction }
+          );
+          return { ...course, groups };
+        })
+      );
+      return enriched;
     });
   }
   /**

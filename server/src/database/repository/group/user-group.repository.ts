@@ -81,7 +81,6 @@ export class UserGroupRepository extends Repository {
         return rows.map((r) => ({
             ...r.users,
             completion_percentage: r.user_course.completion_percentage,
-            time_spent: r.user_course.time_spent ?? null,
             id_role: r.user_group?.id_role,
             role_shortname: r.role?.role_shortname,
             enrollment_center_id: r.user_group?.id_center,
@@ -109,9 +108,17 @@ export class UserGroupRepository extends Repository {
             enrollment_company_cif: r.company?.cif,
             // for this variant we don't have user_course joined; id_moodle_user will be null
             id_moodle_user: null,
-            time_spent: null,
             moodle_synced_at: r.user_group?.moodle_synced_at ?? null,
         }));
+    }
+
+    async findGroupsByUserAndCourse(id_user: number, id_course: number, options?: QueryOptions) {
+        const rows = await this.query(options)
+            .select({ id_group: groupTable.id_group, group_name: groupTable.group_name })
+            .from(userGroupTable)
+            .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
+            .where(and(eq(userGroupTable.id_user, id_user), eq(groupTable.id_course, id_course)));
+        return rows;
     }
 
     async updateUserInGroup(id_group: number, id_user: number, data: UserGroupUpdateModel, options?: QueryOptions) {

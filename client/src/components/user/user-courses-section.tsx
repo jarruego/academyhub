@@ -46,6 +46,21 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
       render: (text: string) => <strong>{text}</strong>,
     },
     {
+      title: 'Grupos',
+      key: 'groups',
+      render: (_value, record: UserCourseWithCourse) => {
+        const groups = record.groups ?? [];
+        if (groups.length === 0) return '-';
+        return (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {groups.map((g) => (
+              <Tag key={g.id_group} color="blue">{g.group_name}</Tag>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
       title: 'Nombre Corto',
       dataIndex: ['course', 'short_name'],
       key: 'short_name',
@@ -59,39 +74,6 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
                     modality === 'ONLINE' ? 'green' : 
                     modality === 'MIXTA' ? 'orange' : 'default';
         return <Tag color={color}>{modality}</Tag>;
-      },
-    },
-    {
-      title: 'Horas',
-      dataIndex: ['course', 'hours'],
-      key: 'hours',
-      render: (hours: number | null) => hours ? `${hours}h` : '-',
-    },
-    {
-      title: 'Fecha Inicio',
-      dataIndex: ['course', 'start_date'],
-      key: 'start_date',
-      render: (date: string | null) => {
-        if (!date) return '-';
-        return new Date(date).toLocaleDateString('es-ES');
-      },
-    },
-    {
-      title: 'Fecha Fin',
-      dataIndex: ['course', 'end_date'],
-      key: 'end_date',
-      render: (date: string | null) => {
-        if (!date) return '-';
-        return new Date(date).toLocaleDateString('es-ES');
-      },
-    },
-    {
-      title: 'Fecha Matriculación',
-      dataIndex: 'enrollment_date',
-      key: 'enrollment_date',
-      render: (date: string | null) => {
-        if (!date) return '-';
-        return new Date(date).toLocaleDateString('es-ES');
       },
     },
     {
