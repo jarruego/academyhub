@@ -127,7 +127,40 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
       messageApi.success('XML generado correctamente');
       setIsBonificationModalOpen(false);
     } catch (err) {
-      messageApi.error('No se pudo generar el XML');
+      let detail: string | undefined;
+      const anyErr = err as { response?: { data?: unknown } };
+      const data = anyErr?.response?.data;
+
+      try {
+        if (data instanceof Blob) {
+          const text = await data.text();
+          try {
+            const json = JSON.parse(text) as { message?: string | string[]; usersMissingDni?: Array<{ id_user?: number; email?: string }> };
+            if (json?.message) {
+              const baseMsg = Array.isArray(json.message) ? json.message.join(', ') : json.message;
+              if (json.usersMissingDni && json.usersMissingDni.length > 0) {
+                const usersInfo = json.usersMissingDni
+                  .map(u => u.email ?? (u.id_user ? `ID ${u.id_user}` : 'Usuario sin identificar'))
+                  .join(', ');
+                detail = `${baseMsg}. Usuarios: ${usersInfo}`;
+              } else {
+                detail = baseMsg;
+              }
+            } else if (text) {
+              detail = text;
+            }
+          } catch {
+            if (text) detail = text;
+          }
+        } else if (typeof data === 'object' && data && 'message' in (data as Record<string, unknown>)) {
+          const message = (data as { message?: string | string[] }).message;
+          detail = Array.isArray(message) ? message.join(', ') : message;
+        }
+      } catch {
+        // ignore parsing errors and show generic message
+      }
+
+      messageApi.error(detail || 'No se pudo generar el XML');
     }
   };
 

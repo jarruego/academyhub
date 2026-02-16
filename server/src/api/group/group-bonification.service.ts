@@ -35,10 +35,28 @@ export class GroupBonificableService {
             // Get course fundae id
             const course = await this.courseRepository.findById(group.id_course, { transaction });
             if (!course) throw new NotFoundException("Course not found");
+            if (!course.fundae_id || isNaN(Number(course.fundae_id))) {
+                throw new BadRequestException("Course FUNDAE ID is missing or invalid");
+            }
+            if (!group.fundae_id || isNaN(Number(group.fundae_id))) {
+                throw new BadRequestException("Group FUNDAE ID is missing or invalid");
+            }
 
             // Get group students
             const users = await this.userGroupRepository.findUsersInGroupByIds(group.id_group, userIds, { transaction });
             if (users.length <= 0) throw new BadRequestException("No users found in group");
+
+            const usersMissingDni = users
+                .filter((user) => !user.dni || String(user.dni).trim().length === 0)
+                .map((user) => ({ id_user: user.id_user, email: user.email }))
+                .filter((user) => user.id_user || user.email);
+
+            if (usersMissingDni.length > 0) {
+                throw new BadRequestException({
+                    message: "Some users are missing DNI",
+                    usersMissingDni,
+                });
+            }
 
             // Determine company CIF based on the center at the time of enrollment
             // The repository now returns enrollment_company_cif on each user (from user_group.id_center -> centers -> company.cif)
