@@ -1,9 +1,15 @@
+export type FundaePeriodo = {
+  mes: number;
+  importe: number;
+}
+
 export type FundaeCost = {
   cifagrupada: string;
   directos: number;
   indirectos: number;
   organizacion: number;
   salariales: number;
+  periodos?: { periodo: FundaePeriodo[] };
 }
 
 export type FundaeParticipant = {
@@ -25,7 +31,7 @@ export type FundaeParticipant = {
 export type FundaeGroup = {
   idAccion: string;
   idGrupo: string;
-  participantes: FundaeParticipant[];
+  participantes: { participante: FundaeParticipant[] };
   costes?: { coste: FundaeCost[] };
 }
 

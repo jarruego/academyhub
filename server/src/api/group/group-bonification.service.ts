@@ -73,6 +73,9 @@ export class GroupBonificableService {
             const hours = Number(course.hours ?? 0);
             const costPerUserRaw = pricePerHour * hours;
 
+            // Get current month for periodos
+            const currentMonth = new Date().getMonth() + 1; // 1-12
+
             const costesArray: FundaeCost[] = [];
             for (const [cif, userSet] of Object.entries(cifToUsers)) {
                 const alumnosBonificados = userSet.size;
@@ -98,12 +101,26 @@ export class GroupBonificableService {
                     indirectos,
                     organizacion,
                     salariales,
+                    periodos: {
+                        periodo: [
+                            {
+                                mes: currentMonth,
+                                importe: salariales,
+                            },
+                        ],
+                    },
                 });
             }
 
             const xml = create(GroupBonificableService.createFundaeXmlObject({ course, group, users, costes: costesArray })).dec({ version: '1.0', encoding: 'UTF-8', standalone: true}).end({ prettyPrint: true });
+            
+            // Format decimal numbers in XML: ensure all numeric values have .00 format for FUNDAE compliance
+            const xmlString = xml.replace(/(<(?:directos|indirectos|organizacion|salariales|importe)>)(\d+)(<\/(?:directos|indirectos|organizacion|salariales|importe)>)/g, (match, open, num, close) => {
+                return `${open}${Number(num).toFixed(2)}${close}`;
+            });
+            
             // Devuelve también el nombre sugerido para el archivo
-            return { xml, filename: `${group.group_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.xml` };
+            return { xml: xmlString, filename: `${group.group_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.xml` };
         });
     }
 
@@ -150,7 +167,7 @@ export class GroupBonificableService {
                 discapacidad: user.disability,
                 afectadosTerrorismo: user.terrorism_victim,
                 afectadosViolenciaGenero: user.gender_violence_victim,
-                categoriaprofesional: user.salary_group,
+                categoriaprofesional: 5, // hardcoded to 5 for now antes user.salary_group
                 nivelestudios: user.education_level,
                 DiplomaAcreditativo: diplomaValue,
                 fijoDiscontinuo: user.seasonalWorker,
@@ -162,7 +179,9 @@ export class GroupBonificableService {
                 grupo: {
                     idAccion: String(courseFundaeId),
                     idGrupo: String(groupFundaeId),
-                    participantes,
+                    participantes: {
+                        participante: participantes,
+                    },
                 }
             }
         };
