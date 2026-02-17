@@ -392,6 +392,113 @@ export class ReportsPdfService {
   }
 
   /**
+   * Stream a bonification-style PDF grouped by group -> company -> center.
+   * Shows totals by company and center without individual student names.
+   */
+  async streamBonificationPdf(filter: ReportFilterDTO | undefined, res: Response) {
+    const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
+    const data = await this.reportsRepository.getReportRows(requestFilter);
+    const rows: ReportRowDTO[] = data?.data ?? [];
+    return await this.streamBonificationPdfFromRows(rows, res);
+  }
+
+  async streamBonificationPdfFromRows(rows: ReportRowDTO[], res: Response) {
+    // Group rows by group -> company -> center to count students
+    // Structure: { group_name -> { company_name -> { center_name -> Set<student_id> } } }
+    const groupedData: Record<string, Record<string, Record<string, Set<string>>>> = {};
+
+    // Collect unique students per (group, company, center)
+    for (const r of rows) {
+      const groupName = String(r.group_name ?? 'Sin grupo');
+      const companyName = String(r.company_name ?? 'Sin empresa');
+      const centerName = String(r.center_name ?? 'Sin centro');
+
+      if (!groupedData[groupName]) {
+        groupedData[groupName] = {};
+      }
+      if (!groupedData[groupName][companyName]) {
+        groupedData[groupName][companyName] = {};
+      }
+      if (!groupedData[groupName][companyName][centerName]) {
+        groupedData[groupName][companyName][centerName] = new Set<string>();
+      }
+
+      // Create unique key for student (use id_user as primary key, fallback to email or dni)
+      const studentKey = String(r.id_user ?? r.email ?? r.dni ?? '');
+      if (studentKey) {
+        groupedData[groupName][companyName][centerName].add(studentKey);
+      }
+    }
+
+    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
+    this.pdfService.streamDocumentToResponse(doc, res, 'report-bonification.pdf');
+
+    const issueDate = new Date().toLocaleDateString('es-ES');
+    const groupNames = Object.keys(groupedData).sort();
+
+    for (let gi = 0; gi < groupNames.length; gi++) {
+      const groupName = groupNames[gi];
+      if (gi > 0) doc.addPage();
+
+      // Title
+      try { doc.fillColor('#7E1515'); } catch (e) { }
+      doc.fontSize(14).text(`Informe de Bonificación (${issueDate})`, { align: 'left' });
+      doc.moveDown(0.3);
+
+      // Group name
+      try { doc.fillColor('#0033CC'); doc.font('Helvetica-Bold'); } catch (e) { }
+      doc.fontSize(14).text(`Grupo: ${groupName}`, { align: 'left' });
+      doc.moveDown(0.4);
+
+      try { doc.fillColor('#000000'); doc.font('Helvetica'); } catch (e) { }
+      doc.fontSize(10);
+
+      const companies = Object.keys(groupedData[groupName]).sort();
+      let totalStudentsInGroup = 0;
+
+      for (const companyName of companies) {
+        // Company header
+        try { doc.fillColor('#333333'); doc.font('Helvetica-Bold'); } catch (e) { }
+        doc.fontSize(11).text(`Empresa: ${companyName}`, { align: 'left' });
+
+        const centers = Object.keys(groupedData[groupName][companyName]).sort();
+        let totalStudentsInCompany = 0;
+
+        // Render centers under this company
+        try { doc.fillColor('#000000'); doc.font('Helvetica'); } catch (e) { }
+        doc.fontSize(10);
+
+        for (const centerName of centers) {
+          const studentCount = groupedData[groupName][companyName][centerName].size;
+          totalStudentsInCompany += studentCount;
+          totalStudentsInGroup += studentCount;
+
+          doc.text(`  Centro: ${centerName}`, { indent: 20 });
+          doc.text(`    Alumnos: ${studentCount}`, { indent: 40 });
+        }
+
+        // Total for company
+        try { doc.fillColor('#666666'); doc.font('Helvetica-Bold'); } catch (e) { }
+        doc.fontSize(10).text(`  Total Empresa ${companyName}: ${totalStudentsInCompany}`, { indent: 20 });
+        doc.moveDown(0.2);
+
+        try { doc.fillColor('#000000'); doc.font('Helvetica'); } catch (e) { }
+        doc.fontSize(10);
+      }
+
+      // Total for group
+      doc.moveDown(0.3);
+      try { doc.fillColor('#7E1515'); doc.font('Helvetica-Bold'); } catch (e) { }
+      doc.fontSize(12).text(`Total Grupo ${groupName}: ${totalStudentsInGroup}`, { align: 'left' });
+      doc.moveDown(0.6);
+
+      try { doc.fillColor('#000000'); doc.font('Helvetica'); } catch (e) { }
+    }
+
+    this.pdfService.endDocument(doc);
+  }
+
+  /**
    * High-level export handler: accept the export DTO and dispatch the correct
    * generation path (explicit selected keys, select-all matching with deselections
    * or filter-based export). This centralizes export decision logic so the
@@ -402,8 +509,17 @@ export class ReportsPdfService {
     const includePasswords = Boolean(include_passwords);
 
     // Pick the appropriate renderer depending on report_type
-    const rowsRendererFromRows = report_type === 'certification' ? this.streamCertificationPdfFromRows.bind(this) : this.streamDedicationPdfFromRows.bind(this);
-    const rendererFromFilter = report_type === 'certification' ? this.streamCertificationPdf.bind(this) : this.streamDedicationPdf.bind(this);
+    const rowsRendererFromRows = report_type === 'certification' 
+      ? this.streamCertificationPdfFromRows.bind(this) 
+      : report_type === 'bonification'
+      ? this.streamBonificationPdfFromRows.bind(this)
+      : this.streamDedicationPdfFromRows.bind(this);
+    
+    const rendererFromFilter = report_type === 'certification' 
+      ? this.streamCertificationPdf.bind(this) 
+      : report_type === 'bonification'
+      ? this.streamBonificationPdf.bind(this)
+      : this.streamDedicationPdf.bind(this);
 
     // Load organization settings and assets to include in the PDF (logo/signature and company info)
     let orgRow: OrganizationSettingsSelectModel | null = null;
@@ -464,7 +580,13 @@ export class ReportsPdfService {
       const keys: string[] = selected_keys;
       const data = await this.reportsService.getRowsByKeys(keys);
       const rows: ReportRowDTO[] = Array.isArray(data) ? data : (data?.data ?? []);
-      await rowsRendererFromRows(rows, res, report_type === 'certification' ? { issuerName, logoBuffer, signatureBuffer, companyCity } : { includePasswords, logoBuffer, signatureBuffer, issuerName });
+      if (report_type === 'bonification') {
+        await rowsRendererFromRows(rows, res);
+      } else if (report_type === 'certification') {
+        await rowsRendererFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
+      } else {
+        await rowsRendererFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
+      }
       return;
     }
 
@@ -482,11 +604,23 @@ export class ReportsPdfService {
           return !deselected.includes(key);
         });
       }
-      await rowsRendererFromRows(rows, res, report_type === 'certification' ? { issuerName, logoBuffer, signatureBuffer, companyCity } : { includePasswords, logoBuffer, signatureBuffer, issuerName });
+      if (report_type === 'bonification') {
+        await rowsRendererFromRows(rows, res);
+      } else if (report_type === 'certification') {
+        await rowsRendererFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
+      } else {
+        await rowsRendererFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
+      }
       return;
     }
 
     // Default: generate report by applying the filter server-side (force no pagination)
-    await rendererFromFilter(exportFilter, res, report_type === 'certification' ? { issuerName, logoBuffer, signatureBuffer, companyCity } : { includePasswords, logoBuffer, signatureBuffer, issuerName });
+    if (report_type === 'bonification') {
+      await rendererFromFilter(exportFilter, res);
+    } else if (report_type === 'certification') {
+      await rendererFromFilter(exportFilter, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
+    } else {
+      await rendererFromFilter(exportFilter, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
+    }
   }
 }

@@ -132,7 +132,7 @@ export default function ReportsRoute() {
 
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [includePasswords, setIncludePasswords] = useState(false);
-  const [exportReportType, setExportReportType] = useState<'dedication' | 'certification'>('dedication');
+  const [exportReportType, setExportReportType] = useState<'dedication' | 'certification' | 'bonification'>('dedication');
 
   const { exportPdf: doExportPdf } = useReportExport();
   const [modal, modalContextHolder] = Modal.useModal();
@@ -140,8 +140,9 @@ export default function ReportsRoute() {
   const handleExport = async () => {
     try {
       setExportModalVisible(false);
-  const payload: ReportExportRequest & { filename?: string } = { filter: params, include_passwords: includePasswords, filename: exportReportType === 'certification' ? 'report-certification.pdf' : 'report-dedication.pdf' };
+  const payload: ReportExportRequest & { filename?: string } = { filter: params, include_passwords: includePasswords, filename: exportReportType === 'certification' ? 'report-certification.pdf' : exportReportType === 'bonification' ? 'report-bonification.pdf' : 'report-dedication.pdf' };
   if (exportReportType === 'certification') payload.report_type = 'certification';
+  if (exportReportType === 'bonification') payload.report_type = 'bonification';
   // If user has explicit selections, send selected_keys; if user chose select-all-across-pages,
   // send select_all_matching with any deselected keys. Otherwise send only the filter.
   if (!selectAllMatching && selectedRowKeys && selectedRowKeys.length) {
@@ -478,10 +479,11 @@ export default function ReportsRoute() {
             <Space>
               <Select
                 value={exportReportType}
-                onChange={(val) => setExportReportType(val as 'dedication' | 'certification')}
+                onChange={(val) => setExportReportType(val as 'dedication' | 'certification' | 'bonification')}
                 options={[
                   { label: 'PDF Dedicación', value: 'dedication' },
                   { label: 'PDF Certificado', value: 'certification' },
+                  { label: 'PDF Bonificada', value: 'bonification' },
                 ]}
                 style={{ minWidth: 220 }}
               />
@@ -538,7 +540,7 @@ export default function ReportsRoute() {
         {/* global select-all UI handled via table header checkbox; no external control */}
         <Modal
           title={
-            (exportReportType === 'certification' ? 'Generar certificado' : 'Exportar informe')
+            (exportReportType === 'certification' ? 'Generar certificado' : exportReportType === 'bonification' ? 'Generar bonificación' : 'Exportar informe')
             + ` (${exportCount ?? 0} registros)`
           }
           open={exportModalVisible}
@@ -550,18 +552,22 @@ export default function ReportsRoute() {
             <div style={{ fontSize: 14 }}>
               {exportReportType === 'certification'
                 ? 'Se generará un PDF de certificación agrupado por Centro → Curso → Grupo con los campos Nombre, Apellidos y DNI.'
+                : exportReportType === 'bonification'
+                ? 'Se generará un PDF de bonificación agrupado por Grupo → Empresa → Centro con el número total de alumnos.'
                 : 'Se generará un informe de dedicación con información detallada por usuario.'}
             </div>
             <div style={{ fontSize: 12, color: '#666' }}>
               {exportReportType === 'certification'
                 ? 'El certificado incluirá un párrafo de certificación por cada grupo con las fechas del grupo.'
+                : exportReportType === 'bonification'
+                ? 'El informe de bonificación muestra totales por grupo, empresa y centro sin detalles de usuarios.'
                 : 'Puedes elegir incluir contraseñas en el PDF (acción sensible).'}
             </div>
 
 
 
             {/* Show the include passwords checkbox only for dedication reports */}
-            {exportReportType !== 'certification' && (
+            {exportReportType !== 'certification' && exportReportType !== 'bonification' && (
               <div>
                 <label>
                   <Checkbox checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} /> Incluir contraseñas en el PDF
