@@ -66,6 +66,12 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
 
       if (!user.phone || String(user.phone).trim().length === 0) {
         userErrors.push('Sin teléfono');
+      } else {
+        // Validate phone: extract only digits and check if the resulting number is > 0
+        const phoneDigits = String(user.phone).replace(/[^0-9]/g, '');
+        if (phoneDigits.length === 0 || Number(phoneDigits) === 0) {
+          userErrors.push(`Teléfono inválido: ${user.phone}`);
+        }
       }
 
       if (!user.dni || String(user.dni).trim().length === 0) {
