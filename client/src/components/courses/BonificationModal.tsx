@@ -1,4 +1,4 @@
-import { Modal, Table, Button, Select, App, Alert, Empty } from "antd";
+import { Modal, Table, Button, Select, App, Alert } from "antd";
 import type { ColumnGroupType, ColumnType } from "antd/es/table";
 import { User } from "../../shared/types/user/user";
 import React, { useMemo } from "react";
