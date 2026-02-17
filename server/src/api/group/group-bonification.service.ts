@@ -82,18 +82,11 @@ export class GroupBonificableService {
                 // Total cost for this CIF: horas * precioHora * alumnosBonificados, rounded to integer
                 const costeTotal = Math.round(costPerUserRaw * alumnosBonificados);
 
-                // Split: 70% / 15% / 10% / 5% — round components to integers and ensure sum equals costeTotal
-                let directos = Math.round(costeTotal * 0.70);
-                let indirectos = Math.round(costeTotal * 0.15);
-                let organizacion = Math.round(costeTotal * 0.10);
-                // assign remainder to salariales so total matches (handles rounding drift)
-                let salariales = costeTotal - (directos + indirectos + organizacion);
-
-                // In rare case of negative remainder adjust directos
-                if (salariales < 0) {
-                    directos += salariales; // salariales is negative
-                    salariales = 0;
-                }
+                // Only directos and salariales: indirectos and organizacion are always 0
+                let directos = costeTotal;
+                let indirectos = 0;
+                let organizacion = 0;
+                let salariales = 0;
 
                 costesArray.push({
                     cifagrupada: cif,
