@@ -579,7 +579,14 @@ export default function ReportsRoute() {
           loading={isLoading}
           dataSource={rows}
           columns={columnsWithMin}
-          pagination={{ current: page, pageSize, total, showSizeChanger: true, pageSizeOptions: ['500','1000','1500','2000'] }}
+          pagination={{
+            current: page,
+            pageSize,
+            total,
+            showSizeChanger: true,
+            pageSizeOptions: ['500','1000','1500','2000'],
+            showTotal: (t) => `${t} registros`,
+          }}
           rowSelection={rowSelection}
           onChange={handleTableChange}
           scroll={{ x: 'max-content', y: tableScrollY }}
