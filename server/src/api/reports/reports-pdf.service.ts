@@ -554,18 +554,34 @@ export class ReportsPdfService {
         const sp = orgRow.signature_path as string | undefined;
         if (lp) {
           try {
-            const rel = lp.replace(/^\/+/, '');
-            const fsPath = path.join(process.cwd(), 'public', rel);
-            logoBuffer = await fs.readFile(fsPath);
+            // logo_path is stored as "/api/files/organization/filename" - extract filename and read from uploads/
+            if (lp.startsWith('/api/files/organization/')) {
+              const filename = lp.split('/').pop();
+              const fsPath = path.join(process.cwd(), 'uploads', 'organization', filename!);
+              logoBuffer = await fs.readFile(fsPath);
+            } else {
+              // Fallback for legacy paths (if any)
+              const rel = lp.replace(/^\/+/, '');
+              const fsPath = path.join(process.cwd(), 'public', rel);
+              logoBuffer = await fs.readFile(fsPath);
+            }
           } catch (e) {
             this.logger.warn({ e, lp }, 'Could not read logo file for reports');
           }
         }
         if (sp) {
           try {
-            const rel = sp.replace(/^\/+/, '');
-            const fsPath = path.join(process.cwd(), 'public', rel);
-            signatureBuffer = await fs.readFile(fsPath);
+            // signature_path is stored as "/api/files/organization/filename" - extract filename and read from uploads/
+            if (sp.startsWith('/api/files/organization/')) {
+              const filename = sp.split('/').pop();
+              const fsPath = path.join(process.cwd(), 'uploads', 'organization', filename!);
+              signatureBuffer = await fs.readFile(fsPath);
+            } else {
+              // Fallback for legacy paths (if any)
+              const rel = sp.replace(/^\/+/, '');
+              const fsPath = path.join(process.cwd(), 'public', rel);
+              signatureBuffer = await fs.readFile(fsPath);
+            }
           } catch (e) {
             this.logger.warn({ e, sp }, 'Could not read signature file for reports');
           }
