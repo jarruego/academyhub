@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { CourseService } from '../course/course.service';
 import { ReportsRepository } from 'src/database/repository/reports/reports.repository';
 import { ReportsService } from './reports.service';
 import type { ReportFilterDTO } from 'src/dto/reports/report-filter.dto';
@@ -21,6 +22,7 @@ export class ReportsPdfService {
     private readonly reportsService: ReportsService,
     private readonly organizationRepository: OrganizationRepository,
     private readonly reportRenderer: ReportRenderer,
+    private readonly courseService: CourseService,
   ) { }
 
   /**
@@ -295,6 +297,8 @@ export class ReportsPdfService {
       const issue_date = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
       const hours = first?.hours ?? '';
       const modality = first?.modality ?? '';
+      // Usar el moodle_id del curso, no del usuario
+      const moodle_id = first?.course_moodle_id ?? first?.moodle_id;
 
       const ctx: Record<string, unknown> = {
         rows: mapped,
@@ -312,11 +316,28 @@ export class ReportsPdfService {
         issue_date,
       };
 
-      // Render this group's template into the document
-      // Note: renderTemplateIntoDocument will not end the doc; we continue for the next group
-      // and finally end the document below.
+      // Render certificado
       // eslint-disable-next-line no-await-in-loop
       await this.reportRenderer.renderTemplateIntoDocument(doc, 'certification-v1', ctx);
+
+      // Segunda hoja: contenidos del curso
+      if (moodle_id) {
+        try {
+          // Buscar el curso por moodle_id
+          const course = await this.courseService.findByMoodleId(Number(moodle_id));
+          const contents = course?.contents;
+          if (contents && typeof contents === 'string' && contents.trim().length > 0) {
+            doc.addPage();
+            doc.fontSize(16).fillColor('#0033CC').text('Contenidos del curso', { align: 'left' });
+            doc.moveDown(0.5);
+            // Renderizar HTML como texto plano (simple)
+            const plain = contents.replace(/<[^>]+>/g, '').replace(/\n/g, '\n');
+            doc.fontSize(11).fillColor('black').text(plain, { align: 'left' });
+          }
+        } catch (e) {
+          this.logger.warn({ e, moodle_id }, 'No se pudo obtener el contenido del curso para el PDF certificado');
+        }
+      }
     }
 
     // Ensure we end the doc

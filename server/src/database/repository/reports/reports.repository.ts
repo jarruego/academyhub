@@ -218,6 +218,7 @@ export class ReportsRepository extends Repository {
       hours: r.course?.hours ?? null,
       modality: r.course?.modality ?? null,
       moodle_id: r.moodle_user?.moodle_id ?? r.user_course?.id_moodle_user ?? null,
+      course_moodle_id: r.course?.moodle_id ?? null,
       moodle_username: r.moodle_user?.moodle_username ?? null,
       moodle_password: r.moodle_user?.moodle_password ?? null,
     }));

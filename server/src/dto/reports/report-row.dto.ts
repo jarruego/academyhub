@@ -67,6 +67,9 @@ export class ReportRowDTO {
   moodle_id?: number | null;
 
   @ApiPropertyOptional()
+  course_moodle_id?: number | null;
+
+  @ApiPropertyOptional()
   moodle_username?: string | null;
 
   @ApiPropertyOptional()

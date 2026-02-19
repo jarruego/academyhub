@@ -6,8 +6,10 @@ import { ReportsPdfService } from './reports-pdf.service';
 import { PdfService } from 'src/common/pdf/pdf.service';
 import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
 import { ReportRenderer } from './report-renderer.service';
+import { CourseModule } from '../course/course.module';
 
 @Module({
+  imports: [CourseModule],
   providers: [ReportsService, ReportsRepository, ReportsPdfService, PdfService, OrganizationRepository, ReportRenderer],
   controllers: [ReportsController],
   exports: [ReportsService, ReportsRepository, ReportsPdfService, PdfService, ReportRenderer],
