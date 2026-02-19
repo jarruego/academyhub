@@ -61,4 +61,9 @@ export class UpdateCourseDTO {
   @IsOptional()
   @IsString()
   fundae_id?: string;
+
+  @ApiPropertyOptional({ description: 'Contenidos del curso en HTML', type: String })
+  @IsOptional()
+  @IsString()
+  contents?: string;
 }

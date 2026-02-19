@@ -74,14 +74,12 @@ export class UserCourseRepository extends Repository {
     async findCoursesByUserId(userId: number, options?: QueryOptions): Promise<UserCourseWithCourse[]> {
         return await this.query(options)
             .select({
-                // Todos los campos de UserCourse
                 id_user: userCourseTable.id_user,
                 id_course: userCourseTable.id_course,
                 id_moodle_user: userCourseTable.id_moodle_user,
                 enrollment_date: userCourseTable.enrollment_date,
                 completion_percentage: userCourseTable.completion_percentage,
                 time_spent: userCourseTable.time_spent,
-                    // Course anidado usando el tipo CourseSelectModel
                 course: {
                     id_course: courseTable.id_course,
                     moodle_id: courseTable.moodle_id,
@@ -93,8 +91,9 @@ export class UserCourseRepository extends Repository {
                     modality: courseTable.modality,
                     hours: courseTable.hours,
                     price_per_hour: courseTable.price_per_hour,
-                    active: sql<boolean>`CASE WHEN ${courseTable.end_date} > NOW() THEN true ELSE false END`, // Calcular basado en end_date
+                    active: sql<boolean>`CASE WHEN ${courseTable.end_date} > NOW() THEN true ELSE false END`,
                     fundae_id: courseTable.fundae_id,
+                    contents: courseTable.contents,
                     createdAt: courseTable.createdAt,
                     updatedAt: courseTable.updatedAt,
                 }
@@ -130,6 +129,7 @@ export class UserCourseRepository extends Repository {
                     price_per_hour: courseTable.price_per_hour,
                     active: sql<boolean>`CASE WHEN ${courseTable.end_date} > NOW() THEN true ELSE false END`,
                     fundae_id: courseTable.fundae_id,
+                    contents: courseTable.contents,
                     createdAt: courseTable.createdAt,
                     updatedAt: courseTable.updatedAt,
                 }

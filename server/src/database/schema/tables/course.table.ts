@@ -18,6 +18,7 @@ export const courseTable = pgTable('courses', {
   price_per_hour: decimal({ precision: 10, scale: 2 }).$type<number>(),
   active: boolean().notNull(),
   fundae_id: text(),
+  contents: text(), // HTML largo
   ...TIMESTAMPS,
 });
 

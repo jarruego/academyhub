@@ -38,13 +38,23 @@ export class CourseService {
 
   async create(courseInsertModel: CourseInsertModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.courseRepository.create(courseInsertModel, { transaction });
+      // Asegura que el campo contents esté presente aunque sea undefined
+      const data: CourseInsertModel = {
+        ...courseInsertModel,
+        contents: courseInsertModel.contents ?? null,
+      };
+      return await this.courseRepository.create(data, { transaction });
     });
   }
 
   async update(id: number, courseUpdateModel: CourseUpdateModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      await this.courseRepository.update(id, courseUpdateModel, { transaction });
+      // Asegura que el campo contents esté presente aunque sea undefined
+      const data: CourseUpdateModel = {
+        ...courseUpdateModel,
+        contents: courseUpdateModel.contents ?? null,
+      };
+      await this.courseRepository.update(id, data, { transaction });
       return await this.courseRepository.findById(id, { transaction });
     });
   }
