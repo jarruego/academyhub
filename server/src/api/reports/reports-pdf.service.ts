@@ -121,10 +121,10 @@ export class ReportsPdfService {
       const leftMargin = doc.page.margins?.left ?? 40;
       const rightMargin = doc.page.margins?.right ?? 40;
       const pageWidth = doc.page.width - leftMargin - rightMargin;
-      const colUsuario = 120;
-      const colClave = opts?.includePasswords ? 100 : 0;
+      const colUsuario = 60;
+      const colClave = opts?.includePasswords ? 60 : 0;
+      const colPercent = 30;
       const colTiempo = showTimeSpent ? 90 : 0;
-      const colPercent = 60;
       const colAlumno = Math.max(80, Math.floor(pageWidth - (colUsuario + colClave + colTiempo + colPercent)));
       const colWidths = opts?.includePasswords
         ? (showTimeSpent ? [colUsuario, colClave, colAlumno, colTiempo, colPercent] : [colUsuario, colClave, colAlumno, colPercent])
