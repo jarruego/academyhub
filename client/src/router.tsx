@@ -26,6 +26,7 @@ import ImportVelneoRoute from './routes/tools/import-velneo.route';
 import UserManagementRoute from './routes/auth-users/auth-user-management.route';
 import ReportsRoute from './routes/reports/reports.route';
 import OrganizationSettingsPage from './routes/organization/OrganizationSettingsPage';
+import SmtpSettingsPage from './routes/organization/smtp-settings.route';
 import { useRole } from './utils/permissions/use-role';
 import { Role } from './hooks/api/auth/use-login.mutation';
 import {
@@ -38,6 +39,7 @@ import {
   SettingOutlined,
   ToolOutlined,
   TeamOutlined,
+  MailOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content } = Layout;
@@ -67,9 +69,11 @@ const Sidebar = () => {
   // Only ADMIN users should see the Administración parent and its children
   if (role?.toLowerCase() === Role.ADMIN) {
     adminChildren.push({ key: '/organization', icon: <SettingOutlined />, label: <Link to="/organization">Organización</Link> });
+    adminChildren.push({ key: '/organization/smtp', icon: <MailOutlined />, label: <Link to="/organization/smtp">SMTP</Link> });
     adminChildren.push({ key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> });
     menuItems.push({ key: 'administracion', icon: <SettingOutlined />, label: <span>Administración</span>, children: adminChildren });
   }
+
 
   return (
     <Sider>
@@ -115,6 +119,7 @@ export default function AppRouter() {
               <Route path="/tools/moodle-import" element={<MoodleImportRoute />} />
               <Route path="/tools/import-sage" element={<SageImportRoute />} />
               <Route path="/tools/import-velneo" element={ImportVelneoRoute.element} />
+              <Route path="/organization/smtp" element={<SmtpSettingsPage />} />
             </Routes>
           </Content>
         </Layout>

@@ -218,6 +218,13 @@
       "when": 1771486200529,
       "tag": "0030_volatile_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1772010699690,
+      "tag": "0031_fixed_marvel_zombies",
+      "breakpoints": true
     }
   ]
 }
