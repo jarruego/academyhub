@@ -12,7 +12,7 @@ import { userCourseTable } from "./schema/tables/user_course.table";
 import { importJobTable, importDecisionsTable } from "./schema/tables/import.table";
 import { organizationSettingsTable } from "./schema/tables/organization_settings.table";
 import { smtpSettingsTable } from "./schema/tables/smtp_settings.table";
-import { schedulerLockTable } from "./schema/tables/scheduler_lock.table";
+import { mailTemplatesTable } from "./schema/tables/mail_templates.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality } from "./schema/tables/course.table";
@@ -31,7 +31,7 @@ export const user_course = userCourseTable;
 export const import_jobs = importJobTable;
 export const import_decisions = importDecisionsTable;
 export const organization_settings = organizationSettingsTable;
-export const scheduler_locks = schedulerLockTable;
+export const mail_templates = mailTemplatesTable;
 export const smtp_settings = smtpSettingsTable;
 
 // Enum Data Types

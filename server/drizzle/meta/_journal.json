@@ -225,6 +225,13 @@
       "when": 1772010699690,
       "tag": "0031_fixed_marvel_zombies",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1772028960322,
+      "tag": "0032_amused_smiling_tiger",
+      "breakpoints": true
     }
   ]
 }
