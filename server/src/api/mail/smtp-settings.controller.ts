@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { SmtpSettingsService } from './smtp-settings.service';
-import { SmtpSettingsDto } from '../../dto/smtp/smtp-settings.dto';
+import { SmtpSettingsDto } from '../../dto/mail/smtp-settings.dto';
 import { RoleGuard } from '../../guards/role.guard';
 import { Role } from '../../guards/role.enum';
 

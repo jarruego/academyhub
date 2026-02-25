@@ -9,7 +9,7 @@ import { MoodleUserModule } from './moodle-user/moodle-user.module';
 import { ImportModule } from './import-sage/import.module';
 import { ImportVelneoModule } from './import-velneo/import-velneo.module';
 import { ReportsModule } from './reports/reports.module';
-import { SmtpModule } from './smtp/smtp.module';
+import { SmtpModule } from './mail/smtp.module';
 import { OrganizationModule } from './organization/organization.module';
 import { FilesModule } from './files/files.module';
 

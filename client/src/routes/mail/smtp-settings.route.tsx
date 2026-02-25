@@ -1,12 +1,11 @@
-
 import { useEffect, useState } from 'react';
 import { Button, Card, Input, InputNumber, Switch, message, Modal } from 'antd';
-import { useSmtpSettingsQuery, useSaveSmtpSettingsMutation } from '../../hooks/api/smtp/use-smtp-settings';
-import { useTestSmtpConnection, useSendTestMail } from '../../hooks/api/smtp/use-smtp-test';
+import { useSmtpSettingsQuery, useSaveSmtpSettingsMutation } from '../../hooks/api/mail/use-smtp-settings';
+import { useTestSmtpConnection, useSendTestMail } from '../../hooks/api/mail/use-smtp-test';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import z from 'zod';
-import type { SmtpSettingsForm } from '../../shared/types/smtp/smtp-settings.types';
+import type { SmtpSettingsForm } from '../../shared/types/mail/smtp-settings.types';
 
 const SMTP_SCHEMA: z.ZodType<SmtpSettingsForm> = z.object({
   host: z.string().min(1, 'El servidor es obligatorio'),

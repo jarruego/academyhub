@@ -26,7 +26,7 @@ import ImportVelneoRoute from './routes/tools/import-velneo.route';
 import UserManagementRoute from './routes/auth-users/auth-user-management.route';
 import ReportsRoute from './routes/reports/reports.route';
 import OrganizationSettingsPage from './routes/organization/OrganizationSettingsPage';
-import SmtpSettingsPage from './routes/organization/smtp-settings.route';
+import SmtpSettingsPage from './routes/mail/smtp-settings.route';
 import { useRole } from './utils/permissions/use-role';
 import { Role } from './hooks/api/auth/use-login.mutation';
 import {
