@@ -11,13 +11,17 @@ export class SmtpSettingsController {
 
   @Get()
   async getSettings() {
+    console.log('[SMTP Controller] GET /smtp-settings called');
     const result = await this.smtpSettingsService.getSettings();
+    console.log('[SMTP Controller] GET /smtp-settings result:', result);
     return result;
   }
 
   @Post()
   async saveSettings(@Body() body: SmtpSettingsDto) {
+    console.log('[SMTP Controller] POST /smtp-settings called with:', body);
     const result = await this.smtpSettingsService.saveSettings(body);
+    console.log('[SMTP Controller] POST /smtp-settings result:', result);
     return result;
   }
 }
