@@ -19,6 +19,7 @@ const SMTP_SCHEMA: z.ZodType<SmtpSettingsForm> = z.object({
 });
 
 export default function SmtpSettingsPage() {
+    const [messageApi, messageContextHolder] = message.useMessage();
   const { data, isLoading, refetch } = useSmtpSettingsQuery();
   const saveMutation = useSaveSmtpSettingsMutation();
   const testConnection = useTestSmtpConnection();
@@ -57,19 +58,19 @@ export default function SmtpSettingsPage() {
   const onSubmit = async (values: SmtpSettingsForm) => {
     try {
       await saveMutation.mutateAsync(values);
-      message.success('Configuración SMTP guardada');
+      messageApi.success('Configuración SMTP guardada');
       refetch();
     } catch (e) {
-      message.error('Error al guardar la configuración');
+      messageApi.error('Error al guardar la configuración');
     }
   };
 
   const handleTestConnection = handleSubmit(async (values) => {
     try {
       await testConnection.mutateAsync(values);
-      message.success('Conexión SMTP correcta');
+      messageApi.success('Conexión SMTP correcta');
     } catch (e) {
-      message.error('Error de conexión SMTP');
+      messageApi.error('Error de conexión SMTP');
     }
   });
 
@@ -81,124 +82,130 @@ export default function SmtpSettingsPage() {
         text: 'Este es un correo de prueba.',
         smtp: values,
       });
-      message.success('Correo de prueba enviado');
+      messageApi.success('Correo de prueba enviado');
       setTestModalOpen(false);
     } catch (e) {
-      message.error('Error al enviar el correo de prueba');
+      messageApi.error('Error al enviar el correo de prueba');
     }
   });
 
   if (isLoading) {
     return (
-      <Card title="Configuración SMTP" style={{ maxWidth: 500, margin: '0 auto' }} loading />
+      <>
+        {messageContextHolder}
+        <Card title="Configuración SMTP" style={{ maxWidth: 500, margin: '0 auto' }} loading />
+      </>
     );
   }
 
   return (
-    <Card title="Configuración SMTP" style={{ maxWidth: 500, margin: '0 auto' }}>
-      <form onSubmit={handleSubmit(onSubmit)} autoComplete="off">
-        <div style={{ marginBottom: 16 }}>
-          <label>Servidor *</label>
-          <Controller
-            name="host"
-            control={control}
-            render={({ field }) => (
-              <Input {...field} status={errors.host ? 'error' : undefined} />
-            )}
-          />
-          {errors.host && <div style={{ color: 'red' }}>{errors.host.message}</div>}
+    <>
+      {messageContextHolder}
+      <Card title="Configuración SMTP" style={{ maxWidth: 500, margin: '0 auto' }}>
+        <form onSubmit={handleSubmit(onSubmit)} autoComplete="off">
+          <div style={{ marginBottom: 16 }}>
+            <label>Servidor *</label>
+            <Controller
+              name="host"
+              control={control}
+              render={({ field }) => (
+                <Input {...field} status={errors?.host ? 'error' : undefined} />
+              )}
+            />
+            {errors?.host && <div style={{ color: 'red' }}>{errors.host?.message}</div>}
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label>Puerto *</label>
+            <Controller
+              name="port"
+              control={control}
+              render={({ field }) => (
+                <InputNumber {...field} style={{ width: '100%' }} status={errors?.port ? 'error' : undefined} />
+              )}
+            />
+            {errors?.port && <div style={{ color: 'red' }}>{errors.port?.message}</div>}
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label>Usuario *</label>
+            <Controller
+              name="user"
+              control={control}
+              render={({ field }) => (
+                <Input {...field} status={errors?.user ? 'error' : undefined} />
+              )}
+            />
+            {errors?.user && <div style={{ color: 'red' }}>{errors.user?.message}</div>}
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label>Contraseña *</label>
+            <Controller
+              name="password"
+              control={control}
+              render={({ field }) => (
+                <Input.Password {...field} status={errors?.password ? 'error' : undefined} autoComplete="new-password" />
+              )}
+            />
+            {errors?.password && <div style={{ color: 'red' }}>{errors.password?.message}</div>}
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label>SSL/TLS</label>
+            <Controller
+              name="secure"
+              control={control}
+              render={({ field: { value, onChange } }) => (
+                <Switch checked={!!value} onChange={onChange} />
+              )}
+            />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label>Email remitente *</label>
+            <Controller
+              name="from_email"
+              control={control}
+              render={({ field }) => (
+                <Input {...field} status={errors?.from_email ? 'error' : undefined} />
+              )}
+            />
+            {errors?.from_email && <div style={{ color: 'red' }}>{errors.from_email?.message}</div>}
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label>Nombre remitente</label>
+            <Controller
+              name="from_name"
+              control={control}
+              render={({ field }) => (
+                <Input {...field} status={errors?.from_name ? 'error' : undefined} />
+              )}
+            />
+          </div>
+          <Button type="primary" htmlType="submit" loading={saveMutation.isPending || isSubmitting} style={{ width: '100%' }}>
+            Guardar
+          </Button>
+        </form>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
+          <Button onClick={handleTestConnection} loading={testConnection.isPending} disabled={isSubmitting}>
+            Probar conexión
+          </Button>
+          <Button onClick={() => setTestModalOpen(true)} loading={sendTestMail.isPending} disabled={isSubmitting}>
+            Enviar correo de prueba
+          </Button>
         </div>
-        <div style={{ marginBottom: 16 }}>
-          <label>Puerto *</label>
-          <Controller
-            name="port"
-            control={control}
-            render={({ field }) => (
-              <InputNumber {...field} style={{ width: '100%' }} status={errors.port ? 'error' : undefined} />
-            )}
+        <Modal
+          title="Enviar correo de prueba"
+          open={testModalOpen}
+          onOk={handleSendTestMail}
+          onCancel={() => setTestModalOpen(false)}
+          okText="Enviar"
+          confirmLoading={sendTestMail.isPending}
+        >
+          <Input
+            placeholder="Correo destinatario"
+            value={testEmail}
+            onChange={e => setTestEmail(e.target.value)}
+            type="email"
           />
-          {errors.port && <div style={{ color: 'red' }}>{errors.port.message}</div>}
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <label>Usuario *</label>
-          <Controller
-            name="user"
-            control={control}
-            render={({ field }) => (
-              <Input {...field} status={errors.user ? 'error' : undefined} />
-            )}
-          />
-          {errors.user && <div style={{ color: 'red' }}>{errors.user.message}</div>}
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <label>Contraseña *</label>
-          <Controller
-            name="password"
-            control={control}
-            render={({ field }) => (
-              <Input.Password {...field} status={errors.password ? 'error' : undefined} autoComplete="new-password" />
-            )}
-          />
-          {errors.password && <div style={{ color: 'red' }}>{errors.password.message}</div>}
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <label>SSL/TLS</label>
-          <Controller
-            name="secure"
-            control={control}
-            render={({ field: { value, onChange } }) => (
-              <Switch checked={!!value} onChange={onChange} />
-            )}
-          />
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <label>Email remitente *</label>
-          <Controller
-            name="from_email"
-            control={control}
-            render={({ field }) => (
-              <Input {...field} status={errors.from_email ? 'error' : undefined} />
-            )}
-          />
-          {errors.from_email && <div style={{ color: 'red' }}>{errors.from_email.message}</div>}
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <label>Nombre remitente</label>
-          <Controller
-            name="from_name"
-            control={control}
-            render={({ field }) => (
-              <Input {...field} status={errors.from_name ? 'error' : undefined} />
-            )}
-          />
-        </div>
-        <Button type="primary" htmlType="submit" loading={saveMutation.isPending || isSubmitting} style={{ width: '100%' }}>
-          Guardar
-        </Button>
-      </form>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 24 }}>
-        <Button onClick={handleTestConnection} loading={testConnection.isPending} disabled={isSubmitting}>
-          Probar conexión
-        </Button>
-        <Button onClick={() => setTestModalOpen(true)} loading={sendTestMail.isPending} disabled={isSubmitting}>
-          Enviar correo de prueba
-        </Button>
-      </div>
-      <Modal
-        title="Enviar correo de prueba"
-        open={testModalOpen}
-        onOk={handleSendTestMail}
-        onCancel={() => setTestModalOpen(false)}
-        okText="Enviar"
-        confirmLoading={sendTestMail.isPending}
-      >
-        <Input
-          placeholder="Correo destinatario"
-          value={testEmail}
-          onChange={e => setTestEmail(e.target.value)}
-          type="email"
-        />
-      </Modal>
-    </Card>
+        </Modal>
+      </Card>
+    </>
   );
 }
