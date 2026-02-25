@@ -15,6 +15,7 @@ export default function MailTemplatesTab() {
   const [selectedTemplate, setSelectedTemplate] = useState<MailTemplate | null>(null);
   const deleteMutation = useDeleteMailTemplateMutation();
   const [modal, modalContextHolder] = Modal.useModal();
+  const [messageApi, messageContextHolder] = message.useMessage();
 
   const handleEdit = (template: MailTemplate) => {
     setSelectedTemplate(template);
@@ -30,7 +31,7 @@ export default function MailTemplatesTab() {
       cancelText: 'Cancelar',
       onOk: async () => {
         await deleteMutation.mutateAsync(template.id);
-        message.success('Plantilla eliminada');
+        messageApi.success('Plantilla eliminada');
       },
     });
   };
@@ -38,6 +39,7 @@ export default function MailTemplatesTab() {
   return (
     <>
       {modalContextHolder}
+      {messageContextHolder}
       <Card
         title={<span><FileTextOutlined /> Plantillas de correo</span>}
         style={{ maxWidth: 900, margin: '0 auto' }}
