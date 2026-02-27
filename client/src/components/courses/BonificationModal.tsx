@@ -205,6 +205,14 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
         );
       }
     },
+    {
+      title: 'CIF Empresa',
+      dataIndex: 'enrollment_company_cif',
+      width: 140,
+      render: (_: unknown, user: User & { enrollment_company_cif?: string }) => (
+        <span style={{ fontFamily: 'monospace' }}>{user.enrollment_company_cif || '-'}</span>
+      ),
+    },
     ...filterUsersTimeSpentColumn(
       USERS_TABLE_COLUMNS.filter(col => col.title !== 'Centro' && col.title !== 'Empresa'),
       itopTrainingEnabled

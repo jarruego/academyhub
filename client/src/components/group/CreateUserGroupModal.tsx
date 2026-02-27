@@ -72,7 +72,18 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
       await refetchUsers();
     } catch (err) {
       console.error('Error añadiendo usuarios al grupo', err);
-      messageApi.error('No se pudo añadir a los usuarios');
+      // Mostrar mensaje de error detallado si lo hay
+      let errorMsg = 'No se pudo añadir a los usuarios';
+      if (err && typeof err === 'object') {
+        // Axios error: err.response?.data?.message
+        const anyErr = err as any;
+        if (anyErr.response?.data?.message) {
+          errorMsg = anyErr.response.data.message;
+        } else if (anyErr.message) {
+          errorMsg = anyErr.message;
+        }
+      }
+      messageApi.error(errorMsg);
     }
   };
 

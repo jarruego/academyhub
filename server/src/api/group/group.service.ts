@@ -73,6 +73,9 @@ export class GroupService {
           );
         centerIdToUse = mainCenter[0]?.id_center ?? null;
       }
+      if (!centerIdToUse) {
+        throw new Error('No se puede crear la matrícula: el usuario no tiene centro asignado. Selecciona un centro antes de añadirlo al grupo.');
+      }
 
   // Comprobar existencia previa en user_group para evitar duplicate inserts
   // (antes hacíamos un insert directo que lanzaba unique violations si ya existía)
