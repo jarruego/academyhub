@@ -1,7 +1,7 @@
 import { Modal, Table, Button, Select, App, Alert } from "antd";
 import type { ColumnGroupType, ColumnType } from "antd/es/table";
 import { User } from "../../shared/types/user/user";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { USERS_TABLE_COLUMNS, filterUsersTimeSpentColumn } from "../../constants/tables/users-table-columns.constant";
 import type { UseMutationResult } from '@tanstack/react-query';
 import type { UpdateUserEnrollmentCenterPayload } from '../../hooks/api/groups/use-update-user-enrollment-center.mutation';
@@ -10,6 +10,7 @@ import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { detectDocumentType } from "../../utils/detect-document-type";
 
 interface BonificationModalProps {
+  // Additional props
   open: boolean;
   onCancel: () => void;
   onOk: () => void;
@@ -43,10 +44,12 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
   onRemoveUser,
   contextHolder,
 }) => {
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const role = useRole();
   const canEdit = role === Role.ADMIN || role === Role.MANAGER;
 
   // Validate selected users for export errors
+  // Validation logic
   const validationErrors = useMemo(() => {
     const selectedUsers = users.filter(u => selectedUserIds.includes(u.id_user));
     const errors: Array<{ userId: number; name: string; errors: string[] }> = [];
@@ -84,7 +87,13 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
         }
       }
 
-      if (userErrors.length > 0) {
+      // Validar CIF empresa vacío
+      const cifVacio = !(user as any).enrollment_company_cif || String((user as any).enrollment_company_cif).trim().length === 0;
+      if (cifVacio) {
+        userErrors.push('CIF de empresa vacío');
+      }
+
+      if (userErrors.length > 0 || cifVacio) {
         errors.push({
           userId: user.id_user,
           name: `${user.name} ${user.first_surname || ''} ${user.second_surname || ''}`.trim(),
@@ -129,7 +138,10 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
     return errors;
   }, [users, selectedUserIds]);
 
-  const columns: (ColumnGroupType<User> | ColumnType<User>)[] = [
+  // Extiende el tipo User para incluir enrollment_company_cif localmente
+  type UserWithCif = User & { enrollment_company_cif?: string };
+
+  const columns: (ColumnGroupType<UserWithCif> | ColumnType<UserWithCif>)[] = [
     {
       title: 'DNI/NIE',
       dataIndex: 'dni',
@@ -143,10 +155,11 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
     {
       title: 'Centro (empresa)',
       dataIndex: 'centro_select',
-      render: (_: unknown, user: User & { enrollment_center_id?: number | null }) => {
+      render: (_: unknown, user: UserWithCif & { enrollment_center_id?: number | null }) => {
     // Prefer enrollment center if available (comes from backend as enrollment_center_id)
   const enrollmentCenterId = user.enrollment_center_id ?? undefined;
     const selected = selectedCenters[user.id_user] ?? enrollmentCenterId ?? user.centers?.find(c => c.is_main_center)?.id_center ?? user.centers?.[0]?.id_center;
+
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Select
@@ -209,9 +222,51 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
       title: 'CIF Empresa',
       dataIndex: 'enrollment_company_cif',
       width: 140,
-      render: (_: unknown, user: User & { enrollment_company_cif?: string }) => (
-        <span style={{ fontFamily: 'monospace' }}>{user.enrollment_company_cif || '-'}</span>
-      ),
+      sorter: (a, b) => {
+        const cifA = (a.enrollment_company_cif || '').toLowerCase();
+        const cifB = (b.enrollment_company_cif || '').toLowerCase();
+        if (cifA < cifB) return -1;
+        if (cifA > cifB) return 1;
+        return 0;
+      },
+      render: (_: unknown, user: UserWithCif & { centers?: any[] }) => {
+        const cif = user.enrollment_company_cif || '';
+        // Buscar el centro seleccionado o principal
+        const selectedCenterId = selectedCenters[user.id_user];
+        let center = user.centers?.find(c => c.id_center === selectedCenterId);
+        if (!center && user.centers?.length) {
+          center = user.centers.find(c => c.is_main_center) || user.centers[0];
+        }
+        // CIF no está disponible en el tipo center, así que mostramos '-'
+        return (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: !cif ? 'red' : undefined, fontFamily: 'monospace' }}>{cif || '-'}</span>
+            {!cif && center && (
+              <Button
+                size="small"
+                type="primary"
+                style={{ padding: '0 8px', fontSize: 12 }}
+                loading={isRefreshing || updateUserEnrollmentCenterMutation.isPending}
+                onClick={async () => {
+                  if (!groupId || !center) return;
+                  setIsRefreshing(true);
+                  try {
+                    await updateUserEnrollmentCenterMutation.mutateAsync({ groupId: Number(groupId), userId: user.id_user, centerId: center.id_center });
+                    message.success('CIF actualizado desde el centro');
+                    await Promise.resolve(refetchUsersByGroup());
+                  } catch (err) {
+                    message.error('No se pudo actualizar el CIF desde el centro');
+                  } finally {
+                    setIsRefreshing(false);
+                  }
+                }}
+              >
+                CIF centro
+              </Button>
+            )}
+          </span>
+        );
+      },
     },
     ...filterUsersTimeSpentColumn(
       USERS_TABLE_COLUMNS.filter(col => col.title !== 'Centro' && col.title !== 'Empresa'),
@@ -241,7 +296,18 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
         width="90vw"
         style={{ top: 20, minHeight: '90vh', maxWidth: '90vw' }}
         styles={{ body: { minHeight: '80vh', maxHeight: '80vh', overflowY: 'auto' } }}
+        confirmLoading={isRefreshing}
+        okButtonProps={{ disabled: validationErrors.some(e => e.errors.some(err => err.includes('CIF de empresa vacío'))) || validationErrors.length > 0 }}
       >
+        {/* Mensaje global si hay algún CIF vacío */}
+        {validationErrors.some(e => e.errors.some(err => err.includes('CIF de empresa vacío'))) && (
+          <Alert
+            type="error"
+            message="No se puede bonificar: hay usuarios con el CIF de empresa vacío."
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        )}
         {validationErrors.length > 0 && (
           <Alert
             type="error"
@@ -276,17 +342,17 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
           />
         )}
 
-        <Table<User>
+        <Table<UserWithCif>
           rowKey="id_user"
-          dataSource={users.filter(u => selectedUserIds.includes(u.id_user))}
+          dataSource={users.filter(u => selectedUserIds.includes(u.id_user)) as UserWithCif[]}
           columns={columns}
           pagination={false}
           size="small"
           onRow={(record) => ({
             onDoubleClick: () => {
-          const uid = Number(record.id_user);
-          if (!Number.isFinite(uid)) return;
-          window.open(`/users/${uid}`, '_blank', 'noopener');
+              const uid = Number(record.id_user);
+              if (!Number.isFinite(uid)) return;
+              window.open(`/users/${uid}`, '_blank', 'noopener');
             },
             style: { cursor: 'pointer' }
           })}
