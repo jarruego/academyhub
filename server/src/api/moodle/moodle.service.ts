@@ -2119,6 +2119,13 @@ export class MoodleService {
                     continue;
                 }
                 members.push({ localUserId: id_user, moodleId: main.moodle_id, id_moodle_user: main.id_moodle_user });
+                // Actualizar datos del usuario en Moodle (incluida contraseña)
+                try {
+                    await this.updateLocalUserInMoodle(id_user);
+                } catch (updateErr) {
+                    const errMsg = updateErr instanceof Error ? updateErr.message : String(updateErr);
+                    details.push({ userId: id_user, error: 'Error al actualizar datos en Moodle: ' + errMsg });
+                }
             } catch (err: unknown) {
                 const ierr = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
                 Logger.warn({ err: ierr, id_user }, 'MoodleService:addLocalUsersToMoodleGroup - findByUserId failed');
