@@ -31,6 +31,7 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
         name: user.name,
         lastName: user.lastName ?? undefined,
         role: user.role,
+        moodleToken: user.moodleToken ?? undefined, // <-- Añadido aquí
       });
     }
     if (mode === 'create') {
@@ -102,6 +103,10 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
             <Select.Option value={Role.MANAGER}>Manager</Select.Option>
             <Select.Option value={Role.VIEWER}>Viewer</Select.Option>
           </Select>
+        </Form.Item>
+
+        <Form.Item label="Token de Moodle" name="moodleToken">
+          <Input.Password placeholder="Token de Moodle" />
         </Form.Item>
       </Form>
       </Modal>

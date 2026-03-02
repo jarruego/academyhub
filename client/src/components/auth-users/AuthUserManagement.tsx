@@ -42,6 +42,13 @@ export default function AuthUserManagement() {
     { title: 'Username', dataIndex: 'username', key: 'username' },
     { title: 'Rol', dataIndex: 'role', key: 'role' },
     {
+      title: 'Token Moodle',
+      dataIndex: 'moodleToken',
+      key: 'moodleToken',
+      render: (token: string | undefined) =>
+        token && token.length > 0 ? '•'.repeat(8) : '', // <-- Oculta el token con asteriscos o puntos
+    },
+    {
       title: 'Acciones',
       key: 'actions',
       render: (_: unknown, record: AuthUser) => (

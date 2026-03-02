@@ -25,6 +25,7 @@ export class AuthUserService {
       name: user.name,
       lastName: user.lastName ?? null,
       role: user.role ?? undefined,
+      moodleToken: user.moodleToken ?? null, // <-- Añadido aquí
     } as AuthUserInsertModel;
 
     await this.authUserRepository.createUser(insertUser);
@@ -48,6 +49,7 @@ export class AuthUserService {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.lastName !== undefined) updateData.lastName = data.lastName ?? null;
     if (data.role !== undefined) updateData.role = data.role;
+    if (data.moodleToken !== undefined) updateData.moodleToken = data.moodleToken ?? null; // <-- Añadido aquí
 
     // Only update password when a non-empty value is provided
     if (data.password !== undefined && data.password !== null && data.password !== '') {

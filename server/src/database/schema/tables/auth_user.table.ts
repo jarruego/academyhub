@@ -11,6 +11,7 @@ export const authUserTable = pgTable('auth_users', {
     username: varchar({length: 32}).notNull().unique(),
     password: varchar({length: 256}).notNull(),
     role: varchar({ length: 16 }).notNull().default(Role.VIEWER),
+    moodleToken: varchar({ length: 128 }), // <-- Añadido aquí
     ...TIMESTAMPS,
 });
 

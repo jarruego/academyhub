@@ -1,4 +1,3 @@
-
 import { IsNotEmpty, IsString, IsEmail, MinLength, IsEnum, IsOptional } from 'class-validator';
 import { Role } from 'src/guards/role.enum';
 
@@ -27,4 +26,8 @@ export class CreateUserDTO {
   @IsEnum(Role)
   @IsOptional()
   role?: Role;
+
+  @IsOptional()
+  @IsString()
+  moodleToken?: string; // <-- Añadido aquí
 }
