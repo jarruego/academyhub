@@ -1,0 +1,1 @@
+ALTER TABLE "mail_templates" ADD COLUMN "subject" varchar(255) DEFAULT '' NOT NULL;

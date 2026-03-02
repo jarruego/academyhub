@@ -8,6 +8,7 @@ import { MAIL_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-vari
 
 const MailTemplateSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio'),
+  subject: z.string().min(1, 'El asunto es obligatorio'),
   content: z.string().min(1, 'El contenido es obligatorio'),
   is_html: z.boolean(),
 });
@@ -19,6 +20,7 @@ interface EditMailTemplateModalProps {
   template: {
     id: number;
     name: string;
+    subject: string;
     content: string;
     is_html: boolean;
   } | null;
@@ -30,14 +32,14 @@ export default function EditMailTemplateModal({ open, template, onOk, onCancel }
   const { mutateAsync, status } = useUpdateMailTemplateMutation();
   const { handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<MailTemplateForm>({
     resolver: zodResolver(MailTemplateSchema),
-    defaultValues: template || { name: '', content: '', is_html: false },
+    defaultValues: template || { name: '', subject: '', content: '', is_html: false },
     mode: 'onBlur',
   });
 
   // Reset form when template changes
   React.useEffect(() => {
     if (template) {
-      reset({ name: template.name, content: template.content, is_html: template.is_html });
+      reset({ name: template.name, subject: template.subject, content: template.content, is_html: template.is_html });
     }
   }, [template, reset]);
 
@@ -91,6 +93,13 @@ export default function EditMailTemplateModal({ open, template, onOk, onCancel }
             name="name"
             control={control}
             render={({ field }) => <Input {...field} autoFocus autoComplete="off" />}
+          />
+        </Form.Item>
+        <Form.Item label="Asunto" validateStatus={errors.subject ? 'error' : ''} help={errors.subject?.message}>
+          <Controller
+            name="subject"
+            control={control}
+            render={({ field }) => <Input {...field} autoComplete="off" />}
           />
         </Form.Item>
         <Form.Item label="Contenido" validateStatus={errors.content ? 'error' : ''} help={errors.content?.message}>

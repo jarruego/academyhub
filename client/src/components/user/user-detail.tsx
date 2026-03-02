@@ -5,7 +5,7 @@ import { useDeleteUserMutation } from "../../hooks/api/users/use-delete-user.mut
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
 import { useUserCoursesQuery } from "../../hooks/api/users/use-user-courses.query";
 import { Button, Form, Input, Modal, Checkbox, Select, Tabs, DatePicker } from "antd";
-import { CloudUploadOutlined } from '@ant-design/icons';
+import { CloudUploadOutlined, MailOutlined } from '@ant-design/icons';
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect, useState } from "react";
 import type { MouseEvent } from "react";
@@ -20,6 +20,7 @@ import { DocumentType } from "../../shared/types/user/document-type.enum";
 import { AddUserToCenterSection } from "../../routes/users/user-center-detail-section";
 import { MoodleUsersSection } from "./moodle-users-section";
 import { UserCoursesSection } from "./user-courses-section";
+import SendMailModal from "../mail/SendMailModal";
 import usePreviewAddUserToMoodle from "../../hooks/api/moodle/use-preview-add-user-to-moodle.api";
 import { useAddUserToMoodleMutation } from "../../hooks/api/moodle/use-add-user-to-moodle.mutation";
 import { useUpdateUserInMoodleMutation } from '../../hooks/api/moodle/use-update-user-in-moodle.mutation';
@@ -120,6 +121,7 @@ const navigate = useNavigate();
 
   const [moodleUsername, setMoodleUsername] = useState<string | undefined>(undefined);
   const [moodlePassword, setMoodlePassword] = useState<string | undefined>(undefined);
+  const [sendMailModalOpen, setSendMailModalOpen] = useState(false);
   // Moodle updates are handled by the composed hook
 
   const { mutateAsync: updateUserInMoodle } = useUpdateUserInMoodleMutation();
@@ -343,7 +345,22 @@ const navigate = useNavigate();
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>
             <Form.Item label="Email" name="email" style={{ flex: 1 }}>
-              <Controller name="email" control={control} render={({ field }) => <Input {...field} id="email" autoComplete="email" data-testid="user-email" readOnly={!canEdit} />} />
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <Controller
+                  name="email"
+                  control={control}
+                  render={({ field }) => (
+                    <Input {...field} id="email" autoComplete="email" data-testid="user-email" readOnly={!canEdit} style={{ flex: 1 }} />
+                  )}
+                />
+                <Button
+                  icon={<MailOutlined />}
+                  onClick={() => setSendMailModalOpen(true)}
+                  title="Enviar correo"
+                  disabled={!userData?.email}
+                  style={{ marginTop: 4 }}
+                />
+              </div>
             </Form.Item>
             <Form.Item label="Teléfono" name="phone" style={{ flex: 1 }}>
               <Controller name="phone" control={control} render={({ field }) => <Input {...field} id="phone" autoComplete="tel" value={field.value ?? undefined} data-testid="user-phone" readOnly={!canEdit} />} />
@@ -740,6 +757,13 @@ const navigate = useNavigate();
     <>
       {contextHolder}
       <Tabs defaultActiveKey={defaultActiveKey} items={items} />
+      <SendMailModal
+        open={sendMailModalOpen}
+        userId={userId}
+        userEmail={userData?.email || ''}
+        onOk={() => setSendMailModalOpen(false)}
+        onCancel={() => setSendMailModalOpen(false)}
+      />
     </>
   );
 }

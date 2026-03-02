@@ -5,9 +5,19 @@ import { SmtpSettingsDto } from '../../dto/mail/smtp-settings.dto';
 import { RoleGuard } from '../../guards/role.guard';
 import { Role } from '../../guards/role.enum';
 
-@Controller('smtp-test')
+interface SendMailFromTemplateDto {
+  userId?: number;
+  templateId: number;
+  courseName?: string;
+  courseStart?: string;
+  courseEnd?: string;
+  fromEmail?: string;
+  toEmail: string;
+}
+
+@Controller('mail')
 @UseGuards(RoleGuard([Role.ADMIN]))
-export class SmtpTestController {
+export class MailController {
   constructor(
     private readonly smtpSettingsService: SmtpSettingsService,
     private readonly mailService: MailService,
@@ -59,5 +69,19 @@ export class SmtpTestController {
       await this.mailService.sendMail(body);
       return { ok: true };
     }
+  }
+
+  @Post('send-from-template')
+  async sendMailFromTemplate(@Body() body: SendMailFromTemplateDto) {
+    await this.mailService.sendMailFromTemplate({
+      to: body.toEmail,
+      templateId: body.templateId,
+      userId: body.userId,
+      courseName: body.courseName,
+      courseStart: body.courseStart,
+      courseEnd: body.courseEnd,
+      from_email: body.fromEmail,
+    });
+    return { success: true, message: 'Correo enviado correctamente' };
   }
 }

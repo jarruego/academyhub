@@ -9,11 +9,11 @@ import { MoodleUserModule } from './moodle-user/moodle-user.module';
 import { ImportModule } from './import-sage/import.module';
 import { ImportVelneoModule } from './import-velneo/import-velneo.module';
 import { ReportsModule } from './reports/reports.module';
-import { SmtpModule } from './mail/smtp.module';
+import { MailModule } from './mail/mail.module';
 import { OrganizationModule } from './organization/organization.module';
 import { FilesModule } from './files/files.module';
 
 @Module({
-  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, MoodleUserModule, ImportModule, ImportVelneoModule, ReportsModule, OrganizationModule, FilesModule, SmtpModule],
+  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, MoodleUserModule, ImportModule, ImportVelneoModule, ReportsModule, OrganizationModule, FilesModule, MailModule],
 })
 export class ApiModule {}

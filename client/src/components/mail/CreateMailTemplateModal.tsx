@@ -8,6 +8,7 @@ import { MAIL_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-vari
 
 const MailTemplateSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio'),
+  subject: z.string().min(1, 'El asunto es obligatorio'),
   content: z.string().min(1, 'El contenido es obligatorio'),
   is_html: z.boolean(),
 });
@@ -24,7 +25,7 @@ export default function CreateMailTemplateModal({ open, onOk, onCancel }: Create
   const { mutateAsync, isPending } = useCreateMailTemplateMutation();
   const { handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<MailTemplateForm>({
     resolver: zodResolver(MailTemplateSchema),
-    defaultValues: { name: '', content: '', is_html: false },
+    defaultValues: { name: '', subject: '', content: '', is_html: false },
     mode: 'onBlur',
   });
 
@@ -78,6 +79,13 @@ export default function CreateMailTemplateModal({ open, onOk, onCancel }: Create
             name="name"
             control={control}
             render={({ field }) => <Input {...field} autoFocus autoComplete="off" />}
+          />
+        </Form.Item>
+        <Form.Item label="Asunto" validateStatus={errors.subject ? 'error' : ''} help={errors.subject?.message}>
+          <Controller
+            name="subject"
+            control={control}
+            render={({ field }) => <Input {...field} autoComplete="off" />}
           />
         </Form.Item>
         <Form.Item label="Contenido" validateStatus={errors.content ? 'error' : ''} help={errors.content?.message}>

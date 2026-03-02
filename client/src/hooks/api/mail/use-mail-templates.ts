@@ -5,6 +5,7 @@ import { getApiHost } from '../../../utils/api/get-api-host.util';
 export interface MailTemplate {
   id: number;
   name: string;
+  subject: string;
   content: string;
   is_html: boolean;
   createdAt: string;
@@ -13,6 +14,7 @@ export interface MailTemplate {
 
 export interface MailTemplateInput {
   name: string;
+  subject: string;
   content: string;
   is_html: boolean;
 }

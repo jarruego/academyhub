@@ -6,7 +6,7 @@ export const useTestSmtpConnection = () => {
   const request = useAuthenticatedAxios();
   return useMutation({
     mutationFn: async (body: any) => {
-      const { data } = await request({ method: 'POST', url: `${getApiHost()}/smtp-test/connection`, data: body });
+      const { data } = await request({ method: 'POST', url: `${getApiHost()}/mail/connection`, data: body });
       return data;
     },
   });
@@ -16,7 +16,7 @@ export const useSendTestMail = () => {
   const request = useAuthenticatedAxios();
   return useMutation({
     mutationFn: async (body: any) => {
-      const { data } = await request({ method: 'POST', url: `${getApiHost()}/smtp-test/send`, data: body });
+      const { data } = await request({ method: 'POST', url: `${getApiHost()}/mail/send`, data: body });
       return data;
     },
   });

@@ -3,14 +3,15 @@ import { SmtpSettingsService } from './smtp-settings.service';
 import { SmtpSettingsController } from './smtp-settings.controller';
 import { DatabaseModule } from '../../database/database.module';
 import { MailService } from './mail.service';
-import { SmtpTestController } from './smtp-test.controller';
+import { MailController } from './mail.controller';
 import { MailTemplatesService } from './mail-templates.service';
 import { MailTemplatesController } from './mail-templates.controller';
+import { MoodleUserModule } from '../moodle-user/moodle-user.module';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, MoodleUserModule],
   providers: [SmtpSettingsService, MailService, MailTemplatesService],
-  controllers: [SmtpSettingsController, SmtpTestController, MailTemplatesController],
+  controllers: [SmtpSettingsController, MailController, MailTemplatesController],
   exports: [SmtpSettingsService, MailTemplatesService],
 })
-export class SmtpModule {}
+export class MailModule {}

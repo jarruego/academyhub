@@ -232,6 +232,13 @@
       "when": 1772028960322,
       "tag": "0032_amused_smiling_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1772445145449,
+      "tag": "0033_dry_whirlwind",
+      "breakpoints": true
     }
   ]
 }

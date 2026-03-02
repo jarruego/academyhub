@@ -4,6 +4,7 @@ import { TIMESTAMPS } from './timestamps';
 export const mailTemplatesTable = pgTable('mail_templates', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),
+  subject: varchar('subject', { length: 255 }).notNull().default(''),
   content: text('content').notNull(),
   is_html: boolean('is_html').notNull().default(false),
   ...TIMESTAMPS,
