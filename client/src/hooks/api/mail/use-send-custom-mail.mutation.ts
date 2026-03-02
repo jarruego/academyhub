@@ -10,6 +10,9 @@ export interface SendCustomMailRequest {
   from_email?: string;
   from_name?: string;
   reply_to?: string;
+  sendViaMoodle?: boolean;
+  authUserId?: number;
+  userId?: number;
 }
 
 export function useSendCustomMailMutation() {

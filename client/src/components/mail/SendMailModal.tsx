@@ -1,4 +1,4 @@
-import { Modal, Form, Select, Radio, Button, message, Typography, Input, Divider, Collapse } from 'antd';
+import { Modal, Form, Select, Radio, Button, message, Typography, Input, Divider, Collapse, Checkbox } from 'antd';
 import { useMailTemplatesQuery } from '../../hooks/api/mail/use-mail-templates';
 import { useSmtpSettingsQuery } from '../../hooks/api/mail/use-smtp-settings';
 import { useSendMailMutation } from '../../hooks/api/mail/use-send-mail.mutation';
@@ -29,6 +29,7 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
   const [customSubject, setCustomSubject] = useState('');
   const [customContent, setCustomContent] = useState('');
   const [customIsHtml, setCustomIsHtml] = useState(false);
+  const [sendViaMoodle, setSendViaMoodle] = useState(false);
   const smtp = smtpSettings as SmtpSettingsForm | undefined;
   const authEmail = authInfo?.user?.email || '';
 
@@ -83,6 +84,8 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
           templateId: selectedTemplate as number,
           replyTo: fromChoice === 'auth' ? authEmail : undefined,
           toEmail: userEmail,
+          sendViaMoodle,
+          authUserId: authInfo?.user?.id,
         });
       } else {
         await sendCustomMail({
@@ -91,7 +94,8 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
           html: customIsHtml ? customContent : undefined,
           text: !customIsHtml ? customContent : undefined,
           reply_to: fromChoice === 'auth' ? authEmail : undefined,
-        });
+          sendViaMoodle,
+          authUserId: authInfo?.user?.id,          userId,        });
       }
 
       messageApi.success('Correo enviado correctamente');
@@ -100,6 +104,7 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
       setCustomSubject('');
       setCustomContent('');
       setCustomIsHtml(false);
+      setSendViaMoodle(false);
       onOk?.();
     } catch (err: any) {
       messageApi.error(err?.message || 'Error al enviar el correo');
@@ -187,6 +192,12 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
                 Email del usuario autenticado ({authEmail || 'sin email'})
               </Radio>
             </Radio.Group>
+          </Form.Item>
+
+          <Form.Item>
+            <Checkbox checked={sendViaMoodle} onChange={(e) => setSendViaMoodle(e.target.checked)}>
+              Enviar Notificación por Plataforma Moodle ({authInfo?.user?.name || 'Usuario'})
+            </Checkbox>
           </Form.Item>
 
           <Form.Item label="Destinatario">

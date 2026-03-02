@@ -1,4 +1,4 @@
-import { Modal, Form, Select, Radio, Button, message, Typography, Input, Divider, Collapse } from 'antd';
+import { Modal, Form, Select, Radio, Button, message, Typography, Input, Divider, Collapse, Checkbox } from 'antd';
 import { useMailTemplatesQuery } from '../../hooks/api/mail/use-mail-templates';
 import { useSmtpSettingsQuery } from '../../hooks/api/mail/use-smtp-settings';
 import { useSendMailMutation } from '../../hooks/api/mail/use-send-mail.mutation';
@@ -37,6 +37,7 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
   const [customSubject, setCustomSubject] = useState('');
   const [customContent, setCustomContent] = useState('');
   const [customIsHtml, setCustomIsHtml] = useState(false);
+  const [sendViaMoodle, setSendViaMoodle] = useState(false);
   const smtp = smtpSettings as SmtpSettingsForm | undefined;
   const authEmail = authInfo?.user?.email || '';
 
@@ -115,6 +116,8 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
             courseEnd: end,
             replyTo: fromChoice === 'auth' ? authEmail : undefined,
             toEmail: user.email,
+            sendViaMoodle,
+            authUserId: authInfo?.user?.id,
           });
         } else {
           await sendCustomMail({
@@ -123,6 +126,9 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
             html: customIsHtml ? customContent : undefined,
             text: !customIsHtml ? customContent : undefined,
             reply_to: fromChoice === 'auth' ? authEmail : undefined,
+            sendViaMoodle,
+            authUserId: authInfo?.user?.id,
+            userId: user.id_user,
           });
         }
         sent += 1;
@@ -138,6 +144,7 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
       setCustomSubject('');
       setCustomContent('');
       setCustomIsHtml(false);
+      setSendViaMoodle(false);
       onOk?.();
     } else {
       messageApi.error(`Enviados: ${sent}. Omitidos: ${skipped}. Fallidos: ${failed}.`);
@@ -215,6 +222,12 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
               </Form.Item>
             </>
           )}
+
+          <Form.Item>
+            <Checkbox checked={sendViaMoodle} onChange={(e) => setSendViaMoodle(e.target.checked)}>
+              Enviar Notificación por Plataforma Moodle ({authInfo?.user?.name || 'Usuario'})
+            </Checkbox>
+          </Form.Item>
 
           <Form.Item label="Remitente" required>
             <Radio.Group value={fromChoice} onChange={(e) => setFromChoice(e.target.value)}>

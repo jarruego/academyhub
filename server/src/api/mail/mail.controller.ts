@@ -14,10 +14,11 @@ interface SendMailFromTemplateDto {
   fromEmail?: string;
   replyTo?: string;
   toEmail: string;
+  sendViaMoodle?: boolean;
+  authUserId?: number;
 }
 
 @Controller('mail')
-@UseGuards(RoleGuard([Role.ADMIN]))
 export class MailController {
   constructor(
     private readonly smtpSettingsService: SmtpSettingsService,
@@ -25,6 +26,7 @@ export class MailController {
   ) {}
 
   @Post('connection')
+  @UseGuards(RoleGuard([Role.ADMIN]))
   async testConnection(@Body() body: SmtpSettingsDto) {
     // Intenta crear un transporter y verificar la conexión
     const nodemailer = await import('nodemailer');
@@ -42,6 +44,7 @@ export class MailController {
   }
 
   @Post('send')
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
   async sendTestMail(@Body() body: SendMailOptions & { smtp?: SmtpSettingsDto }) {
     // Si se pasa smtp, usarlo temporalmente para este envío
     if (body.smtp) {
@@ -74,6 +77,7 @@ export class MailController {
   }
 
   @Post('send-from-template')
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
   async sendMailFromTemplate(@Body() body: SendMailFromTemplateDto) {
     await this.mailService.sendMailFromTemplate({
       to: body.toEmail,
@@ -84,6 +88,8 @@ export class MailController {
       courseEnd: body.courseEnd,
       from_email: body.fromEmail,
       reply_to: body.replyTo,
+      sendViaMoodle: body.sendViaMoodle,
+      authUserId: body.authUserId,
     });
     return { success: true, message: 'Correo enviado correctamente' };
   }

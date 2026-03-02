@@ -5,23 +5,18 @@ import { RoleGuard } from '../../guards/role.guard';
 import { Role } from '../../guards/role.enum';
 
 @Controller('smtp-settings')
-@UseGuards(RoleGuard([Role.ADMIN]))
 export class SmtpSettingsController {
   constructor(private readonly smtpSettingsService: SmtpSettingsService) {}
 
   @Get()
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
   async getSettings() {
-    console.log('[SMTP Controller] GET /smtp-settings called');
-    const result = await this.smtpSettingsService.getSettings();
-    console.log('[SMTP Controller] GET /smtp-settings result:', result);
-    return result;
+    return await this.smtpSettingsService.getSettings();
   }
 
   @Post()
+  @UseGuards(RoleGuard([Role.ADMIN]))
   async saveSettings(@Body() body: SmtpSettingsDto) {
-    console.log('[SMTP Controller] POST /smtp-settings called with:', body);
-    const result = await this.smtpSettingsService.saveSettings(body);
-    console.log('[SMTP Controller] POST /smtp-settings result:', result);
-    return result;
+    return await this.smtpSettingsService.saveSettings(body);
   }
 }

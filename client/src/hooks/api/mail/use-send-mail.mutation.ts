@@ -11,6 +11,8 @@ export interface SendMailRequest {
   fromEmail?: string;
   replyTo?: string;
   toEmail: string;
+  sendViaMoodle?: boolean;
+  authUserId?: number;
 }
 
 export function useSendMailMutation() {
