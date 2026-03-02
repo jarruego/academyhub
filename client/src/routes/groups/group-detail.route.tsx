@@ -127,7 +127,12 @@ export default function EditGroupRoute() {
               </div>
             )}
           </div>
-          <GroupUsersManager groupId={id_group ? parseInt(id_group, 10) : null} />
+          <GroupUsersManager
+            groupId={id_group ? parseInt(id_group, 10) : null}
+            courseName={courseData?.course_name}
+            groupStart={groupData?.start_date}
+            groupEnd={groupData?.end_date}
+          />
         </>
       ),
     },

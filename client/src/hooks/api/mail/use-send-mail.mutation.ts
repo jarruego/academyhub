@@ -5,6 +5,9 @@ import { getApiHost } from '../../../utils/api/get-api-host.util';
 export interface SendMailRequest {
   userId?: number;
   templateId: number;
+  courseName?: string;
+  courseStart?: string;
+  courseEnd?: string;
   fromEmail?: string;
   toEmail: string;
 }

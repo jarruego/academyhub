@@ -5,16 +5,24 @@ import { useSendMailMutation } from '../../hooks/api/mail/use-send-mail.mutation
 import { useState } from 'react';
 import { useAuthInfo } from '../../providers/auth/auth.context';
 import type { SmtpSettingsForm } from '../../shared/types/mail/smtp-settings.types';
+import dayjs from 'dayjs';
 
-interface SendMailModalProps {
+interface GroupUserRef {
+  id_user: number;
+  email?: string | null;
+}
+
+interface SendMailToGroupModalProps {
   open: boolean;
-  userId: number;
-  userEmail: string;
+  users: GroupUserRef[];
+  courseName?: string;
+  groupStart?: string | Date | null;
+  groupEnd?: string | Date | null;
   onOk?: () => void;
   onCancel: () => void;
 }
 
-export default function SendMailModal({ open, userId, userEmail, onOk, onCancel }: SendMailModalProps) {
+export default function SendMailToGroupModal({ open, users, courseName, groupStart, groupEnd, onOk, onCancel }: SendMailToGroupModalProps) {
   const { data: templates, isLoading: templatesLoading } = useMailTemplatesQuery();
   const { data: smtpSettings } = useSmtpSettingsQuery();
   const { mutateAsync: sendMail, isPending } = useSendMailMutation();
@@ -26,13 +34,22 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
   const smtp = smtpSettings as SmtpSettingsForm | undefined;
   const authEmail = authInfo?.user?.email || '';
 
+  const formatDate = (value?: string | Date | null) => {
+    if (!value) return '';
+    const d = dayjs(value);
+    return d.isValid() ? d.format('DD/MM/YYYY') : '';
+  };
+
+  const startLabel = formatDate(groupStart ?? null);
+  const endLabel = formatDate(groupEnd ?? null);
+
   const handleSend = async () => {
     if (!selectedTemplate) {
       messageApi.warning('Selecciona una plantilla');
       return;
     }
-    if (!userEmail) {
-      messageApi.error('El usuario no tiene email');
+    if (!users || users.length === 0) {
+      messageApi.warning('No hay usuarios seleccionados');
       return;
     }
     if (fromChoice === 'auth' && !authEmail) {
@@ -40,20 +57,41 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
       return;
     }
 
-    try {
-      await sendMail({
-        userId,
-        templateId: selectedTemplate,
-        fromEmail: fromChoice === 'auth' ? authEmail : undefined,
-        toEmail: userEmail,
-      });
+    const start = formatDate(groupStart ?? null);
+    const end = formatDate(groupEnd ?? null);
 
-      messageApi.success('Correo enviado correctamente');
+    let sent = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const user of users) {
+      if (!user.email) {
+        skipped += 1;
+        continue;
+      }
+      try {
+        await sendMail({
+          userId: user.id_user,
+          templateId: selectedTemplate,
+          courseName: courseName ?? '',
+          courseStart: start,
+          courseEnd: end,
+          fromEmail: fromChoice === 'auth' ? authEmail : undefined,
+          toEmail: user.email,
+        });
+        sent += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    if (failed === 0) {
+      messageApi.success(`Correos enviados: ${sent}. Omitidos: ${skipped}.`);
       setSelectedTemplate(undefined);
       setFromChoice('default');
       onOk?.();
-    } catch (err: any) {
-      messageApi.error(err?.message || 'Error al enviar el correo');
+    } else {
+      messageApi.error(`Enviados: ${sent}. Omitidos: ${skipped}. Fallidos: ${failed}.`);
     }
   };
 
@@ -102,8 +140,16 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
             </Radio.Group>
           </Form.Item>
 
-          <Form.Item label="Destinatario">
-            <Typography.Text>{userEmail || 'Sin email'}</Typography.Text>
+          <Form.Item label="Curso">
+            <Typography.Text>{courseName || 'Sin curso'}</Typography.Text>
+          </Form.Item>
+
+          <Form.Item label="Fechas del grupo">
+            <Typography.Text>{startLabel || 'Sin fecha inicio'} — {endLabel || 'Sin fecha fin'}</Typography.Text>
+          </Form.Item>
+
+          <Form.Item label="Destinatarios seleccionados">
+            <Typography.Text>{users.length}</Typography.Text>
           </Form.Item>
         </Form>
       </Modal>

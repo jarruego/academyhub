@@ -18,12 +18,16 @@ import { useSyncMoodleGroupMembersMutation } from '../../hooks/api/moodle/use-sy
 import useMoodleGroupMembersApi from '../../hooks/api/moodle/use-moodle-group-members.api';
 import useExportUsersToMailCsv from '../../hooks/api/groups/use-export-users-mail-csv';
 import useExportUsersToSmsCsv from '../../hooks/api/groups/use-export-users-sms-csv';
+import SendMailToGroupModal from '../mail/SendMailToGroupModal';
 
 interface Props {
   groupId: number | null | undefined;
+  courseName?: string;
+  groupStart?: string | Date | null;
+  groupEnd?: string | Date | null;
 }
 
-const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
+const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, groupEnd }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [modal, modalContextHolder] = Modal.useModal();
   const [notificationApi, notificationContextHolder] = notification.useNotification();
@@ -47,6 +51,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
   const [isBonificationModalOpen, setIsBonificationModalOpen] = useState(false);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isSendMailOpen, setIsSendMailOpen] = useState(false);
 
   const createBonificationFile = useCreateBonificationFileMutation();
   const updateUserEnrollmentCenterMutation = useUpdateUserEnrollmentCenterMutation();
@@ -516,6 +521,19 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
         </div>
         <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
           <div style={{ display: 'flex', gap: 8 }}>
+            <Button
+              type="default"
+              icon={<MailOutlined />}
+              onClick={() => {
+                if (!selectedUserIds || selectedUserIds.length === 0) {
+                  messageApi.warning('Selecciona al menos un usuario');
+                  return;
+                }
+                setIsSendMailOpen(true);
+              }}
+            >
+              Enviar correo
+            </Button>
             <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0}>Marcar ≥ 75%</Button>
             <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
               Bonificar+XML
@@ -564,6 +582,16 @@ const GroupUsersManager: React.FC<Props> = ({ groupId }) => {
 
       <CreateUserGroupModal open={isManageModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsManageModalOpen(false)} />
       <ImportUsersToGroupModal open={isImportModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsImportModalOpen(false)} onSuccess={() => setIsImportModalOpen(false)} />
+
+      <SendMailToGroupModal
+        open={isSendMailOpen}
+        users={(usersData || []).filter(u => selectedUserIds.includes(u.id_user))}
+        courseName={courseName}
+        groupStart={groupStart}
+        groupEnd={groupEnd}
+        onOk={() => setIsSendMailOpen(false)}
+        onCancel={() => setIsSendMailOpen(false)}
+      />
 
       <BonificationModal
         open={isBonificationModalOpen}
