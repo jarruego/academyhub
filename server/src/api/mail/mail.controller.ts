@@ -12,6 +12,7 @@ interface SendMailFromTemplateDto {
   courseStart?: string;
   courseEnd?: string;
   fromEmail?: string;
+  replyTo?: string;
   toEmail: string;
 }
 
@@ -63,6 +64,7 @@ export class MailController {
         subject: body.subject,
         html: body.html,
         text: body.text,
+        replyTo: body.reply_to,
       });
       return { ok: true };
     } else {
@@ -81,6 +83,7 @@ export class MailController {
       courseStart: body.courseStart,
       courseEnd: body.courseEnd,
       from_email: body.fromEmail,
+      reply_to: body.replyTo,
     });
     return { success: true, message: 'Correo enviado correctamente' };
   }

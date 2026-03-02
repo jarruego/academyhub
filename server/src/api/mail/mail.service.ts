@@ -11,6 +11,7 @@ export interface SendMailOptions {
   text?: string;
   from_email?: string;
   from_name?: string;
+  reply_to?: string;
 }
 
 export interface SendMailFromTemplateOptions {
@@ -22,6 +23,7 @@ export interface SendMailFromTemplateOptions {
   courseEnd?: string;
   from_email?: string;
   from_name?: string;
+  reply_to?: string;
 }
 
 @Injectable()
@@ -56,6 +58,7 @@ export class MailService {
       subject: options.subject,
       html: options.html,
       text: options.text,
+      replyTo: options.reply_to,
     });
   }
 
@@ -93,6 +96,7 @@ export class MailService {
       text: !template.is_html ? content : undefined,
       from_email: options.from_email,
       from_name: options.from_name,
+      reply_to: options.reply_to,
     });
   }
 }
