@@ -9,6 +9,7 @@ export interface SendMailRequest {
   courseStart?: string;
   courseEnd?: string;
   fromEmail?: string;
+  fromName?: string;
   replyTo?: string;
   toEmail: string;
   sendViaMoodle?: boolean;

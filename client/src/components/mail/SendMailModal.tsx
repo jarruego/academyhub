@@ -86,6 +86,7 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
           toEmail: userEmail,
           sendViaMoodle,
           authUserId: authInfo?.user?.id,
+          fromName: fromChoice === 'auth' ? authInfo?.user?.name : undefined,
         });
       } else {
         await sendCustomMail({
@@ -94,6 +95,7 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
           html: customIsHtml ? customContent : undefined,
           text: !customIsHtml ? customContent : undefined,
           reply_to: fromChoice === 'auth' ? authEmail : undefined,
+          from_name: fromChoice === 'auth' ? authInfo?.user?.name : undefined,
           sendViaMoodle,
           authUserId: authInfo?.user?.id,          userId,        });
       }

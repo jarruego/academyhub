@@ -118,6 +118,7 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
             toEmail: user.email,
             sendViaMoodle,
             authUserId: authInfo?.user?.id,
+            fromName: fromChoice === 'auth' ? authInfo?.user?.name : undefined,
           });
         } else {
           await sendCustomMail({
@@ -126,6 +127,7 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
             html: customIsHtml ? customContent : undefined,
             text: !customIsHtml ? customContent : undefined,
             reply_to: fromChoice === 'auth' ? authEmail : undefined,
+            from_name: fromChoice === 'auth' ? authInfo?.user?.name : undefined,
             sendViaMoodle,
             authUserId: authInfo?.user?.id,
             userId: user.id_user,

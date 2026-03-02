@@ -12,6 +12,7 @@ interface SendMailFromTemplateDto {
   courseStart?: string;
   courseEnd?: string;
   fromEmail?: string;
+  fromName?: string;
   replyTo?: string;
   toEmail: string;
   sendViaMoodle?: boolean;
@@ -87,6 +88,7 @@ export class MailController {
       courseStart: body.courseStart,
       courseEnd: body.courseEnd,
       from_email: body.fromEmail,
+      from_name: body.fromName,
       reply_to: body.replyTo,
       sendViaMoodle: body.sendViaMoodle,
       authUserId: body.authUserId,

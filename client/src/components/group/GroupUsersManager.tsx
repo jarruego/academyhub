@@ -519,21 +519,23 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
             </Button>
           </AuthzHide>
         </div>
+        <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.VIEWER]}>
+          <Button
+            type="default"
+            icon={<MailOutlined />}
+            onClick={() => {
+              if (!selectedUserIds || selectedUserIds.length === 0) {
+                messageApi.warning('Selecciona al menos un usuario');
+                return;
+              }
+              setIsSendMailOpen(true);
+            }}
+          >
+            Enviar correo
+          </Button>
+        </AuthzHide>
         <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button
-              type="default"
-              icon={<MailOutlined />}
-              onClick={() => {
-                if (!selectedUserIds || selectedUserIds.length === 0) {
-                  messageApi.warning('Selecciona al menos un usuario');
-                  return;
-                }
-                setIsSendMailOpen(true);
-              }}
-            >
-              Enviar correo
-            </Button>
             <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0}>Marcar ≥ 75%</Button>
             <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
               Bonificar+XML
