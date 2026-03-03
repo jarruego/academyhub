@@ -15,8 +15,14 @@ export const useImportMoodleGroupMutation = () => {
             });
         },
         onSuccess: () => {
-            // Refrescar las queries relacionadas
+            // Refrescar explícitamente las queries del importador Moodle
             queryClient.invalidateQueries({ queryKey: ['moodle'] });
+            queryClient.invalidateQueries({ queryKey: ['moodle', 'courses'] });
+            queryClient.invalidateQueries({ queryKey: ['moodle', 'groups'] });
+            queryClient.refetchQueries({ queryKey: ['moodle', 'courses'], type: 'active' });
+            queryClient.refetchQueries({ queryKey: ['moodle', 'groups'], type: 'active' });
+
+            // Refresco adicional de datos relacionados en otras vistas
             queryClient.invalidateQueries({ queryKey: ['courses'] });
             queryClient.invalidateQueries({ queryKey: ['users'] });
             queryClient.invalidateQueries({ queryKey: ['groups'] });

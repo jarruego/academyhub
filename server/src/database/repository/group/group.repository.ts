@@ -71,7 +71,7 @@ export class GroupRepository extends Repository {
     if (existingGroup) {
       // Preserve existing local metadata (start_date, end_date, fundae_id).
       // Only update fields that Moodle provides (name, description, moodle_id, id_course).
-      await this.update(existingGroup.id_group, baseData as GroupUpdateModel, options);
+      await this.update(existingGroup.id_group, { ...(baseData as GroupUpdateModel), updatedAt: new Date() }, options);
       return await this.findByMoodleId(moodleGroup.id, options); // TODO: optimize
     } else {
       // When creating a new group, initialize the optional metadata to sensible defaults.

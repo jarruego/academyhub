@@ -567,6 +567,147 @@ export class MoodleService {
         return map;
     }
 
+    private async buildEnrolledRolesMapForCourse(moodleCourseId: number, context: string): Promise<Map<number, MoodleUser['roles']>> {
+        const enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
+        try {
+            const enrolled = await this.getEnrolledUsers(moodleCourseId);
+            for (const user of enrolled) {
+                enrolledRolesMap.set(user.id, user.roles ?? []);
+            }
+        } catch (err: unknown) {
+            const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+            this.logger.warn({ err: errForLog, moodleCourseId }, `${context} - could not fetch enrolled users for role mapping`);
+        }
+        return enrolledRolesMap;
+    }
+
+    private async preloadGroupSyncData(moodleCourseId: number, moodleGroupId: number, moodleUsers: MoodleUser[], context: string): Promise<Map<number, number> | null> {
+        const userIds = moodleUsers.map(u => u.id);
+        this.progressCache.clear();
+        await this.preloadCourseProgress(moodleCourseId, userIds);
+
+        const itopEnabled = await this.isItopTrainingEnabled();
+        if (!itopEnabled) {
+            this.logger.log({ courseId: moodleCourseId, groupId: moodleGroupId }, `${context} - itop_training disabled, skipping time_spent sync`);
+            return null;
+        }
+
+        try {
+            return await this.getAdvancedReportsUserStats(moodleCourseId, 'platformdedicationtime', moodleGroupId);
+        } catch (err: unknown) {
+            const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+            this.logger.warn({ err: errForLog, courseId: moodleCourseId, groupId: moodleGroupId }, `${context} - could not fetch platformdedicationtime`);
+            return null;
+        }
+    }
+
+    private enrichMoodleUserRolesFromMap(moodleUser: MoodleUser, rolesMap: Map<number, MoodleUser['roles']>): MoodleUser {
+        if ((!moodleUser.roles || moodleUser.roles.length === 0) && rolesMap.size > 0) {
+            const fromMap = rolesMap.get(moodleUser.id);
+            if (fromMap && fromMap.length > 0) {
+                return { ...moodleUser, roles: fromMap };
+            }
+        }
+        return moodleUser;
+    }
+
+    private async persistGroupUserSyncMetrics(params: {
+        localUserId: number;
+        localGroupId: number;
+        localCourseId?: number | null;
+        moodleUserId: number;
+        completionValue?: string | number | null;
+        dedicationByUser?: Map<number, number> | null;
+        options?: QueryOptions;
+        context: string;
+    }): Promise<void> {
+        const {
+            localUserId,
+            localGroupId,
+            localCourseId,
+            moodleUserId,
+            completionValue,
+            dedicationByUser,
+            options,
+            context,
+        } = params;
+
+        const normalizedCompletion = completionValue !== null && typeof completionValue !== 'undefined'
+            ? String(completionValue)
+            : null;
+
+        if (normalizedCompletion !== null && localCourseId) {
+            try {
+                await this.userCourseRepository.updateById(localUserId, localCourseId, { completion_percentage: normalizedCompletion }, options);
+            } catch (upErr: unknown) {
+                const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                this.logger.warn({ upErr: errForLog, userId: localUserId, id_course: localCourseId }, `${context} - could not persist completion_percentage to user_course`);
+            }
+
+            try {
+                await this.userGroupRepository.updateById(localUserId, localGroupId, { completion_percentage: normalizedCompletion }, options);
+            } catch (upErr: unknown) {
+                const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                this.logger.warn({ upErr: errForLog, userId: localUserId, id_group: localGroupId }, `${context} - could not persist completion_percentage to user_group`);
+            }
+        }
+
+        if (dedicationByUser && localCourseId) {
+            const rawTime = dedicationByUser.get(moodleUserId);
+            if (rawTime !== undefined && rawTime !== null) {
+                const timeSpent = Math.max(0, Math.round(Number(rawTime)));
+                if (Number.isFinite(timeSpent)) {
+                    try {
+                        await this.userCourseRepository.updateById(localUserId, localCourseId, { time_spent: timeSpent }, options);
+                    } catch (upErr: unknown) {
+                        const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                        this.logger.warn({ upErr: errForLog, userId: localUserId, id_course: localCourseId }, `${context} - could not persist time_spent to user_course`);
+                    }
+
+                    try {
+                        await this.userGroupRepository.updateById(localUserId, localGroupId, { time_spent: timeSpent }, options);
+                    } catch (upErr: unknown) {
+                        const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                        this.logger.warn({ upErr: errForLog, userId: localUserId, id_group: localGroupId }, `${context} - could not persist time_spent to user_group`);
+                    }
+                }
+            }
+        }
+
+        try {
+            await this.userGroupRepository.updateById(localUserId, localGroupId, { moodle_synced_at: new Date() }, options);
+        } catch (syncErr: unknown) {
+            const errForLog = syncErr instanceof Error ? { message: syncErr.message, stack: syncErr.stack } : String(syncErr);
+            this.logger.warn({ syncErr: errForLog, userId: localUserId, groupId: localGroupId }, `${context} - could not update moodle_synced_at`);
+        }
+    }
+
+    private async ensureMainCenterForUserFromAny(userId: number, transaction: Transaction): Promise<number | null> {
+        const userCenters = await transaction
+            .select({ id_center: userCenterTable.id_center, is_main_center: userCenterTable.is_main_center })
+            .from(userCenterTable)
+            .where(eq(userCenterTable.id_user, userId));
+
+        if (!userCenters || userCenters.length === 0) return null;
+
+        const existingMain = userCenters.find(c => c.is_main_center === true);
+        if (existingMain) return existingMain.id_center;
+
+        const fallbackCenterId = userCenters[0].id_center;
+
+        await transaction
+            .update(userCenterTable)
+            .set({ is_main_center: false })
+            .where(eq(userCenterTable.id_user, userId));
+
+        await transaction
+            .update(userCenterTable)
+            .set({ is_main_center: true })
+            .where(and(eq(userCenterTable.id_user, userId), eq(userCenterTable.id_center, fallbackCenterId)));
+
+        return fallbackCenterId;
+    }
+
     /**
      * Sync members of a Moodle group by fetching Moodle group members and
      * updating each corresponding local user/group record one-by-one.
@@ -598,71 +739,46 @@ export class MoodleService {
         // getEnrolledUsers returns users with roles; we map them by Moodle id to avoid
         // calling the enrolled API per-user inside the loop. We also keep the parent
         // course here so we can request per-user completion status when available.
-        const enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
+        let enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
         let parentCourse: { id_course?: number; moodle_id?: number } | null = null;
         let dedicationByUser: Map<number, number> | null = null;
         try {
             parentCourse = localGroup.id_course ? await this.courseRepository.findById(localGroup.id_course) : null;
             if (parentCourse && parentCourse.moodle_id) {
-                const enrolled = await this.getEnrolledUsers(parentCourse.moodle_id);
-                for (const eu of enrolled) {
-                    enrolledRolesMap.set(eu.id, eu.roles ?? []);
-                }
+                enrolledRolesMap = await this.buildEnrolledRolesMapForCourse(parentCourse.moodle_id, 'MoodleService:syncMoodleGroupMembers');
+                dedicationByUser = await this.preloadGroupSyncData(parentCourse.moodle_id, moodleGroupId, moodleUsers, 'MoodleService:syncMoodleGroupMembers');
             }
         } catch (err) {
             Logger.warn({ err, moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch enrolled users for role mapping');
             // proceed without enrolled roles map or parentCourse
         }
 
-        // ===== OPTIMIZACIÓN EGRESS: Precargar progreso de todos los usuarios =====
-        if (parentCourse && parentCourse.moodle_id) {
-            const userIds = moodleUsers.map(u => u.id);
-            this.progressCache.clear(); // Limpiar cache anterior
-            await this.preloadCourseProgress(parentCourse.moodle_id, userIds);
-
-            const itopEnabled = await this.isItopTrainingEnabled();
-            if (itopEnabled) {
-                try {
-                    dedicationByUser = await this.getAdvancedReportsUserStats(parentCourse.moodle_id, 'platformdedicationtime', moodleGroupId);
-                } catch (err: unknown) {
-                    const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
-                    this.logger.warn({ err: errForLog, courseId: parentCourse.moodle_id, groupId: moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch platformdedicationtime');
-                }
-            } else {
-                this.logger.log({ courseId: parentCourse.moodle_id, groupId: moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - itop_training disabled, skipping time_spent sync');
-            }
-        }
-
         for (const mu of moodleUsers) {
+            const moodleUser = this.enrichMoodleUserRolesFromMap(mu, enrolledRolesMap);
             try {
                 // First, ensure the Moodle user exists in local DB
-                let existingMoodleUser = await this.moodleUserService.findByMoodleId(mu.id);
+                let existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id);
                 
                 if (!existingMoodleUser) {
                     // User doesn't exist: try to create/associate using upsertMoodleUserByGroup
                     // This will: 1) Look for existing user by DNI, 2) Create user if not found, 3) Associate with Moodle
                     try {
-                        // Enrich roles in moodleUser from enrolled users map if not present
-                        if ((!mu.roles || mu.roles.length === 0) && enrolledRolesMap.has(mu.id)) {
-                            mu.roles = enrolledRolesMap.get(mu.id) ?? [];
-                        }
-                        
-                        await this.upsertMoodleUserByGroup(mu, localGroup.id_group);
+                        await this.upsertMoodleUserByGroup(moodleUser, localGroup.id_group);
                         
                         // Reload the created user
-                        existingMoodleUser = await this.moodleUserService.findByMoodleId(mu.id);
+                        existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id);
                         
                         if (!existingMoodleUser) {
                             // Still doesn't exist after creation attempt: record error and skip
-                            errors.push({ userId: mu.id, username: mu.username, error: 'Failed to create or map moodle_user' });
+                            errors.push({ userId: moodleUser.id, username: moodleUser.username, error: 'Failed to create or map moodle_user' });
                             continue;
                         }
                         
-                        Logger.log({ moodleUserId: mu.id, username: mu.username }, 'MoodleService:syncMoodleGroupMembers - created new moodle_user mapping');
+                        Logger.log({ moodleUserId: moodleUser.id, username: moodleUser.username }, 'MoodleService:syncMoodleGroupMembers - created new moodle_user mapping');
                     } catch (createErr: unknown) {
                         const createErrForLog = createErr instanceof Error ? { message: createErr.message, stack: createErr.stack } : String(createErr);
-                        Logger.error({ createErr: createErrForLog, moodleUserId: mu.id, username: mu.username }, 'MoodleService:syncMoodleGroupMembers - failed to create moodle_user');
-                        errors.push({ userId: mu.id, username: mu.username, error: 'Failed to create moodle_user: ' + (createErr instanceof Error ? createErr.message : String(createErr)) });
+                        Logger.error({ createErr: createErrForLog, moodleUserId: moodleUser.id, username: moodleUser.username }, 'MoodleService:syncMoodleGroupMembers - failed to create moodle_user');
+                        errors.push({ userId: moodleUser.id, username: moodleUser.username, error: 'Failed to create moodle_user: ' + (createErr instanceof Error ? createErr.message : String(createErr)) });
                         continue;
                     }
                 }
@@ -675,12 +791,12 @@ export class MoodleService {
                 // Update moodle_user record (username)
                 try {
                     await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
-                        moodle_username: mu.username,
+                        moodle_username: moodleUser.username,
                     });
                 } catch (mErr: unknown) {
                     const mErrForLog = mErr instanceof Error ? { message: mErr.message, stack: mErr.stack } : String(mErr);
-                    Logger.error({ mErr: mErrForLog, moodleUserId: mu.id, localMoodleUserId: existingMoodleUser.id_moodle_user }, 'MoodleService:syncMoodleGroupMembers - moodle_user update failed');
-                    errors.push({ userId: mu.id, username: mu.username, error: 'Failed to update moodle_username: ' + (mErr instanceof Error ? mErr.message : String(mErr)) });
+                    Logger.error({ mErr: mErrForLog, moodleUserId: moodleUser.id, localMoodleUserId: existingMoodleUser.id_moodle_user }, 'MoodleService:syncMoodleGroupMembers - moodle_user update failed');
+                    errors.push({ userId: moodleUser.id, username: moodleUser.username, error: 'Failed to update moodle_username: ' + (mErr instanceof Error ? mErr.message : String(mErr)) });
                     continue; // Skip to next user instead of throwing
                 }
 
@@ -688,8 +804,8 @@ export class MoodleService {
                 // by the enrolled users map we fetched once above.
                 try {
                     // Avoid casting to `any` — prefer a runtime check that `roles` is an array.
-                    const muRoles = Array.isArray(mu.roles) ? mu.roles : undefined;
-                    const rolesSource = (muRoles && muRoles.length > 0) ? muRoles : enrolledRolesMap.get(mu.id);
+                    const muRoles = Array.isArray(moodleUser.roles) ? moodleUser.roles : undefined;
+                    const rolesSource = (muRoles && muRoles.length > 0) ? muRoles : enrolledRolesMap.get(moodleUser.id);
                     if (rolesSource && rolesSource.length > 0) {
                         const shortname = rolesSource[0].shortname;
                         if (shortname) {
@@ -704,84 +820,37 @@ export class MoodleService {
                         }
                     }
                 } catch (roleErr) {
-                    Logger.warn({ roleErr, moodleUserId: mu.id }, 'MoodleService:syncMoodleGroupMembers - role resolution failed');
+                    Logger.warn({ roleErr, moodleUserId: moodleUser.id }, 'MoodleService:syncMoodleGroupMembers - role resolution failed');
                     // continue - role resolution failures shouldn't block user updates
                 }
 
-                // Additionally, if we have a parent course with a Moodle id, fetch the
-                // user's completion percentage for that course and persist it on the
-                // local user_group record. This keeps completion percentages in sync
-                // when the operator clicks "Traer Moodle". Add debug logs and collect
-                // per-user progress details for temporary tracing.
+                let completionValue: string | null = null;
                 try {
                     if (parentCourse && parentCourse.moodle_id) {
-                        // ===== OPTIMIZACIÓN EGRESS =====
-                        // Ahora usa cache en lugar de queries individuales por usuario
-                        const completion = await this.getProgressOptimized(mu.id, parentCourse.moodle_id);
-
-                        // Persist as string to match existing schema (e.g. "0", "75").
-                        // If completion is null, persist '0' to avoid nulls in UI.
-                        const completionValue = completion !== null && typeof completion !== 'undefined' ? String(completion) : '0';
-                        try {
-                            // Persist completion percentage in the user_course table (where UI reads it from)
-                            await this.userCourseRepository.updateById(existingMoodleUser.id_user, localGroup.id_course, { completion_percentage: completionValue });
-                        } catch (upErr: unknown) {
-                            // Sanitize unknown error for logging: prefer Error properties when available
-                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
-                            Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_course: localGroup.id_course }, 'MoodleService:syncMoodleGroupMembers - could not persist completion_percentage to user_course');
-                        }
-
-                        try {
-                            // Keep user_group completion in sync for reports and group views
-                            await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { completion_percentage: completionValue });
-                        } catch (upErr: unknown) {
-                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
-                            Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_group: localGroup.id_group }, 'MoodleService:syncMoodleGroupMembers - could not persist completion_percentage to user_group');
-                        }
-
-                        if (dedicationByUser) {
-                            const rawTime = dedicationByUser.get(mu.id);
-                            if (rawTime !== undefined && rawTime !== null) {
-                                const timeSpent = Math.max(0, Math.round(Number(rawTime)));
-                                if (Number.isFinite(timeSpent)) {
-                                    try {
-                                        await this.userCourseRepository.updateById(existingMoodleUser.id_user, localGroup.id_course, { time_spent: timeSpent });
-                                    } catch (upErr: unknown) {
-                                        const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
-                                        Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_course: localGroup.id_course }, 'MoodleService:syncMoodleGroupMembers - could not persist time_spent to user_course');
-                                    }
-
-                                    try {
-                                        await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { time_spent: timeSpent });
-                                    } catch (upErr: unknown) {
-                                        const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
-                                        Logger.warn({ upErr: errForLog, userId: existingMoodleUser.id_user, id_group: localGroup.id_group }, 'MoodleService:syncMoodleGroupMembers - could not persist time_spent to user_group');
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // No parent course Moodle id: skip per-user progress fetch
+                        const completion = await this.getProgressOptimized(moodleUser.id, parentCourse.moodle_id);
+                        completionValue = completion !== null && typeof completion !== 'undefined' ? String(completion) : '0';
                     }
                 } catch (progErr: unknown) {
                     const progErrForLog = progErr instanceof Error ? { message: progErr.message, stack: progErr.stack } : String(progErr);
-                    Logger.warn({ progErr: progErrForLog, moodleUserId: mu.id }, 'MoodleService:syncMoodleGroupMembers - could not fetch user progress');
+                    Logger.warn({ progErr: progErrForLog, moodleUserId: moodleUser.id }, 'MoodleService:syncMoodleGroupMembers - could not fetch user progress');
                     // don't block overall sync on progress fetch failures
-
-                                // Mark the user_group as synced (downloaded from Moodle)
-                                try {
-                                    await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { moodle_synced_at: new Date() });
-                                } catch (syncErr: unknown) {
-                                    const errForLog = syncErr instanceof Error ? { message: syncErr.message, stack: syncErr.stack } : String(syncErr);
-                                    Logger.warn({ syncErr: errForLog, userId: existingMoodleUser.id_user, groupId: localGroup.id_group }, 'MoodleService:syncMoodleGroupMembers - could not update moodle_synced_at');
-                                }
                 }
+
+                await this.persistGroupUserSyncMetrics({
+                    localUserId: existingMoodleUser.id_user,
+                    localGroupId: localGroup.id_group,
+                    localCourseId: localGroup.id_course,
+                    moodleUserId: moodleUser.id,
+                    completionValue,
+                    dedicationByUser,
+                    context: 'MoodleService:syncMoodleGroupMembers',
+                });
 
                 updated += 1;
             } catch (err) {
                 const e: unknown = err;
                 const errMsg = e instanceof Error ? e.message : String(e);
-                errors.push({ userId: mu.id, username: mu.username, error: errMsg });
+                errors.push({ userId: moodleUser.id, username: moodleUser.username, error: errMsg });
             }
         }
 
@@ -1208,7 +1277,7 @@ export class MoodleService {
             };
             const existingCourse = await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
             if (existingCourse) {
-                await this.courseRepository.update(existingCourse.id_course, data, { transaction });
+                await this.courseRepository.update(existingCourse.id_course, { ...data, updatedAt: new Date() }, { transaction });
                 return await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
             } else {
                 const created = await this.courseRepository.create(data, { transaction });
@@ -1495,110 +1564,70 @@ export class MoodleService {
 
                 const moodleUsers = await this.getGroupUsers(moodleGroup.id);
                 let usersImported = 0;
+                const errors: Array<{ userId?: number; username?: string; error: string }> = [];
 
                 // Build enrolled roles map for the parent course (merge into moodleUser when missing)
-                const enrolledRolesMapForGroup: Map<number, MoodleUser['roles']> = new Map();
-                try {
-                    if (parentCourse && parentCourse.id) {
-                        const enrolled = await this.getEnrolledUsers(parentCourse.id);
-                        for (const eu of enrolled) enrolledRolesMapForGroup.set(eu.id, eu.roles ?? []);
-                    }
-                } catch (e) {
-                    // non-fatal
-                }
+                const enrolledRolesMapForGroup = await this.buildEnrolledRolesMapForCourse(parentCourse.id, 'MoodleService:importSpecificMoodleGroup');
 
                 // ===== OPTIMIZACIÓN EGRESS: Precargar progreso de todos los usuarios =====
-                let dedicationByUser: Map<number, number> | null = null;
-                if (parentCourse && parentCourse.id) {
-                    const userIds = moodleUsers.map(u => u.id);
-                    this.progressCache.clear(); // Limpiar cache anterior
-                    await this.preloadCourseProgress(parentCourse.id, userIds);
+                const dedicationByUser = await this.preloadGroupSyncData(parentCourse.id, moodleGroupId, moodleUsers, 'MoodleService:importSpecificMoodleGroup');
 
-                    // Precargar time_spent si itop_training está habilitado
-                    const itopEnabled = await this.isItopTrainingEnabled();
-                    if (itopEnabled) {
+                for (const moodleUserRaw of moodleUsers) {
+                    const moodleUser = this.enrichMoodleUserRolesFromMap(moodleUserRaw, enrolledRolesMapForGroup);
+                    try {
+                        await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
+                        let completionPercentage = null;
+                        if (moodleUser.username !== 'guest') {
+                            try {
+                                // ===== OPTIMIZACIÓN EGRESS: Usar cache en lugar de query individual =====
+                                const completion = await this.getProgressOptimized(moodleUser.id, parentCourse.id);
+                                completionPercentage = completion !== null && typeof completion !== 'undefined' ? Math.round(completion) : null;
+                            } catch (e) {
+                                completionPercentage = null;
+                            }
+                        }
+                        if (completionPercentage === undefined) completionPercentage = null;
+                        await this.upsertMoodleUserAndEnrollToCourse(moodleUser, course.id_course, { transaction }, completionPercentage);
+
+                        // Obtener el moodle_user local para actualizar time_spent y moodle_synced_at
                         try {
-                            dedicationByUser = await this.getAdvancedReportsUserStats(parentCourse.id, 'platformdedicationtime', moodleGroupId);
+                            const moodleUserRecord = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+                            if (moodleUserRecord) {
+                                await this.persistGroupUserSyncMetrics({
+                                    localUserId: moodleUserRecord.id_user,
+                                    localGroupId: newGroup.id_group,
+                                    localCourseId: course.id_course,
+                                    moodleUserId: moodleUser.id,
+                                    completionValue: completionPercentage,
+                                    dedicationByUser,
+                                    options: { transaction },
+                                    context: 'MoodleService:importSpecificMoodleGroup',
+                                });
+                            }
                         } catch (err: unknown) {
                             const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
-                            this.logger.warn({ err: errForLog, courseId: parentCourse.id, groupId: moodleGroupId }, 'MoodleService:importSpecificMoodleGroup - could not fetch platformdedicationtime');
+                            Logger.warn({ err: errForLog, moodleUserId: moodleUser.id }, 'MoodleService:importSpecificMoodleGroup - could not fetch moodle_user for time_spent/synced_at update');
                         }
-                    } else {
-                        this.logger.log({ courseId: parentCourse.id, groupId: moodleGroupId }, 'MoodleService:importSpecificMoodleGroup - itop_training disabled, skipping time_spent sync');
-                    }
-                }
 
-                for (const moodleUser of moodleUsers) {
-                    if ((!moodleUser.roles || moodleUser.roles.length === 0) && enrolledRolesMapForGroup.size > 0) {
-                        const fromMap = enrolledRolesMapForGroup.get(moodleUser.id);
-                        if (fromMap && fromMap.length > 0) moodleUser.roles = fromMap;
-                    }
-                    await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
-                    let completionPercentage = null;
-                    if (moodleUser.username !== 'guest') {
-                        try {
-                            // ===== OPTIMIZACIÓN EGRESS: Usar cache en lugar de query individual =====
-                            const completion = await this.getProgressOptimized(moodleUser.id, parentCourse.id);
-                            completionPercentage = completion !== null && typeof completion !== 'undefined' ? Math.round(completion) : null;
-                        } catch (e) {
-                            completionPercentage = null;
-                        }
-                    }
-                    if (completionPercentage === undefined) completionPercentage = null;
-                    await this.upsertMoodleUserAndEnrollToCourse(moodleUser, course.id_course, { transaction }, completionPercentage);
-
-                    // Obtener el moodle_user local para actualizar time_spent y moodle_synced_at
-                    try {
-                        const moodleUserRecord = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
-                        if (moodleUserRecord) {
-                            // Actualizar time_spent si está disponible
-                            if (dedicationByUser) {
-                                const rawTime = dedicationByUser.get(moodleUser.id);
-                                if (rawTime !== undefined && rawTime !== null) {
-                                    const timeSpent = Math.max(0, Math.round(Number(rawTime)));
-                                    if (Number.isFinite(timeSpent)) {
-                                        try {
-                                            await this.userCourseRepository.updateById(moodleUserRecord.id_user, course.id_course, { time_spent: timeSpent }, { transaction });
-                                        } catch (upErr: unknown) {
-                                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
-                                            Logger.warn({ upErr: errForLog, userId: moodleUserRecord.id_user, id_course: course.id_course }, 'MoodleService:importSpecificMoodleGroup - could not persist time_spent to user_course');
-                                        }
-
-                                        try {
-                                            await this.userGroupRepository.updateById(moodleUserRecord.id_user, newGroup.id_group, { time_spent: timeSpent }, { transaction });
-                                        } catch (upErr: unknown) {
-                                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
-                                            Logger.warn({ upErr: errForLog, userId: moodleUserRecord.id_user, id_group: newGroup.id_group }, 'MoodleService:importSpecificMoodleGroup - could not persist time_spent to user_group');
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Actualizar moodle_synced_at
-                            try {
-                                await this.userGroupRepository.updateById(moodleUserRecord.id_user, newGroup.id_group, { moodle_synced_at: new Date() }, { transaction });
-                            } catch (syncErr: unknown) {
-                                const errForLog = syncErr instanceof Error ? { message: syncErr.message, stack: syncErr.stack } : String(syncErr);
-                                Logger.warn({ syncErr: errForLog, userId: moodleUserRecord.id_user, groupId: newGroup.id_group }, 'MoodleService:importSpecificMoodleGroup - could not update moodle_synced_at');
-                            }
-                        }
+                        usersImported++;
                     } catch (err: unknown) {
-                        const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
-                        Logger.warn({ err: errForLog, moodleUserId: moodleUser.id }, 'MoodleService:importSpecificMoodleGroup - could not fetch moodle_user for time_spent/synced_at update');
+                        const errMsg = err instanceof Error ? err.message : String(err);
+                        errors.push({ userId: moodleUser.id, username: moodleUser.username, error: errMsg });
+                        Logger.warn({ moodleUserId: moodleUser.id, username: moodleUser.username, error: errMsg }, 'MoodleService:importSpecificMoodleGroup - user import failed, continuing');
+                        continue;
                     }
-
-                    usersImported++;
                 }
 
 
 
                 return {
-                    success: true,
-                    message: `Grupo "${moodleGroup.name}" importado correctamente`,
+                    success: errors.length === 0,
+                    message: `Processed ${moodleUsers.length} members; updated ${usersImported}; errors ${errors.length}`,
                     importedData: {
                         groupId: newGroup.id_group,
                         usersImported,
-                    }
+                    },
+                    details: errors,
                 };
 
             } catch (error) {
@@ -2659,7 +2688,22 @@ export class MoodleService {
 
             if (userGroupRows.length <= 0) {
                 // No existía: crear la asociación incluyendo el id_role resuelto (o el por defecto que gestione el repositorio)
-                await this.groupService.addUserToGroup({ id_group, id_user: userId, id_role: roleIdToAssign }, { transaction });
+                try {
+                    await this.groupService.addUserToGroup({ id_group, id_user: userId, id_role: roleIdToAssign }, { transaction });
+                } catch (err: unknown) {
+                    const errMsg = err instanceof Error ? err.message : String(err);
+                    const isMissingCenter = typeof errMsg === 'string' && errMsg.includes('no tiene centro asignado');
+
+                    if (!isMissingCenter) throw err;
+
+                    const fallbackCenterId = await this.ensureMainCenterForUserFromAny(userId, transaction);
+                    if (!fallbackCenterId) {
+                        throw err;
+                    }
+
+                    this.logger.warn({ userId, id_group, fallbackCenterId }, 'MoodleService:upsertMoodleUserByGroup - auto-selected main_center fallback');
+                    await this.groupService.addUserToGroup({ id_group, id_user: userId, id_role: roleIdToAssign, id_center: fallbackCenterId }, { transaction });
+                }
             } else {
                 // Ya existe la fila user_group: si viene un role resuelto y es distinto al actual, actualizarlo
                 // `findUserInGroup` devuelve filas del `user_group`; tipamos el primer registro adecuadamente
