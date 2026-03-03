@@ -89,7 +89,8 @@ class ProcessedDecisionDto {
     emailDb?: string;
     nssDb?: string;
     similarityScore?: number;
-    csvRowData: any;
+    csvRowData?: any;      // Solo disponible en GET /pending-decisions/:id
+    changeMetadata?: any; // Solo disponible en GET /pending-decisions/:id
     selectedUserId?: number;
     decisionAction: string;
     notes?: string;
@@ -328,8 +329,38 @@ export class ImportController {
             emailDb: decision.emailDb || undefined,
             nssDb: decision.nssDb || undefined,
             similarityScore: parseFloat(decision.similarityScore?.toString() || '0'),
-            csvRowData: decision.csvRowData
+            csvRowData: undefined  // No se carga en el listado, solo en GET /:id
         }));
+    }
+
+    /**
+     * Obtener una decisión pendiente concreta con todos sus datos (incluido csvRowData)
+     */
+    @Get('pending-decisions/:id')
+    @ApiOperation({ summary: 'Obtener detalle de una decisión pendiente' })
+    @ApiResponse({ status: 200, description: 'Decisión obtenida' })
+    @ApiResponse({ status: 404, description: 'Decisión no encontrada' })
+    async getDecisionById(@Param('id') id: string) {
+        const decision = await this.importService.getDecisionById(Number(id));
+        if (!decision) {
+            throw new HttpException('Decisión no encontrada', HttpStatus.NOT_FOUND);
+        }
+        return {
+            id: decision.id,
+            dniCsv: decision.dni_csv || '',
+            nameCSV: decision.name_csv || '',
+            firstSurnameCSV: decision.first_surname_csv || '',
+            secondSurnameCSV: decision.second_surname_csv || undefined,
+            nameDb: decision.name_db || '',
+            firstSurnameDb: decision.first_surname_db || '',
+            secondSurnameDb: decision.second_surname_db || undefined,
+            dniDb: decision.dni_db || undefined,
+            emailDb: decision.email_db || undefined,
+            nssDb: decision.nss_db || undefined,
+            similarityScore: parseFloat(decision.similarity_score?.toString() || '0'),
+            csvRowData: decision.csv_row_data,
+            changeMetadata: decision.change_metadata,
+        };
     }
 
     /**
@@ -409,7 +440,8 @@ export class ImportController {
                 emailDb: decision.email_db || undefined,
                 nssDb: decision.nss_db || undefined,
                 similarityScore: decision.similarity_score ? parseFloat(decision.similarity_score.toString()) : undefined,
-                csvRowData: decision.csv_row_data,
+                csvRowData: undefined,      // No se incluye en el listado (ver GET /pending-decisions/:id)
+                changeMetadata: undefined,   // Ídem
                 selectedUserId: decision.selected_user_id || undefined,
                 decisionAction: decision.decision_action || '',
                 notes: decision.notes || undefined,

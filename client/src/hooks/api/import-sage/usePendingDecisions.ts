@@ -55,6 +55,24 @@ export const usePendingDecisions = (source?: string) => {
     });
 };
 
+const fetchDecisionById = async (id: number, token?: string): Promise<PendingDecision> => {
+    const response = await fetch(`${getApiHost()}/api/import/pending-decisions/${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+    return response.json();
+};
+
+export const usePendingDecision = (id: number | null) => {
+    const { authInfo: { token } } = useAuthInfo();
+    return useQuery({
+        queryKey: ['pendingDecision', id],
+        queryFn: () => fetchDecisionById(id!, token),
+        enabled: id !== null,
+        staleTime: 30_000,
+    });
+};
+
 export const useProcessDecision = () => {
     const queryClient = useQueryClient();
     const { authInfo: { token } } = useAuthInfo();

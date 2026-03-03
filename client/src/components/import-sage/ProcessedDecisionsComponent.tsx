@@ -12,7 +12,8 @@ import {
     message,
     Tooltip,
     Empty,
-    Input
+    Input,
+    Spin
 } from 'antd';
 import { 
     InfoCircleOutlined, 
@@ -22,7 +23,7 @@ import {
     FilterOutlined
 } from '@ant-design/icons';
 import { ProcessedDecision } from '../../types/import.types';
-import { useProcessedDecisions, useRevertDecision } from '../../hooks/api/import-sage';
+import { useProcessedDecisions, useRevertDecision, usePendingDecision } from '../../hooks/api/import-sage';
 import { App } from 'antd';
 
 const { Title, Text } = Typography;
@@ -38,10 +39,16 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
     open,
     onClose
 }) => {
+    // Cargar csvRowData y changeMetadata solo cuando el modal se abre (lazy load)
+    const { data: detailData, isLoading: detailLoading } = usePendingDecision(
+        open && decision ? decision.id : null
+    );
+
     if (!decision) return null;
 
     const renderCSVData = () => {
-        const data = decision.csvRowData;
+        if (detailLoading) return <Spin size="small" tip="Cargando datos CSV..." />;
+        const data = detailData?.csvRowData;
         if (!data || typeof data !== 'object') return null;
 
         return (
@@ -129,8 +136,8 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
                         <Descriptions size="small" column={2}>
                             {(() => {
                                 // Si es update_and_link y hay change_metadata, usar datos originales
-                                if (decision.decisionAction === 'update_and_link' && decision.changeMetadata?.original_bd) {
-                                    const originalData = decision.changeMetadata.original_bd;
+                                if (decision.decisionAction === 'update_and_link' && detailData?.changeMetadata?.original_bd) {
+                                    const originalData = detailData.changeMetadata.original_bd;
                                     return (
                                         <>
                                             {originalData.dni && (
@@ -164,7 +171,7 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
                                             {originalData.email && (
                                                 <Descriptions.Item 
                                                     label="Email"
-                                                    style={{ color: originalData.email !== decision.csvRowData?.email ? 'red' : 'inherit' }}
+                                                    style={{ color: originalData.email !== detailData?.csvRowData?.email ? 'red' : 'inherit' }}
                                                 >
                                                     {originalData.email}
                                                 </Descriptions.Item>
@@ -202,13 +209,13 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
                     </div>
                 )}
 
-                {decision.decisionAction === 'update_and_link' && decision.changeMetadata?.updated_bd && (
+                {decision.decisionAction === 'update_and_link' && detailData?.changeMetadata?.updated_bd && (
                     <div>
                         <Title level={5}>Usuario en Base de Datos (después del cambio)</Title>
                         <Descriptions size="small" column={2}>
                             {(() => {
-                                const updatedData = decision.changeMetadata.updated_bd;
-                                const originalData = decision.changeMetadata.original_bd;
+                                const updatedData = detailData.changeMetadata.updated_bd;
+                                const originalData = detailData.changeMetadata.original_bd;
                                 return (
                                     <>
                                         {updatedData.dni && (

@@ -45,7 +45,7 @@ export interface PendingDecision {
     emailDb?: string;
     nssDb?: string;
     similarityScore: number;
-    csvRowData: any;
+    csvRowData?: any; // Solo disponible tras cargar el detalle (GET /pending-decisions/:id)
 }
 
 export interface ProcessDecisionRequest {
@@ -68,7 +68,8 @@ export interface ProcessedDecision {
     emailDb?: string;
     nssDb?: string;
     similarityScore?: number;
-    csvRowData: any;
+    csvRowData?: any;      // Solo disponible tras cargar el detalle (GET /pending-decisions/:id)
+    changeMetadata?: any; // Solo disponible tras cargar el detalle
     selectedUserId?: number;
     decisionAction: 'link' | 'create_new' | 'skip' | 'update_and_link';
     notes?: string;

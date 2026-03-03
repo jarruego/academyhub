@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { DatabaseService } from "src/database/database.service";
 import { DATABASE_PROVIDER } from "src/database/database.module";
-import { eq, and, or, desc, isNotNull, sql, gte, lte } from "drizzle-orm";
+import { eq, and, or, desc, isNotNull, sql, gte, lte, ilike } from "drizzle-orm";
 import { distance } from "fastest-levenshtein";
 import * as csvParser from "csv-parser";
 import { Readable, Writable } from "stream";
@@ -53,6 +53,7 @@ export class ImportService {
     private companiesCache: Map<string, any> = new Map(); // key: CIF o import_id
     private centersCache: Map<string, any> = new Map();   // key: import_id
     private usersCache: Map<string, any> = new Map();     // key: DNI o NSS
+    private usersByIdCache: Map<number, any> = new Map(); // key: id_user — para similitud sin N+1
 
     constructor(
         @Inject(DATABASE_PROVIDER) 
@@ -72,6 +73,7 @@ export class ImportService {
         this.companiesCache.clear();
         this.centersCache.clear();
         this.usersCache.clear();
+        this.usersByIdCache.clear();
 
         try {
             // Precargar empresas (solo columnas necesarias)
@@ -123,6 +125,8 @@ export class ImportService {
                 if (user.dni) this.usersCache.set(`dni:${user.dni}`, user);
                 if (user.nss) this.usersCache.set(`nss:${user.nss}`, user);
                 if (user.email) this.usersCache.set(`email:${user.email}`, user);
+                // Cache por ID para búsqueda de similitud sin query N+1
+                this.usersByIdCache.set(user.id_user, user);
             }
             this.logger.log(`✅ Precargados ${usersData.length} usuarios`);
 
@@ -1269,28 +1273,31 @@ export class ImportService {
      * Busca usuarios similares por nombre y apellidos, excluyendo aquellos con DNI y NSS diferentes
      */
     private async findSimilarUsers(data: ProcessedUserData): Promise<SimilarityMatch[]> {
-        // Buscar usuarios con nombres similares
-        const allUsers = await this.databaseService.db
-            .select({
-                id_user: users.id_user,
-                name: users.name,
-                first_surname: users.first_surname,
-                second_surname: users.second_surname,
-                dni: users.dni,
-                nss: users.nss
-            })
-            .from(users)
-            .where(
-                and(
-                    isNotNull(users.name),
-                    isNotNull(users.first_surname)
-                )
-            );
+        // ===== OPTIMIZACIÓN MEMORIA =====
+        // Usa el cache ya cargado en preloadDataForImport en lugar de
+        // hacer una query completa a la BD en cada fila (eliminando N+1 masivo)
+        let usersIterable: Iterable<any>;
+        if (this.usersByIdCache.size > 0) {
+            usersIterable = this.usersByIdCache.values();
+        } else {
+            // Fallback: si no hay cache precargado, consultar BD (ej. llamada directa sin preload)
+            usersIterable = await this.databaseService.db
+                .select({
+                    id_user: users.id_user,
+                    name: users.name,
+                    first_surname: users.first_surname,
+                    second_surname: users.second_surname,
+                    dni: users.dni,
+                    nss: users.nss
+                })
+                .from(users)
+                .where(and(isNotNull(users.name), isNotNull(users.first_surname)));
+        }
 
         const matches: SimilarityMatch[] = [];
         const targetName = `${data.name} ${data.first_surname} ${data.second_surname || ''}`.trim().toLowerCase();
 
-        for (const user of allUsers) {
+        for (const user of usersIterable) {
             const userName = `${user.name} ${user.first_surname} ${user.second_surname || ''}`.trim().toLowerCase();
             
             if (userName.length >= SIMILARITY_CONFIG.MIN_NAME_LENGTH) {
@@ -1889,11 +1896,13 @@ export class ImportService {
     }
 
     async getPendingDecisions(importSource?: string) {
+        // ===== OPTIMIZACIÓN MEMORIA =====
+        // Se excluye csv_row_data del listado (campo JSONB pesado).
+        // Cargarlo para TODAS las decisiones simultáneamente provoca OOM.
+        // Solo se devuelve al abrir una decisión concreta vía getDecisionById().
         let query = this.databaseService.db
             .select({
-                // Campos base
                 id: import_decisions.id,
-                // Mapear a nombres esperados por el frontend
                 dniCsv: import_decisions.dni_csv,
                 nameCSV: import_decisions.name_csv,
                 firstSurnameCSV: import_decisions.first_surname_csv,
@@ -1905,8 +1914,6 @@ export class ImportService {
                 emailDb: import_decisions.email_db,
                 nssDb: import_decisions.nss_db,
                 similarityScore: import_decisions.similarity_score,
-                csvRowData: import_decisions.csv_row_data,
-                // Campos adicionales
                 selected_user_id: import_decisions.selected_user_id,
                 processed: import_decisions.processed,
                 created_at: import_decisions.created_at
@@ -1923,6 +1930,15 @@ export class ImportService {
         } else {
             return await query.where(eq(import_decisions.processed, false));
         }
+    }
+
+    async getDecisionById(id: number) {
+        const [decision] = await this.databaseService.db
+            .select()
+            .from(import_decisions)
+            .where(eq(import_decisions.id, id))
+            .limit(1);
+        return decision ?? null;
     }
 
     async processDecision(decisionId: number, action: DecisionAction, selectedUserId?: number): Promise<void> {
@@ -2541,36 +2557,56 @@ export class ImportService {
         try {
             const conditions = [eq(import_decisions.processed, true)];
 
-            // Aplicar filtros
             if (filters?.action) {
                 conditions.push(eq(import_decisions.decision_action, filters.action));
             }
-
             if (filters?.startDate) {
                 conditions.push(gte(import_decisions.created_at, filters.startDate));
             }
-
             if (filters?.endDate) {
                 conditions.push(lte(import_decisions.created_at, filters.endDate));
             }
 
-            const decisions = await this.databaseService.db
-                .select()
-                .from(import_decisions)
-                .where(and(...conditions))
-                .orderBy(desc(import_decisions.created_at));
-
-            // Aplicar filtro de búsqueda después de obtener los datos
+            // Búsqueda en SQL (no en memoria) para evitar cargar todas las filas
             if (filters?.search) {
-                const searchLower = filters.search.toLowerCase();
-                return decisions.filter(decision => 
-                    decision.name_csv?.toLowerCase().includes(searchLower) ||
-                    decision.first_surname_csv?.toLowerCase().includes(searchLower) ||
-                    decision.dni_csv?.toLowerCase().includes(searchLower)
+                const pattern = `%${filters.search}%`;
+                conditions.push(
+                    or(
+                        ilike(import_decisions.name_csv, pattern),
+                        ilike(import_decisions.first_surname_csv, pattern),
+                        ilike(import_decisions.dni_csv, pattern)
+                    )
                 );
             }
 
-            return decisions;
+            // OPTIMIZACIÓN MEMORIA: excluir columnas JSONB pesadas del listado.
+            // csv_row_data y change_metadata solo se cargan al abrir el detalle (getDecisionById).
+            return await this.databaseService.db
+                .select({
+                    id: import_decisions.id,
+                    import_source: import_decisions.import_source,
+                    dni_csv: import_decisions.dni_csv,
+                    name_csv: import_decisions.name_csv,
+                    first_surname_csv: import_decisions.first_surname_csv,
+                    second_surname_csv: import_decisions.second_surname_csv,
+                    name_db: import_decisions.name_db,
+                    first_surname_db: import_decisions.first_surname_db,
+                    second_surname_db: import_decisions.second_surname_db,
+                    dni_db: import_decisions.dni_db,
+                    email_db: import_decisions.email_db,
+                    nss_db: import_decisions.nss_db,
+                    similarity_score: import_decisions.similarity_score,
+                    selected_user_id: import_decisions.selected_user_id,
+                    decision_action: import_decisions.decision_action,
+                    notes: import_decisions.notes,
+                    processed: import_decisions.processed,
+                    created_at: import_decisions.created_at,
+                    updated_at: import_decisions.updated_at,
+                })
+                .from(import_decisions)
+                .where(and(...conditions))
+                .orderBy(desc(import_decisions.created_at))
+                .limit(500); // Máximo 500 registros más recientes por consulta
 
         } catch (error: any) {
             this.logger.error('Error obteniendo decisiones procesadas:', error.message);

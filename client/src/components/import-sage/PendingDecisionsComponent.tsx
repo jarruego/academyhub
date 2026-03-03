@@ -26,7 +26,7 @@ import {
     SyncOutlined,
     SearchOutlined
 } from '@ant-design/icons';
-import { usePendingDecisions, useProcessDecision } from '../../hooks/api/import-sage/usePendingDecisions';
+import { usePendingDecisions, useProcessDecision, usePendingDecision } from '../../hooks/api/import-sage/usePendingDecisions';
 import { PendingDecision, ProcessDecisionRequest } from '../../types/import.types';
 import { detectDocumentType, validateNSS } from '../../utils/detect-document-type';
 
@@ -49,6 +49,11 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
 }) => {
     const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip' | 'update_and_link'>('link');
     const { modal } = App.useApp();
+
+    // Cargar csvRowData solo cuando se abre el modal (lazy load para evitar OOM)
+    const { data: detailData, isLoading: detailLoading } = usePendingDecision(
+        open && decision ? decision.id : null
+    );
 
     if (!decision) return null;
 
@@ -79,7 +84,8 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
     };
 
     const renderCSVData = () => {
-        const data = decision.csvRowData;
+        if (detailLoading) return <Spin size="small" tip="Cargando datos CSV..." />;
+        const data = detailData?.csvRowData;
         if (!data || typeof data !== 'object') return null;
 
         return (
@@ -113,8 +119,8 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
     };
 
     // Obtener valores para comparación
-    const csvNss = decision.csvRowData?.['Personas.ProvNumSoe'] || decision.csvRowData?.['NSS'];
-    const csvEmail = decision.csvRowData?.['email'] || decision.csvRowData?.['Email'] || decision.csvRowData?.['mail'];
+    const csvNss = detailData?.csvRowData?.['Personas.ProvNumSoe'] || detailData?.csvRowData?.['NSS'];
+    const csvEmail = detailData?.csvRowData?.['email'] || detailData?.csvRowData?.['Email'] || detailData?.csvRowData?.['mail'];
 
     return (
         <Modal
