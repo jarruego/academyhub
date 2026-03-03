@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: academyhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: academyhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - academyhub_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d academyhub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  academyhub_postgres_data:
