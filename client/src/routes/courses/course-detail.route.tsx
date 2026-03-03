@@ -438,7 +438,12 @@ export default function CourseDetailRoute() {
                 />
               </div>
               <div style={{ marginTop: 8, width: '70%' }}>
-                <GroupUsersManager groupId={selectedGroupId} />
+                <GroupUsersManager 
+                  groupId={selectedGroupId}
+                  courseName={courseData?.course_name}
+                  groupStart={sortedGroups.find(g => g.id_group === selectedGroupId)?.start_date}
+                  groupEnd={sortedGroups.find(g => g.id_group === selectedGroupId)?.end_date}
+                />
               </div>
             </div>
             <div style={{ display: 'flex', gap: '16px' }}>

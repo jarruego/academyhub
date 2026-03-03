@@ -1,4 +1,4 @@
-import { Modal, Form, Select, Radio, Button, message, Typography, Input, Divider, Collapse, Checkbox } from 'antd';
+import { Modal, Form, Select, Radio, Button, message, Typography, Input, Divider, Collapse, Checkbox, Progress, Alert } from 'antd';
 import { useMailTemplatesQuery } from '../../hooks/api/mail/use-mail-templates';
 import { useSmtpSettingsQuery } from '../../hooks/api/mail/use-smtp-settings';
 import { useSendMailMutation } from '../../hooks/api/mail/use-send-mail.mutation';
@@ -40,6 +40,12 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
   const [sendViaMoodle, setSendViaMoodle] = useState(false);
   const smtp = smtpSettings as SmtpSettingsForm | undefined;
   const authEmail = authInfo?.user?.email || '';
+
+  // Estados para el progreso y resultados
+  const [isSending, setIsSending] = useState(false);
+  const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0 });
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [finalResults, setFinalResults] = useState<{ sent: number; skipped: number; failed: number } | null>(null);
 
   const selectedTemplateData = templates?.find((t) => t.id === selectedTemplate);
 
@@ -101,7 +107,13 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
     let skipped = 0;
     let failed = 0;
 
-    for (const user of users) {
+    setIsSending(true);
+    setSendingProgress({ current: 0, total: users.length });
+
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i];
+      setSendingProgress({ current: i + 1, total: users.length });
+
       if (!user.email) {
         skipped += 1;
         continue;
@@ -139,26 +151,106 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
       }
     }
 
-    if (failed === 0) {
-      messageApi.success(`Correos enviados: ${sent}. Omitidos: ${skipped}.`);
-      setSelectedTemplate(undefined);
-      setFromChoice('default');
-      setCustomSubject('');
-      setCustomContent('');
-      setCustomIsHtml(false);
-      setSendViaMoodle(false);
-      onOk?.();
-    } else {
-      messageApi.error(`Enviados: ${sent}. Omitidos: ${skipped}. Fallidos: ${failed}.`);
-    }
+    setIsSending(false);
+    setFinalResults({ sent, skipped, failed });
+    setShowResultModal(true);
   };
 
   return (
     <>
       {messageContextHolder}
+
+      {/* Modal de progreso */}
+      <Modal
+        title="Enviando correos..."
+        open={isSending}
+        closable={false}
+        footer={null}
+        width={400}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <Progress
+            type="circle"
+            percent={Math.round((sendingProgress.current / sendingProgress.total) * 100)}
+            width={120}
+          />
+          <div style={{ marginTop: 16 }}>
+            <Typography.Text>
+              {sendingProgress.current} de {sendingProgress.total} correos enviados
+            </Typography.Text>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de resultados */}
+      <Modal
+        title="Envío completado"
+        open={showResultModal}
+        onCancel={() => {
+          setShowResultModal(false);
+          setFinalResults(null);
+          setSelectedTemplate(undefined);
+          setFromChoice('default');
+          setCustomSubject('');
+          setCustomContent('');
+          setCustomIsHtml(false);
+          setSendViaMoodle(false);
+          onOk?.();
+        }}
+        footer={[
+          <Button key="close" type="primary" onClick={() => {
+            setShowResultModal(false);
+            setFinalResults(null);
+            setSelectedTemplate(undefined);
+            setFromChoice('default');
+            setCustomSubject('');
+            setCustomContent('');
+            setCustomIsHtml(false);
+            setSendViaMoodle(false);
+            onOk?.();
+          }}>
+            Cerrar
+          </Button>,
+        ]}
+        width={400}
+      >
+        {finalResults && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {finalResults.failed === 0 ? (
+              <Alert
+                type="success"
+                message="Todos los correos se enviaron correctamente"
+                showIcon
+              />
+            ) : (
+              <Alert
+                type="warning"
+                message={`Se encontraron ${finalResults.failed} error${finalResults.failed !== 1 ? 's' : ''}`}
+                showIcon
+              />
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+              <Typography.Text>✓ Enviados:</Typography.Text>
+              <Typography.Text strong>{finalResults.sent}</Typography.Text>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+              <Typography.Text>⊘ Omitidos:</Typography.Text>
+              <Typography.Text strong>{finalResults.skipped}</Typography.Text>
+            </div>
+            {finalResults.failed > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                <Typography.Text>✕ Fallidos:</Typography.Text>
+                <Typography.Text strong style={{ color: '#ff4d4f' }}>{finalResults.failed}</Typography.Text>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal principal */}
       <Modal
         title="Enviar correo"
-        open={open}
+        open={open && !isSending}
         onCancel={onCancel}
         width={560}
         styles={{ body: { minHeight: 220 } }}
