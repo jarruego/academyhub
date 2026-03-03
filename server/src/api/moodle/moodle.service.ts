@@ -2507,12 +2507,41 @@ export class MoodleService {
                     const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, { transaction });
                     if (!skipUsers) {
                         const moodleUsers = await this.getGroupUsers(moodleGroup.id);
-                        for (const moodleUser of moodleUsers) {
-                            if (enrolledRolesMap && (!moodleUser.roles || moodleUser.roles.length === 0)) {
-                                const fromMap = enrolledRolesMap.get(moodleUser.id);
-                                if (fromMap && fromMap.length > 0) moodleUser.roles = fromMap;
-                            }
+                        const rolesMap = enrolledRolesMap ?? new Map<number, MoodleUser['roles']>();
+                        const dedicationByUser = await this.preloadGroupSyncData(
+                            moodleCourse.id,
+                            moodleGroup.id,
+                            moodleUsers,
+                            'MoodleService:importMoodleCourses'
+                        );
+
+                        for (const moodleUserRaw of moodleUsers) {
+                            const moodleUser = this.enrichMoodleUserRolesFromMap(moodleUserRaw, rolesMap);
                             await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
+
+                            let completionValue: string | null = null;
+                            if (moodleUser.username !== 'guest') {
+                                try {
+                                    const completion = await this.getProgressOptimized(moodleUser.id, moodleCourse.id);
+                                    completionValue = completion !== null && typeof completion !== 'undefined' ? String(completion) : '0';
+                                } catch (err: unknown) {
+                                    completionValue = '0';
+                                }
+                            }
+
+                            const moodleUserRecord = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+                            if (moodleUserRecord) {
+                                await this.persistGroupUserSyncMetrics({
+                                    localUserId: moodleUserRecord.id_user,
+                                    localGroupId: newGroup.id_group,
+                                    localCourseId: course.id_course,
+                                    moodleUserId: moodleUser.id,
+                                    completionValue,
+                                    dedicationByUser,
+                                    options: { transaction },
+                                    context: 'MoodleService:importMoodleCourses',
+                                });
+                            }
                         }
                     }
                 }
