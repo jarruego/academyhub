@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Card,
     Table,
@@ -13,7 +13,8 @@ import {
     Spin,
     Empty,
     Badge,
-    App
+    App,
+    Input
 } from 'antd';
 import {
     CheckOutlined,
@@ -22,7 +23,8 @@ import {
     LinkOutlined,
     ExclamationCircleOutlined,
     InfoCircleOutlined,
-    SyncOutlined
+    SyncOutlined,
+    SearchOutlined
 } from '@ant-design/icons';
 import { usePendingDecisions, useProcessDecision } from '../../hooks/api/import-sage/usePendingDecisions';
 import { PendingDecision, ProcessDecisionRequest } from '../../types/import.types';
@@ -288,6 +290,7 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
 export const PendingDecisionsComponent: React.FC = () => {
     const [selectedDecision, setSelectedDecision] = useState<PendingDecision | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
+    const [searchText, setSearchText] = useState('');
     const { message } = App.useApp();
 
     const { data: pendingDecisions, isLoading, error, refetch } = usePendingDecisions();
@@ -309,6 +312,30 @@ export const PendingDecisionsComponent: React.FC = () => {
     };
 
     // Se eliminó la función de procesamiento masivo (handleBulkProcess) porque la sección de "Acciones Masivas" fue retirada.
+
+    const normalizeSearch = (text: string | null | undefined): string =>
+        (text ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const filteredDecisions = useMemo(() => {
+        if (!pendingDecisions) return [];
+        const q = normalizeSearch(searchText).trim();
+        if (!q) return pendingDecisions;
+        return pendingDecisions.filter(d => {
+            const fields = [
+                d.dniCsv,
+                d.nameCSV,
+                d.firstSurnameCSV,
+                d.secondSurnameCSV,
+                `${d.nameCSV} ${d.firstSurnameCSV}`,
+                `${d.nameCSV} ${d.firstSurnameCSV} ${d.secondSurnameCSV ?? ''}`,
+                d.nameDb,
+                d.firstSurnameDb,
+                d.secondSurnameDb,
+                d.dniDb,
+            ];
+            return fields.some(f => normalizeSearch(f).includes(q));
+        });
+    }, [pendingDecisions, searchText]);
 
     const columns = [
         {
@@ -381,8 +408,8 @@ export const PendingDecisionsComponent: React.FC = () => {
     return (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
             <Card>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+                    <div style={{ flex: 1 }}>
                         <Title level={4} style={{ margin: 0 }}>
                             <Badge count={pendingDecisions?.length || 0} showZero>
                                 <CheckOutlined style={{ marginRight: 8 }} />
@@ -393,6 +420,14 @@ export const PendingDecisionsComponent: React.FC = () => {
                             Registros que requieren revisión manual por similitud de nombres
                         </Text>
                     </div>
+                    <Input
+                        placeholder="Buscar por nombre, apellidos o DNI…"
+                        prefix={<SearchOutlined />}
+                        allowClear
+                        value={searchText}
+                        onChange={e => setSearchText(e.target.value)}
+                        style={{ width: 280 }}
+                    />
                     <Button onClick={() => refetch()} loading={isLoading}>
                         Actualizar
                     </Button>
@@ -420,9 +455,18 @@ export const PendingDecisionsComponent: React.FC = () => {
                     {/* Se eliminó el bloque 'Acciones Masivas' según solicitud del usuario */}
 
                     <Card>
+                        {searchText && (
+                            <div style={{ marginBottom: 12 }}>
+                                <Text type="secondary">
+                                    {filteredDecisions.length === 0
+                                        ? 'Sin resultados para la búsqueda'
+                                        : `Mostrando ${filteredDecisions.length} de ${pendingDecisions?.length ?? 0} decisiones`}
+                                </Text>
+                            </div>
+                        )}
                         <Table
                             columns={columns}
-                            dataSource={pendingDecisions}
+                            dataSource={filteredDecisions}
                             rowKey="id"
                             pagination={{
                                 pageSize: 10,
