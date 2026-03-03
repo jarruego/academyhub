@@ -110,18 +110,33 @@ export class MailService {
       },
     });
 
-    const fromEmail = options.from_email || smtp.from_email;
+    const fromEmail = smtp.from_email;
     const fromName = options.from_name || smtp.from_name;
     const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
 
-    await transporter.sendMail({
+    const recipients = Array.isArray(options.to)
+      ? options.to.map((value) => String(value).trim().toLowerCase())
+      : [String(options.to).trim().toLowerCase()];
+
+    const replyToCandidate = options.reply_to?.trim();
+    const safeReplyTo =
+      replyToCandidate && !recipients.includes(replyToCandidate.toLowerCase())
+        ? replyToCandidate
+        : undefined;
+
+    const mailOptions: nodemailer.SendMailOptions = {
       from,
       to: options.to,
       subject: options.subject,
       html: options.html,
       text: options.text,
-      replyTo: options.reply_to,
-    });
+    };
+
+    if (safeReplyTo) {
+      mailOptions.replyTo = safeReplyTo;
+    }
+
+    await transporter.sendMail(mailOptions);
   }
 
   async sendMailFromTemplate(options: SendMailFromTemplateOptions) {

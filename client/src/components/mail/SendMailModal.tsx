@@ -82,7 +82,7 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
         await sendMail({
           userId,
           templateId: selectedTemplate as number,
-          replyTo: fromChoice === 'auth' ? authEmail : undefined,
+          replyTo: fromChoice === 'auth' ? authEmail : smtp?.from_email,
           toEmail: userEmail,
           sendViaMoodle,
           authUserId: authInfo?.user?.id,
@@ -94,7 +94,7 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
           subject: customSubject.trim(),
           html: customIsHtml ? customContent : undefined,
           text: !customIsHtml ? customContent : undefined,
-          reply_to: fromChoice === 'auth' ? authEmail : undefined,
+          reply_to: fromChoice === 'auth' ? authEmail : smtp?.from_email,
           from_name: fromChoice === 'auth' ? authInfo?.user?.name : undefined,
           sendViaMoodle,
           authUserId: authInfo?.user?.id,          userId,        });

@@ -59,17 +59,33 @@ export class MailController {
           pass: body.smtp.password,
         },
       });
-      const fromEmail = body.from_email || body.smtp.from_email;
+      const fromEmail = body.smtp.from_email;
       const fromName = body.from_name || body.smtp.from_name;
       const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
-      await transporter.sendMail({
+
+      const recipients = Array.isArray(body.to)
+        ? body.to.map((value) => String(value).trim().toLowerCase())
+        : [String(body.to).trim().toLowerCase()];
+
+      const replyToCandidate = body.reply_to?.trim();
+      const safeReplyTo =
+        replyToCandidate && !recipients.includes(replyToCandidate.toLowerCase())
+          ? replyToCandidate
+          : undefined;
+
+      const mailOptions: any = {
         from,
         to: body.to,
         subject: body.subject,
         html: body.html,
         text: body.text,
-        replyTo: body.reply_to,
-      });
+      };
+
+      if (safeReplyTo) {
+        mailOptions.replyTo = safeReplyTo;
+      }
+
+      await transporter.sendMail(mailOptions);
       return { ok: true };
     } else {
       await this.mailService.sendMail(body);
