@@ -709,6 +709,113 @@ export class MoodleService {
     }
 
     /**
+     * Private helper to process group members (add/update users in a group).
+     * Shared by syncMoodleGroupMembers and importSpecificMoodleGroup.
+     * 
+     * Handles:
+     * - Creating/updating moodle_user records
+     * - Enrolling users in the course
+     * - Updating user roles in the group
+     * - Persisting progress/time metrics
+     * 
+     * Returns { updated count, errors array }
+     */
+    private async processGroupMembers(
+        localGroupId: number,
+        localCourseId: number | null | undefined,
+        moodleGroupId: number,
+        moodleCourseId: number | undefined,
+        moodleUsers: MoodleUser[],
+        parentCourse: { id_course?: number; moodle_id?: number } | null,
+        context: string,
+        options?: QueryOptions
+    ): Promise<{ updated: number; errors: Array<{ userId?: number; username?: string; error: string }> }> {
+        const errors: Array<{ userId?: number; username?: string; error: string }> = [];
+        let updated = 0;
+
+        // Fetch enrolled roles for the parent course (once, in bulk)
+        let enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
+        let dedicationByUser: Map<number, number> | null = null;
+        try {
+            if (parentCourse && parentCourse.moodle_id) {
+                enrolledRolesMap = await this.buildEnrolledRolesMapForCourse(parentCourse.moodle_id, context);
+                dedicationByUser = await this.preloadGroupSyncData(parentCourse.moodle_id, moodleGroupId, moodleUsers, context);
+            }
+        } catch (err) {
+            Logger.warn({ err, moodleGroupId }, `${context} - could not fetch enrolled users for role mapping`);
+            // proceed without enrolled roles map
+        }
+
+        const run = async (transaction: Transaction) => {
+            for (const mu of moodleUsers) {
+                const moodleUser = this.enrichMoodleUserRolesFromMap(mu, enrolledRolesMap);
+                try {
+                    // Create or update moodle_user and add to group
+                    await this.upsertMoodleUserByGroup(moodleUser, localGroupId, { transaction });
+
+                    // Fetch completion for this user
+                    let completionValue: string | null = null;
+                    if (moodleUser.username !== 'guest' && parentCourse && parentCourse.moodle_id) {
+                        try {
+                            const completion = await this.getProgressOptimized(moodleUser.id, parentCourse.moodle_id);
+                            completionValue = completion !== null && typeof completion !== 'undefined' ? String(completion) : '0';
+                        } catch (progErr: unknown) {
+                            const progErrForLog = progErr instanceof Error ? { message: progErr.message, stack: progErr.stack } : String(progErr);
+                            Logger.warn({ progErr: progErrForLog, moodleUserId: moodleUser.id }, `${context} - could not fetch user progress`);
+                            completionValue = '0';
+                        }
+                    }
+
+                    // Enroll in course (creates user_course if needed)
+                    if (parentCourse && localCourseId) {
+                        try {
+                            const completionNum = completionValue ? parseInt(completionValue) : null;
+                            await this.upsertMoodleUserAndEnrollToCourse(moodleUser, localCourseId, { transaction }, completionNum);
+                        } catch (enrollErr: unknown) {
+                            const enrollErrForLog = enrollErr instanceof Error ? { message: enrollErr.message, stack: enrollErr.stack } : String(enrollErr);
+                            Logger.warn({ enrollErr: enrollErrForLog, moodleUserId: moodleUser.id }, `${context} - could not enroll user in course`);
+                        }
+                    }
+
+                    // Update metrics (completion, time_spent, moodle_synced_at)
+                    try {
+                        const moodleUserRecord = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+                        if (moodleUserRecord) {
+                            await this.persistGroupUserSyncMetrics({
+                                localUserId: moodleUserRecord.id_user,
+                                localGroupId,
+                                localCourseId,
+                                moodleUserId: moodleUser.id,
+                                completionValue,
+                                dedicationByUser,
+                                options: { transaction },
+                                context,
+                            });
+                        }
+                    } catch (metricsErr: unknown) {
+                        const metricsErrForLog = metricsErr instanceof Error ? { message: metricsErr.message, stack: metricsErr.stack } : String(metricsErr);
+                        Logger.warn({ err: metricsErrForLog, moodleUserId: moodleUser.id }, `${context} - could not update metrics`);
+                    }
+
+                    updated += 1;
+                } catch (err) {
+                    const errMsg = err instanceof Error ? err.message : String(err);
+                    errors.push({ userId: moodleUser.id, username: moodleUser.username, error: errMsg });
+                    Logger.warn({ moodleUserId: moodleUser.id, username: moodleUser.username, error: errMsg }, `${context} - user processing failed, continuing`);
+                }
+            }
+        };
+
+        if (options?.transaction) {
+            await run(options.transaction);
+        } else {
+            await this.databaseService.db.transaction(async transaction => await run(transaction));
+        }
+
+        return { updated, errors };
+    }
+
+    /**
      * Sync members of a Moodle group by fetching Moodle group members and
      * updating each corresponding local user/group record one-by-one.
      * This performs per-user updates (no single big transaction) so failures
@@ -719,9 +826,6 @@ export class MoodleService {
      * en lugar de hacer queries individuales (evita N+1 queries masivo)
      */
     async syncMoodleGroupMembers(moodleGroupId: number): Promise<ImportResult> {
-        const errors: Array<{ userId?: number; username?: string; error: string }> = [];
-        let updated = 0;
-
         // Find local group mapped to this Moodle group
         const localGroup = await this.groupRepository.findByMoodleId(moodleGroupId);
         if (!localGroup) {
@@ -732,127 +836,27 @@ export class MoodleService {
             } as ImportResult;
         }
 
-        // Get moodle users in group (calls Moodle API and returns detailed users)
+        // Get moodle users in group
         const moodleUsers = await this.getGroupUsers(moodleGroupId);
 
-        // ALSO fetch enrolled users (once) for the parent course to obtain roles in bulk.
-        // getEnrolledUsers returns users with roles; we map them by Moodle id to avoid
-        // calling the enrolled API per-user inside the loop. We also keep the parent
-        // course here so we can request per-user completion status when available.
-        let enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
+        // Fetch parent course for roles/progress context
         let parentCourse: { id_course?: number; moodle_id?: number } | null = null;
-        let dedicationByUser: Map<number, number> | null = null;
         try {
             parentCourse = localGroup.id_course ? await this.courseRepository.findById(localGroup.id_course) : null;
-            if (parentCourse && parentCourse.moodle_id) {
-                enrolledRolesMap = await this.buildEnrolledRolesMapForCourse(parentCourse.moodle_id, 'MoodleService:syncMoodleGroupMembers');
-                dedicationByUser = await this.preloadGroupSyncData(parentCourse.moodle_id, moodleGroupId, moodleUsers, 'MoodleService:syncMoodleGroupMembers');
-            }
         } catch (err) {
-            Logger.warn({ err, moodleGroupId }, 'MoodleService:syncMoodleGroupMembers - could not fetch enrolled users for role mapping');
-            // proceed without enrolled roles map or parentCourse
+            Logger.warn({ err, groupId: localGroup.id_group }, 'syncMoodleGroupMembers - could not fetch parent course');
         }
 
-        for (const mu of moodleUsers) {
-            const moodleUser = this.enrichMoodleUserRolesFromMap(mu, enrolledRolesMap);
-            try {
-                // First, ensure the Moodle user exists in local DB
-                let existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id);
-                
-                if (!existingMoodleUser) {
-                    // User doesn't exist: try to create/associate using upsertMoodleUserByGroup
-                    // This will: 1) Look for existing user by DNI, 2) Create user if not found, 3) Associate with Moodle
-                    try {
-                        await this.upsertMoodleUserByGroup(moodleUser, localGroup.id_group);
-                        
-                        // Reload the created user
-                        existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id);
-                        
-                        if (!existingMoodleUser) {
-                            // Still doesn't exist after creation attempt: record error and skip
-                            errors.push({ userId: moodleUser.id, username: moodleUser.username, error: 'Failed to create or map moodle_user' });
-                            continue;
-                        }
-                        
-                        Logger.log({ moodleUserId: moodleUser.id, username: moodleUser.username }, 'MoodleService:syncMoodleGroupMembers - created new moodle_user mapping');
-                    } catch (createErr: unknown) {
-                        const createErrForLog = createErr instanceof Error ? { message: createErr.message, stack: createErr.stack } : String(createErr);
-                        Logger.error({ createErr: createErrForLog, moodleUserId: moodleUser.id, username: moodleUser.username }, 'MoodleService:syncMoodleGroupMembers - failed to create moodle_user');
-                        errors.push({ userId: moodleUser.id, username: moodleUser.username, error: 'Failed to create moodle_user: ' + (createErr instanceof Error ? createErr.message : String(createErr)) });
-                        continue;
-                    }
-                }
-
-                // Do NOT overwrite local user's personal data (name, surname, email) from Moodle.
-                // Requirement: when a user already exists in local DB, preserve local personal fields.
-                // We only update role (user_group) and moodle_username below. If you want to
-                // sync personal data from Moodle, do it explicitly in a separate flow.
-
-                // Update moodle_user record (username)
-                try {
-                    await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
-                        moodle_username: moodleUser.username,
-                    });
-                } catch (mErr: unknown) {
-                    const mErrForLog = mErr instanceof Error ? { message: mErr.message, stack: mErr.stack } : String(mErr);
-                    Logger.error({ mErr: mErrForLog, moodleUserId: moodleUser.id, localMoodleUserId: existingMoodleUser.id_moodle_user }, 'MoodleService:syncMoodleGroupMembers - moodle_user update failed');
-                    errors.push({ userId: moodleUser.id, username: moodleUser.username, error: 'Failed to update moodle_username: ' + (mErr instanceof Error ? mErr.message : String(mErr)) });
-                    continue; // Skip to next user instead of throwing
-                }
-
-                // Resolve and update role in user_group using roles provided by Moodle or
-                // by the enrolled users map we fetched once above.
-                try {
-                    // Avoid casting to `any` — prefer a runtime check that `roles` is an array.
-                    const muRoles = Array.isArray(moodleUser.roles) ? moodleUser.roles : undefined;
-                    const rolesSource = (muRoles && muRoles.length > 0) ? muRoles : enrolledRolesMap.get(moodleUser.id);
-                    if (rolesSource && rolesSource.length > 0) {
-                        const shortname = rolesSource[0].shortname;
-                        if (shortname) {
-                            const roleIdToAssign = await this.userGroupRepository.findOrCreateRoleByShortname(shortname);
-                            try {
-                                // We assume the local user is already associated to the local group
-                                await this.userGroupRepository.updateById(existingMoodleUser.id_user, localGroup.id_group, { id_role: roleIdToAssign });
-                            } catch (err) {
-                                Logger.error({ err, userId: existingMoodleUser.id_user, id_group: localGroup.id_group, roleIdToAssign }, 'MoodleService:syncMoodleGroupMembers - update role failed');
-                                // Do not block overall sync for role update failures
-                            }
-                        }
-                    }
-                } catch (roleErr) {
-                    Logger.warn({ roleErr, moodleUserId: moodleUser.id }, 'MoodleService:syncMoodleGroupMembers - role resolution failed');
-                    // continue - role resolution failures shouldn't block user updates
-                }
-
-                let completionValue: string | null = null;
-                try {
-                    if (parentCourse && parentCourse.moodle_id) {
-                        const completion = await this.getProgressOptimized(moodleUser.id, parentCourse.moodle_id);
-                        completionValue = completion !== null && typeof completion !== 'undefined' ? String(completion) : '0';
-                    }
-                } catch (progErr: unknown) {
-                    const progErrForLog = progErr instanceof Error ? { message: progErr.message, stack: progErr.stack } : String(progErr);
-                    Logger.warn({ progErr: progErrForLog, moodleUserId: moodleUser.id }, 'MoodleService:syncMoodleGroupMembers - could not fetch user progress');
-                    // don't block overall sync on progress fetch failures
-                }
-
-                await this.persistGroupUserSyncMetrics({
-                    localUserId: existingMoodleUser.id_user,
-                    localGroupId: localGroup.id_group,
-                    localCourseId: localGroup.id_course,
-                    moodleUserId: moodleUser.id,
-                    completionValue,
-                    dedicationByUser,
-                    context: 'MoodleService:syncMoodleGroupMembers',
-                });
-
-                updated += 1;
-            } catch (err) {
-                const e: unknown = err;
-                const errMsg = e instanceof Error ? e.message : String(e);
-                errors.push({ userId: moodleUser.id, username: moodleUser.username, error: errMsg });
-            }
-        }
+        // Process all group members using shared helper
+        const { updated, errors } = await this.processGroupMembers(
+            localGroup.id_group,
+            localGroup.id_course,
+            moodleGroupId,
+            parentCourse?.moodle_id,
+            moodleUsers,
+            parentCourse,
+            'MoodleService:syncMoodleGroupMembers'
+        );
 
         const message = `Processed ${moodleUsers.length} members; updated ${updated}; errors ${errors.length}`;
         return {
@@ -1528,16 +1532,13 @@ export class MoodleService {
     async importSpecificMoodleGroup(moodleGroupId: number): Promise<ImportResult> {
         return await this.databaseService.db.transaction(async transaction => {
             try {
-
-
-                // Obtener información del grupo desde Moodle
+                // Obtain group info from Moodle
                 const moodleCourses = await this.getAllCourses();
                 let moodleGroup = null;
                 let parentCourse = null;
 
-                // Buscar el grupo en todos los cursos
                 for (const course of moodleCourses) {
-                    if (course.id === 1) continue; // Saltar curso del sistema
+                    if (course.id === 1) continue; // Skip system course
 
                     const courseGroups = await this.getCourseGroups(course.id);
                     const foundGroup = courseGroups.find(group => group.id === moodleGroupId);
@@ -1553,73 +1554,27 @@ export class MoodleService {
                     throw new Error(`Grupo con ID ${moodleGroupId} no encontrado en Moodle`);
                 }
 
-
-
-                // Asegurarse de que el curso padre esté importado
+                // Ensure parent course is imported
                 const course = await this.upsertMoodleCourse(parentCourse, { transaction });
+                const localCourse = await this.courseRepository.findById(course.id_course, { transaction });
 
-                // Crear/actualizar el grupo
+                // Create/update the group
                 const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, { transaction });
 
-                // Importar usuarios del grupo
-
+                // Get users in this group
                 const moodleUsers = await this.getGroupUsers(moodleGroup.id);
-                let usersImported = 0;
-                const errors: Array<{ userId?: number; username?: string; error: string }> = [];
 
-                // Build enrolled roles map for the parent course (merge into moodleUser when missing)
-                const enrolledRolesMapForGroup = await this.buildEnrolledRolesMapForCourse(parentCourse.id, 'MoodleService:importSpecificMoodleGroup');
-
-                // ===== OPTIMIZACIÓN EGRESS: Precargar progreso de todos los usuarios =====
-                const dedicationByUser = await this.preloadGroupSyncData(parentCourse.id, moodleGroupId, moodleUsers, 'MoodleService:importSpecificMoodleGroup');
-
-                for (const moodleUserRaw of moodleUsers) {
-                    const moodleUser = this.enrichMoodleUserRolesFromMap(moodleUserRaw, enrolledRolesMapForGroup);
-                    try {
-                        await this.upsertMoodleUserByGroup(moodleUser, newGroup.id_group, { transaction });
-                        let completionPercentage = null;
-                        if (moodleUser.username !== 'guest') {
-                            try {
-                                // ===== OPTIMIZACIÓN EGRESS: Usar cache en lugar de query individual =====
-                                const completion = await this.getProgressOptimized(moodleUser.id, parentCourse.id);
-                                completionPercentage = completion !== null && typeof completion !== 'undefined' ? Math.round(completion) : null;
-                            } catch (e) {
-                                completionPercentage = null;
-                            }
-                        }
-                        if (completionPercentage === undefined) completionPercentage = null;
-                        await this.upsertMoodleUserAndEnrollToCourse(moodleUser, course.id_course, { transaction }, completionPercentage);
-
-                        // Obtener el moodle_user local para actualizar time_spent y moodle_synced_at
-                        try {
-                            const moodleUserRecord = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
-                            if (moodleUserRecord) {
-                                await this.persistGroupUserSyncMetrics({
-                                    localUserId: moodleUserRecord.id_user,
-                                    localGroupId: newGroup.id_group,
-                                    localCourseId: course.id_course,
-                                    moodleUserId: moodleUser.id,
-                                    completionValue: completionPercentage,
-                                    dedicationByUser,
-                                    options: { transaction },
-                                    context: 'MoodleService:importSpecificMoodleGroup',
-                                });
-                            }
-                        } catch (err: unknown) {
-                            const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
-                            Logger.warn({ err: errForLog, moodleUserId: moodleUser.id }, 'MoodleService:importSpecificMoodleGroup - could not fetch moodle_user for time_spent/synced_at update');
-                        }
-
-                        usersImported++;
-                    } catch (err: unknown) {
-                        const errMsg = err instanceof Error ? err.message : String(err);
-                        errors.push({ userId: moodleUser.id, username: moodleUser.username, error: errMsg });
-                        Logger.warn({ moodleUserId: moodleUser.id, username: moodleUser.username, error: errMsg }, 'MoodleService:importSpecificMoodleGroup - user import failed, continuing');
-                        continue;
-                    }
-                }
-
-
+                // Process all members using shared helper (with transaction context)
+                const { updated: usersImported, errors } = await this.processGroupMembers(
+                    newGroup.id_group,
+                    course.id_course,
+                    moodleGroup.id,
+                    parentCourse.id,
+                    moodleUsers,
+                    localCourse,
+                    'MoodleService:importSpecificMoodleGroup',
+                    { transaction }
+                );
 
                 return {
                     success: errors.length === 0,
