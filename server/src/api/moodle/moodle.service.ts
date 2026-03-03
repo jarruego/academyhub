@@ -1507,6 +1507,27 @@ export class MoodleService {
                     // non-fatal
                 }
 
+                // ===== OPTIMIZACIÓN EGRESS: Precargar progreso de todos los usuarios =====
+                let dedicationByUser: Map<number, number> | null = null;
+                if (parentCourse && parentCourse.id) {
+                    const userIds = moodleUsers.map(u => u.id);
+                    this.progressCache.clear(); // Limpiar cache anterior
+                    await this.preloadCourseProgress(parentCourse.id, userIds);
+
+                    // Precargar time_spent si itop_training está habilitado
+                    const itopEnabled = await this.isItopTrainingEnabled();
+                    if (itopEnabled) {
+                        try {
+                            dedicationByUser = await this.getAdvancedReportsUserStats(parentCourse.id, 'platformdedicationtime', moodleGroupId);
+                        } catch (err: unknown) {
+                            const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                            this.logger.warn({ err: errForLog, courseId: parentCourse.id, groupId: moodleGroupId }, 'MoodleService:importSpecificMoodleGroup - could not fetch platformdedicationtime');
+                        }
+                    } else {
+                        this.logger.log({ courseId: parentCourse.id, groupId: moodleGroupId }, 'MoodleService:importSpecificMoodleGroup - itop_training disabled, skipping time_spent sync');
+                    }
+                }
+
                 for (const moodleUser of moodleUsers) {
                     if ((!moodleUser.roles || moodleUser.roles.length === 0) && enrolledRolesMapForGroup.size > 0) {
                         const fromMap = enrolledRolesMapForGroup.get(moodleUser.id);
@@ -1516,24 +1537,56 @@ export class MoodleService {
                     let completionPercentage = null;
                     if (moodleUser.username !== 'guest') {
                         try {
-                            const progress = await this.getUserProgressInCourse(moodleUser, parentCourse.id);
-                            // Normalize completion_percentage which may be number or string in some flows
-                            const normalizeCompletion = (v: unknown): number | null => {
-                                if (v == null) return null;
-                                if (typeof v === 'number') return Math.round(v);
-                                if (typeof v === 'string') {
-                                    const n = Number(v);
-                                    return Number.isFinite(n) ? Math.round(n) : null;
-                                }
-                                return null;
-                            };
-                            completionPercentage = normalizeCompletion(progress.completion_percentage);
+                            // ===== OPTIMIZACIÓN EGRESS: Usar cache en lugar de query individual =====
+                            const completion = await this.getProgressOptimized(moodleUser.id, parentCourse.id);
+                            completionPercentage = completion !== null && typeof completion !== 'undefined' ? Math.round(completion) : null;
                         } catch (e) {
                             completionPercentage = null;
                         }
                     }
                     if (completionPercentage === undefined) completionPercentage = null;
                     await this.upsertMoodleUserAndEnrollToCourse(moodleUser, course.id_course, { transaction }, completionPercentage);
+
+                    // Obtener el moodle_user local para actualizar time_spent y moodle_synced_at
+                    try {
+                        const moodleUserRecord = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+                        if (moodleUserRecord) {
+                            // Actualizar time_spent si está disponible
+                            if (dedicationByUser) {
+                                const rawTime = dedicationByUser.get(moodleUser.id);
+                                if (rawTime !== undefined && rawTime !== null) {
+                                    const timeSpent = Math.max(0, Math.round(Number(rawTime)));
+                                    if (Number.isFinite(timeSpent)) {
+                                        try {
+                                            await this.userCourseRepository.updateById(moodleUserRecord.id_user, course.id_course, { time_spent: timeSpent }, { transaction });
+                                        } catch (upErr: unknown) {
+                                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                                            Logger.warn({ upErr: errForLog, userId: moodleUserRecord.id_user, id_course: course.id_course }, 'MoodleService:importSpecificMoodleGroup - could not persist time_spent to user_course');
+                                        }
+
+                                        try {
+                                            await this.userGroupRepository.updateById(moodleUserRecord.id_user, newGroup.id_group, { time_spent: timeSpent }, { transaction });
+                                        } catch (upErr: unknown) {
+                                            const errForLog = upErr instanceof Error ? { message: upErr.message, stack: upErr.stack } : String(upErr);
+                                            Logger.warn({ upErr: errForLog, userId: moodleUserRecord.id_user, id_group: newGroup.id_group }, 'MoodleService:importSpecificMoodleGroup - could not persist time_spent to user_group');
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Actualizar moodle_synced_at
+                            try {
+                                await this.userGroupRepository.updateById(moodleUserRecord.id_user, newGroup.id_group, { moodle_synced_at: new Date() }, { transaction });
+                            } catch (syncErr: unknown) {
+                                const errForLog = syncErr instanceof Error ? { message: syncErr.message, stack: syncErr.stack } : String(syncErr);
+                                Logger.warn({ syncErr: errForLog, userId: moodleUserRecord.id_user, groupId: newGroup.id_group }, 'MoodleService:importSpecificMoodleGroup - could not update moodle_synced_at');
+                            }
+                        }
+                    } catch (err: unknown) {
+                        const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                        Logger.warn({ err: errForLog, moodleUserId: moodleUser.id }, 'MoodleService:importSpecificMoodleGroup - could not fetch moodle_user for time_spent/synced_at update');
+                    }
+
                     usersImported++;
                 }
 
