@@ -397,6 +397,7 @@ export const MoodleImportManager: React.FC = () => {
                 dataSource={courses}
                 rowKey="id"
                 loading={isLoading}
+                pagination={{ pageSize: 20, showSizeChanger: false }}
                 expandable={{
                   expandedRowRender,
                   expandIcon: ({ expanded, onExpand, record }) => (

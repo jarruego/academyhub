@@ -1202,7 +1202,8 @@ export class MoodleService {
                         lastImportDate: importedCourse?.updatedAt || importedCourse?.createdAt,
                         localCourseId: importedCourse?.id_course,
                     };
-                });
+                })
+                .sort((a, b) => b.id - a.id);
 
 
             return coursesWithStatus;
