@@ -75,7 +75,6 @@ export interface ProcessedDecision {
     notes?: string;
     createdAt: string;
     updatedAt: string;
-    changeMetadata?: any;
 }
 
 export interface RevertDecisionRequest {
