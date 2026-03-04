@@ -552,13 +552,24 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
         pagination={false}
         // Fixed table header with vertical scroll
         scroll={{ y: 500 }}
-        footer={() => (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, paddingRight: 8 }}>
-            <strong>Estudiantes:</strong>&nbsp;{totalStudents}
-            <span>•</span>
-            <strong>≥75%:</strong>&nbsp;{studentsAtOrAbove75}
-          </div>
-        )}
+        footer={() => {
+          const syncedAt = groupData?.moodle_synced_at;
+          const formattedDate = syncedAt 
+            ? new Date(syncedAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })
+            : 'Sin sincronizar';
+          return (
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingRight: 8 }}>
+              <div style={{ fontSize: '0.9em', color: '#666' }}>
+                <strong>Última sincronización:</strong>&nbsp;{formattedDate}
+              </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <strong>Estudiantes:</strong>&nbsp;{totalStudents}
+                <span>•</span>
+                <strong>≥75%:</strong>&nbsp;{studentsAtOrAbove75}
+              </div>
+            </div>
+          );
+        }}
         onRow={(record) => ({
           onDoubleClick: () => {
             const uid = Number(record.id_user);
