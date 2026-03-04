@@ -59,8 +59,8 @@ const GroupsTable: React.FC<{
     },
     {
       title: 'Última Importación',
-      dataIndex: 'lastImportDate',
-      key: 'lastImportDate',
+      dataIndex: 'moodle_synced_at',
+      key: 'moodle_synced_at',
       render: (date: string) => <Text>{formatDate(date)}</Text>,
     },
     {
@@ -132,10 +132,6 @@ export const MoodleImportManager: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  const formatMoodleDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString('es-ES');
   };
 
   const handleImportCourse = (course: MoodleCourseWithImportStatus) => {
@@ -265,20 +261,6 @@ export const MoodleImportManager: React.FC = () => {
       ),
     },
     {
-      title: 'Fechas',
-      key: 'dates',
-      render: (_: any, record: MoodleCourseWithImportStatus) => (
-        <div>
-          <div>{formatMoodleDate(record.startdate)}</div>
-          {record.enddate && record.enddate > 0 && (
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              - {formatMoodleDate(record.enddate)}
-            </Text>
-          )}
-        </div>
-      ),
-    },
-    {
       title: 'Estado',
       dataIndex: 'isImported',
       key: 'status',
@@ -290,8 +272,8 @@ export const MoodleImportManager: React.FC = () => {
     },
     {
       title: 'Última Importación',
-      dataIndex: 'lastImportDate',
-      key: 'lastImportDate',
+      dataIndex: 'moodle_synced_at',
+      key: 'moodle_synced_at',
       render: (date: string) => <Text>{formatDate(date)}</Text>,
     },
     {

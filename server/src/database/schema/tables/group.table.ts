@@ -12,6 +12,7 @@ export const groupTable = pgTable("groups", {
   start_date: timestamp({withTimezone: true}),
   end_date: timestamp({withTimezone: true}),
   fundae_id: text(),
+  moodle_synced_at: timestamp({withTimezone: true}),
   ...TIMESTAMPS,
 });
 

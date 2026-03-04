@@ -19,6 +19,7 @@ export const courseTable = pgTable('courses', {
   active: boolean().notNull(),
   fundae_id: text(),
   contents: text(), // HTML largo
+  moodle_synced_at: timestamp({withTimezone: true}),
   ...TIMESTAMPS,
 });
 

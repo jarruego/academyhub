@@ -23,6 +23,7 @@ export interface CourseSelectModel {
   fundae_id: string | null;
   createdAt: Date;
   updatedAt: Date;
+  moodle_synced_at: Date | null;
 }
 
 export interface CourseGroupSummary {

@@ -96,6 +96,7 @@ export class UserCourseRepository extends Repository {
                     contents: courseTable.contents,
                     createdAt: courseTable.createdAt,
                     updatedAt: courseTable.updatedAt,
+                    moodle_synced_at: courseTable.moodle_synced_at,
                 }
             })
             .from(userCourseTable)
@@ -132,6 +133,7 @@ export class UserCourseRepository extends Repository {
                     contents: courseTable.contents,
                     createdAt: courseTable.createdAt,
                     updatedAt: courseTable.updatedAt,
+                    moodle_synced_at: courseTable.moodle_synced_at,
                 }
             })
             .from(userCourseTable)

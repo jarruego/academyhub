@@ -7,4 +7,5 @@ export type Group = {
     start_date?: Date | null;
     end_date?: Date | null;
     fundae_id?: string | null;
+    moodle_synced_at?: Date | null;
 }

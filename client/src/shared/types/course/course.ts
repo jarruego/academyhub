@@ -13,4 +13,5 @@ export type Course = {
     price_per_hour?: number | null; 
     fundae_id?: string | null;
     active?: boolean | null;
+    moodle_synced_at?: Date | null;
 }

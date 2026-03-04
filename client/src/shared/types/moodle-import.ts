@@ -5,7 +5,7 @@ export interface MoodleCourseWithImportStatus {
   startdate: number;
   enddate?: number;
   isImported: boolean;
-  lastImportDate?: string;
+  moodle_synced_at?: string;
   localCourseId?: number;
 }
 
@@ -15,7 +15,7 @@ export interface MoodleGroupWithImportStatus {
   description?: string;
   courseid: number;
   isImported: boolean;
-  lastImportDate?: string;
+  moodle_synced_at?: string;
   localGroupId?: number;
 }
 
