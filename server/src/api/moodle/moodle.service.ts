@@ -1252,7 +1252,7 @@ export class MoodleService {
                         startdate: moodleCourse.startdate,
                         enddate: moodleCourse.enddate,
                         isImported: !!importedCourse,
-                        moodle_synced_at: importedCourse?.moodle_synced_at || importedCourse?.updatedAt || importedCourse?.createdAt,
+                        moodle_synced_at: importedCourse?.moodle_synced_at,
                         localCourseId: importedCourse?.id_course,
                     };
                 })
@@ -1300,7 +1300,7 @@ export class MoodleService {
                     description: moodleGroup.description,
                     courseid: moodleGroup.courseid,
                     isImported: !!importedGroup,
-                    moodle_synced_at: importedGroup?.moodle_synced_at || importedGroup?.updatedAt || importedGroup?.createdAt,
+                    moodle_synced_at: importedGroup?.moodle_synced_at,
                     localGroupId: importedGroup?.id_group,
                 };
             });
