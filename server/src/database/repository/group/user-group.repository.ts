@@ -29,22 +29,13 @@ export class UserGroupRepository extends Repository {
     async create(data: UserGroupInsertModel, options?: QueryOptions): Promise<InsertResult> {
         const q = this.query(options);
 
-        // Si no viene indicado id_role, asignar el rol por defecto 'student'.
-        // Si no existe en la BD, lo creamos on-demand para evitar fallos iniciales.
-    let roleId = data.id_role as number | undefined;
-        if (!roleId) {
-            const existing = await q.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, 'student'));
-            if (existing && existing.length > 0) {
-                roleId = existing[0].id_role;
-            } else {
-                const inserted = await q.insert(userRolesTable).values({ role_shortname: 'student', role_description: 'Estudiante' }).returning({ id_role: userRolesTable.id_role });
-                roleId = inserted?.[0]?.id_role ?? undefined;
-            }
-        }
-
-    const insertData: UserGroupInsertModel = { ...data, id_role: roleId };
-    const result = await q.insert(userGroupTable).values(insertData).returning({ insertId: userGroupTable.id_user });
-    return result?.[0] ?? {};
+        // Si no viene indicado id_role, dejar que sea NULL en la BD.
+        // Un rol NULL ocurre típicamente cuando el usuario está en un grupo pero no está enrolado en el curso,
+        // o cuando se añade un usuario manualmente sin especificar rol.
+        // El rol puede asignarse/actualizarse posteriormente.
+        const insertData: UserGroupInsertModel = { ...data };
+        const result = await q.insert(userGroupTable).values(insertData).returning({ insertId: userGroupTable.id_user });
+        return result?.[0] ?? {};
     }
 
     async updateById(userId: number, groupId: number, data: UserGroupUpdateModel, options?: QueryOptions) {

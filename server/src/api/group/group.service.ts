@@ -13,6 +13,7 @@ import { CenterRepository } from "src/database/repository/center/center.reposito
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 import { userCenterTable, UserCenterSelectModel } from "src/database/schema/tables/user_center.table";
 import { CenterSelectModel } from "src/database/schema/tables/center.table";
+import { userRolesTable } from "src/database/schema/tables/user_roles.table";
 import { eq, and } from "drizzle-orm";
 
 
@@ -59,9 +60,24 @@ export class GroupService {
 
   async addUserToGroup({ id_group, id_user, id_center, id_role }: AddUserToGroupOptions, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      // Obtener el nombre del rol si tenemos el ID
+      // Solo el rol 'student' requiere centro asignado
+      let roleShortname: string | null = null;
+      let isStudentRole = false;
+      
+      if (id_role) {
+        const role = await transaction
+          .select()
+          .from(userRolesTable)
+          .where(eq(userRolesTable.id_role, id_role));
+        roleShortname = role[0]?.role_shortname ?? null;
+        isStudentRole = roleShortname?.toLowerCase() === 'student';
+      }
+      
       // Si no se pasa id_center, buscar el main_center del usuario
       let centerIdToUse = id_center;
       if (typeof centerIdToUse === 'undefined') {
+        // Buscar el centro principal del usuario
         const mainCenter = await transaction
           .select()
           .from(userCenterTable)
@@ -73,7 +89,10 @@ export class GroupService {
           );
         centerIdToUse = mainCenter[0]?.id_center ?? null;
       }
-      if (!centerIdToUse) {
+      
+      // Solo requerir centro para usuarios con rol 'student'
+      // Para otros roles, permitir NULL pero intentar asignar si existe
+      if (!centerIdToUse && isStudentRole) {
         throw new Error('No se puede crear la matrícula: el usuario no tiene centro asignado. Selecciona un centro antes de añadirlo al grupo.');
       }
 
@@ -108,16 +127,14 @@ export class GroupService {
       }
 
       // No existía: crear la asociación incluyendo centro/join_date y posible id_role
-      // If no id_role was provided, resolve the 'student' role id from user_roles using the repository helper.
-      let roleToUse = id_role as number | undefined;
-      if (!roleToUse) {
-        try {
-          roleToUse = await this.userGroupRepository.findOrCreateRoleByShortname('student', { transaction });
-        } catch (err) {
-          // If lookup fails, proceed without id_role and let repository.create fallback handle it.
-          roleToUse = undefined;
-        }
-      }
+      // Si se proporciona un rol, se asigna. Si no, se deja NULL (undefined).
+      // Un rol NULL ocurre cuando:
+      // - El usuario está en un grupo de Moodle pero NO está enrolado en el curso
+      // - Se añade un usuario manualmente a un grupo sin especificar rol
+      // - Falla la resolución del rol desde Moodle
+      // En estos casos, se recomienda actualizar el rol manualmente después.
+      const roleToUse = id_role as number | undefined;
+      // No hacer fallback a 'student' - dejar que sea undefined si no hay rol
 
       const created = await this.userGroupRepository.create({
         id_group,
@@ -147,14 +164,8 @@ export class GroupService {
       const group = await this.groupRepository.findById(id_group, { transaction });
       const id_course = group.id_course;
 
-      // Resolve the local 'student' role id once per transaction to use when creating user_group rows.
-      let studentRoleId: number | undefined = undefined;
-      try {
-        studentRoleId = await this.userGroupRepository.findOrCreateRoleByShortname('student', { transaction });
-      } catch (err) {
-        // If lookup fails, we'll pass undefined and let repository.create handle defaults per-row.
-        studentRoleId = undefined;
-      }
+      // Note: No longer pre-loading a default 'student' role.
+      // If no role is specified for a user, id_role will be NULL in the database.
 
       for (const id_user of userIds) {
         try {
@@ -176,12 +187,9 @@ export class GroupService {
               )
             );
           centerIdToUse = mainCenter[0]?.id_center ?? null;
-
-          if (!centerIdToUse) {
-            // Si no tiene centro principal, marcar como fallido y continuar
-            failedIds.push(id_user);
-            continue;
-          }
+          // Nota: addUsersToGroup no proporciona id_role, así que no podemos validar
+          // si es rol 'student' que requiere centro. Si no tiene centro, se asigna NULL
+          // (La validación de centro requerido se hace en addUserToGroup cuando viene de Moodle con rol)
 
           // Ensure the user is enrolled in the course
           const userCourse = await this.userCourseRepository.findByCourseAndUserId(id_course, id_user, { transaction });
@@ -195,11 +203,10 @@ export class GroupService {
             }, { transaction });
           }
 
-          // Create user-group association (use resolved student role id when available)
+          // Create user-group association (id_role will be NULL if no role is specified)
           await this.userGroupRepository.create({
             id_group,
             id_user,
-            id_role: studentRoleId ?? undefined,
             id_center: centerIdToUse,
             join_date: new Date(),
             completion_percentage: "0",

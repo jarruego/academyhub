@@ -605,7 +605,10 @@ export class MoodleService {
         if ((!moodleUser.roles || moodleUser.roles.length === 0) && rolesMap.size > 0) {
             const fromMap = rolesMap.get(moodleUser.id);
             if (fromMap && fromMap.length > 0) {
+                Logger.debug({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username, foundRoles: fromMap.map(r => r.shortname) }, 'MoodleService:enrichMoodleUserRolesFromMap - found roles in map');
                 return { ...moodleUser, roles: fromMap };
+            } else {
+                Logger.warn({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username }, 'MoodleService:enrichMoodleUserRolesFromMap - user not found in enrolled users map (may not be enrolled in course)');
             }
         }
         return moodleUser;
@@ -750,6 +753,7 @@ export class MoodleService {
             for (const mu of moodleUsers) {
                 const moodleUser = this.enrichMoodleUserRolesFromMap(mu, enrolledRolesMap);
                 try {
+                    Logger.debug({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username, roles: moodleUser.roles?.map(r => ({ shortname: r.shortname, name: r.name })) }, `${context} - processing user with roles`);
                     // Create or update moodle_user and add to group
                     await this.upsertMoodleUserByGroup(moodleUser, localGroupId, { transaction });
 
@@ -1158,6 +1162,31 @@ export class MoodleService {
         });
 
         return data;
+    }
+
+    /**
+     * Obtiene los roles de un usuario específico en un curso.
+     * Útil para usuarios que están en el grupo pero quizás no estén enrolados como "estudiantes"
+     * NOTA: Esta función requiere que el usuario esté enrolado en el curso.
+     * Para roles globales/del sistema, habría que acceder directamente a la BD de Moodle.
+     */
+    async getUserRolesInCourse(courseId: number, userId: number, enrolledRolesMap: Map<number, MoodleUser['roles']>): Promise<MoodleUser['roles']> {
+        try {
+            // Primero intentar obtener desde el mapa ya cargado (más eficiente)
+            const rolesFromMap = enrolledRolesMap.get(userId);
+            if (rolesFromMap && rolesFromMap.length > 0) {
+                Logger.debug({ userId, courseId, source: 'enrolled_map' }, 'MoodleService:getUserRolesInCourse - found roles in enrolled users map');
+                return rolesFromMap;
+            }
+
+            // Si no está en el mapa, el usuario probablemente no esté enrolado en el curso
+            Logger.warn({ userId, courseId }, 'MoodleService:getUserRolesInCourse - user not found in enrolled users map (not enrolled in course)');
+            return [];
+        } catch (err: unknown) {
+            const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+            Logger.warn({ err: errForLog, courseId, userId }, 'MoodleService:getUserRolesInCourse - error checking roles');
+            return [];
+        }
     }
 
     /**
@@ -2663,28 +2692,29 @@ export class MoodleService {
             const userGroupRows = await this.userGroupRepository.findUserInGroup(userId, id_group, { transaction });
 
             // Resolver rol desde Moodle (si viene) delegando al repositorio para mantener la lógica de BD
-            // Nota: algunas llamadas a la API (p.ej. core_group_get_group_members -> getUserById)
-            // no devuelven el array `roles`. En ese caso, intentamos obtener los roles
-            // buscando al usuario entre los `enrolledUsers` del curso padre (vía core_enrol_get_enrolled_users).
+            // Nota: Los roles se obtienen mediante core_enrol_get_enrolled_users, que devuelve los roles
+            // de los usuarios enrolados en el curso. Si el usuario está en el grupo pero NO está enrolado
+            // en el curso, aquí no tendremos sus roles a menos que vengan en el objeto.
+            // En ese caso, id_role quedará NULL en la BD (sin rol asignado).
             let roleIdToAssign: number | undefined = undefined;
             try {
                 // Preferir roles ya presentes en el objeto recibido
-                let rolesSource = moodleUser.roles;
-
-                // NOTE: roles should be provided in `moodleUser.roles` by the caller to avoid
-                // making an API call per user. If roles are not present, we will not attempt
-                // to fetch enrolled users here (caller should supply them); this keeps the
-                // function efficient for bulk imports.
+                const rolesSource = moodleUser.roles;
 
                 if (rolesSource && rolesSource.length > 0) {
                     const shortname = rolesSource[0].shortname;
                     if (shortname) {
                         roleIdToAssign = await this.userGroupRepository.findOrCreateRoleByShortname(shortname, { transaction });
+                        Logger.debug({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username, roleShortname: shortname, roleIdAssigned: roleIdToAssign }, 'MoodleService:upsertMoodleUserByGroup - role resolved from enrollment data');
                     }
+                } else {
+                    // Sin roles - usuario está en el grupo pero NO en el curso
+                    // id_role quedará NULL en la BD
+                    Logger.warn({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username }, 'MoodleService:upsertMoodleUserByGroup - no roles found (user not enrolled in course), id_role will be NULL');
                 }
             } catch (e) {
                 // No bloquear el flujo si hay un error resolviendo roles; dejamos role undefined
-                Logger.warn({ e, moodleUserId: moodleUser.id }, 'MoodleService:upsertMoodleUserByGroup - role resolution failed');
+                Logger.warn({ e, moodleUserId: moodleUser.id }, 'MoodleService:upsertMoodleUserByGroup - role resolution failed, id_role will be NULL');
             }
 
             if (userGroupRows.length <= 0) {
@@ -2706,12 +2736,17 @@ export class MoodleService {
                     await this.groupService.addUserToGroup({ id_group, id_user: userId, id_role: roleIdToAssign, id_center: fallbackCenterId }, { transaction });
                 }
             } else {
-                // Ya existe la fila user_group: si viene un role resuelto y es distinto al actual, actualizarlo
+                // Ya existe la fila user_group: sincronizar el rol con Moodle
+                // Siempre se actualiza el rol, incluso si es NULL/undefined (usuario no tiene rol en Moodle)
                 // `findUserInGroup` devuelve filas del `user_group`; tipamos el primer registro adecuadamente
                 const existing: UserGroupSelectModel | undefined = userGroupRows[0] ?? undefined;
-                if (typeof roleIdToAssign !== 'undefined' && existing?.id_role !== roleIdToAssign) {
+                if (existing?.id_role !== roleIdToAssign) {
                     try {
-                        await this.userGroupRepository.updateById(userId, id_group, { id_role: roleIdToAssign }, { transaction });
+                        // Pasar null en lugar de undefined para que Drizzle lo interprete como NULL en la BD
+                        await this.userGroupRepository.updateById(userId, id_group, { id_role: roleIdToAssign ?? null }, { transaction });
+                        const oldRole = existing?.id_role ?? 'NULL';
+                        const newRole = roleIdToAssign ?? 'NULL';
+                        Logger.debug({ userId, id_group, oldRole, newRole }, 'MoodleService:upsertMoodleUserByGroup - role updated');
                     } catch (err) {
                         Logger.error({ err, userId, id_group, roleIdToAssign }, 'MoodleService:upsertMoodleUserByGroup - update role failed');
                         // No bloquear el flujo por un fallo al actualizar el role en user_group
