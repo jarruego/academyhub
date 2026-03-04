@@ -80,6 +80,21 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
   // the export is triggered.
 
 
+  const handleMarkBelow75 = () => {
+    if (!usersData) return;
+    const getPercent = (v: unknown) => {
+      const n = Number(v ?? 0) || 0;
+      return n > 0 && n <= 1 ? n * 100 : n;
+    };
+    const ids = usersData
+      .filter((u: User) => {
+        // only students
+        return isStudentUser(u) && getPercent(u.completion_percentage) < 75;
+      })
+      .map(u => u.id_user);
+    setSelectedUserIds(ids);
+  };
+
   const handleMark75 = () => {
     if (!usersData) return;
     const getPercent = (v: unknown) => {
@@ -463,7 +478,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
               
               disabled={isGroupLoading}
             >
-              Subir a Moodle
+              Subir Moodle
             </Button>
             <Button
               type="default"
@@ -527,14 +542,15 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
               setIsSendMailOpen(true);
             }}
           >
-            Enviar correo
+            Correo
           </Button>
         </AuthzHide>
         <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0}>Marcar ≥ 75%</Button>
+            <Button onClick={handleMarkBelow75} disabled={!usersData || usersData.length === 0} style={{ color: '#ff4d4f' }}>{'<75%'}</Button>
+            <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0} style={{ color: '#52c41a' }}>≥75%</Button>
             <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
-              Bonificar+XML
+              Bonificar
             </Button>
           </div>
         </AuthzHide>
