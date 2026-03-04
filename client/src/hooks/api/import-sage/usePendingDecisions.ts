@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PendingDecision, ProcessDecisionRequest } from '../../../types/import.types';
+import { PendingDecision, ProcessedDecision, ProcessDecisionRequest } from '../../../types/import.types';
 import { useAuthInfo } from '../../../providers/auth/auth.context';
 import { getApiHost } from '../../../utils/api/get-api-host.util';
 
@@ -55,7 +55,7 @@ export const usePendingDecisions = (source?: string) => {
     });
 };
 
-const fetchDecisionById = async (id: number, token?: string): Promise<PendingDecision> => {
+const fetchDecisionById = async (id: number, token?: string): Promise<ProcessedDecision> => {
     const response = await fetch(`${getApiHost()}/api/import/pending-decisions/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` },
     });
