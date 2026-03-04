@@ -28,6 +28,7 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
   const { mutateAsync: bulkAddUsersToGroup } = useBulkAddUsersToGroupMutation();
   const { mutateAsync: bulkUpdateUsers } = useBulkUpdateUsersMutation();
   const [messageApi, messageContextHolder] = message.useMessage();
+  const [modal, modalContextHolder] = Modal.useModal();
   const { data: existingUsers } = useAllUsersLookupQuery();
   const { data: groupData } = useGroupQuery(groupId ? String(groupId) : undefined);
   const role = useRole();
@@ -118,7 +119,15 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
       onSuccess ? onSuccess() : onClose();
     } catch (error) {
       console.error('[import-users] import failed', error);
-      messageApi.error(`No se pudo importar a los usuarios: ${(error as Error).message}`);
+      let errorMsg = `No se pudo importar a los usuarios: ${(error as Error).message}`;
+      
+      // Mostrar modal fija para errores
+      modal.error({
+        title: 'Error al importar usuarios',
+        content: errorMsg,
+        okText: 'Entendido',
+        centered: true,
+      });
     }
   };
 
@@ -156,7 +165,14 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
       }
     } catch (error) {
       console.error('[import-users] update selected failed', error);
-      messageApi.error(`No se pudieron actualizar los usuarios: ${(error as Error).message}`);
+      let errorMsg = `No se pudieron actualizar los usuarios: ${(error as Error).message}`;
+      
+      modal.error({
+        title: 'Error al actualizar usuarios',
+        content: errorMsg,
+        okText: 'Entendido',
+        centered: true,
+      });
     }
   };
 
@@ -183,6 +199,7 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
       destroyOnClose
     >
       {messageContextHolder}
+      {modalContextHolder}
       <Upload beforeUpload={handleUpload}>
         <Button icon={<UploadOutlined />} disabled={!canEdit}>Seleccionar Archivo</Button>
       </Upload>

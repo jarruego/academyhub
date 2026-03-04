@@ -53,6 +53,18 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSendMailOpen, setIsSendMailOpen] = useState(false);
 
+  const getRoleShortname = (user: User): string | null => {
+    if (user.role_shortname) return user.role_shortname;
+    const maybe = user as unknown as Record<string, unknown>;
+    const role = maybe['role'];
+    return typeof role === 'string' ? role : null;
+  };
+
+  const isStudentUser = (user: User): boolean => {
+    const role = getRoleShortname(user);
+    return typeof role === 'string' ? role.toLowerCase() === 'student' : false;
+  };
+
   const createBonificationFile = useCreateBonificationFileMutation();
   const updateUserEnrollmentCenterMutation = useUpdateUserEnrollmentCenterMutation();
   const { mutateAsync: syncMoodleGroupMembers, isPending: syncMoodleGroupMembersPending } = useSyncMoodleGroupMembersMutation();
@@ -70,12 +82,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
 
   const handleMark75 = () => {
     if (!usersData) return;
-    const getRoleShortname = (user: User): string | null => {
-      if (user.role_shortname) return user.role_shortname;
-      const maybe = user as unknown as Record<string, unknown>;
-      const r = maybe['role'];
-      return typeof r === 'string' ? r : null;
-    };
     const getPercent = (v: unknown) => {
       const n = Number(v ?? 0) || 0;
       return n > 0 && n <= 1 ? n * 100 : n;
@@ -83,9 +89,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
     const ids = usersData
       .filter((u: User) => {
         // only students
-        const role = getRoleShortname(u);
-        const isStudent = typeof role === 'string' ? role.toLowerCase() === 'student' : false;
-        return isStudent && getPercent(u.completion_percentage) >= 75;
+        return isStudentUser(u) && getPercent(u.completion_percentage) >= 75;
       })
       .map(u => u.id_user);
     setSelectedUserIds(ids);
@@ -195,21 +199,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
     let at75 = 0;
     if (!usersData || usersData.length === 0) return { totalStudents: 0, studentsAtOrAbove75: 0 };
 
-    const getRoleShortname = (user: User): string | null => {
-      if (user.role_shortname) return user.role_shortname;
-      const maybe = user as unknown as Record<string, unknown>;
-      const r = maybe['role'];
-      return typeof r === 'string' ? r : null;
-    };
-
     const getPercent = (v: unknown) => {
       const n = Number(v ?? 0) || 0;
       return n > 0 && n <= 1 ? n * 100 : n;
     };
 
     for (const u of usersData) {
-      const role = getRoleShortname(u);
-      const isStudent = typeof role === 'string' ? role.toLowerCase() === 'student' : false;
+      const isStudent = isStudentUser(u);
       if (isStudent) {
         total += 1;
         const pct = getPercent(u.completion_percentage);
@@ -587,8 +583,16 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
         rowSelection={{
           type: 'checkbox',
           selectedRowKeys: selectedUserIds,
-          onChange: (keys: React.Key[]) => setSelectedUserIds(keys as number[]),
-          getCheckboxProps: (record: User) => ({ id: `user-checkbox-${record.id_user}` }),
+          onChange: (_keys: React.Key[], selectedRows: User[]) => {
+            const onlyStudents = selectedRows
+              .filter((u) => isStudentUser(u))
+              .map((u) => u.id_user);
+            setSelectedUserIds(onlyStudents);
+          },
+          getCheckboxProps: (record: User) => ({
+            id: `user-checkbox-${record.id_user}`,
+            disabled: !isStudentUser(record),
+          }),
         }}
         size="small"
       />

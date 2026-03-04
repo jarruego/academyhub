@@ -605,10 +605,7 @@ export class MoodleService {
         if ((!moodleUser.roles || moodleUser.roles.length === 0) && rolesMap.size > 0) {
             const fromMap = rolesMap.get(moodleUser.id);
             if (fromMap && fromMap.length > 0) {
-                Logger.debug({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username, foundRoles: fromMap.map(r => r.shortname) }, 'MoodleService:enrichMoodleUserRolesFromMap - found roles in map');
                 return { ...moodleUser, roles: fromMap };
-            } else {
-                Logger.warn({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username }, 'MoodleService:enrichMoodleUserRolesFromMap - user not found in enrolled users map (may not be enrolled in course)');
             }
         }
         return moodleUser;
@@ -753,7 +750,6 @@ export class MoodleService {
             for (const mu of moodleUsers) {
                 const moodleUser = this.enrichMoodleUserRolesFromMap(mu, enrolledRolesMap);
                 try {
-                    Logger.debug({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username, roles: moodleUser.roles?.map(r => ({ shortname: r.shortname, name: r.name })) }, `${context} - processing user with roles`);
                     // Create or update moodle_user and add to group
                     await this.upsertMoodleUserByGroup(moodleUser, localGroupId, { transaction });
 
@@ -2705,16 +2701,10 @@ export class MoodleService {
                     const shortname = rolesSource[0].shortname;
                     if (shortname) {
                         roleIdToAssign = await this.userGroupRepository.findOrCreateRoleByShortname(shortname, { transaction });
-                        Logger.debug({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username, roleShortname: shortname, roleIdAssigned: roleIdToAssign }, 'MoodleService:upsertMoodleUserByGroup - role resolved from enrollment data');
                     }
-                } else {
-                    // Sin roles - usuario está en el grupo pero NO en el curso
-                    // id_role quedará NULL en la BD
-                    Logger.warn({ moodleUserId: moodleUser.id, moodleUsername: moodleUser.username }, 'MoodleService:upsertMoodleUserByGroup - no roles found (user not enrolled in course), id_role will be NULL');
                 }
-            } catch (e) {
+            } catch (_e) {
                 // No bloquear el flujo si hay un error resolviendo roles; dejamos role undefined
-                Logger.warn({ e, moodleUserId: moodleUser.id }, 'MoodleService:upsertMoodleUserByGroup - role resolution failed, id_role will be NULL');
             }
 
             if (userGroupRows.length <= 0) {
@@ -2744,11 +2734,7 @@ export class MoodleService {
                     try {
                         // Pasar null en lugar de undefined para que Drizzle lo interprete como NULL en la BD
                         await this.userGroupRepository.updateById(userId, id_group, { id_role: roleIdToAssign ?? null }, { transaction });
-                        const oldRole = existing?.id_role ?? 'NULL';
-                        const newRole = roleIdToAssign ?? 'NULL';
-                        Logger.debug({ userId, id_group, oldRole, newRole }, 'MoodleService:upsertMoodleUserByGroup - role updated');
-                    } catch (err) {
-                        Logger.error({ err, userId, id_group, roleIdToAssign }, 'MoodleService:upsertMoodleUserByGroup - update role failed');
+                    } catch (_err) {
                         // No bloquear el flujo por un fallo al actualizar el role en user_group
                     }
                 }

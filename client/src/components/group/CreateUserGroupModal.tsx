@@ -83,7 +83,14 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
           errorMsg = anyErr.message;
         }
       }
-      messageApi.error(errorMsg);
+      
+      // Mostrar modal fija para errores de validación (ej: sin centro asignado)
+      modal.error({
+        title: 'Error al añadir usuarios',
+        content: errorMsg,
+        okText: 'Entendido',
+        centered: true,
+      });
     }
   };
 
