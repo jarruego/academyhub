@@ -164,6 +164,25 @@ export class GroupService {
             continue;
           }
 
+          // Buscar el centro principal del usuario para guardarlo en user_group
+          let centerIdToUse: number | null = null;
+          const mainCenter = await transaction
+            .select()
+            .from(userCenterTable)
+            .where(
+              and(
+                eq(userCenterTable.id_user, id_user),
+                eq(userCenterTable.is_main_center, true)
+              )
+            );
+          centerIdToUse = mainCenter[0]?.id_center ?? null;
+
+          if (!centerIdToUse) {
+            // Si no tiene centro principal, marcar como fallido y continuar
+            failedIds.push(id_user);
+            continue;
+          }
+
           // Ensure the user is enrolled in the course
           const userCourse = await this.userCourseRepository.findByCourseAndUserId(id_course, id_user, { transaction });
           if (!userCourse) {
@@ -181,6 +200,7 @@ export class GroupService {
             id_group,
             id_user,
             id_role: studentRoleId ?? undefined,
+            id_center: centerIdToUse,
             join_date: new Date(),
             completion_percentage: "0",
             time_spent: 0,
