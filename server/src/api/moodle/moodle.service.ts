@@ -2254,74 +2254,78 @@ export class MoodleService {
             return { success: false, message: 'No valid Moodle users to add', importedData: { groupId: id_group, usersImported: 0 }, details } as ImportResult;
         }
 
-        // Ensure the users are enrolled in the parent course before attempting to add them to the group.
-        // Moodle requires users to be enrolled in the course to be group members. We'll try to enroll missing users
-        // using the manual enrol webservice. We perform a pre-check to avoid unnecessary enrol attempts.
+        // Re-enrol ALL selected users in the parent course before adding them to the group.
+        // This updates enrolment dates even if they were already enrolled in Moodle.
+        // Dates priority: local group dates, fallback to course dates.
         try {
-            const enrolled = await this.getEnrolledUsers(course.moodle_id as number);
-            const enrolledIds = new Set(enrolled.map(u => Number(u.id)));
-            const toEnroll = members.filter(m => !enrolledIds.has(Number(m.moodleId)));
-            if (toEnroll.length > 0) {
-                // Resolve enrolment dates (prefer group dates, fallback to course dates)
-                const toDate = (v?: Date | string | null) => {
-                    if (!v) return null;
-                    const dt = v instanceof Date ? v : new Date(String(v));
-                    return Number.isNaN(dt.getTime()) ? null : dt;
-                };
-                const startDate = toDate(localGroup.start_date ?? course.start_date ?? null);
-                const endDate = toDate(localGroup.end_date ?? course.end_date ?? null);
-                const toUnixSeconds = (d: Date | null, endOfDay = false) => {
-                    if (!d) return undefined;
-                    const dt = new Date(d);
-                    if (endOfDay) {
-                        dt.setHours(23, 59, 59, 0);
-                    } else {
-                        dt.setHours(0, 0, 0, 0);
-                    }
-                    return Math.floor(dt.getTime() / 1000);
-                };
-                const enrolStart = toUnixSeconds(startDate, false);
-                const enrolEnd = toUnixSeconds(endDate, true);
+            // Resolve enrolment dates (prefer group dates, fallback to course dates)
+            const toDate = (v?: Date | string | null) => {
+                if (!v) return null;
+                const dt = v instanceof Date ? v : new Date(String(v));
+                return Number.isNaN(dt.getTime()) ? null : dt;
+            };
+            const startDate = toDate(localGroup.start_date ?? course.start_date ?? null);
+            const endDate = toDate(localGroup.end_date ?? course.end_date ?? null);
+            const toUnixSeconds = (d: Date | null, endOfDay = false) => {
+                if (!d) return undefined;
+                const dt = new Date(d);
+                if (endOfDay) {
+                    dt.setHours(23, 59, 59, 0);
+                } else {
+                    dt.setHours(0, 0, 1, 0);
+                }
+                return Math.floor(dt.getTime() / 1000);
+            };
+            const enrolStart = toUnixSeconds(startDate, false);
+            const enrolEnd = toUnixSeconds(endDate, true);
 
-                const enrolParams: MoodleParams = {};
-                // Use Moodle's manual enrol webservice. We'll use roleid=5 (student) by default.
-                const STUDENT_ROLE_ID = 5;
-                toEnroll.forEach((m, idx) => {
-                    enrolParams[`enrolments[${idx}][roleid]`] = STUDENT_ROLE_ID;
-                    enrolParams[`enrolments[${idx}][userid]`] = m.moodleId;
-                    enrolParams[`enrolments[${idx}][courseid]`] = course.moodle_id;
-                    if (enrolStart !== undefined) enrolParams[`enrolments[${idx}][timestart]`] = enrolStart;
-                    if (enrolEnd !== undefined) enrolParams[`enrolments[${idx}][timeend]`] = enrolEnd;
-                });
+            const enrolParams: MoodleParams = {};
+            // Use Moodle's manual enrol webservice. We'll use roleid=5 (student) by default.
+            const STUDENT_ROLE_ID = 5;
+            members.forEach((m, idx) => {
+                enrolParams[`enrolments[${idx}][roleid]`] = STUDENT_ROLE_ID;
+                enrolParams[`enrolments[${idx}][userid]`] = m.moodleId;
+                enrolParams[`enrolments[${idx}][courseid]`] = course.moodle_id;
+                if (enrolStart !== undefined) enrolParams[`enrolments[${idx}][timestart]`] = enrolStart;
+                if (enrolEnd !== undefined) enrolParams[`enrolments[${idx}][timeend]`] = enrolEnd;
+            });
 
-                try {
-                    await this.request<boolean>('enrol_manual_enrol_users', { method: 'post', params: enrolParams });
-                    // Persist enrollment locally: create or update user_course rows with id_moodle_user
-                    for (const m of toEnroll) {
-                        try {
-                            // Ensure we persist the LOCAL moodle_users PK (id_moodle_user), not the remote Moodle id.
-                            // m.moodleId is the remote Moodle user id (e.g. 19807). The user_course.id_moodle_user
-                            // FK references moodle_users.id_moodle_user (local PK). Prefer the already-known
-                            // m.id_moodle_user if present; otherwise try to look it up.
-                            let localIdMoodleUser: number | undefined = undefined;
-                            if (typeof m.id_moodle_user === 'number') {
-                                localIdMoodleUser = Number(m.id_moodle_user);
-                                } else {
-                                try {
-                                    const mu = await this.moodleUserService.findByMoodleId(Number(m.moodleId));
-                                    if (mu && (mu as unknown as { id_moodle_user?: number }).id_moodle_user) localIdMoodleUser = (mu as unknown as { id_moodle_user?: number }).id_moodle_user;
-                                } catch (findErr: unknown) {
-                                    const ferr = findErr instanceof Error ? { message: findErr.message, stack: findErr.stack } : String(findErr);
-                                    Logger.warn({ findErr: ferr, moodleId: m.moodleId, localUserId: m.localUserId }, 'MoodleService:addLocalUsersToMoodleGroup - could not find local moodle_user row for persisted moodle id');
-                                }
+            try {
+                await this.request<boolean>('enrol_manual_enrol_users', { method: 'post', params: enrolParams });
+                // Persist enrollment locally: create or update user_course rows with id_moodle_user
+                for (const m of members) {
+                    try {
+                        // Ensure we persist the LOCAL moodle_users PK (id_moodle_user), not the remote Moodle id.
+                        // m.moodleId is the remote Moodle user id (e.g. 19807). The user_course.id_moodle_user
+                        // FK references moodle_users.id_moodle_user (local PK). Prefer the already-known
+                        // m.id_moodle_user if present; otherwise try to look it up.
+                        let localIdMoodleUser: number | undefined = undefined;
+                        if (typeof m.id_moodle_user === 'number') {
+                            localIdMoodleUser = Number(m.id_moodle_user);
+                            } else {
+                            try {
+                                const mu = await this.moodleUserService.findByMoodleId(Number(m.moodleId));
+                                if (mu && (mu as unknown as { id_moodle_user?: number }).id_moodle_user) localIdMoodleUser = (mu as unknown as { id_moodle_user?: number }).id_moodle_user;
+                            } catch (findErr: unknown) {
+                                const ferr = findErr instanceof Error ? { message: findErr.message, stack: findErr.stack } : String(findErr);
+                                Logger.warn({ findErr: ferr, moodleId: m.moodleId, localUserId: m.localUserId }, 'MoodleService:addLocalUsersToMoodleGroup - could not find local moodle_user row for persisted moodle id');
                             }
+                        }
 
-                            if (!localIdMoodleUser) {
-                                // If we still don't have a local id, skip persisting user_course to avoid FK violation
-                                Logger.warn({ moodleId: m.moodleId, localUserId: m.localUserId }, 'MoodleService:addLocalUsersToMoodleGroup - skipping user_course persist because local moodle_users row not found');
-                                continue;
-                            }
+                        if (!localIdMoodleUser) {
+                            // If we still don't have a local id, skip persisting user_course to avoid FK violation
+                            Logger.warn({ moodleId: m.moodleId, localUserId: m.localUserId }, 'MoodleService:addLocalUsersToMoodleGroup - skipping user_course persist because local moodle_users row not found');
+                            continue;
+                        }
 
+                        const existingUserCourse = await this.userCourseRepository.findByCourseAndUserId(course.id_course, m.localUserId);
+
+                        if (existingUserCourse) {
+                            await this.userCourseRepository.updateById(m.localUserId, course.id_course, {
+                                id_moodle_user: Number(localIdMoodleUser),
+                                enrollment_date: new Date(),
+                            });
+                        } else {
                             const uc: UserCourseInsertModel = {
                                 id_user: m.localUserId,
                                 id_course: course.id_course,
@@ -2331,20 +2335,20 @@ export class MoodleService {
                                 time_spent: 0,
                             };
                             await this.userCourseRepository.addUserToCourse(uc);
-                        } catch (ucErr: unknown) {
-                            const uerr = ucErr instanceof Error ? { message: ucErr.message, stack: ucErr.stack } : String(ucErr);
-                            Logger.warn({ ucErr: uerr, localUserId: m.localUserId, courseId: course.id_course }, 'MoodleService:addLocalUsersToMoodleGroup - failed to persist user_course enrollment');
                         }
+                    } catch (ucErr: unknown) {
+                        const uerr = ucErr instanceof Error ? { message: ucErr.message, stack: ucErr.stack } : String(ucErr);
+                        Logger.warn({ ucErr: uerr, localUserId: m.localUserId, courseId: course.id_course }, 'MoodleService:addLocalUsersToMoodleGroup - failed to persist user_course enrollment');
                     }
-                } catch (enrolErr: unknown) {
-                    const eerr = enrolErr instanceof Error ? { message: enrolErr.message, stack: enrolErr.stack } : String(enrolErr);
-                    Logger.warn({ enrolErr: eerr, toEnrollCount: toEnroll.length }, 'MoodleService:addLocalUsersToMoodleGroup - enrol_manual_enrol_users failed');
-                    // continue — we'll still try to add to group individually below; failures will be captured
                 }
+            } catch (enrolErr: unknown) {
+                const eerr = enrolErr instanceof Error ? { message: enrolErr.message, stack: enrolErr.stack } : String(enrolErr);
+                Logger.warn({ enrolErr: eerr, membersCount: members.length }, 'MoodleService:addLocalUsersToMoodleGroup - enrol_manual_enrol_users failed');
+                // continue — we'll still try to add to group individually below; failures will be captured
             }
         } catch (e) {
             const errObj = e instanceof Error ? { message: e.message, stack: e.stack } : String(e);
-            Logger.warn({ e: errObj }, 'MoodleService:addLocalUsersToMoodleGroup - failed to fetch enrolled users');
+            Logger.warn({ e: errObj }, 'MoodleService:addLocalUsersToMoodleGroup - failed preparing enrolment payload');
         }
 
         // Build members array for Moodle payload and diagnostic logging
