@@ -65,33 +65,82 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
 
   const handleSaveUsers = async () => {
     if (!groupId || selectedUserIds.length === 0) return;
-    try {
-      await Promise.all(selectedUserIds.map(id_user => addUserToGroup({ id_group: parseInt(String(groupId), 10), id_user })));
-      messageApi.success('Usuarios añadidos exitosamente');
-      setSelectedUserIds([]);
-      await refetchUsers();
-    } catch (err) {
-      console.error('Error añadiendo usuarios al grupo', err);
-      // Mostrar mensaje de error detallado si lo hay
-      let errorMsg = 'No se pudo añadir a los usuarios';
-      if (err && typeof err === 'object') {
-        // Axios error: err.response?.data?.message
-        const anyErr = err as any;
-        if (anyErr.response?.data?.message) {
-          errorMsg = anyErr.response.data.message;
-        } else if (anyErr.message) {
-          errorMsg = anyErr.message;
-        }
-      }
-      
-      // Mostrar modal fija para errores de validación (ej: sin centro asignado)
-      modal.error({
-        title: 'Error al añadir usuarios',
-        content: errorMsg,
-        okText: 'Entendido',
-        centered: true,
-      });
+    const gid = parseInt(String(groupId), 10);
+
+    // Try all users; use allSettled so one failure doesn't abort the rest
+    const results = await Promise.allSettled(
+      selectedUserIds.map(id_user => addUserToGroup({ id_group: gid, id_user }))
+    );
+
+    const fulfilledIds = selectedUserIds.filter((_, i) => results[i].status === 'fulfilled');
+    const noCenterIds = selectedUserIds.filter((_, i) => {
+      if (results[i].status !== 'rejected') return false;
+      const msg: string = (results[i] as PromiseRejectedResult).reason?.response?.data?.message ?? '';
+      return msg.includes('no tiene centro asignado');
+    });
+    const otherFailedIds = selectedUserIds.filter((_, i) => {
+      if (results[i].status !== 'rejected') return false;
+      const msg: string = (results[i] as PromiseRejectedResult).reason?.response?.data?.message ?? '';
+      return !msg.includes('no tiene centro asignado');
+    });
+
+    // Refetch already if some were added
+    if (fulfilledIds.length > 0) await refetchUsers();
+
+    // Show generic error for non-center failures
+    if (otherFailedIds.length > 0) {
+      const firstErr = (results.find(r => r.status === 'rejected') as PromiseRejectedResult)?.reason;
+      const errorMsg = firstErr?.response?.data?.message ?? 'No se pudo añadir a los usuarios';
+      modal.error({ title: 'Error al añadir usuarios', content: errorMsg, okText: 'Entendido', centered: true });
     }
+
+    // No center issues — finish normally
+    if (noCenterIds.length === 0) {
+      if (fulfilledIds.length > 0 && otherFailedIds.length === 0) {
+        messageApi.success('Usuarios añadidos exitosamente');
+        setSelectedUserIds([]);
+      }
+      return;
+    }
+
+    // One or more users have no center → show confirm instead of error
+    const usersWithoutCenter = usersData.filter(u => noCenterIds.includes(u.id_user));
+
+    modal.confirm({
+      title: 'Usuarios sin centro asignado',
+      content: (
+        <div>
+          <p><strong>{noCenterIds.length}</strong> usuario(s) no tienen centro asignado:</p>
+          <ul style={{ paddingLeft: 20, margin: '8px 0' }}>
+            {usersWithoutCenter.map(u => (
+              <li key={u.id_user}>{u.name} {u.first_surname} — <em>{u.email}</em></li>
+            ))}
+          </ul>
+          <p>¿Deseas añadirlos igualmente al grupo sin centro asignado?</p>
+        </div>
+      ),
+      okText: 'Añadir',
+      cancelText: 'Cancelar',
+      centered: true,
+      onOk: async () => {
+        try {
+          await Promise.all(noCenterIds.map(id_user => addUserToGroup({ id_group: gid, id_user, allowWithoutCenter: true })));
+          const totalAdded = fulfilledIds.length + noCenterIds.length;
+          messageApi.success(`${totalAdded} usuario(s) añadidos exitosamente`);
+          setSelectedUserIds([]);
+          await refetchUsers();
+        } catch (err) {
+          const msg = (err as any)?.response?.data?.message ?? 'No se pudo añadir a los usuarios';
+          modal.error({ title: 'Error al añadir usuarios', content: msg, okText: 'Entendido', centered: true });
+        }
+      },
+      onCancel: () => {
+        if (fulfilledIds.length > 0) {
+          messageApi.success(`${fulfilledIds.length} usuario(s) añadidos exitosamente`);
+          setSelectedUserIds(noCenterIds);
+        }
+      },
+    });
   };
 
   const handleDeleteUsers = async () => {

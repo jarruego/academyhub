@@ -56,8 +56,8 @@ export class GroupController {
 
   @UseGuards(RoleGuard([Role.ADMIN]))
   @Post(':id/users/:userId')
-  async addUserToGroup(@Param('id', new ParseIntPipe()) id: number, @Param('userId', new ParseIntPipe()) userId: number) {
-    return this.groupService.addUserToGroup({id_user: userId, id_group: id});
+  async addUserToGroup(@Param('id', new ParseIntPipe()) id: number, @Param('userId', new ParseIntPipe()) userId: number, @Body() body?: { allowWithoutCenter?: boolean }) {
+    return this.groupService.addUserToGroup({ id_user: userId, id_group: id, allowWithoutCenter: body?.allowWithoutCenter });
   }
 
   @Get(':id/users')

@@ -17,7 +17,13 @@ import { userRolesTable } from "src/database/schema/tables/user_roles.table";
 import { eq, and } from "drizzle-orm";
 
 
-type AddUserToGroupOptions = {id_group: number; id_user: number; id_center?: number; id_role?: number }
+type AddUserToGroupOptions = {
+  id_group: number;
+  id_user: number;
+  id_center?: number;
+  id_role?: number;
+  allowWithoutCenter?: boolean;
+}
 
 @Injectable()
 export class GroupService {
@@ -58,7 +64,7 @@ export class GroupService {
 
   
 
-  async addUserToGroup({ id_group, id_user, id_center, id_role }: AddUserToGroupOptions, options?: QueryOptions) {
+  async addUserToGroup({ id_group, id_user, id_center, id_role, allowWithoutCenter }: AddUserToGroupOptions, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       // Si no se proporciona id_role (adición manual), buscar y asignar el rol 'student' por defecto
       let roleIdToUse = id_role;
@@ -109,7 +115,7 @@ export class GroupService {
       
       // Solo requerir centro para usuarios con rol 'student'
       // Para otros roles, permitir NULL pero intentar asignar si existe
-      if (!centerIdToUse && isStudentRole) {
+      if (!centerIdToUse && isStudentRole && !allowWithoutCenter) {
         throw new BadRequestException('No se puede crear la matrícula: el usuario no tiene centro asignado. Selecciona un centro antes de añadirlo al grupo.');
       }
 

@@ -97,26 +97,97 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
       // Process creations and additions with a small concurrency limit to avoid flooding the API
       const id_group_num = parseInt(String(groupId), 10);
 
-      // First, create & add new users in bulk (server endpoint handles them in one request)
-      if (usersToCreate.length > 0) {
-        await bulkCreateAndAddToGroup({ users: usersToCreate, id_group: id_group_num });
-      }
+      const runImport = async () => {
+        // First, create & add new users in bulk (server endpoint handles them in one request)
+        if (usersToCreate.length > 0) {
+          const createResp = await bulkCreateAndAddToGroup({ users: usersToCreate, id_group: id_group_num }) as {
+            createdUsers?: number[];
+            addedToGroup?: number[];
+            failedToCreate?: Array<{ dni?: string; error: string }>;
+            failedToAddGroup?: Array<{ id_user: number; dni?: string; error: string }>;
+          };
 
-      // Then, add existing users to the group using a server-side bulk endpoint (faster and avoids many HTTP requests)
-      if (existingUserIdsToAdd.length > 0) {
-        const resp = await bulkAddUsersToGroup({ id_group: id_group_num, userIds: existingUserIdsToAdd });
-        const failed = (resp as any)?.failedIds ?? [];
-        const existing = (resp as any)?.existingIds ?? [];
-        if (failed && failed.length > 0) {
-          messageApi.warning(`Algunos usuarios no se pudieron añadir al grupo: ${failed.join(', ')}`);
-        } else if (existing && existing.length > 0) {
-          // optional informative message when some users were already in the group
-          messageApi.info(`${existing.length} usuarios ya pertenecían al grupo`);
+          const failedCreate = createResp?.failedToCreate ?? [];
+          const failedAddGroup = createResp?.failedToAddGroup ?? [];
+
+          if (failedCreate.length > 0 || failedAddGroup.length > 0) {
+            const failedCreateMsg = failedCreate
+              .slice(0, 10)
+              .map((f) => `${f.dni ?? 'DNI?'}: ${f.error}`)
+              .join('\n');
+            const failedAddMsg = failedAddGroup
+              .slice(0, 10)
+              .map((f) => `${f.dni ?? `ID ${f.id_user}`}: ${f.error}`)
+              .join('\n');
+
+            modal.warning({
+              title: 'Importación parcial',
+              centered: true,
+              content: (
+                <div>
+                  {failedCreate.length > 0 && (
+                    <p style={{ whiteSpace: 'pre-wrap' }}>
+                      <strong>No se pudieron crear:</strong>{'\n'}{failedCreateMsg}
+                    </p>
+                  )}
+                  {failedAddGroup.length > 0 && (
+                    <p style={{ whiteSpace: 'pre-wrap' }}>
+                      <strong>Creados pero no añadidos al grupo:</strong>{'\n'}{failedAddMsg}
+                    </p>
+                  )}
+                </div>
+              ),
+              okText: 'Entendido',
+            });
+          }
         }
-      }
 
-      messageApi.success('Usuarios importados correctamente');
-      onSuccess ? onSuccess() : onClose();
+        // Then, add existing users to the group using a server-side bulk endpoint (faster and avoids many HTTP requests)
+        if (existingUserIdsToAdd.length > 0) {
+          const resp = await bulkAddUsersToGroup({ id_group: id_group_num, userIds: existingUserIdsToAdd });
+          const failed = (resp as any)?.failedIds ?? [];
+          const existing = (resp as any)?.existingIds ?? [];
+          if (failed && failed.length > 0) {
+            messageApi.warning(`Algunos usuarios no se pudieron añadir al grupo: ${failed.join(', ')}`);
+          } else if (existing && existing.length > 0) {
+            // optional informative message when some users were already in the group
+            messageApi.info(`${existing.length} usuarios ya pertenecían al grupo`);
+          }
+        }
+
+        messageApi.success('Usuarios importados correctamente');
+        onSuccess ? onSuccess() : onClose();
+      };
+
+      if (usersToCreate.length > 0) {
+        const preview = usersToCreate.slice(0, 8).map((u) => u.dni || '(sin DNI)').join(', ');
+        const moreCount = usersToCreate.length > 8 ? usersToCreate.length - 8 : 0;
+
+        modal.confirm({
+          title: 'Se crearán nuevos usuarios en la BD',
+          centered: true,
+          content: (
+            <div>
+              <p>
+                Hay <strong>{usersToCreate.length}</strong> usuario(s) del Excel que no existen en la BD.
+              </p>
+              <p>
+                Si aceptas, se crearán y se intentarán añadir al grupo.
+              </p>
+              <p style={{ wordBreak: 'break-word' }}>
+                <strong>DNI:</strong> {preview}{moreCount > 0 ? ` ... y ${moreCount} más` : ''}
+              </p>
+            </div>
+          ),
+          okText: 'Aceptar',
+          cancelText: 'Cancelar',
+          onOk: async () => {
+            await runImport();
+          },
+        });
+      } else {
+        await runImport();
+      }
     } catch (error) {
       console.error('[import-users] import failed', error);
       let errorMsg = `No se pudo importar a los usuarios: ${(error as Error).message}`;

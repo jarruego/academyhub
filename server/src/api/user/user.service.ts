@@ -191,27 +191,62 @@ export class UserService {
 
   async bulkCreateAndAddToGroup(users: UserInsertModel[], id_group: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      const createdUsers = [];
-      
+      const createdUsers: number[] = [];
+      const addedToGroup: number[] = [];
+      const failedToCreate: Array<{ dni?: string; error: string }> = [];
+      const failedToAddGroup: Array<{ id_user: number; dni?: string; error: string }> = [];
+
       for (const user of users) {
-        let userId: number;
-        
-        // Para now, crear usuarios sin datos de Moodle directamente
-        // TODO: Implementar lógica de Moodle cuando se defina cómo asociar cursos
-  const result = await this.userRepository.create(user, { transaction });
-  const maybeId = resolveInsertId(result as unknown);
-  userId = Number(maybeId);
-        
-        createdUsers.push(userId);
-        
-        // Añadir al grupo si no está ya
-        const userGroupRows = await this.userGroupRepository.findUserInGroup(userId, id_group, { transaction });
-        if (userGroupRows.length <= 0) {
-          await this.groupService.addUserToGroup({id_group, id_user: userId }, { transaction });
+        let userId: number | null = null;
+
+        // 1) Create user
+        try {
+          const result = await this.userRepository.create(user, { transaction });
+          const maybeId = resolveInsertId(result as unknown);
+          userId = Number(maybeId);
+          if (!Number.isFinite(userId) || userId <= 0) {
+            throw new Error('No se pudo resolver el ID del usuario creado');
+          }
+          createdUsers.push(userId);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          failedToCreate.push({ dni: user.dni ?? undefined, error: msg });
+          continue;
+        }
+
+        // 2) Add to group (do not abort whole import if this specific user fails)
+        try {
+          const userGroupRows = await this.userGroupRepository.findUserInGroup(userId, id_group, { transaction });
+          if (userGroupRows.length <= 0) {
+            await this.groupService.addUserToGroup({ id_group, id_user: userId, allowWithoutCenter: true }, { transaction });
+          }
+          addedToGroup.push(userId);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          // Revertir creación del usuario para evitar registros huérfanos en BD
+          try {
+            await this.userRepository.delete(userId, { transaction });
+            const createdIdx = createdUsers.indexOf(userId);
+            if (createdIdx >= 0) createdUsers.splice(createdIdx, 1);
+          } catch (deleteErr: unknown) {
+            const deleteMsg = deleteErr instanceof Error ? deleteErr.message : String(deleteErr);
+            failedToAddGroup.push({
+              id_user: userId,
+              dni: user.dni ?? undefined,
+              error: `${msg} (además no se pudo revertir creación: ${deleteMsg})`
+            });
+            continue;
+          }
+          failedToAddGroup.push({ id_user: userId, dni: user.dni ?? undefined, error: msg });
         }
       }
-      
-      return createdUsers;
+
+      return {
+        createdUsers,
+        addedToGroup,
+        failedToCreate,
+        failedToAddGroup,
+      };
     });
   }
 

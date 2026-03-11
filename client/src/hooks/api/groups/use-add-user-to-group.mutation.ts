@@ -7,11 +7,11 @@ export const useAddUserToGroupMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id_group, id_user }: { id_group: number, id_user: number }) => {
+    mutationFn: async ({ id_group, id_user, allowWithoutCenter }: { id_group: number, id_user: number, allowWithoutCenter?: boolean }) => {
       await request({
         method: 'POST',
         url: `${getApiHost()}/group/${id_group}/users/${id_user}`,
-        data: { id_user },
+        data: { id_user, allowWithoutCenter },
       });
     },
     onSuccess: () => {

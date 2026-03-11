@@ -10,14 +10,16 @@ export const useBulkCreateAndAddToGroupMutation = () => {
 
   return useMutation({
     mutationFn: async ({ users, id_group }: { users: Omit<User, 'id_user'>[], id_group: number }) => {
-      await request({
+      const response = await request({
         method: 'POST',
         url: `${getApiHost()}/user/bulk-create-and-add-to-group/${id_group}`,
         data: users,
       });
+      return response.data;
     },
     onSuccess: () => {
       queryClient.refetchQueries({ queryKey: ['usersbygroup'] });
+      queryClient.refetchQueries({ queryKey: ['users', 'lookup'] });
     },
   });
 };
