@@ -291,10 +291,11 @@ export class ReportsPdfService {
       const first = g.rows[0];
       const center_name = g.center;
       const course_name = g.course;
-      const start_date = first?.group_start_date ? new Date(first.group_start_date).toLocaleDateString('es-ES') : '';
-      const end_date = first?.group_end_date ? new Date(first.group_end_date).toLocaleDateString('es-ES') : '';
+      const dayjs = require('../../common/utils/dayjs-tz');
+      const start_date = first?.group_start_date ? dayjs(first.group_start_date).tz('Europe/Madrid').format('DD/MM/YYYY') : '';
+      const end_date = first?.group_end_date ? dayjs(first.group_end_date).tz('Europe/Madrid').format('DD/MM/YYYY') : '';
       const company_name = first?.company_name ?? '';
-      const issue_date = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+      const issue_date = dayjs().tz('Europe/Madrid').format('D [de] MMMM [de] YYYY');
       const hours = first?.hours ?? '';
       const modality = first?.modality ?? '';
       // Usar el moodle_id del curso, no del usuario
