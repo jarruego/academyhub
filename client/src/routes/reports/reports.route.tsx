@@ -32,6 +32,7 @@ const formatTimeSpent = (value?: number | null) => {
 };
 
 export default function ReportsRoute() {
+  
   useEffect(() => {
     document.title = "Informes";
   }, []);
@@ -132,7 +133,7 @@ export default function ReportsRoute() {
 
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [includePasswords, setIncludePasswords] = useState(false);
-  const [exportReportType, setExportReportType] = useState<'dedication' | 'certification' | 'bonification'>('dedication');
+  const [exportReportType, setExportReportType] = useState<'dedication' | 'certification' | 'bonification' | 'excel'>('dedication');
 
   const { exportPdf: doExportPdf } = useReportExport();
   const [modal, modalContextHolder] = Modal.useModal();
@@ -484,10 +485,107 @@ export default function ReportsRoute() {
                   { label: 'PDF Dedicación', value: 'dedication' },
                   { label: 'PDF Certificado', value: 'certification' },
                   { label: 'PDF Bonificada', value: 'bonification' },
+                  { label: 'Exportar a Excel', value: 'excel' },
                 ]}
                 style={{ minWidth: 220 }}
               />
-              <Button type="primary" onClick={() => setExportModalVisible(true)}>Generar</Button>
+              <Button type="primary" onClick={() => {
+                if (exportReportType === 'excel') {
+                  // Exportar solo seleccionados
+                  const selected = selectedRowKeys && selectedRowKeys.length ? rows.filter(row => selectedRowKeys.includes(getRowKey(row))) : [];
+                  if (!selected.length) {
+                    modal.confirm({
+                      title: 'Exportación a Excel',
+                      content: 'No ha seleccionado alumnos para exportar. ¿Desea exportar todos los registros filtrados?',
+                      okText: 'Exportar todos',
+                      cancelText: 'Cancelar',
+                      onOk: async () => {
+                        // Exportar todos los registros filtrados (todas las páginas)
+                        try {
+                          // Clonar los filtros actuales y quitar paginación
+                          const fullParams = { ...params, page: 1, limit: 100000 };
+                          // Llamar a la API para obtener todos los datos filtrados
+                          const axios = await import('axios');
+                          const apiHost = (await import('../../utils/api/get-api-host.util')).getApiHost();
+                          const token = localStorage.getItem('token');
+                          const response = await axios.default.get(`${apiHost}/reports`, {
+                            params: fullParams,
+                            headers: token ? { Authorization: `Bearer ${token}` } : {},
+                          });
+                          const allRows = response.data?.data ?? [];
+                          if (!allRows.length) {
+                            modal.error({ title: 'Exportación a Excel', content: 'No hay registros para exportar.' });
+                            return;
+                          }
+                          const header = columns.map(col => col.title);
+                          const csvRows = allRows.map((row: ReportRow) => {
+                            return columns.map(col => {
+                              let val = row[col.dataIndex as keyof ReportRow];
+                              if (col.dataIndex === 'group_start_date' || col.dataIndex === 'group_end_date') {
+                                return val ? dayjs(val).format('DD/MM/YYYY') : '';
+                              }
+                              if (col.dataIndex === 'time_spent') {
+                                return formatTimeSpent(val as number | null);
+                              }
+                              if (typeof val === 'string') {
+                                return '"' + val.replace(/"/g, '""').replace(/\n/g, ' ') + '"';
+                              }
+                              return val ?? '';
+                            });
+                          });
+                          const csvContent = [header, ...csvRows].map(r => r.join(';')).join('\r\n');
+                          const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = 'informe.csv';
+                          document.body.appendChild(a);
+                          a.click();
+                          a.remove();
+                          window.URL.revokeObjectURL(url);
+                        } catch (err) {
+                          modal.error({ title: 'Exportación a Excel', content: 'Error al obtener todos los registros.' });
+                        }
+                      },
+                    });
+                    return;
+                  }
+                  // Cabecera
+                  const header = columns.map(col => col.title);
+                  // Filas
+                  const csvRows = selected.map(row => {
+                    return columns.map(col => {
+                      let val = row[col.dataIndex as keyof typeof row];
+                      // Formatear fechas
+                      if (col.dataIndex === 'group_start_date' || col.dataIndex === 'group_end_date') {
+                        return val ? dayjs(val).format('DD/MM/YYYY') : '';
+                      }
+                      // Formatear tiempo
+                      if (col.dataIndex === 'time_spent') {
+                        return formatTimeSpent(val as number | null);
+                      }
+                      // Escapar comillas y saltos de línea
+                      if (typeof val === 'string') {
+                        return '"' + val.replace(/"/g, '""').replace(/\n/g, ' ') + '"';
+                      }
+                      return val ?? '';
+                    });
+                  });
+                  const csvContent = [header, ...csvRows].map(r => r.join(';')).join('\r\n');
+                  // BOM para Excel
+                  const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'informe.csv';
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  window.URL.revokeObjectURL(url);
+                } else {
+                  setExportModalVisible(true);
+                }
+              }}>Generar</Button>
             </Space>
           </div>
         </Space>
