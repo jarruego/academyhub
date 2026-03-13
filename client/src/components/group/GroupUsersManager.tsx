@@ -387,7 +387,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                               const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
                               setTimeout(() => {
                                 modal.info({
-                                  title: 'Algunos usuarios no pudieron añadirse',
+                                  title: 'Subida a Moodle con avisos',
                                   width: 600,
                                   content: (
                                     <div>
@@ -399,7 +399,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                                 });
                               }, 100);
                             }
-                            refetch();
                           } else {
                             if (result?.details && result.details.length > 0) {
                               const max = 10;
@@ -425,6 +424,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                         } catch (err) {
                           console.error('Error añadiendo usuarios a Moodle:', err);
                           messageApi.error('Error al subir usuarios a Moodle');
+                        } finally {
+                          refetch();
                         }
                       },
                       okText: 'Crear y subir',
@@ -447,7 +448,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                               const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
                               setTimeout(() => {
                                 modal.info({
-                                  title: 'Algunos usuarios no pudieron añadirse',
+                                  title: 'Subida a Moodle con avisos',
                                   width: 600,
                                   content: (
                                     <div>
@@ -459,13 +460,14 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                                 });
                               }, 100);
                             }
-                            refetch();
                           } else {
                             messageApi.error(result?.error || result?.message || 'Error al añadir usuarios a Moodle');
                           }
                         } catch (err) {
                           console.error('Error añadiendo usuarios a Moodle:', err);
                           messageApi.error('Error al subir usuarios a Moodle');
+                        } finally {
+                          refetch();
                         }
                       }
                     });

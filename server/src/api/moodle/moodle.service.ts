@@ -1823,7 +1823,10 @@ export class MoodleService {
      * resulting moodle_id/username/password in `moodle_users`.
      * Returns an array of mappings for all provided localUserIds that now have a Moodle id.
      */
-    async upsertLocalUsersToMoodle(localUserIds: number[]): Promise<Array<{ localUserId: number; moodleId: number; id_moodle_user?: number }>> {
+    async upsertLocalUsersToMoodle(
+        localUserIds: number[],
+        options?: { detailsCollector?: Array<{ userId?: number; username?: string; error: string }> }
+    ): Promise<Array<{ localUserId: number; moodleId: number; id_moodle_user?: number }>> {
         const mappings: Array<{ localUserId: number; moodleId: number; id_moodle_user?: number }> = [];
     // Reuse the generated `UserSelectModel` and pick only the fields we need here
     type LocalUser = Pick<UserSelectModel, 'id_user' | 'name' | 'first_surname' | 'second_surname' | 'email' | 'dni'>;
@@ -1921,37 +1924,121 @@ export class MoodleService {
             }
         }
 
-        // Build Moodle payload for core_user_create_users (without customfields - we'll update them after creation)
-        const usersPayload: MoodleUserCreatePayload[] = toCreate.map(tc => {
-            const firstname = (tc.user.name || '').slice(0, 100) || 'User';
-            const lastname = (tc.user.first_surname || '').slice(0, 100) || 'Surname';
-            // username: prefer normalized dni (lowercase, alphanumeric) if available
-            const normalizeDni = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normalizeDni = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normalizeName = (v: unknown, fallback: string) => {
+            const cleaned = String(v ?? '').replace(/\s+/g, ' ').trim();
+            return (cleaned || fallback).slice(0, 100);
+        };
+        const normalizeUsername = (user: LocalUser, localUserId: number) => {
             let username = '';
-            if (tc.user.dni) {
-                const n = normalizeDni(tc.user.dni);
+            if (user.dni) {
+                const n = normalizeDni(user.dni);
                 username = n.length > 0 ? n : '';
             }
-            // fallback to email localpart or user_<id>
+
             if (!username) {
-                if (tc.user.email && typeof tc.user.email === 'string' && tc.user.email.includes('@')) {
-                    username = tc.user.email.split('@')[0] + '_' + tc.localUserId;
-                } else {
-                    username = 'user_' + tc.localUserId;
+                const rawEmail = String(user.email ?? '').trim();
+                if (rawEmail.includes('@')) {
+                    const localPart = rawEmail.split('@')[0]
+                        .toLowerCase()
+                        .replace(/\s+/g, '')
+                        .replace(/[^a-z0-9._-]/g, '');
+                    if (localPart.length > 0) {
+                        username = `${localPart}_${localUserId}`;
+                    }
                 }
             }
-            // ensure username length and chars
-            username = String(username).slice(0, 100);
+
+            if (!username) {
+                username = `user_${localUserId}`;
+            }
+
+            return username.slice(0, 100);
+        };
+        const resolveEmail = (rawEmail: unknown) => {
+            const original = String(rawEmail ?? '');
+            const trimmed = original.trim();
+            const cleaned = trimmed.toLowerCase().replace(/\s+/g, '');
+            const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned);
+            if (isValid) {
+                return {
+                    email: cleaned,
+                    wasSanitized: cleaned !== trimmed,
+                    original: trimmed,
+                };
+            }
+            return null;
+        };
+
+        const collectInvalidEmail = (user: LocalUser, localUserId: number) => {
+            const displayName = `${String(user.name ?? '').trim()} ${String(user.first_surname ?? '').trim()}`.trim();
+            options?.detailsCollector?.push({
+                userId: localUserId,
+                username: displayName || undefined,
+                error: `Email inválido para Moodle: ${String(user.email ?? '').trim() || '(vacío)'}`,
+            });
+        };
+
+        // Build Moodle payload for core_user_create_users (without customfields - we'll update them after creation)
+        const creatableUsers: Array<{
+            localUserId: number;
+            user: LocalUser;
+            password: string;
+            firstname: string;
+            lastname: string;
+            username: string;
+            email: string;
+        }> = [];
+        const usersPayload: MoodleUserCreatePayload[] = [];
+
+        for (const tc of toCreate) {
+            const firstname = normalizeName(tc.user.name, 'User');
+            const lastname = normalizeName(tc.user.first_surname, 'Surname');
+            const username = normalizeUsername(tc.user, tc.localUserId);
+            const resolvedEmail = resolveEmail(tc.user.email);
+            if (!resolvedEmail) {
+                Logger.warn({ localUserId: tc.localUserId, sourceEmail: tc.user.email }, 'MoodleService:upsertLocalUsersToMoodle - invalid email, skipping user creation');
+                collectInvalidEmail(tc.user, tc.localUserId);
+                continue;
+            }
+
+            if (resolvedEmail.wasSanitized) {
+                try {
+                    await this.userRepository.update(tc.localUserId, { email: resolvedEmail.email });
+                    options?.detailsCollector?.push({
+                        userId: tc.localUserId,
+                        username: `${String(tc.user.name ?? '').trim()} ${String(tc.user.first_surname ?? '').trim()}`.trim() || undefined,
+                        error: `Aviso: email saneado en BD y Moodle (${resolvedEmail.original} → ${resolvedEmail.email})`,
+                    });
+                } catch (updateErr: unknown) {
+                    const errMsg = updateErr instanceof Error ? updateErr.message : String(updateErr);
+                    Logger.warn({ updateErr, localUserId: tc.localUserId, sanitizedEmail: resolvedEmail.email }, 'MoodleService:upsertLocalUsersToMoodle - failed to persist sanitized email');
+                    options?.detailsCollector?.push({
+                        userId: tc.localUserId,
+                        username: `${String(tc.user.name ?? '').trim()} ${String(tc.user.first_surname ?? '').trim()}`.trim() || undefined,
+                        error: `Aviso: email saneado en Moodle, pero no se pudo guardar en BD local (${errMsg})`,
+                    });
+                }
+            }
 
             // generate a password according to rules if not already set
             const password = tc.password || generatePassword(8);
+            creatableUsers.push({
+                localUserId: tc.localUserId,
+                user: tc.user,
+                password,
+                firstname,
+                lastname,
+                username,
+                email: resolvedEmail.email,
+            });
 
             const payload: MoodleUserCreatePayload = {
                 username,
                 password,
                 firstname,
                 lastname,
-                email: tc.user.email || `${username}@example.local`,
+                email: resolvedEmail.email,
                 auth: 'manual',
                 idnumber: tc.user.dni ?? '',
                 description: '',
@@ -1963,9 +2050,12 @@ export class MoodleService {
                 maildisplay: 2,
             };
             // customfields will be set via core_user_update_users after creation
+            usersPayload.push(payload);
+        }
 
-            return payload;
-        });
+        if (usersPayload.length === 0) {
+            return mappings;
+        }
 
         try {
             // First try a bulk creation (faster). If it succeeds, persist mappings.
@@ -1973,7 +2063,7 @@ export class MoodleService {
             if (Array.isArray(created)) {
                 for (let i = 0; i < created.length; i++) {
                     const c = created[i];
-                    const original = toCreate[i];
+                    const original = creatableUsers[i];
                     try {
                         if (c?.id) {
                             const customFields = customFieldsByUserId.get(original.localUserId);
@@ -1989,30 +2079,18 @@ export class MoodleService {
             }
         } catch (err: unknown) {
             // Bulk creation failed. Try per-user creation with a simple username fallback strategy
-            Logger.warn({ err, toCreateLength: toCreate.length }, 'MoodleService:upsertLocalUsersToMoodle - bulk create failed, falling back to per-user creation');
-            for (const original of toCreate) {
+            Logger.warn({ err, toCreateLength: creatableUsers.length }, 'MoodleService:upsertLocalUsersToMoodle - bulk create failed, falling back to per-user creation');
+            for (const original of creatableUsers) {
                 // reconstruct individual payload
-                const firstname = (original.user.name || '').slice(0, 100) || 'User';
-                const lastname = (original.user.first_surname || '').slice(0, 100) || 'Surname';
-                const normalizeDni = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                let username = '';
-                if (original.user.dni) {
-                    const n = normalizeDni(original.user.dni);
-                    username = n.length > 0 ? n : '';
-                }
-                if (!username) {
-                    if (original.user.email && typeof original.user.email === 'string' && original.user.email.includes('@')) {
-                        username = original.user.email.split('@')[0] + '_' + original.localUserId;
-                    } else {
-                        username = 'user_' + original.localUserId;
-                    }
-                }
-                username = String(username).slice(0, 100);
+                const firstname = original.firstname;
+                const lastname = original.lastname;
+                const username = original.username;
+                const email = original.email;
 
                 const password = original.password;
 
                 // Try original username, then one fallback attempt with _user appended
-                const attempts = [username, `${username}_user`];
+                const attempts = [username, `${username}_user`.slice(0, 100)];
                 let createdId: number | null = null;
                 let createdUsername: string | null = null;
                 for (const tryName of attempts) {
@@ -2021,7 +2099,7 @@ export class MoodleService {
                         password,
                         firstname,
                         lastname,
-                        email: original.user.email || `${tryName}@example.local`,
+                        email,
                         auth: 'manual',
                         idnumber: original.user.dni ?? '',
                         description: '',
@@ -2239,9 +2317,16 @@ export class MoodleService {
         // Create missing Moodle users when possible
         if (missingIds.length > 0) {
             try {
-                const created = await this.upsertLocalUsersToMoodle(missingIds);
+                const created = await this.upsertLocalUsersToMoodle(missingIds, { detailsCollector: details });
                 for (const c of created) {
                     members.push({ localUserId: c.localUserId, moodleId: c.moodleId, id_moodle_user: c.id_moodle_user });
+                }
+
+                const createdIds = new Set(created.map(c => c.localUserId));
+                for (const id of missingIds) {
+                    if (!createdIds.has(id) && !details.some(d => d.userId === id)) {
+                        details.push({ userId: id, error: 'No se pudo crear cuenta en Moodle para este usuario' });
+                    }
                 }
             } catch (e: unknown) {
                 const ierr = e instanceof Error ? { message: e.message, stack: e.stack } : String(e);
@@ -2384,7 +2469,7 @@ export class MoodleService {
             }
 
             return {
-                success: details.length === 0,
+                success: addedCount > 0,
                 message: `Added ${addedCount} users to Moodle group ${moodleGroupId}`,
                 importedData: { groupId: id_group, usersImported: addedCount },
                 details: details.length > 0 ? details : undefined,
@@ -2424,7 +2509,7 @@ export class MoodleService {
                 }
 
                 return {
-                    success: details.length === 0,
+                    success: addedCount > 0,
                     message: `Added ${addedCount} users to Moodle group ${moodleGroupId}`,
                     importedData: { groupId: id_group, usersImported: addedCount },
                     details: details.length > 0 ? details : undefined,
@@ -2466,7 +2551,7 @@ export class MoodleService {
                 }
 
                 return {
-                    success: addedCount > 0 && details.length === 0,
+                    success: addedCount > 0,
                     message: `Attempted adding users to Moodle group ${moodleGroupId}; added ${addedCount}, errors ${details.length}`,
                     importedData: { groupId: id_group, usersImported: addedCount },
                     details: details.length > 0 ? details : undefined,
