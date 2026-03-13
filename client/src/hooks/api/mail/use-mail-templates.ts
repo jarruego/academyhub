@@ -19,6 +19,13 @@ export interface MailTemplateInput {
   is_html: boolean;
 }
 
+interface MailTemplateUploadImageResponse {
+  data: {
+    path: string;
+    url: string;
+  };
+}
+
 export const useMailTemplatesQuery = () => {
   const request = useAuthenticatedAxios();
   return useQuery({
@@ -69,6 +76,25 @@ export const useDeleteMailTemplateMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mail-templates'] });
+    },
+  });
+};
+
+export const useUploadMailTemplateImageMutation = () => {
+  const request = useAuthenticatedAxios<MailTemplateUploadImageResponse, FormData>();
+
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const { data } = await request({
+        method: 'POST',
+        url: `${getApiHost()}/mail-templates/upload-image`,
+        data: formData,
+      });
+
+      return data.data;
     },
   });
 };

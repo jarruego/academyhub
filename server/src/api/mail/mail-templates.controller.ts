@@ -1,12 +1,17 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { MailTemplatesService } from './mail-templates.service';
 import { RoleGuard } from '../../guards/role.guard';
 import { Role } from '../../guards/role.enum';
 import type { MailTemplateInsert } from '../../database/schema/tables/mail_templates.table';
+import { SupabaseStorageService } from './supabase-storage.service';
 
 @Controller('mail-templates')
 export class MailTemplatesController {
-  constructor(private readonly mailTemplatesService: MailTemplatesService) {}
+  constructor(
+    private readonly mailTemplatesService: MailTemplatesService,
+    private readonly supabaseStorageService: SupabaseStorageService,
+  ) {}
 
   @Get()
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
@@ -24,6 +29,19 @@ export class MailTemplatesController {
   @UseGuards(RoleGuard([Role.ADMIN]))
   create(@Body() body: MailTemplateInsert) {
     return this.mailTemplatesService.create(body);
+  }
+
+  @Post('upload-image')
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+    const uploaded = await this.supabaseStorageService.uploadMailTemplateImage(file);
+    return {
+      data: {
+        path: uploaded.path,
+        url: uploaded.publicUrl,
+      },
+    };
   }
 
   @Put(':id')
