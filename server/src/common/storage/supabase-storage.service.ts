@@ -33,9 +33,13 @@ export class SupabaseStorageService {
     this.bucket = supabaseBucket;
   }
 
-  async uploadMailTemplateImage(file: Express.Multer.File): Promise<{ path: string; publicUrl: string }> {
+  async uploadImage(folder: string, file: Express.Multer.File): Promise<{ path: string; publicUrl: string }> {
     if (!file || !file.buffer) {
       throw new BadRequestException('No file uploaded');
+    }
+
+    if (!folder?.trim()) {
+      throw new BadRequestException('Folder is required');
     }
 
     if (!this.allowedMimeTypes.has(file.mimetype)) {
@@ -46,8 +50,10 @@ export class SupabaseStorageService {
       throw new BadRequestException('Image exceeds maximum size of 5MB');
     }
 
+    const now = new Date();
+    const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
     const ext = this.getExtension(file);
-    const filePath = `mail-templates/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${randomUUID()}.${ext}`;
+    const filePath = `${normalizedFolder}/${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${randomUUID()}.${ext}`;
 
     const { error: uploadError } = await this.supabase.storage
       .from(this.bucket)
@@ -70,6 +76,30 @@ export class SupabaseStorageService {
       path: filePath,
       publicUrl: data.publicUrl,
     };
+  }
+
+  async removeFile(filePath: string): Promise<void> {
+    if (!filePath?.trim()) return;
+
+    const { error } = await this.supabase.storage.from(this.bucket).remove([filePath]);
+    if (error) {
+      throw new InternalServerErrorException(`Error deleting file from Supabase: ${error.message}`);
+    }
+  }
+
+  extractPathFromPublicUrl(publicUrl?: string | null): string | null {
+    if (!publicUrl) return null;
+
+    try {
+      const url = new URL(publicUrl);
+      const marker = `/storage/v1/object/public/${this.bucket}/`;
+      const index = url.pathname.indexOf(marker);
+      if (index === -1) return null;
+
+      return decodeURIComponent(url.pathname.slice(index + marker.length));
+    } catch {
+      return null;
+    }
   }
 
   private getExtension(file: Express.Multer.File): string {

@@ -10,6 +10,7 @@ import { PdfService } from 'src/common/pdf/pdf.service';
 import { ReportRenderer } from './report-renderer.service';
 import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
 import { OrganizationSettingsSelectModel } from 'src/database/schema/tables/organization_settings.table';
+import axios from 'axios';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
@@ -24,6 +25,28 @@ export class ReportsPdfService {
     private readonly reportRenderer: ReportRenderer,
     private readonly courseService: CourseService,
   ) { }
+
+  private async loadAssetBuffer(assetPath: string): Promise<Buffer | undefined> {
+    try {
+      if (/^https?:\/\//i.test(assetPath)) {
+        const response = await axios.get<ArrayBuffer>(assetPath, { responseType: 'arraybuffer' });
+        return Buffer.from(response.data);
+      }
+
+      if (assetPath.startsWith('/api/files/organization/')) {
+        const filename = assetPath.split('/').pop();
+        const fsPath = path.join(process.cwd(), 'uploads', 'organization', filename!);
+        return await fs.readFile(fsPath);
+      }
+
+      const rel = assetPath.replace(/^\/+/, '');
+      const fsPath = path.join(process.cwd(), 'public', rel);
+      return await fs.readFile(fsPath);
+    } catch (e) {
+      this.logger.warn({ e, assetPath }, 'Could not read organization asset');
+      return undefined;
+    }
+  }
 
   /**
    * Reports may include time_spent only when itop_training is enabled in organization settings.
@@ -575,38 +598,10 @@ export class ReportsPdfService {
         const lp = orgRow.logo_path as string | undefined;
         const sp = orgRow.signature_path as string | undefined;
         if (lp) {
-          try {
-            // logo_path is stored as "/api/files/organization/filename" - extract filename and read from uploads/
-            if (lp.startsWith('/api/files/organization/')) {
-              const filename = lp.split('/').pop();
-              const fsPath = path.join(process.cwd(), 'uploads', 'organization', filename!);
-              logoBuffer = await fs.readFile(fsPath);
-            } else {
-              // Fallback for legacy paths (if any)
-              const rel = lp.replace(/^\/+/, '');
-              const fsPath = path.join(process.cwd(), 'public', rel);
-              logoBuffer = await fs.readFile(fsPath);
-            }
-          } catch (e) {
-            this.logger.warn({ e, lp }, 'Could not read logo file for reports');
-          }
+          logoBuffer = await this.loadAssetBuffer(lp);
         }
         if (sp) {
-          try {
-            // signature_path is stored as "/api/files/organization/filename" - extract filename and read from uploads/
-            if (sp.startsWith('/api/files/organization/')) {
-              const filename = sp.split('/').pop();
-              const fsPath = path.join(process.cwd(), 'uploads', 'organization', filename!);
-              signatureBuffer = await fs.readFile(fsPath);
-            } else {
-              // Fallback for legacy paths (if any)
-              const rel = sp.replace(/^\/+/, '');
-              const fsPath = path.join(process.cwd(), 'public', rel);
-              signatureBuffer = await fs.readFile(fsPath);
-            }
-          } catch (e) {
-            this.logger.warn({ e, sp }, 'Could not read signature file for reports');
-          }
+          signatureBuffer = await this.loadAssetBuffer(sp);
         }
       } catch (e) {
         this.logger.warn({ e }, 'Error while preparing organization assets for report');

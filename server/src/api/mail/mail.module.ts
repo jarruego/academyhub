@@ -9,11 +9,11 @@ import { MailTemplatesController } from './mail-templates.controller';
 import { MoodleUserModule } from '../moodle-user/moodle-user.module';
 import { MoodleMessageService } from './moodle-message.service';
 import { AuthUserRepository } from '../../database/repository/auth/auth_user.repository';
-import { SupabaseStorageService } from './supabase-storage.service';
+import { StorageModule } from '../../common/storage/storage.module';
 
 @Module({
-  imports: [DatabaseModule, MoodleUserModule],
-  providers: [SmtpSettingsService, MailService, MailTemplatesService, MoodleMessageService, AuthUserRepository, SupabaseStorageService],
+  imports: [DatabaseModule, MoodleUserModule, StorageModule],
+  providers: [SmtpSettingsService, MailService, MailTemplatesService, MoodleMessageService, AuthUserRepository],
   controllers: [SmtpSettingsController, MailController, MailTemplatesController],
   exports: [SmtpSettingsService, MailTemplatesService],
 })
