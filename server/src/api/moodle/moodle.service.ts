@@ -26,7 +26,7 @@ import { MoodleUserInsertModel, MoodleUserSelectModel } from 'src/database/schem
 import { UserGroupSelectModel } from 'src/database/schema/tables/user_group.table';
 import { generatePassword } from 'src/utils/generate-password';
 import { link } from 'fs';
-const dayjs = require('../../common/utils/dayjs-tz');
+import dayjs from '../../common/utils/dayjs-tz';
 import { userCenterTable } from 'src/database/schema/tables/user_center.table';
 import { centers } from 'src/database/schema';
 import { companyTable } from 'src/database/schema/tables/company.table';
