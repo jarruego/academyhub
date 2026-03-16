@@ -26,6 +26,7 @@ import { MoodleUserInsertModel, MoodleUserSelectModel } from 'src/database/schem
 import { UserGroupSelectModel } from 'src/database/schema/tables/user_group.table';
 import { generatePassword } from 'src/utils/generate-password';
 import { link } from 'fs';
+const dayjs = require('../../common/utils/dayjs-tz');
 import { userCenterTable } from 'src/database/schema/tables/user_center.table';
 import { centers } from 'src/database/schema';
 import { companyTable } from 'src/database/schema/tables/company.table';
@@ -2351,15 +2352,17 @@ export class MoodleService {
             };
             const startDate = toDate(localGroup.start_date ?? course.start_date ?? null);
             const endDate = toDate(localGroup.end_date ?? course.end_date ?? null);
+            // Ajusta la hora a 23:59 en la zona horaria de Moodle y convierte a UTC timestamp
+            const MOODLE_TZ = 'Europe/Madrid';
             const toUnixSeconds = (d: Date | null, endOfDay = false) => {
                 if (!d) return undefined;
-                const dt = new Date(d);
                 if (endOfDay) {
-                    dt.setHours(23, 59, 59, 0);
+                    // 23:59:59 en la zona horaria de Moodle, convertido a UTC
+                    return dayjs(d).tz(MOODLE_TZ).set('hour', 23).set('minute', 59).set('second', 59).set('millisecond', 0).utc().unix();
                 } else {
-                    dt.setHours(0, 0, 1, 0);
+                    // 00:00:01 en la zona horaria de Moodle, convertido a UTC
+                    return dayjs(d).tz(MOODLE_TZ).set('hour', 0).set('minute', 0).set('second', 1).set('millisecond', 0).utc().unix();
                 }
-                return Math.floor(dt.getTime() / 1000);
             };
             const enrolStart = toUnixSeconds(startDate, false);
             const enrolEnd = toUnixSeconds(endDate, true);
