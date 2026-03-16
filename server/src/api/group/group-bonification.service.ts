@@ -58,6 +58,18 @@ export class GroupBonificableService {
                 });
             }
 
+            const usersMissingEducationLevel = users
+                .filter((user) => user.education_level == null || String(user.education_level).trim().length === 0)
+                .map((user) => ({ id_user: user.id_user, email: user.email }))
+                .filter((user) => user.id_user || user.email);
+
+            if (usersMissingEducationLevel.length > 0) {
+                throw new BadRequestException({
+                    message: "Some users are missing education level",
+                    usersMissingEducationLevel,
+                });
+            }
+
             // Determine company CIF based on the center at the time of enrollment
             // The repository now returns enrollment_company_cif on each user (from user_group.id_center -> centers -> company.cif)
             const cifToUsers: Record<string, Set<number>> = {};

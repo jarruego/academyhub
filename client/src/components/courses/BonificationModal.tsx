@@ -87,6 +87,10 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
         }
       }
 
+      if (user.education_level == null || String(user.education_level).trim().length === 0) {
+        userErrors.push('Sin nivel de estudios');
+      }
+
       // Validar CIF empresa vacío
       const cifVacio = !(user as any).enrollment_company_cif || String((user as any).enrollment_company_cif).trim().length === 0;
       if (cifVacio) {

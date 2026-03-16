@@ -159,11 +159,20 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
         if (data instanceof Blob) {
           const text = await data.text();
           try {
-            const json = JSON.parse(text) as { message?: string | string[]; usersMissingDni?: Array<{ id_user?: number; email?: string }> };
+            const json = JSON.parse(text) as {
+              message?: string | string[];
+              usersMissingDni?: Array<{ id_user?: number; email?: string }>;
+              usersMissingEducationLevel?: Array<{ id_user?: number; email?: string }>;
+            };
             if (json?.message) {
               const baseMsg = Array.isArray(json.message) ? json.message.join(', ') : json.message;
               if (json.usersMissingDni && json.usersMissingDni.length > 0) {
                 const usersInfo = json.usersMissingDni
+                  .map(u => u.email ?? (u.id_user ? `ID ${u.id_user}` : 'Usuario sin identificar'))
+                  .join(', ');
+                detail = `${baseMsg}. Usuarios: ${usersInfo}`;
+              } else if (json.usersMissingEducationLevel && json.usersMissingEducationLevel.length > 0) {
+                const usersInfo = json.usersMissingEducationLevel
                   .map(u => u.email ?? (u.id_user ? `ID ${u.id_user}` : 'Usuario sin identificar'))
                   .join(', ');
                 detail = `${baseMsg}. Usuarios: ${usersInfo}`;
