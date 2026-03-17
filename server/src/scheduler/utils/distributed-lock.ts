@@ -64,8 +64,8 @@ export class DistributedLock {
             this.logger.error(
                 `❌ Error adquiriendo lock: ${error instanceof Error ? error.message : String(error)}`
             );
-            // En caso de error, permitir ejecución (mejor ejecutar que no hacer nada)
-            return true;
+            // En caso de error de BD, no ejecutar para evitar imports duplicados.
+            return false;
         }
     }
 
@@ -85,3 +85,4 @@ export class DistributedLock {
         }
     }
 }
+
