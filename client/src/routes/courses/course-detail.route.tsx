@@ -102,7 +102,7 @@ export default function CourseDetailRoute() {
         ...courseData,
         start_date: courseData.start_date ? (dayjs.isDayjs(courseData.start_date) ? courseData.start_date.toDate() : courseData.start_date) : null,
         end_date: courseData.end_date ? (dayjs.isDayjs(courseData.end_date) ? courseData.end_date.toDate() : courseData.end_date) : null,
-        contents: typeof (courseData as any).contents === 'string' ? (courseData as any).contents : '',
+        contents: courseData.contents ?? '',
       });
     }
   }, [courseData, reset]);
@@ -428,10 +428,7 @@ export default function CourseDetailRoute() {
                     onClick: () => handleRowClick(record),
                     onDoubleClick: () => {
                       const url = `/groups/${record.id_group}/edit`;
-                      const newWindow = window.open(url, '_blank');
-                      if (newWindow) {
-                        try { newWindow.opener = null; } catch (e) {}
-                      }
+                      window.open(url, '_blank', 'noopener,noreferrer');
                     },
                     style: { cursor: 'pointer' }
                   })}

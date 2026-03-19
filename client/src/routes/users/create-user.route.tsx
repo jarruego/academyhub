@@ -82,7 +82,7 @@ export default function CreateUserRoute() {
       }
 
       navigate('/users');
-    } catch (error) {
+    } catch {
       modal.error({
         title: "Error al crear el usuario",
         content: "Revise los datos e inténtelo de nuevo.",

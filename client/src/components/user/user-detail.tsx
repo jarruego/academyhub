@@ -80,6 +80,29 @@ const USER_FORM_SCHEMA = z.object({
   accreditationDiploma: z.union([z.literal("S"), z.literal("N"), z.null()]).nullish().default("N"),
 });
 
+type UserDetailFormValues = z.infer<typeof USER_FORM_SCHEMA>;
+
+type NormalizedUserInfo = Record<string, unknown> & {
+  salary_group?: number | null;
+  education_level?: string | number | null;
+};
+
+type ErrorWithType = {
+  type?: unknown;
+};
+
+const hasTypeProperty = (error: unknown): error is ErrorWithType =>
+  typeof error === "object" && error !== null && "type" in error;
+
+const getUserMoodleUsername = (user: unknown): string | undefined => {
+  if (typeof user !== "object" || user === null || !("moodle_username" in user)) {
+    return undefined;
+  }
+
+  const value = (user as { moodle_username?: unknown }).moodle_username;
+  return typeof value === "string" ? value : undefined;
+};
+
 type Props = {
     userId: number;
 }
@@ -153,7 +176,7 @@ const navigate = useNavigate();
   // initialize moodle fields from main moodle user when moodleUsers change
   useEffect(() => {
     if (moodleUsers && moodleUsers.length > 0) {
-      const main = moodleUsers.find(mu => (mu as any).is_main_user) || moodleUsers[0];
+      const main = moodleUsers.find((mu) => mu.is_main_user) || moodleUsers[0];
       setMoodleUsername(main?.moodle_username ?? undefined);
       setMoodlePassword(main?.moodle_password ?? undefined);
     } else {
@@ -180,26 +203,26 @@ const navigate = useNavigate();
   if (!userData) return <div>Usuario no encontrado</div>;
   if (isUserLoading) return <div>Cargando...</div>;
 
-  const submit: SubmitHandler<z.infer<typeof USER_FORM_SCHEMA>> = async (info) => {
+  const submit: SubmitHandler<UserDetailFormValues> = async (info) => {
     const performSave = async () => {
-      const normalizedInfo = {
+      const normalizedInfo: NormalizedUserInfo = {
         ...nullsToUndefined(info),
         birth_date: info.birth_date ? dayjs(info.birth_date).utc().toDate() : null,
         registration_date: info.registration_date ? dayjs(info.registration_date).utc().toDate() : null,
         email: info.email ?? "",
-      } as Record<string, unknown>;
+      };
       // If the salary_group field was explicitly cleared in the form (null),
       // preserve that intent and send `salary_group: null` to the API so the
       // backend can clear the value. `nullsToUndefined` removes nulls, so we
       // must re-insert null explicitly here when appropriate.
       if (info.salary_group === null) {
-        (normalizedInfo as any).salary_group = null;
+        normalizedInfo.salary_group = null;
       }
       // Ensure education_level is sent as string (backend stores it as text)
       if (info.education_level === null || typeof info.education_level === 'undefined') {
-        (normalizedInfo as any).education_level = null;
+        normalizedInfo.education_level = null;
       } else {
-        (normalizedInfo as any).education_level = String(info.education_level);
+        normalizedInfo.education_level = String(info.education_level);
       }
 
       try {
@@ -213,9 +236,9 @@ const navigate = useNavigate();
         // (the update mutation invalidates the ['user', userId] query),
         // show a success message instead of navigating away.
         modal.success({ title: 'Usuario guardado', content: 'Los datos se han guardado correctamente.' });
-      } catch (err: any) {
+      } catch (err: unknown) {
         // Distinguish errors coming from moodle update
-        if (err && (err as any).type === 'moodle') {
+        if (hasTypeProperty(err) && err.type === 'moodle') {
           modal.error({ title: 'Error al actualizar Moodle', content: 'Se produjo un error al actualizar la cuenta de Moodle asociada. Revisa los logs del servidor.' });
           return; // keep user on page so they can inspect
         }
@@ -251,12 +274,14 @@ const navigate = useNavigate();
 
   const handleDelete = async () => {
     // If user has a Moodle mapping, inform that deletion only affects local DB
-    const hasMoodleMapping = !!(moodleUsers && moodleUsers.length > 0) || !!(userData as any).id_moodle_user;
+    const hasMoodleMapping = Boolean((moodleUsers?.length ?? 0) > 0 || userData.id_moodle_user);
     let confirmContent: React.ReactNode = 'Esta acción no se puede deshacer.';
     if (hasMoodleMapping) {
-      const main = moodleUsers && moodleUsers.length > 0 ? (moodleUsers.find((mu: any) => (mu as any).is_main_user) || moodleUsers[0]) : undefined;
-      const moodleId = (main && (main as any).moodle_id) ?? (userData as any).id_moodle_user;
-      const moodleUsername = (main && (main as any).moodle_username) ?? (userData as any).moodle_username;
+      const main = moodleUsers && moodleUsers.length > 0
+        ? (moodleUsers.find((mu) => mu.is_main_user) || moodleUsers[0])
+        : undefined;
+      const moodleId = main?.moodle_id ?? userData.id_moodle_user;
+      const moodleUsername = main?.moodle_username ?? getUserMoodleUsername(userData);
       let details = '';
       if (moodleUsername && moodleId) details = `(usuario: ${moodleUsername}, moodle_id: ${moodleId})`;
       else if (moodleUsername) details = `(usuario: ${moodleUsername})`;
@@ -676,7 +701,7 @@ const navigate = useNavigate();
                           try {
                             await addUserToMoodle({ userId });
                             modal.success({ title: 'Usuario creado', content: 'El usuario ha sido creado en Moodle y el mapeo se ha guardado.' });
-                          } catch (err) {
+                          } catch {
                             modal.error({ title: 'Error al crear usuario', content: 'No se pudo crear el usuario en Moodle. Revisa los logs del servidor.' });
                           }
                         }
@@ -686,7 +711,7 @@ const navigate = useNavigate();
 
                     // No preview items -> user likely already exists in Moodle
                     // If we have a local moodle mapping, offer to update Moodle with current data
-                    const hasMoodleMapping = !!(moodleUsers && moodleUsers.length > 0) || !!(userData as any).id_moodle_user;
+                    const hasMoodleMapping = Boolean((moodleUsers?.length ?? 0) > 0 || userData.id_moodle_user);
                     if (hasMoodleMapping) {
                       modal.confirm({
                         title: 'Actualizar usuario en Moodle',
@@ -697,7 +722,7 @@ const navigate = useNavigate();
                           try {
                             await updateUserInMoodle({ userId });
                             modal.success({ title: 'Usuario actualizado', content: 'Los datos del usuario se han enviado a Moodle correctamente.' });
-                          } catch (err) {
+                          } catch {
                             modal.error({ title: 'Error al actualizar usuario', content: 'No se pudo actualizar el usuario en Moodle. Revisa los logs del servidor.' });
                           }
                         }
@@ -707,7 +732,7 @@ const navigate = useNavigate();
 
                     // Otherwise inform that there is no data to create/update
                     modal.info({ title: 'Usuario en Moodle', content: 'Este usuario ya tiene una cuenta en Moodle o no hay datos suficientes para crearla/actualizarla.' });
-                  } catch (err) {
+                  } catch {
                     modal.error({ title: 'Error', content: 'No se pudo previsualizar la creación en Moodle.' });
                   }
                 }}

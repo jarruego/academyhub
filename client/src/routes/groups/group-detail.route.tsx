@@ -240,7 +240,7 @@ export default function EditGroupRoute() {
                         const res = await pushGroupMutation.mutateAsync(groupData.id_group);
                         const msg = res?.data?.message || 'Operación completada';
                         messageApi.success(msg);
-                      } catch (err) {
+                      } catch {
                         messageApi.error('Error al subir el grupo a Moodle');
                       }
                     }
@@ -265,7 +265,7 @@ export default function EditGroupRoute() {
                           const res = await deleteMoodleGroupMutation.mutateAsync(groupData.id_group);
                           const msg = res?.data?.message || 'Grupo eliminado en Moodle';
                           messageApi.success(msg);
-                        } catch (err) {
+                        } catch {
                           modal.error({
                             title: 'Error al eliminar en Moodle',
                             content: 'No se pudo eliminar el grupo en Moodle. Compruebe los permisos y vuelva a intentarlo.'

@@ -108,7 +108,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
                           await updateUserMainCenterMutation.mutateAsync({ userId: Number(id_user), centerId: record.id_center });
                           messageApi.success('Centro principal actualizado');
                           refetchUserCenters();
-                        } catch (err) {
+                        } catch {
                           messageApi.error('Error actualizando centro principal');
                         }
                       }}
