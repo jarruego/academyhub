@@ -570,10 +570,10 @@ export class ImportController {
     }
 
     /**
-     * Descargar archivo SFTP
+     * Descargar archivo FTP/SFTP
      */
-    @Get('sftp/download')
-    @ApiOperation({ summary: 'Descargar el archivo SFTP' })
+    @Get('file-transfer/download')
+    @ApiOperation({ summary: 'Descargar el archivo del servidor de transferencia (FTP/SFTP)' })
     @ApiResponse({ 
         status: 200, 
         description: 'Archivo descargado exitosamente',
@@ -586,9 +586,9 @@ export class ImportController {
             },
         },
     })
-    async downloadSftpFile(@Res() res: Response) {
+    async downloadFileTransfer(@Res() res: Response) {
         try {
-            const { buffer, filename } = await this.importService.downloadSftpFile();
+            const { buffer, filename } = await this.importService.downloadFileTransfer();
             
             res.setHeader('Content-Type', 'text/csv; charset=utf-8');
             res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -597,7 +597,7 @@ export class ImportController {
             res.end(buffer);
         } catch (error) {
             throw new HttpException(
-                `Error descargando archivo SFTP: ${error instanceof Error ? error.message : String(error)}`,
+                `Error descargando archivo: ${error instanceof Error ? error.message : String(error)}`,
                 HttpStatus.INTERNAL_SERVER_ERROR
             );
         }

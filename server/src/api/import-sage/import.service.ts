@@ -5,7 +5,8 @@ import { eq, and, or, desc, isNotNull, sql, gte, lte, ilike } from "drizzle-orm"
 import { distance } from "fastest-levenshtein";
 import * as csvParser from "csv-parser";
 import { Readable, Writable } from "stream";
-import Client from "ssh2-sftp-client";
+import SFTPClient from "ssh2-sftp-client";
+import { Client as FTPClient } from "basic-ftp";
 
 // Schemas
 import { 
@@ -213,7 +214,8 @@ export class ImportService {
 
      * Obtiene configuración SFTP primero de BD, luego de variables de entorno
      */
-    private async getSftpConfig(): Promise<{
+    private async getFileTransferConfig(): Promise<{
+        type: 'ftp' | 'sftp';
         host: string;
         port: number;
         user: string;
@@ -223,28 +225,29 @@ export class ImportService {
         try {
             // Intentar leer de BD
             const settings = await this.databaseService.db.query.organization_settings.findFirst();
-            this.logger.log(`[getSftpConfig] Settings encontrados: ${settings ? 'SÍ' : 'NO'}`);
+            this.logger.log(`[getFileTransferConfig] Settings encontrados: ${settings ? 'SÍ' : 'NO'}`);
             
             const settingsObj = settings?.settings as Record<string, any> | undefined;
-            this.logger.log(`[getSftpConfig] settingsObj presente: ${!!settingsObj}`);
+            this.logger.log(`[getFileTransferConfig] settingsObj presente: ${!!settingsObj}`);
             
-            const sftp = settingsObj?.sftp;
-            this.logger.log(`[getSftpConfig] sftp config presente: ${!!sftp}`);
+            const fileTransfer = settingsObj?.file_transfer;
+            this.logger.log(`[getFileTransferConfig] file_transfer config presente: ${!!fileTransfer}`);
 
-            if (sftp?.host && sftp?.user && sftp?.password && sftp?.path) {
-                this.logger.log('[getSftpConfig] Usando configuración SFTP de BD');
+            if (fileTransfer?.host && fileTransfer?.user && fileTransfer?.password && fileTransfer?.path) {
+                this.logger.log('[getFileTransferConfig] Usando configuración de transferencia de BD');
                 return {
-                    host: sftp.host,
-                    port: sftp.port ? Number(sftp.port) : 22,
-                    user: sftp.user,
-                    password: sftp.password,
-                    path: sftp.path,
+                    type: fileTransfer.type || 'ftp',  // Default: 'ftp'
+                    host: fileTransfer.host,
+                    port: fileTransfer.port ? Number(fileTransfer.port) : (fileTransfer.type === 'sftp' ? 22 : 21),
+                    user: fileTransfer.user,
+                    password: fileTransfer.password,
+                    path: fileTransfer.path,
                 };
             } else {
-                this.logger.log(`[getSftpConfig] Campos SFTP faltantes - host: ${!!sftp?.host}, user: ${!!sftp?.user}, password: ${!!sftp?.password}, path: ${!!sftp?.path}`);
+                this.logger.log(`[getFileTransferConfig] Campos faltantes - host: ${!!fileTransfer?.host}, user: ${!!fileTransfer?.user}, password: ${!!fileTransfer?.password}, path: ${!!fileTransfer?.path}`);
             }
         } catch (error) {
-            this.logger.error(`[getSftpConfig] Error al leer configuración SFTP de BD: ${error instanceof Error ? error.message : String(error)}`);
+            this.logger.error(`[getFileTransferConfig] Error al leer configuración de BD: ${error instanceof Error ? error.message : String(error)}`);
         }
 
         // Fallback a variables de entorno
@@ -252,14 +255,15 @@ export class ImportService {
         const user = process.env.SFTP_SAGE_USER;
         const password = process.env.SFTP_SAGE_PASSWORD;
         const path = process.env.SFTP_SAGE_PATH;
-        const port = process.env.SFTP_SAGE_PORT ? Number(process.env.SFTP_SAGE_PORT) : 22;
+        const type = (process.env.SFTP_SAGE_TYPE as 'ftp' | 'sftp') || 'ftp';
+        const port = process.env.SFTP_SAGE_PORT ? Number(process.env.SFTP_SAGE_PORT) : (type === 'sftp' ? 22 : 21);
 
         if (!host || !user || !password || !path) {
-            throw new Error('No se encontró configuración SFTP. Configure los datos SFTP en la configuración de la organización o en las variables de entorno SFTP_SAGE_*');
+            throw new Error('No se encontró configuración de transferencia. Configure en la configuración de la organización o en las variables de entorno SFTP_SAGE_*');
         }
 
-        this.logger.log('Usando configuración SFTP de variables de entorno');
-        return { host, port, user, password, path };
+        this.logger.log(`Usando configuración de transferencia de variables de entorno (tipo: ${type})`);
+        return { type, host, port, user, password, path };
     }
 
     /**
@@ -302,20 +306,68 @@ export class ImportService {
      * La ruta puede sobreescribirse mediante remotePath.
      */
     async startImportJobFromFtp(remotePath?: string): Promise<string> {
-        const sftpConfig = await this.getSftpConfig();
-        const sftpPath = remotePath || sftpConfig.path;
+        const config = await this.getFileTransferConfig();
+        const filePath = remotePath || config.path;
 
-        this.logger.log(`Descargando CSV SAGE desde SFTP ${sftpConfig.host}:${sftpConfig.port} ruta=${sftpPath}`);
+        this.logger.log(`Descargando CSV SAGE desde ${config.type.toUpperCase()} ${config.host}:${config.port} ruta=${filePath}`);
 
-        const { buffer, filename } = await this.downloadCsvFromSftp({
-            host: sftpConfig.host,
-            port: sftpConfig.port,
-            user: sftpConfig.user,
-            password: sftpConfig.password,
-            remotePath: sftpPath,
+        const { buffer, filename } = await this.downloadCsv({
+            type: config.type,
+            host: config.host,
+            port: config.port,
+            user: config.user,
+            password: config.password,
+            remotePath: filePath,
         });
 
         return this.startImportJob(buffer, filename);
+    }
+
+    /**
+     * Descarga el archivo CSV desde servidor FTP/SFTP sin iniciar importación.
+     * Útil para descargar o previsualizar el archivo.
+     */
+    async downloadFileTransfer(remotePath?: string): Promise<{ buffer: Buffer; filename: string }> {
+        const config = await this.getFileTransferConfig();
+        const filePath = remotePath || config.path;
+
+        this.logger.log(`Descargando archivo desde ${config.type.toUpperCase()} ${config.host}:${config.port} ruta=${filePath}`);
+
+        return await this.downloadCsv({
+            type: config.type,
+            host: config.host,
+            port: config.port,
+            user: config.user,
+            password: config.password,
+            remotePath: filePath,
+        });
+    }
+
+    private async downloadCsv(params: {
+        type: 'ftp' | 'sftp';
+        host: string;
+        port: number;
+        user: string;
+        password: string;
+        remotePath: string;
+    }): Promise<{ buffer: Buffer; filename: string }> {
+        if (params.type === 'sftp') {
+            return await this.downloadCsvFromSftp({
+                host: params.host,
+                port: params.port,
+                user: params.user,
+                password: params.password,
+                remotePath: params.remotePath,
+            });
+        } else {
+            return await this.downloadCsvFromFtp({
+                host: params.host,
+                port: params.port,
+                user: params.user,
+                password: params.password,
+                remotePath: params.remotePath,
+            });
+        }
     }
 
     private async downloadCsvFromSftp(params: {
@@ -325,7 +377,7 @@ export class ImportService {
         password: string;
         remotePath: string;
     }): Promise<{ buffer: Buffer; filename: string }> {
-        const client = new Client();
+        const client = new SFTPClient();
 
         try {
             this.logger.log(`Intentando conectar a SFTP ${params.host}:${params.port}...`);
@@ -335,7 +387,7 @@ export class ImportService {
                 port: params.port,
                 username: params.user,
                 password: params.password,
-                readyTimeout: 30000, // 30 segundos
+                readyTimeout: 30000,
                 retries: 2,
             });
 
@@ -348,19 +400,75 @@ export class ImportService {
                 throw new Error('El fichero descargado desde SFTP está vacío');
             }
 
-            this.logger.log(`Archivo descargado exitosamente: ${filename} (${buffer.length} bytes)`);
+            this.logger.log(`Archivo SFTP descargado: ${filename} (${buffer.length} bytes)`);
             return { buffer, filename };
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             const errorCode = (error as any)?.code || 'UNKNOWN';
             this.logger.error(`Error descargando CSV desde SFTP [${errorCode}]: ${errorMsg}`);
-            this.logger.error(`Detalles de conexión: ${params.host}:${params.port} usuario: ${params.user}`);
+            this.logger.error(`SFTP ${params.host}:${params.port} usuario: ${params.user}`);
             throw new Error(`Error SFTP: ${errorMsg} (código: ${errorCode})`);
         } finally {
             try {
                 await client.end();
             } catch (e) {
                 this.logger.debug('Error cerrando conexión SFTP (puede ser normal)');
+            }
+        }
+    }
+
+    private async downloadCsvFromFtp(params: {
+        host: string;
+        port: number;
+        user: string;
+        password: string;
+        remotePath: string;
+    }): Promise<{ buffer: Buffer; filename: string }> {
+        const client = new FTPClient();
+        const chunks: Buffer[] = [];
+
+        try {
+            this.logger.log(`Intentando conectar a FTP ${params.host}:${params.port}...`);
+            
+            await client.access({
+                host: params.host,
+                port: params.port,
+                user: params.user,
+                password: params.password,
+            });
+
+            this.logger.log(`Conexión FTP establecida. Descargando archivo: ${params.remotePath}`);
+            
+            await client.downloadTo(
+                new Writable({
+                    write(chunk: Buffer, encoding, callback) {
+                        chunks.push(chunk);
+                        callback();
+                    },
+                }),
+                params.remotePath
+            );
+
+            const buffer = Buffer.concat(chunks);
+            const filename = params.remotePath.split('/')?.pop() || 'import.csv';
+
+            if (!buffer.length) {
+                throw new Error('El fichero descargado desde FTP está vacío');
+            }
+
+            this.logger.log(`Archivo FTP descargado: ${filename} (${buffer.length} bytes)`);
+            return { buffer, filename };
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const errorCode = (error as any)?.code || 'UNKNOWN';
+            this.logger.error(`Error descargando CSV desde FTP [${errorCode}]: ${errorMsg}`);
+            this.logger.error(`FTP ${params.host}:${params.port} usuario: ${params.user}`);
+            throw new Error(`Error FTP: ${errorMsg} (código: ${errorCode})`);
+        } finally {
+            try {
+                await client.close();
+            } catch (e) {
+                this.logger.debug('Error cerrando conexión FTP (puede ser normal)');
             }
         }
     }
@@ -2667,81 +2775,20 @@ export class ImportService {
     }
 
     /**
-     * Verifica la conexión al servidor SFTP
+     * Verifica la conexión al servidor de transferencia de datos (SFTP o FTP)
      */
     async checkSftpConnection(): Promise<{ isConnected: boolean; message: string; filename?: string }> {
         try {
-            const sftpConfig = await this.getSftpConfig();
-            const client = new Client();
-
-            try {
-                this.logger.log(`Verificando conexión SFTP a ${sftpConfig.host}:${sftpConfig.port}...`);
-                
-                await client.connect({
-                    host: sftpConfig.host,
-                    port: sftpConfig.port,
-                    username: sftpConfig.user,
-                    password: sftpConfig.password,
-                    readyTimeout: 30000, // 30 segundos
-                    retries: 2,
-                });
-
-                this.logger.log('Conexión SFTP establecida. Verificando archivo...');
-
-                // Verificar que el archivo existe
-                const exists = await client.exists(sftpConfig.path);
-                
-                if (!exists) {
-                    this.logger.warn(`Archivo no encontrado: ${sftpConfig.path}`);
-                    return {
-                        isConnected: false,
-                        message: `Archivo no encontrado en la ruta: ${sftpConfig.path}`
-                    };
-                }
-
-                // Obtener información del archivo
-                const fileInfo = await client.stat(sftpConfig.path);
-                const filename = sftpConfig.path.split('/')?.pop() || 'import.csv';
-
-                this.logger.log(`Conexión verificada. Archivo: ${filename} (${fileInfo.size} bytes)`);
-
-                return {
-                    isConnected: true,
-                    message: `Conexión exitosa. Archivo disponible: ${filename} (${fileInfo.size} bytes)`,
-                    filename
-                };
-            } catch (error) {
-                const errorMsg = error instanceof Error ? error.message : String(error);
-                const errorCode = (error as any)?.code || 'UNKNOWN';
-                const errorLevel = (error as any)?.level || '';
-                
-                this.logger.error(`Error verificando conexión SFTP [${errorCode}]${errorLevel ? ` nivel: ${errorLevel}` : ''}: ${errorMsg}`);
-                this.logger.error(`Host: ${sftpConfig.host}:${sftpConfig.port}, Usuario: ${sftpConfig.user}`);
-                
-                // Proporcionar mensaje más específico según el tipo de error
-                let userMessage = errorMsg;
-                if (errorCode === 'ENOTFOUND') {
-                    userMessage = `No se pudo resolver el host ${sftpConfig.host}. Verifica la configuración del servidor.`;
-                } else if (errorCode === 'ETIMEDOUT' || errorCode === 'ECONNREFUSED') {
-                    userMessage = `No se pudo conectar a ${sftpConfig.host}:${sftpConfig.port}. El servidor puede estar bloqueando la conexión o no está disponible.`;
-                } else if (errorMsg.includes('Authentication')) {
-                    userMessage = 'Error de autenticación. Verifica usuario y contraseña.';
-                }
-                
-                return {
-                    isConnected: false,
-                    message: `Error de conexión: ${userMessage}`
-                };
-            } finally {
-                try {
-                    await client.end();
-                } catch (e) {
-                    this.logger.debug('Error cerrando conexión SFTP (puede ser normal)');
-                }
+            const config = await this.getFileTransferConfig();
+            
+            if (config.type === 'sftp') {
+                return await this.checkSftpConnectionInternal(config);
+            } else {
+                return await this.checkFtpConnectionInternal(config);
             }
         } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
-            this.logger.error(`Error obteniendo configuración SFTP: ${errorMsg}`);
+            this.logger.error(`Error obteniendo configuración: ${errorMsg}`);
             return {
                 isConnected: false,
                 message: `Error: ${errorMsg}`
@@ -2749,18 +2796,137 @@ export class ImportService {
         }
     }
 
-    /**
-     * Descarga el archivo SFTP como Buffer
-     */
-    async downloadSftpFile(): Promise<{ buffer: Buffer; filename: string }> {
-        const sftpConfig = await this.getSftpConfig();
+    private async checkSftpConnectionInternal(config: { host: string; port: number; user: string; password: string; path: string }): Promise<{ isConnected: boolean; message: string; filename?: string }> {
+        const client = new SFTPClient();
 
-        return this.downloadCsvFromSftp({
-            host: sftpConfig.host,
-            port: sftpConfig.port,
-            user: sftpConfig.user,
-            password: sftpConfig.password,
-            remotePath: sftpConfig.path,
-        });
+        try {
+            this.logger.log(`Verificando conexión SFTP a ${config.host}:${config.port}...`);
+            
+            await client.connect({
+                host: config.host,
+                port: config.port,
+                username: config.user,
+                password: config.password,
+                readyTimeout: 30000,
+                retries: 2,
+            });
+
+            this.logger.log('Conexión SFTP establecida. Verificando archivo...');
+
+            const exists = await client.exists(config.path);
+            
+            if (!exists) {
+                this.logger.warn(`Archivo no encontrado: ${config.path}`);
+                return {
+                    isConnected: false,
+                    message: `Archivo no encontrado en la ruta: ${config.path}`
+                };
+            }
+
+            const fileInfo = await client.stat(config.path);
+            const filename = config.path.split('/')?.pop() || 'import.csv';
+
+            this.logger.log(`Conexión SFTP verificada. Archivo: ${filename} (${fileInfo.size} bytes)`);
+
+            return {
+                isConnected: true,
+                message: `Conexión SFTP exitosa. Archivo disponible: ${filename} (${fileInfo.size} bytes)`,
+                filename
+            };
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const errorCode = (error as any)?.code || 'UNKNOWN';
+            const errorLevel = (error as any)?.level || '';
+            
+            this.logger.error(`Error verificando conexión SFTP [${errorCode}]${errorLevel ? ` nivel: ${errorLevel}` : ''}: ${errorMsg}`);
+            this.logger.error(`Host: ${config.host}:${config.port}, Usuario: ${config.user}`);
+            
+            let userMessage = errorMsg;
+            if (errorCode === 'ENOTFOUND') {
+                userMessage = `No se pudo resolver el host ${config.host}. Verifica la configuración del servidor.`;
+            } else if (errorCode === 'ETIMEDOUT' || errorCode === 'ECONNREFUSED') {
+                userMessage = `No se pudo conectar a ${config.host}:${config.port}. El servidor puede estar bloqueando la conexión o no está disponible.`;
+            } else if (errorMsg.includes('Authentication')) {
+                userMessage = 'Error de autenticación. Verifica usuario y contraseña.';
+            }
+            
+            return {
+                isConnected: false,
+                message: `Error de conexión SFTP: ${userMessage}`
+            };
+        } finally {
+            try {
+                await client.end();
+            } catch (e) {
+                this.logger.debug('Error cerrando conexión SFTP (puede ser normal)');
+            }
+        }
     }
+
+    private async checkFtpConnectionInternal(config: { host: string; port: number; user: string; password: string; path: string }): Promise<{ isConnected: boolean; message: string; filename?: string }> {
+        const client = new FTPClient();
+
+        try {
+            this.logger.log(`Verificando conexión FTP a ${config.host}:${config.port}...`);
+            
+            await client.access({
+                host: config.host,
+                port: config.port,
+                user: config.user,
+                password: config.password,
+            });
+
+            this.logger.log('Conexión FTP establecida. Verificando archivo...');
+
+            const fileList = await client.list('/');
+            const filename = config.path.split('/')?.pop() || 'import.csv';
+            const fileExists = fileList.some(f => f.name === filename);
+            
+            if (!fileExists) {
+                this.logger.warn(`Archivo no encontrado: ${config.path}`);
+                return {
+                    isConnected: false,
+                    message: `Archivo no encontrado en la ruta: ${config.path}`
+                };
+            }
+
+            const fileInfo = fileList.find(f => f.name === filename);
+            const fileSize = fileInfo?.size || 0;
+
+            this.logger.log(`Conexión FTP verificada. Archivo: ${filename} (${fileSize} bytes)`);
+
+            return {
+                isConnected: true,
+                message: `Conexión FTP exitosa. Archivo disponible: ${filename} (${fileSize} bytes)`,
+                filename
+            };
+        } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const errorCode = (error as any)?.code || 'UNKNOWN';
+            
+            this.logger.error(`Error verificando conexión FTP [${errorCode}]: ${errorMsg}`);
+            this.logger.error(`Host: ${config.host}:${config.port}, Usuario: ${config.user}`);
+            
+            let userMessage = errorMsg;
+            if (errorCode === 'ENOTFOUND') {
+                userMessage = `No se pudo resolver el host ${config.host}. Verifica la configuración del servidor.`;
+            } else if (errorCode === 'ETIMEDOUT' || errorCode === 'ECONNREFUSED') {
+                userMessage = `No se pudo conectar a ${config.host}:${config.port}. El servidor puede estar bloqueando la conexión o no está disponible.`;
+            } else if (errorMsg.includes('Authentication')) {
+                userMessage = 'Error de autenticación. Verifica usuario y contraseña.';
+            }
+            
+            return {
+                isConnected: false,
+                message: `Error de conexión FTP: ${userMessage}`
+            };
+        } finally {
+            try {
+                await client.close();
+            } catch (e) {
+                this.logger.debug('Error cerrando conexión FTP (puede ser normal)');
+            }
+        }
+    }
+
 }
