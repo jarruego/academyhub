@@ -1993,7 +1993,8 @@ export class MoodleService {
 
         for (const tc of toCreate) {
             const firstname = normalizeName(tc.user.name, 'User');
-            const lastname = normalizeName(tc.user.first_surname, 'Surname');
+            const rawLastname = `${String(tc.user.first_surname ?? '').trim()} ${String(tc.user.second_surname ?? '').trim()}`.replace(/\s+/g, ' ').trim();
+            const lastname = normalizeName(rawLastname, 'Surname');
             const username = normalizeUsername(tc.user, tc.localUserId);
             const resolvedEmail = resolveEmail(tc.user.email);
             if (!resolvedEmail) {
@@ -2220,11 +2221,13 @@ export class MoodleService {
         }
         username = String(username).slice(0, 100);
 
+        const lastname = `${String(u.first_surname ?? '').trim()} ${String(u.second_surname ?? '').trim()}`.replace(/\s+/g, ' ').trim();
+
         const payload: Record<string, unknown> = {
             id: main.moodle_id,
             username,
             firstname: (u.name || '').slice(0, 100) || 'User',
-            lastname: (u.first_surname || '').slice(0, 100) || 'Surname',
+            lastname: lastname.slice(0, 100) || 'Surname',
             email: u.email || `${username}@example.local`,
             idnumber: u.dni ?? ''
         };
