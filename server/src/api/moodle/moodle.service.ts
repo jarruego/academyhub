@@ -2203,6 +2203,20 @@ export class MoodleService {
         if (!u) throw new HttpException('Local user not found', HttpStatus.NOT_FOUND);
 
         const normalizeDni = (v: unknown) => String(v ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const resolveEmail = (rawEmail: unknown) => {
+            const original = String(rawEmail ?? '');
+            const trimmed = original.trim();
+            const cleaned = trimmed.toLowerCase().replace(/\s+/g, '');
+            const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned);
+            if (isValid) {
+                return {
+                    email: cleaned,
+                    wasSanitized: cleaned !== trimmed,
+                    original: trimmed,
+                };
+            }
+            return null;
+        };
 
         // Build payload for core_user_update_users
         let username = main.moodle_username ?? '';
@@ -2221,6 +2235,19 @@ export class MoodleService {
         }
         username = String(username).slice(0, 100);
 
+        const resolvedEmail = resolveEmail(u.email);
+        if (!resolvedEmail) {
+            throw new HttpException(`Email inválido para Moodle: ${String(u.email ?? '').trim() || '(vacío)'}`, HttpStatus.BAD_REQUEST);
+        }
+
+        if (resolvedEmail.wasSanitized) {
+            try {
+                await this.userRepository.update(id_user, { email: resolvedEmail.email });
+            } catch (updateErr: unknown) {
+                Logger.warn({ updateErr, id_user, sanitizedEmail: resolvedEmail.email }, 'MoodleService:updateLocalUserInMoodle - failed to persist sanitized email');
+            }
+        }
+
         const lastname = `${String(u.first_surname ?? '').trim()} ${String(u.second_surname ?? '').trim()}`.replace(/\s+/g, ' ').trim();
 
         const payload: Record<string, unknown> = {
@@ -2228,7 +2255,7 @@ export class MoodleService {
             username,
             firstname: (u.name || '').slice(0, 100) || 'User',
             lastname: lastname.slice(0, 100) || 'Surname',
-            email: u.email || `${username}@example.local`,
+            email: resolvedEmail.email,
             idnumber: u.dni ?? ''
         };
 
