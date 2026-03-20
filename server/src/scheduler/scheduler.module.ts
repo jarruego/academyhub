@@ -20,7 +20,8 @@ import { DatabaseModule } from '../database/database.module';
                 // Registrar todas las tareas programadas
                 schedulerService.registerTask(sageImportTask);
                 schedulerService.registerTask(moodleActiveProgressTask);
-                return schedulerService;
+                // No devolver SchedulerService para evitar doble onModuleInit.
+                return true;
             },
             inject: [SchedulerService, SageImportTask, MoodleActiveProgressTask]
         }
