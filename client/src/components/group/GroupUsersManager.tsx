@@ -27,6 +27,38 @@ interface Props {
   groupEnd?: string | Date | null;
 }
 
+interface SyncDetail {
+  userId?: number;
+  username?: string;
+  error: string;
+}
+
+interface SyncResponse {
+  success?: boolean;
+  message?: string;
+  error?: string;
+  details?: SyncDetail[];
+}
+
+interface UserToCreate {
+  localUserId: number;
+  name?: string;
+  email?: string;
+  suggestedUsername: string;
+}
+
+const getRoleShortname = (user: User): string | null => {
+  if (user.role_shortname) return user.role_shortname;
+  const maybe = user as unknown as Record<string, unknown>;
+  const role = maybe['role'];
+  return typeof role === 'string' ? role : null;
+};
+
+const isStudentUser = (user: User): boolean => {
+  const role = getRoleShortname(user);
+  return typeof role === 'string' ? role.toLowerCase() === 'student' : false;
+};
+
 const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, groupEnd }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [modal, modalContextHolder] = Modal.useModal();
@@ -52,18 +84,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSendMailOpen, setIsSendMailOpen] = useState(false);
-
-  const getRoleShortname = (user: User): string | null => {
-    if (user.role_shortname) return user.role_shortname;
-    const maybe = user as unknown as Record<string, unknown>;
-    const role = maybe['role'];
-    return typeof role === 'string' ? role : null;
-  };
-
-  const isStudentUser = (user: User): boolean => {
-    const role = getRoleShortname(user);
-    return typeof role === 'string' ? role.toLowerCase() === 'student' : false;
-  };
 
   const createBonificationFile = useCreateBonificationFileMutation();
   const updateUserEnrollmentCenterMutation = useUpdateUserEnrollmentCenterMutation();
@@ -136,7 +156,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
         } else if (groupData?.group_name) {
           filename = `${groupData.group_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.xml`;
         }
-      } catch (err) {
+      } catch {
         // fallback handled below
       }
 
@@ -204,18 +224,18 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
       key: 'moodle_synced',
       width: 56,
       render: (_: unknown, user: User) => {
-        const synced = (user as any).moodle_synced_at;
+        const synced = user.moodle_synced_at;
         if (!synced) return <span style={{ color: '#ff4d4f', fontWeight: 700 }}>N</span>;
         // show a simple check with tooltip of date
         const date = typeof synced === 'string' ? new Date(synced) : (synced as Date);
         return <span title={date ? date.toLocaleString() : String(synced)} style={{ color: '#52c41a', fontWeight: 700 }}>S</span>;
       }
-    } as any;
+    } as const;
 
     // Removed separate 'M' column — keep only the Moodle (previously G) column which indicates sync
     const baseColumns = filterUsersTimeSpentColumn(USERS_TABLE_COLUMNS, itopTrainingEnabled);
     return [groupSyncedColumn, ...baseColumns];
-  }, [usersData, itopTrainingEnabled]);
+  }, [itopTrainingEnabled]);
 
   // Compute totals for footer: total students and students with >=75% completion
   const { totalStudents, studentsAtOrAbove75 } = useMemo(() => {
@@ -290,7 +310,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                     // Open the modal slightly after showing notifications so they remain visible.
                     if (result.details && result.details.length > 0) {
                       const max = 10;
-                      const items = result.details.slice(0, max).map((d: any, idx: number) => {
+                      const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => {
                         const idPart = d.userId ?? 'id?';
                         const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
                         return <li key={idx}>{`${userPart}: ${d.error}`}</li>;
@@ -319,7 +339,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                     // If the operation returned failure, show details if present
                     if (result?.details && result.details.length > 0) {
                       const max = 10;
-                      const items = result.details.slice(0, max).map((d: any, idx: number) => {
+                      const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => {
                         const idPart = d.userId ?? 'id?';
                         const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
                         return <li key={idx}>{`${userPart} - ${d.error}`}</li>;
@@ -374,7 +394,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                       content: (
                         <div>
                           <p>Los siguientes usuarios no tienen cuenta en Moodle y se crearán si continúas:</p>
-                          <ul style={{ maxHeight: 300, overflowY: 'auto' }}>{toCreate.map((t: any) => (
+                          <ul style={{ maxHeight: 300, overflowY: 'auto' }}>{toCreate.map((t: UserToCreate) => (
                             <li key={t.localUserId} style={{ marginBottom: 6 }}>
                               <strong>{t.name || `Usuario ${t.localUserId}`}</strong>
                               {t.email ? ` — ${t.email}` : ''}
@@ -387,12 +407,12 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                       onOk: async () => {
                         try {
                           const resp = await addUsers(Number(groupId), selectedUserIds);
-                          const result = (resp as any)?.data;
+                          const result = (resp as { data?: SyncResponse })?.data;
                           if (result?.success) {
                             messageApi.success(result.message || 'Usuarios añadidos a Moodle');
                             if (result.details && result.details.length > 0) {
                               const max = 10;
-                              const items = result.details.slice(0, max).map((d: any, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
+                              const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
                               const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
                               setTimeout(() => {
                                 modal.info({
@@ -411,7 +431,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                           } else {
                             if (result?.details && result.details.length > 0) {
                               const max = 10;
-                              const items = result.details.slice(0, max).map((d: any, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
+                              const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
                               const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
                               setTimeout(() => {
                                 modal.error({
@@ -448,12 +468,12 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                       onOk: async () => {
                         try {
                           const resp = await addUsers(Number(groupId), selectedUserIds);
-                          const result = (resp as any)?.data;
+                          const result = (resp as { data?: SyncResponse })?.data;
                           if (result?.success) {
                             messageApi.success(result.message || 'Usuarios añadidos a Moodle');
                             if (result.details && result.details.length > 0) {
                               const max = 10;
-                              const items = result.details.slice(0, max).map((d: any, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
+                              const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
                               const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
                               setTimeout(() => {
                                 modal.info({
@@ -600,7 +620,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
             try {
               const url = `${window.location.origin}/users/${uid}`;
               window.open(url, '_blank', 'noopener,noreferrer');
-            } catch (e) {
+            } catch {
               // Fallback: open relative path
               window.open(`/users/${uid}`, '_blank');
             }
