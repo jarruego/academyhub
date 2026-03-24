@@ -59,8 +59,8 @@ export const ImportFTPComponent: React.FC = () => {
       setIsPolling(true);
       setImportSummary(null);
       message.success('Importación iniciada desde FTP');
-    } catch (error: any) {
-      message.error(error?.message || 'Error iniciando importación desde FTP');
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : 'Error iniciando importación desde FTP');
     }
   };
 
@@ -82,8 +82,8 @@ export const ImportFTPComponent: React.FC = () => {
       setIsDownloading(true);
       await downloadFile();
       message.success('Archivo descargado exitosamente');
-    } catch (error: any) {
-      message.error(error?.message || 'Error descargando archivo del FTP');
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : 'Error descargando archivo del FTP');
     } finally {
       setIsDownloading(false);
     }

@@ -7,6 +7,12 @@ import * as csvParser from "csv-parser";
 import { Readable, Writable } from "stream";
 import SFTPClient from "ssh2-sftp-client";
 import { Client as FTPClient } from "basic-ftp";
+import AdmZip from "adm-zip";
+import { path7za } from "7zip-bin";
+import { spawn } from "child_process";
+import { mkdtemp, readdir, readFile as readFileFs, rm, writeFile } from "fs/promises";
+import { tmpdir } from "os";
+import { basename, extname, join } from "path";
 
 // Schemas
 import { 
@@ -351,23 +357,158 @@ export class ImportService {
         password: string;
         remotePath: string;
     }): Promise<{ buffer: Buffer; filename: string }> {
-        if (params.type === 'sftp') {
-            return await this.downloadCsvFromSftp({
+        const downloadedFile = params.type === 'sftp'
+            ? await this.downloadCsvFromSftp({
+                host: params.host,
+                port: params.port,
+                user: params.user,
+                password: params.password,
+                remotePath: params.remotePath,
+            })
+            : await this.downloadCsvFromFtp({
                 host: params.host,
                 port: params.port,
                 user: params.user,
                 password: params.password,
                 remotePath: params.remotePath,
             });
-        } else {
-            return await this.downloadCsvFromFtp({
-                host: params.host,
-                port: params.port,
-                user: params.user,
-                password: params.password,
-                remotePath: params.remotePath,
-            });
+
+        return await this.resolveCsvFromDownloadedFile(downloadedFile.buffer, downloadedFile.filename);
+    }
+
+    private async resolveCsvFromDownloadedFile(buffer: Buffer, filename: string): Promise<{ buffer: Buffer; filename: string }> {
+        const extension = extname(filename).toLowerCase();
+        const isZipBySignature = buffer.length >= 4 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+        const is7zBySignature =
+            buffer.length >= 6 &&
+            buffer[0] === 0x37 &&
+            buffer[1] === 0x7a &&
+            buffer[2] === 0xbc &&
+            buffer[3] === 0xaf &&
+            buffer[4] === 0x27 &&
+            buffer[5] === 0x1c;
+
+        if (extension === '.csv') {
+            return { buffer, filename };
         }
+
+        if (extension === '.zip' || isZipBySignature) {
+            this.logger.log(`Archivo comprimido ZIP detectado (${filename}). Extrayendo CSV interno...`);
+            return this.extractCsvFromZip(buffer, filename);
+        }
+
+        if (extension === '.7z' || is7zBySignature) {
+            this.logger.log(`Archivo comprimido 7Z detectado (${filename}). Extrayendo CSV interno...`);
+            return await this.extractCsvFrom7z(buffer, filename);
+        }
+
+        this.logger.warn(`Archivo ${filename} no es .csv/.zip/.7z. Se intentará procesar como CSV plano.`);
+        return { buffer, filename };
+    }
+
+    private extractCsvFromZip(buffer: Buffer, sourceFilename: string): { buffer: Buffer; filename: string } {
+        const zip = new AdmZip(buffer);
+        const csvEntries = zip
+            .getEntries()
+            .filter((entry) => !entry.isDirectory && entry.entryName.toLowerCase().endsWith('.csv'));
+
+        if (csvEntries.length === 0) {
+            throw new Error(`El archivo ZIP ${sourceFilename} no contiene ningún CSV`);
+        }
+
+        if (csvEntries.length > 1) {
+            this.logger.warn(`ZIP ${sourceFilename} contiene ${csvEntries.length} CSV. Se usará el primero: ${csvEntries[0].entryName}`);
+        }
+
+        const selectedEntry = csvEntries[0];
+        const csvBuffer = selectedEntry.getData();
+        const csvFilename = basename(selectedEntry.entryName) || `${basename(sourceFilename, extname(sourceFilename))}.csv`;
+
+        if (!csvBuffer.length) {
+            throw new Error(`El CSV extraído del ZIP ${sourceFilename} está vacío`);
+        }
+
+        this.logger.log(`CSV extraído desde ZIP: ${csvFilename} (${csvBuffer.length} bytes)`);
+        return { buffer: csvBuffer, filename: csvFilename };
+    }
+
+    private async extractCsvFrom7z(buffer: Buffer, sourceFilename: string): Promise<{ buffer: Buffer; filename: string }> {
+        const workDir = await mkdtemp(join(tmpdir(), 'sage-import-'));
+        const archiveFileName = sourceFilename.toLowerCase().endsWith('.7z') ? sourceFilename : 'archive.7z';
+        const archivePath = join(workDir, archiveFileName);
+        const outputDir = join(workDir, 'out');
+
+        try {
+            await writeFile(archivePath, buffer);
+            await this.extract7zArchive(archivePath, outputDir);
+
+            const csvFiles = await this.findCsvFilesRecursive(outputDir);
+            if (csvFiles.length === 0) {
+                throw new Error(`El archivo 7Z ${sourceFilename} no contiene ningún CSV`);
+            }
+
+            if (csvFiles.length > 1) {
+                this.logger.warn(`7Z ${sourceFilename} contiene ${csvFiles.length} CSV. Se usará el primero: ${csvFiles[0]}`);
+            }
+
+            const selectedCsvPath = csvFiles[0];
+            const csvBuffer = await readFileFs(selectedCsvPath);
+            const csvFilename = basename(selectedCsvPath);
+
+            if (!csvBuffer.length) {
+                throw new Error(`El CSV extraído del 7Z ${sourceFilename} está vacío`);
+            }
+
+            this.logger.log(`CSV extraído desde 7Z: ${csvFilename} (${csvBuffer.length} bytes)`);
+            return { buffer: csvBuffer, filename: csvFilename };
+        } finally {
+            await rm(workDir, { recursive: true, force: true });
+        }
+    }
+
+    private async extract7zArchive(archivePath: string, outputDir: string): Promise<void> {
+        const args = ['x', archivePath, `-o${outputDir}`, '-y'];
+
+        await new Promise<void>((resolve, reject) => {
+            const child = spawn(path7za, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+            let stderr = '';
+
+            child.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            child.on('error', (error) => {
+                reject(error);
+            });
+
+            child.on('close', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`7z finalizó con código ${code}. ${stderr}`.trim()));
+                }
+            });
+        });
+    }
+
+    private async findCsvFilesRecursive(rootDir: string): Promise<string[]> {
+        const entries = await readdir(rootDir, { withFileTypes: true });
+        const csvFiles: string[] = [];
+
+        for (const entry of entries) {
+            const fullPath = join(rootDir, entry.name);
+            if (entry.isDirectory()) {
+                const nested = await this.findCsvFilesRecursive(fullPath);
+                csvFiles.push(...nested);
+                continue;
+            }
+
+            if (entry.isFile() && entry.name.toLowerCase().endsWith('.csv')) {
+                csvFiles.push(fullPath);
+            }
+        }
+
+        return csvFiles;
     }
 
     private async downloadCsvFromSftp(params: {
