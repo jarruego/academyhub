@@ -33,6 +33,32 @@ export class UserService {
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
   ) { }
 
+  private stripCommonSeparators(value: string) {
+    return value.replace(/[\.\-\s]/g, '');
+  }
+
+  private sanitizeEmail(value: string) {
+    return value.replace(/\s+/g, '');
+  }
+
+  private sanitizeUserData<T extends UserInsertModel | UserUpdateModel>(data: T): T {
+    const sanitized = { ...data } as T;
+
+    if (typeof sanitized.dni === 'string') {
+      sanitized.dni = this.stripCommonSeparators(sanitized.dni) as T['dni'];
+    }
+
+    if (typeof sanitized.phone === 'string') {
+      sanitized.phone = this.stripCommonSeparators(sanitized.phone) as T['phone'];
+    }
+
+    if (typeof sanitized.email === 'string') {
+      sanitized.email = this.sanitizeEmail(sanitized.email) as T['email'];
+    }
+
+    return sanitized;
+  }
+
   async findById(id: number, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.userRepository.findById(id, { transaction });
@@ -41,7 +67,8 @@ export class UserService {
 
   async create(userInsertModel: UserInsertModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      const res = await this.userRepository.create(userInsertModel, { transaction });
+      const sanitizedData = this.sanitizeUserData(userInsertModel);
+      const res = await this.userRepository.create(sanitizedData, { transaction });
       // Use shared helper to resolve various driver return shapes (insertId, insert_id, id or arrays)
       const newId = resolveInsertId(res as unknown);
       if (newId) {
@@ -54,7 +81,8 @@ export class UserService {
 
   async update(id: number, userUpdateModel: UserUpdateModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      await this.userRepository.update(id, userUpdateModel, { transaction });
+      const sanitizedData = this.sanitizeUserData(userUpdateModel);
+      await this.userRepository.update(id, sanitizedData, { transaction });
       return await this.userRepository.findById(id, { transaction });
     });
   }
@@ -201,7 +229,8 @@ export class UserService {
 
         // 1) Create user
         try {
-          const result = await this.userRepository.create(user, { transaction });
+          const sanitizedData = this.sanitizeUserData(user);
+          const result = await this.userRepository.create(sanitizedData, { transaction });
           const maybeId = resolveInsertId(result as unknown);
           userId = Number(maybeId);
           if (!Number.isFinite(userId) || userId <= 0) {
@@ -316,7 +345,9 @@ export class UserService {
 
       for (const u of updates) {
         try {
-          await this.userRepository.update(u.id_user, u.data, { transaction });
+          const sanitizedData: UserUpdateModel = this.sanitizeUserData(u.data);
+
+          await this.userRepository.update(u.id_user, sanitizedData, { transaction });
           updatedIds.push(u.id_user);
         } catch (err) {
           // Collect failed id and continue with others
