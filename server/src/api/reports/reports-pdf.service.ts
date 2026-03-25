@@ -47,56 +47,19 @@ export class ReportsPdfService {
     }
   }
 
-  private async loadAssetBuffer(assetPath: string): Promise<Buffer | undefined> {
-    try {
-      if (/^https?:\/\//i.test(assetPath)) {
-        const response = await axios.get<ArrayBuffer>(assetPath, { responseType: 'arraybuffer' });
-        return Buffer.from(response.data);
-      }
-
-      if (assetPath.startsWith('/api/files/organization/')) {
-        const filename = assetPath.split('/').pop();
-        const fsPath = path.join(process.cwd(), 'uploads', 'organization', filename!);
-        return await fs.readFile(fsPath);
-      }
-
-      const rel = assetPath.replace(/^\/+/, '');
-      const fsPath = path.join(process.cwd(), 'public', rel);
-      return await fs.readFile(fsPath);
-    } catch (e) {
-      this.logger.warn({ e, assetPath }, 'Could not read organization asset');
-      return undefined;
-    }
+  private sanitizeFilenamePart(value: string): string {
+    return String(value ?? 'Sin centro')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .trim() || 'Sin centro';
   }
 
-  /**
-   * Reports may include time_spent only when itop_training is enabled in organization settings.
-   */
-  private async isItopTrainingEnabled(): Promise<boolean> {
-    try {
-      const orgRow = await this.organizationRepository.findFirst();
-      if (!orgRow) return false;
-      const settings = orgRow.settings ?? {};
-      const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
-      return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
-    } catch (e) {
-      this.logger.warn({ e }, 'ReportsPdfService:isItopTrainingEnabled - failed to read organization settings');
-      return false;
-    }
-  }
-
-  /**
-   * Stream a simple tabular 'dedication' PDF grouped by center -> course using the shared PdfService
-   */
-  async streamDedicationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string }) {
-    // Fetch all rows and delegate to the "fromRows" variant which groups by center/course
-    const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
-    const data = await this.reportsRepository.getReportRows(requestFilter);
-    const rows: ReportRowDTO[] = data?.data ?? [];
-    return await this.streamDedicationPdfFromRows(rows, res, { includePasswords: opts?.includePasswords, logoBuffer: opts?.logoBuffer, signatureBuffer: opts?.signatureBuffer, issuerName: opts?.issuerName });
-  }
-
-  async streamDedicationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string }) {
+  private async renderDedicationIntoDocument(
+    doc: ReturnType<PdfService['createDocument']>,
+    rows: ReportRowDTO[],
+    opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string },
+  ): Promise<void> {
     // Group rows by center -> course and render per-course pages matching the requested layout.
     const sorted = (rows ?? []).slice().sort((a, b) => {
       const c = String(a.center_name ?? '').localeCompare(String(b.center_name ?? ''));
@@ -117,15 +80,11 @@ export class ReportsPdfService {
       else groups.push({ center, course, rows: [r] });
     }
 
-    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
-    this.pdfService.streamDocumentToResponse(doc, res, 'report-dedication.pdf');
-
     const showTimeSpent = await this.isItopTrainingEnabled();
     for (let gi = 0; gi < groups.length; gi++) {
       const g = groups[gi];
       if (gi > 0) doc.addPage();
 
-      // optional logo top-right
       if (opts?.logoBuffer) {
         const marginLeft = doc.page.margins?.left ?? 40;
         const marginRight = doc.page.margins?.right ?? 40;
@@ -134,19 +93,16 @@ export class ReportsPdfService {
         this.pdfService.embedImageSafe(doc, opts.logoBuffer, lx, doc.y, { width: 120 });
       }
 
-      // Title: Cursos [CENTRO] (fecha actual)
       const issueDate = new Date().toLocaleDateString('es-ES');
       doc.moveDown(0.5);
       try { doc.fillColor('#7E1515'); } catch (e) { }
       doc.fontSize(14).text(`Cursos ${g.center} (${issueDate})`, { align: 'left' });
       doc.moveDown(0.4);
 
-      // Course title
       try { doc.fillColor('#0033CC'); doc.font('Helvetica-Bold'); } catch (e) { }
       doc.fontSize(16).text(g.course, { align: 'left' });
       doc.moveDown(0.4);
 
-      // reset style for table
       try { doc.fillColor('black'); doc.font('Helvetica'); } catch (e) { }
 
       const formatTimeSpent = (value?: number | string | null) => {
@@ -161,7 +117,6 @@ export class ReportsPdfService {
         return `${seconds}s`;
       };
 
-      // Table: Usuario | [Clave] | Alumno | [Tiempo] | % (Tiempo only when itop_training is enabled)
       const leftMargin = doc.page.margins?.left ?? 40;
       const rightMargin = doc.page.margins?.right ?? 40;
       const pageWidth = doc.page.width - leftMargin - rightMargin;
@@ -177,7 +132,6 @@ export class ReportsPdfService {
       const colPositions = colWidths.map((w, i) => startX + colWidths.slice(0, i).reduce((s, v) => s + v, 0));
       const lineHeight = 12;
 
-      // header - draw all headers using the same baseline to avoid staggered wrapping
       doc.font('Helvetica-Bold').fontSize(9);
       const headerY = doc.y;
       if (opts?.includePasswords) {
@@ -200,7 +154,6 @@ export class ReportsPdfService {
           doc.text('%', colPositions[2], headerY, { width: colWidths[2], ellipsis: true });
         }
       }
-      // advance cursor below header
       doc.y = headerY + lineHeight;
       doc.moveDown(0.2);
       doc.font('Helvetica').fontSize(9);
@@ -209,11 +162,9 @@ export class ReportsPdfService {
       const pageBottom = doc.page.height - (doc.page.margins?.bottom ?? 40) - 40;
 
       for (const r of g.rows) {
-        // page break
         if (currentY > pageBottom) {
           doc.addPage();
           currentY = doc.y;
-          // redraw header on new page using fixed baseline
           doc.font('Helvetica-Bold').fontSize(9);
           const headerY2 = doc.y;
           if (opts?.includePasswords) {
@@ -275,106 +226,76 @@ export class ReportsPdfService {
 
       doc.moveDown(0.6);
     }
-
-    this.pdfService.endDocument(doc);
   }
 
-  /**
-   * Stream a certification-style PDF grouped by center -> course -> group.
-   * For each group we render a short paragraph certifying attendance and a
-   * simple table with Nombre, Apellidos y DNI. Pages break by center, course and group.
-   */
-  async streamCertificationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string }) {
-    // Fetch all matching rows (no pagination) and group them so each group
-    // gets its own certificate page with proper center/course/group variables.
-    const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
-    const data = await this.reportsRepository.getReportRows(requestFilter);
-    let rows: ReportRowDTO[] = data?.data ?? [];
-    // sort rows so grouping is stable and names appear ordered inside each group
-    rows = rows.slice().sort((a, b) => {
-      const c = String(a.center_name ?? '').localeCompare(String(b.center_name ?? ''));
-      if (c !== 0) return c;
-      const d = String(a.course_name ?? '').localeCompare(String(b.course_name ?? ''));
-      if (d !== 0) return d;
-      const g = Number(a.id_group ?? 0) - Number(b.id_group ?? 0);
-      if (g !== 0) return g;
-      const a1 = String(a.first_surname ?? '').localeCompare(String(b.first_surname ?? ''));
-      if (a1 !== 0) return a1;
-      return String(a.second_surname ?? '').localeCompare(String(b.second_surname ?? ''));
+  private async buildDedicationPdfBuffer(
+    rows: ReportRowDTO[],
+    opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string },
+  ): Promise<Buffer> {
+    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
+    const chunks: Buffer[] = [];
+
+    const done = new Promise<Buffer>((resolve, reject) => {
+      doc.on('data', (chunk: Buffer | Uint8Array) => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err: unknown) => reject(err));
     });
 
-    // Group rows by center -> course -> group
-    const grouped: Array<{ center: string; course: string; groupId: number | undefined; rows: ReportRowDTO[] }> = [];
-    for (const r of rows) {
-      const center = String(r.center_name ?? 'Sin centro');
-      const course = String(r.course_name ?? 'Sin curso');
-      const gid = r.id_group;
-      const last = grouped[grouped.length - 1];
-      if (last && last.center === center && last.course === course && last.groupId === gid) {
-        last.rows.push(r);
-      } else {
-        grouped.push({ center, course, groupId: gid, rows: [r] });
-      }
-    }
-
-    // Create a single PDF document and stream it once
-    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
-    this.pdfService.streamDocumentToResponse(doc, res, 'report-certification.pdf');
-
-    // Iterate grouped units and render the template into the same document
-    for (let i = 0; i < grouped.length; i++) {
-      const g = grouped[i];
-      if (i > 0) doc.addPage();
-
-      // prepare mapped rows for the template
-      const mapped = g.rows.map((r) => ({
-        ...r,
-        employee: `${String(r.first_surname ?? '').toUpperCase()} ${String(r.second_surname ?? '').toUpperCase()}, ${String(r.name ?? '')}`.trim(),
-      }));
-
-      const first = g.rows[0];
-      const center_name = g.center;
-      const course_name = g.course;
-      const start_date = first?.group_start_date ? new Date(first.group_start_date).toLocaleDateString('es-ES') : '';
-      const end_date = first?.group_end_date ? new Date(first.group_end_date).toLocaleDateString('es-ES') : '';
-      const company_name = first?.company_name ?? '';
-      const issue_date = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
-
-      const hours = first?.hours ?? '';
-      const modality = first?.modality ?? '';
-      // Usar el moodle_id del curso, no del usuario
-      const moodle_id = first?.course_moodle_id ?? first?.moodle_id;
-
-      const ctx: Record<string, unknown> = {
-        rows: mapped,
-        issuer: opts?.issuerName ?? undefined,
-        logo: opts?.logoBuffer ?? undefined,
-        signature: opts?.signatureBuffer ?? undefined,
-        center_name,
-        course_name,
-        start_date,
-        end_date,
-        company_name,
-        company_city: opts?.companyCity ?? center_name,
-        hours,
-        modality,
-        issue_date,
-      };
-
-      // Render certificado
-      // eslint-disable-next-line no-await-in-loop
-      await this.reportRenderer.renderTemplateIntoDocument(doc, 'certification-v1', ctx);
-
-      // Segunda hoja: contenidos del curso
-      await this.appendCourseContentsPage(doc, moodle_id);
-    }
-
-    // Ensure we end the doc
+    await this.renderDedicationIntoDocument(doc, rows, opts);
     this.pdfService.endDocument(doc);
+    return await done;
   }
 
-  async streamCertificationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string }) {
-    // Group rows by center -> course -> group and render one template per group
+  private async streamDedicationZipByCenterFromRows(
+    rows: ReportRowDTO[],
+    res: Response,
+    opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string },
+  ): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+
+    const byCenter = new Map<string, ReportRowDTO[]>();
+    for (const r of rows ?? []) {
+      const center = String(r.center_name ?? 'Sin centro');
+      const arr = byCenter.get(center) ?? [];
+      arr.push(r);
+      byCenter.set(center, arr);
+    }
+
+    const centers = Array.from(byCenter.keys()).sort((a, b) => a.localeCompare(b));
+
+    if (centers.length === 1) {
+      const center = centers[0];
+      const centerRows = byCenter.get(center) ?? [];
+      const pdfBuffer = await this.buildDedicationPdfBuffer(centerRows, opts);
+      const safeCenter = this.sanitizeFilenamePart(center);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeCenter} - Dedicacion.pdf"`);
+      res.send(pdfBuffer);
+      return;
+    }
+
+    for (const center of centers) {
+      const centerRows = byCenter.get(center) ?? [];
+      const pdfBuffer = await this.buildDedicationPdfBuffer(centerRows, opts);
+      const safeCenter = this.sanitizeFilenamePart(center);
+      zip.addFile(`${safeCenter} - Dedicacion.pdf`, pdfBuffer);
+    }
+
+    const zipBuffer = zip.toBuffer();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="GENERAL Dedicacion.zip"');
+    res.send(zipBuffer);
+  }
+
+  private async renderCertificationIntoDocument(
+    doc: ReturnType<PdfService['createDocument']>,
+    rows: ReportRowDTO[],
+    opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string },
+  ): Promise<void> {
     const sorted = (rows ?? []).slice().sort((a, b) => {
       const c = String(a.center_name ?? '').localeCompare(String(b.center_name ?? ''));
       if (c !== 0) return c;
@@ -398,10 +319,6 @@ export class ReportsPdfService {
       }
     }
 
-    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
-    this.pdfService.streamDocumentToResponse(doc, res, 'report-certification.pdf');
-
-    // Iterate grouped units and render the template into the same document
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i];
       if (i > 0) doc.addPage();
@@ -421,7 +338,6 @@ export class ReportsPdfService {
 
       const hours = first?.hours ?? '';
       const modality = first?.modality ?? '';
-      // Usar el moodle_id del curso, no del usuario
       const moodle_id = first?.course_moodle_id ?? first?.moodle_id;
 
       const ctx: Record<string, unknown> = {
@@ -440,13 +356,159 @@ export class ReportsPdfService {
         issue_date,
       };
 
-      // Render certificado
       // eslint-disable-next-line no-await-in-loop
       await this.reportRenderer.renderTemplateIntoDocument(doc, 'certification-v1', ctx);
-
-      // Segunda hoja: contenidos del curso
+      // eslint-disable-next-line no-await-in-loop
       await this.appendCourseContentsPage(doc, moodle_id);
     }
+  }
+
+  private async buildCertificationPdfBuffer(
+    rows: ReportRowDTO[],
+    opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string },
+  ): Promise<Buffer> {
+    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
+    const chunks: Buffer[] = [];
+
+    const done = new Promise<Buffer>((resolve, reject) => {
+      doc.on('data', (chunk: Buffer | Uint8Array) => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      });
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err: unknown) => reject(err));
+    });
+
+    await this.renderCertificationIntoDocument(doc, rows, opts);
+    this.pdfService.endDocument(doc);
+    return await done;
+  }
+
+  private async streamCertificationZipByCenterFromRows(
+    rows: ReportRowDTO[],
+    res: Response,
+    opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string },
+  ): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+
+    const byCenter = new Map<string, ReportRowDTO[]>();
+    for (const r of rows ?? []) {
+      const center = String(r.center_name ?? 'Sin centro');
+      const arr = byCenter.get(center) ?? [];
+      arr.push(r);
+      byCenter.set(center, arr);
+    }
+
+    const centers = Array.from(byCenter.keys()).sort((a, b) => a.localeCompare(b));
+
+    if (centers.length === 1) {
+      const center = centers[0];
+      const centerRows = byCenter.get(center) ?? [];
+      const pdfBuffer = await this.buildCertificationPdfBuffer(centerRows, opts);
+      const safeCenter = this.sanitizeFilenamePart(center);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${safeCenter} - Certificado.pdf"`);
+      res.send(pdfBuffer);
+      return;
+    }
+
+    for (const center of centers) {
+      const centerRows = byCenter.get(center) ?? [];
+      const pdfBuffer = await this.buildCertificationPdfBuffer(centerRows, opts);
+      const safeCenter = this.sanitizeFilenamePart(center);
+      zip.addFile(`${safeCenter} - Certificado.pdf`, pdfBuffer);
+    }
+
+    const zipBuffer = zip.toBuffer();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="GENERAL Certificado.zip"');
+    res.send(zipBuffer);
+  }
+
+  private async loadAssetBuffer(assetPath: string): Promise<Buffer | undefined> {
+    try {
+      if (/^https?:\/\//i.test(assetPath)) {
+        const response = await axios.get<ArrayBuffer>(assetPath, { responseType: 'arraybuffer' });
+        return Buffer.from(response.data);
+      }
+
+      if (assetPath.startsWith('/api/files/organization/')) {
+        const filename = assetPath.split('/').pop();
+        const fsPath = path.join(process.cwd(), 'uploads', 'organization', filename!);
+        return await fs.readFile(fsPath);
+      }
+
+      const rel = assetPath.replace(/^\/+/, '');
+      const fsPath = path.join(process.cwd(), 'public', rel);
+      return await fs.readFile(fsPath);
+    } catch (e) {
+      this.logger.warn({ e, assetPath }, 'Could not read organization asset');
+      return undefined;
+    }
+  }
+
+  /**
+   * Reports may include time_spent only when itop_training is enabled in organization settings.
+   */
+  private async isItopTrainingEnabled(): Promise<boolean> {
+    try {
+      const orgRow = await this.organizationRepository.findFirst();
+      if (!orgRow) return false;
+      const settings = orgRow.settings ?? {};
+      const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
+      return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
+    } catch (e) {
+      this.logger.warn({ e }, 'ReportsPdfService:isItopTrainingEnabled - failed to read organization settings');
+      return false;
+    }
+  }
+
+  /**
+   * Stream a simple tabular 'dedication' PDF grouped by center -> course using the shared PdfService
+   */
+  async streamDedicationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string }) {
+    // Fetch all rows and delegate to the "fromRows" variant which groups by center/course
+    const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
+    const data = await this.reportsRepository.getReportRows(requestFilter);
+    const rows: ReportRowDTO[] = data?.data ?? [];
+    return await this.streamDedicationPdfFromRows(rows, res, { includePasswords: opts?.includePasswords, logoBuffer: opts?.logoBuffer, signatureBuffer: opts?.signatureBuffer, issuerName: opts?.issuerName });
+  }
+
+  async streamDedicationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string }) {
+    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
+    this.pdfService.streamDocumentToResponse(doc, res, 'report-dedication.pdf');
+
+    await this.renderDedicationIntoDocument(doc, rows, opts);
+
+    this.pdfService.endDocument(doc);
+  }
+
+  /**
+   * Stream a certification-style PDF grouped by center -> course -> group.
+   * For each group we render a short paragraph certifying attendance and a
+   * simple table with Nombre, Apellidos y DNI. Pages break by center, course and group.
+   */
+  async streamCertificationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string }) {
+    const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
+    const data = await this.reportsRepository.getReportRows(requestFilter);
+    const rows: ReportRowDTO[] = data?.data ?? [];
+
+    // Create a single PDF document and stream it once
+    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
+    this.pdfService.streamDocumentToResponse(doc, res, 'report-certification.pdf');
+
+    await this.renderCertificationIntoDocument(doc, rows, opts);
+
+    // Ensure we end the doc
+    this.pdfService.endDocument(doc);
+  }
+
+  async streamCertificationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string }) {
+    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
+    this.pdfService.streamDocumentToResponse(doc, res, 'report-certification.pdf');
+
+    await this.renderCertificationIntoDocument(doc, rows, opts);
 
     this.pdfService.endDocument(doc);
   }
@@ -631,9 +693,9 @@ export class ReportsPdfService {
       if (report_type === 'bonification') {
         await rowsRendererFromRows(rows, res);
       } else if (report_type === 'certification') {
-        await rowsRendererFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
+        await this.streamCertificationZipByCenterFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
       } else {
-        await rowsRendererFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
+        await this.streamDedicationZipByCenterFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
       }
       return;
     }
@@ -655,9 +717,9 @@ export class ReportsPdfService {
       if (report_type === 'bonification') {
         await rowsRendererFromRows(rows, res);
       } else if (report_type === 'certification') {
-        await rowsRendererFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
+        await this.streamCertificationZipByCenterFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
       } else {
-        await rowsRendererFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
+        await this.streamDedicationZipByCenterFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
       }
       return;
     }
@@ -666,9 +728,13 @@ export class ReportsPdfService {
     if (report_type === 'bonification') {
       await rendererFromFilter(exportFilter, res);
     } else if (report_type === 'certification') {
-      await rendererFromFilter(exportFilter, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
+      const data = await this.reportsService.findAll(exportFilter);
+      const rows: ReportRowDTO[] = data?.data ?? [];
+      await this.streamCertificationZipByCenterFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
     } else {
-      await rendererFromFilter(exportFilter, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
+      const data = await this.reportsService.findAll(exportFilter);
+      const rows: ReportRowDTO[] = data?.data ?? [];
+      await this.streamDedicationZipByCenterFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
     }
   }
 }

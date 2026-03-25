@@ -14,7 +14,9 @@ async function bootstrap() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb' }));
 
-  app.enableCors();
+  app.enableCors({
+    exposedHeaders: ['Content-Disposition', 'Content-Type'],
+  });
   // Serve static files from `public` so requests to /uploads/* map to server/public/uploads/*
   app.useStaticAssets(path.join(process.cwd(), 'public'));
 // Configura el uso de pipes globales en la aplicación, específicamente un ValidationPipe.

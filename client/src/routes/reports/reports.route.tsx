@@ -158,7 +158,7 @@ export default function ReportsRoute() {
   const handleExport = async () => {
     try {
       setExportModalVisible(false);
-  const payload: ReportExportRequest & { filename?: string } = { filter: params, include_passwords: includePasswords, filename: exportReportType === 'certification' ? 'report-certification.pdf' : exportReportType === 'bonification' ? 'report-bonification.pdf' : 'report-dedication.pdf' };
+  const payload: ReportExportRequest & { filename?: string } = { filter: params, include_passwords: includePasswords, filename: exportReportType === 'certification' ? 'GENERAL Certificado.zip' : exportReportType === 'bonification' ? 'report-bonification.pdf' : 'GENERAL Dedicacion.zip' };
   if (exportReportType === 'certification') payload.report_type = 'certification';
   if (exportReportType === 'bonification') payload.report_type = 'bonification';
   // If user has explicit selections, send selected_keys; if user chose select-all-across-pages,

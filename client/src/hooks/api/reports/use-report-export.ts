@@ -11,13 +11,23 @@ export const useReportExport = () => {
   const mutation = useExportReportMutation();
 
   const exportPdf = useCallback(async (payload: ReportExportRequest & { filename?: string }) => {
-    const filename = payload.filename ?? 'report.pdf';
+    const fallbackFilename = payload.filename ?? 'report.pdf';
     const { filename: _f, ...body } = payload;
     // body is a ReportExportRequest (without client-only `filename`)
     const resp = await mutation.mutateAsync(body as ReportExportRequest);
-    // axios response with blob in data
-    const blobData = (resp as AxiosResponse<Blob>)?.data ?? resp;
-    const blob = new Blob([blobData], { type: 'application/pdf' });
+    const axiosResp = resp as AxiosResponse<Blob>;
+    const contentType = String(axiosResp?.headers?.['content-type'] ?? 'application/pdf');
+    const disposition = String(axiosResp?.headers?.['content-disposition'] ?? '');
+    const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+    const headerFilename = decodeURIComponent((match?.[1] ?? match?.[2] ?? '').trim());
+    const normalizedType = contentType.toLowerCase();
+    const filename = headerFilename || (
+      normalizedType.includes('application/pdf')
+        ? (fallbackFilename.toLowerCase().endsWith('.zip') ? fallbackFilename.replace(/\.zip$/i, '.pdf') : fallbackFilename)
+        : fallbackFilename
+    );
+    const blobData = axiosResp?.data ?? resp;
+    const blob = new Blob([blobData], { type: contentType });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
