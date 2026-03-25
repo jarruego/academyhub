@@ -38,7 +38,7 @@ export default function ReportsRoute() {
   }, []);
 
   const [page, setPage] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(100);
+  const [pageSize, setPageSize] = useState<number>(500);
   // Refs to compute available space and provide isolated table scroll
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const controlsRef = useRef<HTMLDivElement | null>(null);
