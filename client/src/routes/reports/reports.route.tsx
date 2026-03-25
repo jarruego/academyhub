@@ -173,6 +173,26 @@ export default function ReportsRoute() {
   // Server-side completion filtering is applied via params; use rows as returned by the API
 
   const columns = useMemo(() => ([
+    { title: 'Empresa', dataIndex: 'company_name', key: 'company_name', sorter: true },
+    { title: 'Centro', dataIndex: 'center_name', key: 'center_name', sorter: true },
+    { title: 'Nombre', dataIndex: 'name', key: 'name', sorter: true },
+    { title: 'Apellido 1', dataIndex: 'first_surname', key: 'first_surname', sorter: true },
+    { title: 'Apellido 2', dataIndex: 'second_surname', key: 'second_surname', sorter: true },
+
+    { title: 'Progreso', dataIndex: 'completion_percentage', key: 'completion_percentage', sorter: true },
+    ...(itopTrainingEnabled ? [{ title: 'Tiempo usado', dataIndex: 'time_spent', key: 'time_spent', sorter: true, render: (val?: number | null) => formatTimeSpent(val) }] : []),
+
+    // keep remaining columns after the requested primary ones
+    { title: 'DNI', dataIndex: 'dni', key: 'dni', sorter: true },
+    { title: 'Email', dataIndex: 'email', key: 'email', sorter: true },
+    { title: 'Teléfono', dataIndex: 'phone', key: 'phone', sorter: true },
+    { title: 'Nº Patronal', dataIndex: 'employer_number', key: 'employer_number', sorter: true },
+    { title: 'CIF', dataIndex: 'company_cif', key: 'company_cif', sorter: true },
+    { title: 'Rol', dataIndex: 'role_shortname', key: 'role_shortname', sorter: true },
+    { title: 'ID Moodle', dataIndex: 'moodle_id', key: 'moodle_id', sorter: true },
+    { title: 'Usuario Moodle', dataIndex: 'moodle_username', key: 'moodle_username', sorter: true },
+    { title: 'Password Moodle', dataIndex: 'moodle_password', key: 'moodle_password', sorter: true },
+
     { title: 'Curso', dataIndex: 'course_name', key: 'course_name', sorter: true },
     { title: 'Grupo', dataIndex: 'group_name', key: 'group_name', sorter: true },
     {
@@ -190,24 +210,6 @@ export default function ReportsRoute() {
       defaultSortOrder: 'descend' as SortOrder,
       render: (val: string | undefined) => val ? dayjs(val).format('DD/MM/YYYY') : '',
     },
-    { title: 'Empresa', dataIndex: 'company_name', key: 'company_name', sorter: true },
-    { title: 'Centro', dataIndex: 'center_name', key: 'center_name', sorter: true },
-  { title: 'Progreso', dataIndex: 'completion_percentage', key: 'completion_percentage', sorter: true },
-  ...(itopTrainingEnabled ? [{ title: 'Tiempo usado', dataIndex: 'time_spent', key: 'time_spent', sorter: true, render: (val?: number | null) => formatTimeSpent(val) }] : []),
-  { title: 'Nombre', dataIndex: 'name', key: 'name', sorter: true },
-    { title: 'Apellido 1', dataIndex: 'first_surname', key: 'first_surname', sorter: true },
-    { title: 'Apellido 2', dataIndex: 'second_surname', key: 'second_surname', sorter: true },
-    
-    // keep remaining columns after the requested primary ones
-    { title: 'DNI', dataIndex: 'dni', key: 'dni', sorter: true },
-    { title: 'Email', dataIndex: 'email', key: 'email', sorter: true },
-    { title: 'Teléfono', dataIndex: 'phone', key: 'phone', sorter: true },
-    { title: 'Nº Patronal', dataIndex: 'employer_number', key: 'employer_number', sorter: true },
-    { title: 'CIF', dataIndex: 'company_cif', key: 'company_cif', sorter: true },
-    { title: 'Rol', dataIndex: 'role_shortname', key: 'role_shortname', sorter: true },
-    { title: 'ID Moodle', dataIndex: 'moodle_id', key: 'moodle_id', sorter: true },
-    { title: 'Usuario Moodle', dataIndex: 'moodle_username', key: 'moodle_username', sorter: true },
-    { title: 'Password Moodle', dataIndex: 'moodle_password', key: 'moodle_password', sorter: true },
   ]), [itopTrainingEnabled]);
 
   // Ensure each column has a minimum width so the table keeps readable columns
