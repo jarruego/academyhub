@@ -26,6 +26,27 @@ export class ReportsPdfService {
     private readonly courseService: CourseService,
   ) { }
 
+  private async appendCourseContentsPage(
+    doc: ReturnType<PdfService['createDocument']>,
+    moodleId: number | string | null | undefined,
+  ): Promise<void> {
+    if (moodleId == null) return;
+
+    try {
+      const course = await this.courseService.findByMoodleId(Number(moodleId));
+      const contents = course?.contents;
+      if (contents && typeof contents === 'string' && contents.trim().length > 0) {
+        doc.addPage();
+        doc.fontSize(16).fillColor('#0033CC').text('Contenidos del curso', { align: 'left' });
+        doc.moveDown(0.5);
+        const plain = contents.replace(/<[^>]+>/g, '').replace(/\n/g, '\n');
+        doc.fontSize(11).fillColor('black').text(plain, { align: 'left' });
+      }
+    } catch (e) {
+      this.logger.warn({ e, moodle_id: moodleId }, 'No se pudo obtener el contenido del curso para el PDF certificado');
+    }
+  }
+
   private async loadAssetBuffer(assetPath: string): Promise<Buffer | undefined> {
     try {
       if (/^https?:\/\//i.test(assetPath)) {
@@ -314,11 +335,11 @@ export class ReportsPdfService {
       const first = g.rows[0];
       const center_name = g.center;
       const course_name = g.course;
-      const dayjs = require('../../common/utils/dayjs-tz');
-      const start_date = first?.group_start_date ? dayjs(first.group_start_date).tz('Europe/Madrid').format('DD/MM/YYYY') : '';
-      const end_date = first?.group_end_date ? dayjs(first.group_end_date).tz('Europe/Madrid').format('DD/MM/YYYY') : '';
+      const start_date = first?.group_start_date ? new Date(first.group_start_date).toLocaleDateString('es-ES') : '';
+      const end_date = first?.group_end_date ? new Date(first.group_end_date).toLocaleDateString('es-ES') : '';
       const company_name = first?.company_name ?? '';
-      const issue_date = dayjs().tz('Europe/Madrid').format('D [de] MMMM [de] YYYY');
+      const issue_date = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+
       const hours = first?.hours ?? '';
       const modality = first?.modality ?? '';
       // Usar el moodle_id del curso, no del usuario
@@ -345,23 +366,7 @@ export class ReportsPdfService {
       await this.reportRenderer.renderTemplateIntoDocument(doc, 'certification-v1', ctx);
 
       // Segunda hoja: contenidos del curso
-      if (moodle_id) {
-        try {
-          // Buscar el curso por moodle_id
-          const course = await this.courseService.findByMoodleId(Number(moodle_id));
-          const contents = course?.contents;
-          if (contents && typeof contents === 'string' && contents.trim().length > 0) {
-            doc.addPage();
-            doc.fontSize(16).fillColor('#0033CC').text('Contenidos del curso', { align: 'left' });
-            doc.moveDown(0.5);
-            // Renderizar HTML como texto plano (simple)
-            const plain = contents.replace(/<[^>]+>/g, '').replace(/\n/g, '\n');
-            doc.fontSize(11).fillColor('black').text(plain, { align: 'left' });
-          }
-        } catch (e) {
-          this.logger.warn({ e, moodle_id }, 'No se pudo obtener el contenido del curso para el PDF certificado');
-        }
-      }
+      await this.appendCourseContentsPage(doc, moodle_id);
     }
 
     // Ensure we end the doc
@@ -386,16 +391,20 @@ export class ReportsPdfService {
       const course = String(r.course_name ?? 'Sin curso');
       const gid = r.id_group;
       const last = groups[groups.length - 1];
-      if (last && last.center === center && last.course === course && last.groupId === gid) last.rows.push(r);
-      else groups.push({ center, course, groupId: gid, rows: [r] });
+      if (last && last.center === center && last.course === course && last.groupId === gid) {
+        last.rows.push(r);
+      } else {
+        groups.push({ center, course, groupId: gid, rows: [r] });
+      }
     }
 
     const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
     this.pdfService.streamDocumentToResponse(doc, res, 'report-certification.pdf');
 
-    for (let gi = 0; gi < groups.length; gi++) {
-      const g = groups[gi];
-      if (gi > 0) doc.addPage();
+    // Iterate grouped units and render the template into the same document
+    for (let i = 0; i < groups.length; i++) {
+      const g = groups[i];
+      if (i > 0) doc.addPage();
 
       const mapped = g.rows.map((r) => ({
         ...r,
@@ -412,6 +421,8 @@ export class ReportsPdfService {
 
       const hours = first?.hours ?? '';
       const modality = first?.modality ?? '';
+      // Usar el moodle_id del curso, no del usuario
+      const moodle_id = first?.course_moodle_id ?? first?.moodle_id;
 
       const ctx: Record<string, unknown> = {
         rows: mapped,
@@ -429,8 +440,12 @@ export class ReportsPdfService {
         issue_date,
       };
 
+      // Render certificado
       // eslint-disable-next-line no-await-in-loop
       await this.reportRenderer.renderTemplateIntoDocument(doc, 'certification-v1', ctx);
+
+      // Segunda hoja: contenidos del curso
+      await this.appendCourseContentsPage(doc, moodle_id);
     }
 
     this.pdfService.endDocument(doc);
