@@ -14,13 +14,13 @@ export class ReportsController {
     private readonly reportsPdfService: ReportsPdfService,
   ) {}
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
   @Get()
   async findAll(@Query() query: ReportFilterDTO) {
     return this.reportsService.findAll(query);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
   @Post('export')
   async exportPdf(@Body() body: ReportExportDTO, @Res() res: Response) {
     await this.reportsPdfService.exportPdfFromPayload(body, res);

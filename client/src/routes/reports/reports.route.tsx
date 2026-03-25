@@ -191,7 +191,6 @@ export default function ReportsRoute() {
     { title: 'Rol', dataIndex: 'role_shortname', key: 'role_shortname', sorter: true },
     { title: 'ID Moodle', dataIndex: 'moodle_id', key: 'moodle_id', sorter: true },
     { title: 'Usuario Moodle', dataIndex: 'moodle_username', key: 'moodle_username', sorter: true },
-    { title: 'Password Moodle', dataIndex: 'moodle_password', key: 'moodle_password', sorter: true },
 
     { title: 'Curso', dataIndex: 'course_name', key: 'course_name', sorter: true },
     { title: 'Grupo', dataIndex: 'group_name', key: 'group_name', sorter: true },

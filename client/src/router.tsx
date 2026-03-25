@@ -57,7 +57,7 @@ const Sidebar = () => {
   { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
   { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
     { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers">Centros</Link> },
-    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER
+    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER
       ? [
           { key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports">Informes</Link> },
         ]
