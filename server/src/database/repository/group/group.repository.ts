@@ -94,12 +94,13 @@ export class GroupRepository extends Repository {
   }
 
   /**
-   * Active groups: end_date >= NOW() - 24h (grace period).
+   * Active groups: end_date >= NOW() - 48h (grace period).
    * Returns groups with their course info in a single query.
    */
   async findActiveGroupsWithCourse(options?: QueryOptions) {
     const now = new Date();
-    const threshold = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    // Cambiado de 24h a 48h
+    const threshold = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
     return await this.query(options)
       .select({ group: groupTable, course: courseTable })

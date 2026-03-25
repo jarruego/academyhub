@@ -169,7 +169,7 @@ export const ActiveCoursesProgressTab: React.FC = () => {
       <Card>
         <div style={{ marginBottom: 16 }}>
           <Title level={3} style={{ marginBottom: 4 }}>Cursos Activos</Title>
-          <Text type="secondary">Cursos con grupos cuyo fin es posterior a las últimas 24h.</Text>
+          <Text type="secondary">Cursos con grupos cuyo fin es posterior a las últimas 48h.</Text>
         </div>
 
         <Space style={{ marginBottom: 16 }}>
