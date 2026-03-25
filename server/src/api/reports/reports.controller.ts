@@ -21,6 +21,12 @@ export class ReportsController {
   }
 
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @Get('roles')
+  async getRoles() {
+    return this.reportsService.getRoles();
+  }
+
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
   @Post('export')
   async exportPdf(@Body() body: ReportExportDTO, @Res() res: Response) {
     await this.reportsPdfService.exportPdfFromPayload(body, res);

@@ -42,11 +42,12 @@ export class ReportFilterDTO {
   @IsInt({ each: true })
   id_group?: number[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: [Number] })
   @IsOptional()
+  @IsArray()
   @Type(() => Number)
-  @IsInt()
-  id_role?: number;
+  @IsInt({ each: true })
+  id_role?: number[];
 
   @ApiPropertyOptional({ type: String, description: 'Search across name, dni and email' })
   @IsOptional()

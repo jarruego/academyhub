@@ -12,7 +12,7 @@ export type ReportsQueryParams = {
   id_center?: number[];
   id_course?: number;
   id_group?: number[];
-  id_role?: number;
+  id_role?: number[];
   search?: string;
   start_date?: string;
   end_date?: string;

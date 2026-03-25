@@ -54,7 +54,13 @@ export class ReportsRepository extends Repository {
         where.push(eq(groupTable.id_group, filter.id_group as unknown as number));
       }
     }
-    if (filter?.id_role) where.push(eq(userGroupTable.id_role, filter.id_role));
+    if (filter?.id_role) {
+      if (Array.isArray(filter.id_role) && filter.id_role.length) {
+        where.push(or(...filter.id_role.map((id) => eq(userGroupTable.id_role, Number(id)))));
+      } else if (!Array.isArray(filter.id_role)) {
+        where.push(eq(userGroupTable.id_role, filter.id_role as unknown as number));
+      }
+    }
 
     if (filter?.start_date) where.push(sql`${groupTable.start_date} >= ${filter.start_date}`);
     if (filter?.end_date) where.push(sql`${groupTable.end_date} <= ${filter.end_date}`);
@@ -266,5 +272,18 @@ export class ReportsRepository extends Repository {
     const whereCondition = whereClauses.length ? or(...whereClauses) : undefined;
     // reuse the shared mapping/join logic and return all matching rows
     return this.fetchMappedRows(whereCondition);
+  }
+
+  async getReportRoles() {
+    const q = this.query();
+    const rows = await q
+      .select({
+        id_role: userRolesTable.id_role,
+        role_shortname: userRolesTable.role_shortname,
+      })
+      .from(userRolesTable)
+      .orderBy(userRolesTable.role_shortname);
+
+    return rows;
   }
 }

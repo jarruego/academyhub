@@ -13,4 +13,8 @@ export class ReportsService {
   async getRowsByKeys(keys: string[]) {
     return this.reportsRepository.getReportRowsByKeys(keys);
   }
+
+  async getRoles() {
+    return this.reportsRepository.getReportRoles();
+  }
 }

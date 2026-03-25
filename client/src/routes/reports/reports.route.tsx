@@ -14,6 +14,7 @@ import { useCompaniesQuery } from '../../hooks/api/companies/use-companies.query
 import { useCentersQuery } from '../../hooks/api/centers/use-centers.query';
 import { useCentersByCompaniesQuery } from '../../hooks/api/centers/use-centers-by-companies.query';
 import useReportExport from '../../hooks/api/reports/use-report-export';
+import { useReportRolesQuery } from '../../hooks/api/reports/use-report-roles.query';
 import type { ReportExportRequest } from '../../hooks/api/reports/use-export-report.mutation';
 import { ReportRow } from '../../shared/types/reports/report-row';
 import { PaginationResult } from '../../shared/types/pagination';
@@ -54,6 +55,8 @@ export default function ReportsRoute() {
   const normalizedSearch = useMemo(() => normalizeSearch(debouncedSearch), [debouncedSearch]);
   const [selectedCourse, setSelectedCourse] = useState<number | undefined>(undefined);
   const [selectedGroup, setSelectedGroup] = useState<number[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<number[]>([]);
+  const [roleDefaultApplied, setRoleDefaultApplied] = useState(false);
   const [completionFilter, setCompletionFilter] = useState<'all' | 'gte75' | 'eq100'>('all');
 
   const { data: orgSettings } = useOrganizationSettingsQuery();
@@ -78,12 +81,25 @@ export default function ReportsRoute() {
   const { data: centersForCompanies } = useCentersByCompaniesQuery(selectedCompanies?.length ? selectedCompanies : undefined);
   // Fetch courses and groups for the course/group filters
   const { data: courses } = useCoursesQuery();
+  const { data: reportRoles } = useReportRolesQuery();
   // Pass the numeric course id (or undefined) so the groups query can enable/disable itself
   const { data: groupsForCourse } = useGroupsQuery(selectedCourse);
 
   // Keep courses and groups sorted alphabetically by name for their Selects
   const sortedCourses = useMemo(() => (courses && Array.isArray(courses)) ? [...courses].sort((a, b) => String(a.course_name ?? '').localeCompare(String(b.course_name ?? ''))) : [], [courses]);
   const sortedGroups = useMemo(() => (groupsForCourse && Array.isArray(groupsForCourse)) ? [...groupsForCourse].sort((a, b) => String(a.group_name ?? '').localeCompare(String(b.group_name ?? ''))) : [], [groupsForCourse]);
+
+  // Select "student" by default once roles are loaded (if present)
+  useEffect(() => {
+    if (roleDefaultApplied) return;
+    if (!reportRoles || !Array.isArray(reportRoles) || reportRoles.length === 0) return;
+
+    const studentRole = reportRoles.find((r) => String(r.role_shortname ?? '').toLowerCase() === 'student');
+    if (studentRole?.id_role != null) {
+      setSelectedRoles([Number(studentRole.id_role)]);
+    }
+    setRoleDefaultApplied(true);
+  }, [reportRoles, roleDefaultApplied]);
 
   // Update available centers depending on selectedCompanies
   useEffect(() => {
@@ -117,6 +133,7 @@ export default function ReportsRoute() {
   if (selectedCenters && selectedCenters.length) params.id_center = selectedCenters;
   if (selectedCourse !== undefined && selectedCourse !== null) params.id_course = selectedCourse;
   if (selectedGroup && selectedGroup.length) params.id_group = selectedGroup;
+  if (selectedRoles && selectedRoles.length) params.id_role = selectedRoles;
   if (normalizedSearch) params.search = normalizedSearch;
   if (dateRange && dateRange[0] && dateRange[1]) {
     // Send ISO datetimes covering the whole days so filtering is inclusive:
@@ -633,6 +650,21 @@ export default function ReportsRoute() {
                   clearSelection();
               }}
               allowClear
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Rol</div>
+            <Select<number[]>
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              placeholder="Selecciona rol"
+              style={{ minWidth: 240 }}
+              mode="multiple"
+              value={selectedRoles}
+              onChange={(vals: number[]) => { setSelectedRoles(vals); setPage(1); clearSelection(); }}
+              options={(reportRoles || []).map(r => ({ label: r.role_shortname ?? String(r.id_role), value: r.id_role }))}
             />
           </div>
         </Space>
