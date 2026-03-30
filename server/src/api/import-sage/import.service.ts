@@ -10,7 +10,8 @@ import { Client as FTPClient } from "basic-ftp";
 import AdmZip from "adm-zip";
 import { path7za } from "7zip-bin";
 import { spawn } from "child_process";
-import { mkdtemp, readdir, readFile as readFileFs, rm, writeFile } from "fs/promises";
+import { constants as fsConstants } from "fs";
+import { access, chmod, mkdtemp, readdir, readFile as readFileFs, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import { basename, extname, join } from "path";
 
@@ -469,26 +470,63 @@ export class ImportService {
     private async extract7zArchive(archivePath: string, outputDir: string): Promise<void> {
         const args = ['x', archivePath, `-o${outputDir}`, '-y'];
 
-        await new Promise<void>((resolve, reject) => {
-            const child = spawn(path7za, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-            let stderr = '';
+        const runExtraction = async () => {
+            await new Promise<void>((resolve, reject) => {
+                const child = spawn(path7za, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+                let stderr = '';
 
-            child.stderr.on('data', (data) => {
-                stderr += data.toString();
-            });
+                child.stderr.on('data', (data) => {
+                    stderr += data.toString();
+                });
 
-            child.on('error', (error) => {
-                reject(error);
-            });
+                child.on('error', (error) => {
+                    reject(error);
+                });
 
-            child.on('close', (code) => {
-                if (code === 0) {
-                    resolve();
-                } else {
-                    reject(new Error(`7z finalizó con código ${code}. ${stderr}`.trim()));
-                }
+                child.on('close', (code) => {
+                    if (code === 0) {
+                        resolve();
+                    } else {
+                        reject(new Error(`7z finalizó con código ${code}. ${stderr}`.trim()));
+                    }
+                });
             });
-        });
+        };
+
+        try {
+            await runExtraction();
+        } catch (error) {
+            const err = error as NodeJS.ErrnoException;
+            const message = err?.message || String(error);
+            const isPermissionError = err?.code === 'EACCES' || message.includes('EACCES');
+
+            if (!isPermissionError) {
+                throw error;
+            }
+
+            this.logger.warn(`7za sin permisos de ejecución. Reintentando tras chmod +x: ${path7za}`);
+
+            try {
+                await chmod(path7za, 0o755);
+                await access(path7za, fsConstants.X_OK);
+            } catch (chmodError) {
+                const chmodMsg = chmodError instanceof Error ? chmodError.message : String(chmodError);
+                throw new Error(
+                    `No se puede ejecutar el binario 7za en este entorno (${chmodMsg}). ` +
+                    `Sube el fichero en .zip o .csv, o habilita permisos de ejecución para 7zip-bin.`
+                );
+            }
+
+            try {
+                await runExtraction();
+            } catch (retryError) {
+                const retryMsg = retryError instanceof Error ? retryError.message : String(retryError);
+                throw new Error(
+                    `El entorno bloquea la ejecución de 7za incluso tras chmod (+x). ` +
+                    `Sube el fichero en .zip o .csv. Detalle: ${retryMsg}`
+                );
+            }
+        }
     }
 
     private async findCsvFilesRecursive(rootDir: string): Promise<string[]> {
