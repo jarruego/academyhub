@@ -350,6 +350,36 @@ export class GroupService {
     });
   }
 
+  async setTutorsInGroup(id_group: number, tutorUserIds: number[], options?: QueryOptions) {
+    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+      const uniqueTutorIds = Array.from(new Set((tutorUserIds || []).filter((id) => Number.isFinite(id))));
+      const usersInGroup = await this.userGroupRepository.findUsersInGroup(id_group, { transaction });
+
+      const userIdsInGroup = new Set(usersInGroup.map((u) => u.id_user));
+      const invalidNotInGroup = uniqueTutorIds.filter((id) => !userIdsInGroup.has(id));
+      if (invalidNotInGroup.length > 0) {
+        throw new BadRequestException(`Los siguientes usuarios no pertenecen al grupo: ${invalidNotInGroup.join(', ')}`);
+      }
+
+      const studentIds = new Set(
+        usersInGroup
+          .filter((u) => String(u.role_shortname ?? '').toLowerCase() === 'student')
+          .map((u) => u.id_user)
+      );
+      const invalidStudents = uniqueTutorIds.filter((id) => studentIds.has(id));
+      if (invalidStudents.length > 0) {
+        throw new BadRequestException(`No se puede marcar como tutor a usuarios con rol student: ${invalidStudents.join(', ')}`);
+      }
+
+      const selected = new Set(uniqueTutorIds);
+      for (const u of usersInGroup) {
+        await this.userGroupRepository.updateById(u.id_user, id_group, { is_tutor: selected.has(u.id_user) }, { transaction });
+      }
+
+      return { id_group, tutorUserIds: uniqueTutorIds };
+    });
+  }
+
   async getBonificationFile(groupId: number, userIds: number[]) {
     return await this.groupBonificableService.generateBonificationFile(groupId, userIds);
   }

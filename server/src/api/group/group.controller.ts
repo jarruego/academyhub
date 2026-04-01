@@ -65,6 +65,15 @@ export class GroupController {
     return this.groupService.findUsersInGroup(id);
   }
 
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @Put(':id/tutors')
+  async setTutorsInGroup(@Param('id', new ParseIntPipe()) id: number, @Body() body: { userIds: number[] }) {
+    if (!body || !Array.isArray(body.userIds)) {
+      throw new BadRequestException('Invalid payload: expected { userIds: number[] }');
+    }
+    return this.groupService.setTutorsInGroup(id, body.userIds);
+  }
+
   @UseGuards(RoleGuard([Role.ADMIN]))
   @Delete(':id')
   async deleteById(@Param('id', new ParseIntPipe()) id: number) {

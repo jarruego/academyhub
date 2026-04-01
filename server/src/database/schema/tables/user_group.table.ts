@@ -1,4 +1,4 @@
-import { pgTable, integer, primaryKey, date, decimal, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, integer, primaryKey, date, decimal, timestamp, boolean } from "drizzle-orm/pg-core";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { userTable } from "./user.table";
 import { groupTable } from "./group.table";
@@ -10,6 +10,7 @@ export const userGroupTable = pgTable("user_group", {
   id_group: integer("id_group").notNull().references(() => groupTable.id_group),
   // rol aplicado al usuario dentro del grupo (referencia a user_roles.id_role)
   id_role: integer("id_role").references(() => userRolesTable.id_role),
+  is_tutor: boolean("is_tutor").default(false),
   id_center: integer("id_center").references(() => centerTable.id_center),
   join_date: date({ mode: 'date' }).defaultNow(),
   completion_percentage: decimal({ precision: 5, scale: 2 }),

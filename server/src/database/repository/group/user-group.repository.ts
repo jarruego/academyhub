@@ -13,6 +13,7 @@ import { companyTable } from "src/database/schema/tables/company.table";
 // Enriched user shape returned by findUsersInGroupByIds
 export type UserWithEnrollmentInfo = UserSelectModel & {
     id_role?: number;
+    is_tutor?: boolean | null;
     role_shortname?: string | null;
     enrollment_center_id?: number | null;
     enrollment_company_cif?: string | null;
@@ -73,6 +74,7 @@ export class UserGroupRepository extends Repository {
             ...r.users,
             completion_percentage: r.user_course.completion_percentage,
             id_role: r.user_group?.id_role,
+            is_tutor: r.user_group?.is_tutor ?? false,
             role_shortname: r.role?.role_shortname,
             enrollment_center_id: r.user_group?.id_center,
             enrollment_company_cif: r.company?.cif,
@@ -93,6 +95,7 @@ export class UserGroupRepository extends Repository {
         return rows.map((r) => ({
             ...r.users,
             id_role: r.user_group?.id_role,
+            is_tutor: r.user_group?.is_tutor ?? false,
             role_shortname: r.role?.role_shortname,
             // include the center at enrollment and the company's CIF so callers can group by the enrollment company
             enrollment_center_id: r.user_group?.id_center,

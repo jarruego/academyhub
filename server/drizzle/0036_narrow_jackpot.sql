@@ -1,0 +1,1 @@
+ALTER TABLE "user_group" ADD COLUMN "is_tutor" boolean DEFAULT false;

@@ -8,8 +8,9 @@ import { useDeleteGroupMutation } from "../../hooks/api/groups/use-delete-group.
 import { usePushGroupToMoodleMutation } from "../../hooks/api/moodle/use-push-group-to-moodle.mutation";
 import { useDeleteMoodleGroupMutation } from "../../hooks/api/moodle/use-delete-moodle-group.mutation";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DeleteOutlined, SaveOutlined, CloudUploadOutlined } from "@ant-design/icons";
+import { Select } from "antd";
 import GroupUsersManager from '../../components/group/GroupUsersManager';
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -18,6 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
+import { useSetGroupTutorsMutation } from "../../hooks/api/groups/use-set-group-tutors.mutation";
 dayjs.extend(utc);
 
 const GROUP_FORM_SCHEMA = z.object({
@@ -48,6 +50,19 @@ export default function EditGroupRoute() {
   const pushGroupMutation = usePushGroupToMoodleMutation();
   const deleteMoodleGroupMutation = useDeleteMoodleGroupMutation();
   const { data: usersInGroup } = useUsersByGroupQuery(id_group ? parseInt(id_group, 10) : null);
+  const { mutateAsync: setGroupTutors } = useSetGroupTutorsMutation(id_group || "");
+  const [selectedTutorIds, setSelectedTutorIds] = useState<number[]>([]);
+
+  const nonStudentUsers = useMemo(() => {
+    return (usersInGroup || []).filter((u) => String(u.role_shortname ?? '').toLowerCase() !== 'student');
+  }, [usersInGroup]);
+
+  const tutorOptions = useMemo(() => {
+    return nonStudentUsers.map((u) => ({
+      value: u.id_user,
+      label: `${u.name ?? ''} ${u.first_surname ?? ''}${u.second_surname ? ` ${u.second_surname}` : ''}`.trim() || `ID ${u.id_user}`,
+    }));
+  }, [nonStudentUsers]);
 
   useEffect(() => {
     if (groupData) {
@@ -68,6 +83,13 @@ export default function EditGroupRoute() {
     }
   }, [id_group, groupData]);
 
+  useEffect(() => {
+    const ids = (nonStudentUsers || [])
+      .filter((u) => !!u.is_tutor)
+      .map((u) => u.id_user);
+    setSelectedTutorIds(ids);
+  }, [nonStudentUsers]);
+
   if (isGroupLoading) return <div>Cargando...</div>;
 
   const submit: SubmitHandler<z.infer<typeof GROUP_FORM_SCHEMA>> = async (data) => {
@@ -78,6 +100,9 @@ export default function EditGroupRoute() {
         start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
         end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
       });
+      if (id_group) {
+        await setGroupTutors(selectedTutorIds);
+      }
     messageApi.success('Grupo actualizado exitosamente');
       navigate(`/courses/${groupData.id_course}`);
     } catch {
@@ -206,6 +231,18 @@ export default function EditGroupRoute() {
             validateStatus={errors.description ? "error" : undefined}
           >
             <Controller name="description" control={control} render={({ field }) => <Input id="description" autoComplete="off" {...field} value={field.value ?? ""} data-testid="group-description" disabled={!canEdit} />} />
+          </Form.Item>
+          <Form.Item label="Tutor(es) del grupo">
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="Selecciona uno o varios tutores"
+              options={tutorOptions}
+              value={selectedTutorIds}
+              onChange={(values) => setSelectedTutorIds((values as number[]).map((v) => Number(v)))}
+              disabled={!canEdit}
+              style={{ width: '100%' }}
+            />
           </Form.Item>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             {/* Moodle status */}

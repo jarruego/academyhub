@@ -253,6 +253,13 @@
       "when": 1772612255236,
       "tag": "0035_light_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1775044943711,
+      "tag": "0036_narrow_jackpot",
+      "breakpoints": true
     }
   ]
 }
