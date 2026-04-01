@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { DatabaseService } from "src/database/database.service";
 import { DATABASE_PROVIDER } from "src/database/database.module";
-import { eq, gte, lt } from "drizzle-orm";
+import { desc, eq, gte, lt } from "drizzle-orm";
 import { import_jobs } from "src/database/schema";
 import { 
     ImportJobInsertModel, 
@@ -174,7 +174,7 @@ export class JobService {
         return await this.databaseService.db
             .select()
             .from(import_jobs)
-            .orderBy(import_jobs.created_at)
+            .orderBy(desc(import_jobs.created_at))
             .limit(limit);
     }
 
