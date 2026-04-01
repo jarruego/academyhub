@@ -650,6 +650,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
       <SendMailToGroupModal
         open={isSendMailOpen}
         users={(usersData || []).filter(u => selectedUserIds.includes(u.id_user))}
+        tutors={(usersData || [])
+          .filter((u) => !!u.is_tutor && String(u.role_shortname ?? '').toLowerCase() !== 'student' && !!u.email)
+          .map((u) => ({
+            id_user: u.id_user,
+            email: String(u.email),
+            name: `${u.name ?? ''} ${u.first_surname ?? ''}${u.second_surname ? ` ${u.second_surname}` : ''}`.trim() || `ID ${u.id_user}`,
+          }))}
         courseName={courseName}
         groupStart={groupStart}
         groupEnd={groupEnd}

@@ -13,9 +13,16 @@ interface GroupUserRef {
   email?: string | null;
 }
 
+interface TutorRef {
+  id_user: number;
+  name: string;
+  email: string;
+}
+
 interface SendMailToGroupModalProps {
   open: boolean;
   users: GroupUserRef[];
+  tutors?: TutorRef[];
   courseName?: string;
   groupStart?: string | Date | null;
   groupEnd?: string | Date | null;
@@ -23,7 +30,7 @@ interface SendMailToGroupModalProps {
   onCancel: () => void;
 }
 
-export default function SendMailToGroupModal({ open, users, courseName, groupStart, groupEnd, onOk, onCancel }: SendMailToGroupModalProps) {
+export default function SendMailToGroupModal({ open, users, tutors = [], courseName, groupStart, groupEnd, onOk, onCancel }: SendMailToGroupModalProps) {
   const { data: templates, isLoading: templatesLoading } = useMailTemplatesQuery();
   const { data: smtpSettings } = useSmtpSettingsQuery();
   const { mutateAsync: sendMail, isPending } = useSendMailMutation();
@@ -33,13 +40,15 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
 
   const [sendMode, setSendMode] = useState<'template' | 'custom'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<number | undefined>();
-  const [fromChoice, setFromChoice] = useState<'default' | 'auth'>('default');
+  const [fromChoice, setFromChoice] = useState<'default' | 'auth' | 'tutor'>('default');
+  const [selectedTutorId, setSelectedTutorId] = useState<number | undefined>();
   const [customSubject, setCustomSubject] = useState('');
   const [customContent, setCustomContent] = useState('');
   const [customIsHtml, setCustomIsHtml] = useState(false);
   const [sendViaMoodle, setSendViaMoodle] = useState(false);
   const smtp = smtpSettings as SmtpSettingsForm | undefined;
   const authEmail = authInfo?.user?.email || '';
+  const selectedTutor = tutors.find((t) => t.id_user === selectedTutorId);
 
   // Estados para el progreso y resultados
   const [isSending, setIsSending] = useState(false);
@@ -82,6 +91,16 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
     if (fromChoice === 'auth' && !authEmail) {
       messageApi.error('El usuario autenticado no tiene email');
       return;
+    }
+    if (fromChoice === 'tutor') {
+      if (!selectedTutorId) {
+        messageApi.error('Selecciona un tutor como remitente');
+        return;
+      }
+      if (!selectedTutor?.email) {
+        messageApi.error('El tutor seleccionado no tiene email');
+        return;
+      }
     }
 
     if (sendMode === 'template') {
@@ -126,11 +145,11 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
             courseName: courseName ?? '',
             courseStart: start,
             courseEnd: end,
-            replyTo: fromChoice === 'auth' ? authEmail : smtp?.from_email,
+            replyTo: fromChoice === 'auth' ? authEmail : fromChoice === 'tutor' ? selectedTutor?.email : smtp?.from_email,
             toEmail: user.email,
             sendViaMoodle,
             authUserId: authInfo?.user?.id,
-            fromName: fromChoice === 'auth' ? authInfo?.user?.name : undefined,
+            fromName: fromChoice === 'auth' ? authInfo?.user?.name : fromChoice === 'tutor' ? selectedTutor?.name : undefined,
           });
         } else {
           await sendCustomMail({
@@ -138,8 +157,8 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
             subject: customSubject.trim(),
             html: customIsHtml ? customContent : undefined,
             text: !customIsHtml ? customContent : undefined,
-            reply_to: fromChoice === 'auth' ? authEmail : smtp?.from_email,
-            from_name: fromChoice === 'auth' ? authInfo?.user?.name : undefined,
+            reply_to: fromChoice === 'auth' ? authEmail : fromChoice === 'tutor' ? selectedTutor?.email : smtp?.from_email,
+            from_name: fromChoice === 'auth' ? authInfo?.user?.name : fromChoice === 'tutor' ? selectedTutor?.name : undefined,
             sendViaMoodle,
             authUserId: authInfo?.user?.id,
             userId: user.id_user,
@@ -191,6 +210,7 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
           setFinalResults(null);
           setSelectedTemplate(undefined);
           setFromChoice('default');
+          setSelectedTutorId(undefined);
           setCustomSubject('');
           setCustomContent('');
           setCustomIsHtml(false);
@@ -203,6 +223,7 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
             setFinalResults(null);
             setSelectedTemplate(undefined);
             setFromChoice('default');
+            setSelectedTutorId(undefined);
             setCustomSubject('');
             setCustomContent('');
             setCustomIsHtml(false);
@@ -331,8 +352,25 @@ export default function SendMailToGroupModal({ open, users, courseName, groupSta
               <Radio value="auth">
                 Email del usuario autenticado ({authEmail || 'sin email'})
               </Radio>
+              <Radio value="tutor" disabled={tutors.length === 0}>
+                Email de un tutor asignado {tutors.length === 0 ? '(sin tutores disponibles)' : ''}
+              </Radio>
             </Radio.Group>
           </Form.Item>
+
+          {fromChoice === 'tutor' && (
+            <Form.Item label="Tutor remitente" required>
+              <Select
+                placeholder="Selecciona un tutor"
+                value={selectedTutorId}
+                onChange={(v) => setSelectedTutorId(Number(v))}
+                options={tutors.map((t) => ({
+                  value: t.id_user,
+                  label: `${t.email} (${t.name})`,
+                }))}
+              />
+            </Form.Item>
+          )}
 
           <Form.Item label="Curso">
             <Typography.Text>{courseName || 'Sin curso'}</Typography.Text>
