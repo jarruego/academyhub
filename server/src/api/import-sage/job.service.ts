@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { DatabaseService } from "src/database/database.service";
 import { DATABASE_PROVIDER } from "src/database/database.module";
-import { desc, eq, gte, lt } from "drizzle-orm";
+import { desc, eq, gte, lt, sql } from "drizzle-orm";
 import { import_jobs } from "src/database/schema";
 import { 
     ImportJobInsertModel, 
@@ -39,8 +39,26 @@ export class JobService {
             .insert(import_jobs)
             .values(jobData);
 
+        // Retención: conservar solo los 100 jobs más recientes
+        await this.keepOnlyLatestJobs(100);
+
         this.logger.log(`Trabajo creado: ${jobId} (${type})`);
         return jobId;
+    }
+
+    /**
+     * Elimina jobs antiguos para conservar solo los N más recientes.
+     */
+    private async keepOnlyLatestJobs(maxJobs: number): Promise<void> {
+        await this.databaseService.db.execute(sql`
+            DELETE FROM import_jobs
+            WHERE id IN (
+                SELECT id
+                FROM import_jobs
+                ORDER BY created_at DESC, id DESC
+                OFFSET ${maxJobs}
+            )
+        `);
     }
 
     /**
@@ -160,7 +178,16 @@ export class JobService {
      */
     async getActiveJobs() {
         return await this.databaseService.db
-            .select()
+            .select({
+                job_id: import_jobs.job_id,
+                import_type: import_jobs.import_type,
+                status: import_jobs.status,
+                total_rows: import_jobs.total_rows,
+                processed_rows: import_jobs.processed_rows,
+                created_at: import_jobs.created_at,
+                completed_at: import_jobs.completed_at,
+                error_message: import_jobs.error_message,
+            })
             .from(import_jobs)
             .where(
                 eq(import_jobs.status, ImportJobStatus.PROCESSING)
@@ -172,7 +199,16 @@ export class JobService {
      */
     async getRecentJobs(limit: number = 50) {
         return await this.databaseService.db
-            .select()
+            .select({
+                job_id: import_jobs.job_id,
+                import_type: import_jobs.import_type,
+                status: import_jobs.status,
+                total_rows: import_jobs.total_rows,
+                processed_rows: import_jobs.processed_rows,
+                created_at: import_jobs.created_at,
+                completed_at: import_jobs.completed_at,
+                error_message: import_jobs.error_message,
+            })
             .from(import_jobs)
             .orderBy(desc(import_jobs.created_at))
             .limit(limit);

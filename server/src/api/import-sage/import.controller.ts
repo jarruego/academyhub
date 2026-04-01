@@ -243,7 +243,10 @@ export class ImportController {
     @ApiOperation({ summary: 'Listar trabajos de importación recientes' })
     @ApiResponse({ status: 200, description: 'Lista de trabajos obtenida exitosamente' })
     async getRecentJobs(@Query('limit') limit?: string) {
-        const limitNum = limit ? parseInt(limit) : 50;
+        const parsedLimit = limit ? parseInt(limit, 10) : 50;
+        const limitNum = Number.isFinite(parsedLimit) && parsedLimit > 0
+            ? Math.min(parsedLimit, 200)
+            : 50;
         const jobs = await this.jobService.getRecentJobs(limitNum);
         
         return jobs.map(job => ({

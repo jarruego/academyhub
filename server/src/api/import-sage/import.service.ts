@@ -297,6 +297,9 @@ export class ImportService {
                 processed_rows: 0
             });
 
+            // Retención: conservar solo los 30 jobs más recientes
+            await this.keepOnlyLatestJobs(30);
+
             // Procesar CSV en background
             this.processCSVBackground(jobId, buffer, filename);
 
@@ -666,6 +669,8 @@ export class ImportService {
             const totalRows = csvData.length;
             await this.updateJobProgress(jobId, totalRows, 0);
 
+            const MAX_ERROR_DETAILS_IN_MEMORY = 100;
+
             const summary: ImportSummary = {
                 total_rows: totalRows,
                 processed_rows: 0,
@@ -717,11 +722,15 @@ export class ImportService {
                     } catch (error: any) {
                         this.logger.error(`Error procesando fila ${globalIndex + 1}: ${error?.message || error}`);
                         summary.errors++;
-                        summary.error_details.push({
-                            row: globalIndex + 1,
-                            message: error?.message || error.toString(),
-                            data: currentBatch[i]
-                        });
+                        // Evitar que error_details crezca sin límite y consuma memoria.
+                        // Guardamos solo una muestra para diagnóstico rápido.
+                        if (summary.error_details.length < MAX_ERROR_DETAILS_IN_MEMORY) {
+                            summary.error_details.push({
+                                row: globalIndex + 1,
+                                message: error?.message || error.toString(),
+                                data: undefined
+                            });
+                        }
                     }
                 }
 
@@ -2074,6 +2083,21 @@ export class ImportService {
         return `import_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
     }
 
+    /**
+     * Elimina jobs antiguos para conservar solo los N más recientes.
+     */
+    private async keepOnlyLatestJobs(maxJobs: number): Promise<void> {
+        await this.databaseService.db.execute(sql`
+            DELETE FROM import_jobs
+            WHERE id IN (
+                SELECT id
+                FROM import_jobs
+                ORDER BY created_at DESC, id DESC
+                OFFSET ${maxJobs}
+            )
+        `);
+    }
+
     private async updateJobStatus(jobId: string, status: ImportJobStatus): Promise<void> {
         await this.databaseService.db
             .update(import_jobs)
@@ -2097,7 +2121,14 @@ export class ImportService {
 
     private async completeJob(jobId: string, summary: ImportSummary): Promise<void> {
         // Obtener estadísticas de usuarios fallidos para el resumen final
-        const failedStats = await this.getFailedUsersStats();
+        const failedStats = await this.getFailedUsersStats({ breakdownLimit: 10, maxReasonLength: 240 });
+        const omittedErrorDetails = Math.max(summary.errors - summary.error_details.length, 0);
+        const compactSummary = {
+            ...summary,
+            error_details: summary.error_details,
+            omitted_error_details: omittedErrorDetails,
+            failed_user_stats: failedStats,
+        };
         
         // Log del resumen final
         this.logger.warn(`✅ IMPORTACIÓN COMPLETADA (Job: ${jobId})`);
@@ -2121,10 +2152,7 @@ export class ImportService {
             .set({
                 status: ImportJobStatus.COMPLETED,
                 processed_rows: summary.processed_rows, // Asegurar que el progreso final sea correcto
-                result_summary: {
-                    ...summary,
-                    failed_user_stats: failedStats
-                },
+                result_summary: compactSummary,
                 completed_at: new Date(),
                 updated_at: new Date()
             })
@@ -2773,8 +2801,11 @@ export class ImportService {
     /**
      * Obtiene estadísticas de usuarios fallidos
      */
-    async getFailedUsersStats() {
+    async getFailedUsersStats(options?: { breakdownLimit?: number; maxReasonLength?: number }) {
         try {
+            const breakdownLimit = Math.max(1, Math.min(options?.breakdownLimit ?? 100, 500));
+            const maxReasonLength = Math.max(50, Math.min(options?.maxReasonLength ?? 500, 2000));
+
             await this.databaseService.db.execute(sql`
                 CREATE TABLE IF NOT EXISTS failed_user_imports (
                     id SERIAL PRIMARY KEY,
@@ -2810,14 +2841,20 @@ export class ImportService {
                 FROM failed_user_imports
                 GROUP BY failure_reason
                 ORDER BY count DESC
+                LIMIT ${breakdownLimit}
             `);
+
+            const normalizedBreakdown = ((reasonStats as any).rows || []).map((row: any) => ({
+                count: row.count,
+                failure_reason: String(row.failure_reason || '').slice(0, maxReasonLength)
+            }));
 
             return {
                 total: (stats as any).rows?.[0]?.total || 0,
                 companies: (stats as any).rows?.[0]?.companies || 0,
                 centers: (stats as any).rows?.[0]?.centers || 0,
                 uniqueErrors: (stats as any).rows?.[0]?.unique_errors || 0,
-                errorBreakdown: (reasonStats as any).rows || []
+                errorBreakdown: normalizedBreakdown
             };
 
         } catch (error: any) {
