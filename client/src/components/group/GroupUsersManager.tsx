@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Table, Button, message, Modal, notification } from 'antd';
 import { Tooltip } from 'antd';
-import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MobileOutlined } from '@ant-design/icons';
+import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined } from '@ant-design/icons';
 import { AuthzHide } from '../permissions/authz-hide';
 import CreateUserGroupModal from './CreateUserGroupModal';
 import ImportUsersToGroupModal from './ImportUsersToGroupModal';
@@ -109,7 +109,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
     const ids = usersData
       .filter((u: User) => {
         // only students
-        return isStudentUser(u) && getPercent(u.completion_percentage) < 75;
+        const percent = getPercent(u.completion_percentage);
+        return isStudentUser(u) && percent > 0 && percent < 75;
       })
       .map(u => u.id_user);
     setSelectedUserIds(ids);
@@ -521,7 +522,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
             </Button>
             <Button
               type="default"
-              icon={<MailOutlined />}
+              icon={<MergeCellsOutlined />}
               onClick={async () => {
                 if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
                 if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para exportar');
@@ -565,7 +566,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
               }}
               disabled={isGroupLoading}
             >
-              SMS .csv
+              .csv
             </Button>
           </AuthzHide>
         </div>
@@ -587,7 +588,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
         <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
           <div style={{ display: 'flex', gap: 8 }}>
             <Button onClick={handleMarkZero} disabled={!usersData || usersData.length === 0} style={{ color: '#ff4d4f' }}>0%</Button>
-            <Button onClick={handleMarkBelow75} disabled={!usersData || usersData.length === 0} style={{ color: '#ff4d4f' }}>{'<75%'}</Button>
+            <Button onClick={handleMarkBelow75} disabled={!usersData || usersData.length === 0} style={{ color: '#ff4d4f' }}>1-75%</Button>
             <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0} style={{ color: '#52c41a' }}>≥75%</Button>
             <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
               Bonificar
