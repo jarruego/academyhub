@@ -115,6 +115,14 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
     setSelectedUserIds(ids);
   };
 
+  const handleMarkZero = () => {
+    if (!usersData) return;
+    const ids = usersData
+      .filter((u: User) => isStudentUser(u) && Number(u.completion_percentage ?? 0) === 0)
+      .map(u => u.id_user);
+    setSelectedUserIds(ids);
+  };
+
   const handleMark75 = () => {
     if (!usersData) return;
     const getPercent = (v: unknown) => {
@@ -273,7 +281,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
               icon={<TeamOutlined />}
               onClick={() => groupId ? setIsManageModalOpen(true) : null}
             >
-              Gestionar Usuarios
+              Gestor Usuarios
             </Button>
             <Button
               type="default"
@@ -578,6 +586,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
         </AuthzHide>
         <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
           <div style={{ display: 'flex', gap: 8 }}>
+            <Button onClick={handleMarkZero} disabled={!usersData || usersData.length === 0} style={{ color: '#ff4d4f' }}>0%</Button>
             <Button onClick={handleMarkBelow75} disabled={!usersData || usersData.length === 0} style={{ color: '#ff4d4f' }}>{'<75%'}</Button>
             <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0} style={{ color: '#52c41a' }}>≥75%</Button>
             <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
