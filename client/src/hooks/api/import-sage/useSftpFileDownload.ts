@@ -4,17 +4,37 @@ import { getApiHost } from '../../../utils/api/get-api-host.util';
 export const useSftpFileDownload = () => {
   const { authInfo: { token } } = useAuthInfo();
 
-  const downloadFile = async () => {
-    try {
-      const response = await fetch(`${getApiHost()}/api/import/sftp/download`, {
+  const fetchDownload = async () => {
+    const endpoints = [
+      `${getApiHost()}/api/import/file-transfer/download`,
+      `${getApiHost()}/api/import/sftp/download`,
+    ];
+
+    let lastResponse: Response | null = null;
+
+    for (const endpoint of endpoints) {
+      const response = await fetch(endpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to download SFTP file: ${response.statusText}`);
+      if (response.ok) {
+        return response;
       }
+
+      lastResponse = response;
+      if (response.status !== 404) {
+        break;
+      }
+    }
+
+    throw new Error(`Failed to download file: ${lastResponse?.statusText || 'Unknown error'}`);
+  };
+
+  const downloadFile = async () => {
+    try {
+      const response = await fetchDownload();
 
       // Obtener el nombre del archivo del header
       const contentDisposition = response.headers.get('content-disposition');
