@@ -2257,9 +2257,6 @@ export class ImportService {
     }
 
     async processDecision(decisionId: number, action: DecisionAction, selectedUserId?: number): Promise<void> {
-        // Mensaje reducido a debug para evitar logs verbosos en producción
-        this.logger.debug(`🔄 Procesando decisión ${decisionId} con acción: ${action}`);
-        
         // Primero obtener los datos de la decisión
         const [decision] = await this.databaseService.db
             .select()
@@ -2272,34 +2269,19 @@ export class ImportService {
             throw new Error(`Decision with ID ${decisionId} not found`);
         }
 
-    // Datos completos de la decisión solo en debug
-    this.logger.debug(`📋 Datos de la decisión encontrada:`, {
-            id: decision.id,
-            name_csv: decision.name_csv,
-            dni_csv: decision.dni_csv,
-            csvRowData: decision.csv_row_data, // Usar el nombre correcto de la BD
-            csvRowDataType: typeof decision.csv_row_data,
-            csvRowDataKeys: decision.csv_row_data ? Object.keys(decision.csv_row_data) : 'undefined',
-            action: action
-        });
-
         // Ejecutar la acción correspondiente
         switch (action) {
             case 'create_new':
-                this.logger.debug(`🆕 Ejecutando creación de nuevo usuario para decisión ${decisionId}`);
                 await this.executeCreateNewUser(decision);
                 break;
             case 'link':
-                this.logger.debug(`🔗 Ejecutando vinculación de usuario para decisión ${decisionId}`);
                 await this.executeLinkUser(decision, selectedUserId);
                 break;
             case 'update_and_link':
-                this.logger.debug(`🔄 Ejecutando actualización y vinculación para decisión ${decisionId}`);
                 await this.executeUpdateAndLink(decision, selectedUserId);
                 // NOTA: executeUpdateAndLink ya actualiza el estado de la decisión
                 return; // Salir temprano para evitar doble actualización
             case 'skip':
-                this.logger.debug(`⏭️ Omitiendo registro para decisión ${decisionId}`);
                 // Para skip, solo marcamos como procesado
                 break;
         }
@@ -2315,13 +2297,10 @@ export class ImportService {
             updates.selected_user_id = selectedUserId;
         }
 
-    this.logger.debug(`💾 Actualizando estado de la decisión ${decisionId}`);
         await this.databaseService.db
             .update(import_decisions)
             .set(updates)
             .where(eq(import_decisions.id, decisionId));
-            
-    this.logger.debug(`✅ Decisión ${decisionId} procesada exitosamente con acción: ${action}`);
     }
 
     /**
@@ -2329,9 +2308,6 @@ export class ImportService {
      */
     private async executeCreateNewUser(decision: any): Promise<void> {
         try {
-            this.logger.debug(`🔨 Creando nuevo usuario desde decisión ${decision.id}`);
-            this.logger.debug(`📋 CSV Row Data completo:`, decision.csv_row_data);
-            
             // Validar que csv_row_data existe
             if (!decision.csv_row_data) {
                 throw new Error(`No hay datos CSV disponibles para la decisión ${decision.id}. csv_row_data es ${decision.csv_row_data}`);
@@ -2339,17 +2315,6 @@ export class ImportService {
             
             // Recrear ProcessedUserData a partir del CSV row data original
             const userData: ProcessedUserData = this.normalizeCSVRow(decision.csv_row_data, decision.id);
-            
-            this.logger.debug(`👤 Datos del usuario a crear (completos):`, {
-                name: userData.name,
-                dni: userData.dni,
-                email: userData.email,
-                nss: userData.nss,
-                company_name: userData.company_name,
-                center_name: userData.center_name,
-                professional_category: userData.professional_category,
-                birth_date: userData.birth_date
-            });
 
             // CREAR DIRECTAMENTE SIN processUserRecord para evitar verificaciones de similitud
             // 1. Buscar o crear empresa
@@ -2366,13 +2331,6 @@ export class ImportService {
 
             // 5. Verificar centro principal
             await this.ensureMainCenter(newUser.id_user);
-            
-            this.logger.debug(`✅ Usuario creado exitosamente:`, {
-                id_user: newUser.id_user,
-                dni: newUser.dni,
-                company_id: company.id_company,
-                center_id: center.id_center
-            });
 
         } catch (error) {
             this.logger.error(`❌ Error ejecutando creación de usuario para decisión ${decision.id}:`, error);
@@ -2390,8 +2348,6 @@ export class ImportService {
             if (!userId) {
                 throw new Error('No se proporcionó ID de usuario para update_and_link');
             }
-
-            this.logger.debug(`🔄 Ejecutando update_and_link para usuario ${userId} con decisión ${decision.id}`);
             
             // Recrear ProcessedUserData del CSV
             const csvData: ProcessedUserData = this.normalizeCSVRow(decision.csv_row_data, decision.id);
@@ -2406,22 +2362,6 @@ export class ImportService {
             if (!existingUser) {
                 throw new Error(`Usuario con ID ${userId} no encontrado`);
             }
-
-            this.logger.debug(`📋 Datos actuales del usuario en BD:`, {
-                dni: existingUser.dni,
-                name: existingUser.name,
-                first_surname: existingUser.first_surname,
-                second_surname: existingUser.second_surname,
-                email: existingUser.email
-            });
-
-            this.logger.debug(`📋 Datos del CSV para actualizar:`, {
-                dni: csvData.dni,
-                name: csvData.name,
-                first_surname: csvData.first_surname,
-                second_surname: csvData.second_surname,
-                email: csvData.email
-            });
 
             // 2. Preparar metadatos de cambio para reversión
             const changeMetadata = {
@@ -2478,8 +2418,6 @@ export class ImportService {
                 })
                 .where(eq(users.id_user, userId));
 
-            this.logger.debug(`✅ Usuario actualizado en BD con datos del CSV`);
-
             // 4. Actualizar registro import_decisions para futuras comparaciones
             await this.databaseService.db
                 .update(import_decisions)
@@ -2500,21 +2438,12 @@ export class ImportService {
                 })
                 .where(eq(import_decisions.id, decision.id));
 
-            this.logger.debug(`✅ Registro import_decisions actualizado para futuras comparaciones`);
-
             // 5. Procesar empresa/centro del CSV (reutilizar lógica existente)
             const result = await this.linkUserToCSVData(userId, csvData);
             
             if (!result.success) {
                 throw new Error(result.error_message || 'Error procesando empresa/centro del CSV');
             }
-
-            this.logger.debug(`✅ Update_and_link completado exitosamente:`, {
-                user_id: userId,
-                company_id: result.company_id,
-                center_id: result.center_id,
-                updated_fields: changeMetadata.updated_fields
-            });
 
         } catch (error) {
             this.logger.error(`❌ Error ejecutando update_and_link para decisión ${decision.id}:`, error);
@@ -2650,14 +2579,6 @@ export class ImportService {
             // Recrear ProcessedUserData para obtener TODOS los datos del CSV
             const userData: ProcessedUserData = this.normalizeCSVRow(decision.csv_row_data, decision.id);
             
-            this.logger.debug(`🔗 Vinculando usuario ${userId} con datos del CSV`);
-            this.logger.debug(`🏢 Procesando empresa y centro para vinculación:`, {
-                company_name: userData.company_name,
-                center_name: userData.center_name,
-                start_date: userData.start_date,
-                end_date: userData.end_date
-            });
-            
             // Verificar que el usuario existe
             const [existingUser] = await this.databaseService.db
                 .select()
@@ -2672,13 +2593,7 @@ export class ImportService {
             // Usar linkUserToCSVData que procesa todos los datos del CSV sin sobrescribir datos del usuario
             const result = await this.linkUserToCSVData(userId, userData);
             
-            if (result.success) {
-                this.logger.debug(`✅ Usuario ${userId} vinculado exitosamente con datos del CSV procesados:`, {
-                    action: result.action,
-                    company_id: result.company_id,
-                    center_id: result.center_id
-                });
-            } else {
+            if (!result.success) {
                 throw new Error(result.error_message || 'Error vinculando usuario con datos CSV');
             }
             
@@ -2693,24 +2608,14 @@ export class ImportService {
      */
     private async linkUserToCSVData(userId: number, data: ProcessedUserData): Promise<ProcessingResult> {
         try {
-            this.logger.debug(`🔗 Procesando vinculación de usuario ${userId} con datos del CSV:`, {
-                company: data.company_name,
-                center: data.center_name,
-                start_date: data.start_date?.toISOString().split('T')[0],
-                end_date: data.end_date?.toISOString().split('T')[0]
-            });
-
             // 1. Buscar o crear empresa (reutilizar lógica existente)
             const company = await this.findOrCreateCompany(data);
-            this.logger.debug(`🏢 Empresa procesada: ${company.company_name} (ID: ${company.id_company})`);
             
             // 2. Buscar o crear centro (reutilizar lógica existente)
             const center = await this.findOrCreateCenter(data, company.id_company);
-            this.logger.debug(`🏬 Centro procesado: ${center.center_name} (ID: ${center.id_center})`);
             
             // 3. Crear/actualizar relación usuario-centro con fechas del CSV (reutilizar lógica existente)
             await this.processUserCenterRelation(userId, center.id_center, data);
-            this.logger.debug(`📅 Relación usuario-centro procesada con fechas del CSV`);
 
             // 4. Verificar centro principal (reutilizar lógica existente)
             await this.ensureMainCenter(userId);

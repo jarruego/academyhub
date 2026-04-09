@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     Card,
     Table,
@@ -47,8 +47,14 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
     onProcess,
     loading
 }) => {
-    const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip' | 'update_and_link'>('link');
+    const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip' | 'update_and_link'>('update_and_link');
     const { modal } = App.useApp();
+
+    useEffect(() => {
+        if (open) {
+            setSelectedAction('update_and_link');
+        }
+    }, [open, decision?.id]);
 
     // Cargar csvRowData solo cuando se abre el modal (lazy load para evitar OOM)
     const { data: detailData, isLoading: detailLoading } = usePendingDecision(
@@ -65,13 +71,15 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
             onOk: () => {
                 onProcess(decision.id, { action: selectedAction });
                 onClose();
-                setSelectedAction('link');
+                setSelectedAction('update_and_link');
             },
         });
     };
 
     const getConfirmationMessage = (action: string) => {
         switch (action) {
+            case 'update_and_link':
+                return `¿Actualizar los datos y vincular ${decision.nameCSV} ${decision.firstSurnameCSV} con el usuario existente ${decision.nameDb} ${decision.firstSurnameDb}?`;
             case 'link':
                 return `¿Vincular ${decision.nameCSV} ${decision.firstSurnameCSV} con el usuario existente ${decision.nameDb} ${decision.firstSurnameDb}?`;
             case 'create_new':
@@ -250,18 +258,18 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                     <Title level={5}>Acción a Realizar</Title>
                     <Radio.Group value={selectedAction} onChange={(e) => setSelectedAction(e.target.value)}>
                         <Space direction="vertical">
-                            <Radio value="link">
-                                <Space>
-                                    <LinkOutlined />
-                                    <strong>Vincular con usuario existente</strong>
-                                    <Text type="secondary">- Los datos del CSV se asociarán al usuario existente</Text>
-                                </Space>
-                            </Radio>
                             <Radio value="update_and_link">
                                 <Space>
                                     <SyncOutlined />
                                     <strong>Actualizar y vincular usuario existente</strong>
                                     <Text type="secondary">- Se actualizarán los datos del usuario y se vinculará (ej: cambio NIE → DNI)</Text>
+                                </Space>
+                            </Radio>
+                            <Radio value="link">
+                                <Space>
+                                    <LinkOutlined />
+                                    <strong>Vincular con usuario existente</strong>
+                                    <Text type="secondary">- Los datos del CSV se asociarán al usuario existente</Text>
                                 </Space>
                             </Radio>
                             <Radio value="create_new">
