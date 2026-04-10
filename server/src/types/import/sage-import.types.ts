@@ -1,25 +1,50 @@
 // Estructura de datos del CSV de SAGE
 export interface SageCSVRow {
-    'EmpleadoNomina.CodigoEmpresa': string;           // Código empresa (no usado)
-    'Cód. centro trabajo': string;                    // Código centro -> centers.import_id
-    'Centro trabajo': string;                         // Nombre centro -> centers.center_name
-    'EmpleadoNomina.CodigoEmpleado': string;         // Código empleado -> users.import_id
-    'Personas.Dni': string;                          // DNI -> users.dni
-    'Nombre cli/pro.': string;                       // Nombre -> users.name
+    // Formato actual
+    'empleadoNomina codigoempresa': string;          // Código empresa (no usado)
+    'Cód centro trabajo': string;                    // Código centro -> centers.import_id
+    'Centro trabajo': string;                        // Nombre centro -> centers.center_name
+    'EmpleadoNomina CodigoEmpleado': string;         // Código empleado -> users.import_id
+    'personas dni': string;                          // DNI -> users.dni
+    'Nombre cli/pro': string;                        // Nombre -> users.name
     'Apellidos': string;                             // Apellidos -> users.first_surname + second_surname
-    'Fecha de alta': string;                         // Fecha alta -> user_center.start_date
-    'Fecha de baja': string;                         // Fecha baja -> user_center.end_date
+    'Fecha de Alta': string;                         // Fecha alta -> user_center.start_date
+    'Fecha de Baja': string;                         // Fecha baja -> user_center.end_date
     'Categoría': string;                             // Categoría -> users.professional_category
     'Email': string;                                 // Email -> users.email
-    'Fecha de nacimiento': string;                   // Fecha nacimiento -> users.birth_date
-    'Grupo de pago': string;                         // No usado
-    'Movilidad geográfica': string;                  // No usado
-    'Personas.ProvNumSoe': string;                   // NSS -> users.nss (convertir notación científica)
-    'Sexo': string;                                  // No usado (mal formato)
+    'Fecha de Nacimiento': string;                   // Fecha nacimiento -> users.birth_date
+    'Grupo de Pago': string;                         // No usado
+    'Movilidad geografica': string;                  // users.phone
+    'Personas ProvNumSoe': string;                   // NSS -> users.nss (convertir notación científica)
+    'Sexo': string;                                  // No usado
     'Tarifa': string;                                // Grupo cotización -> users.salary_group
-    'Empresas.Empresa': string;                      // Nombre empresa -> companies.company_name + import_id
-    'Empresas.CifDni': string;                       // CIF empresa -> companies.cif
-    'Número patronal': string;                       // Número patronal -> centers.employer_number
+    'Empresas Empresa': string;                      // Nombre empresa -> companies.company_name + import_id
+    'Empresas CifDni': string;                       // CIF empresa -> companies.cif
+    'Numero_Patr': string;                           // Número patronal -> centers.employer_number
+    'Txt_GrupoPago': string;                         // No usado
+    'Txt_Tarifa': string;                            // No usado
+    'CategoriaCuentaAnual': string;                  // No usado
+    'Txt_CategoriaCuentaAnual': string;              // No usado
+    'Código nivel': string;                          // No usado
+    'Nivel Estudios': string;                        // No usado
+
+    // Compatibilidad con formato anterior (desactivada intencionalmente)
+    // Se deja como referencia documental por si en el futuro se necesita reactivar.
+    // 'EmpleadoNomina.CodigoEmpresa'?: string;
+    // 'Cód. centro trabajo'?: string;
+    // 'EmpleadoNomina.CodigoEmpleado'?: string;
+    // 'Personas.Dni'?: string;
+    // 'Nombre cli/pro.'?: string;
+    // 'Fecha de alta'?: string;
+    // 'Fecha de baja'?: string;
+    // 'Fecha de nacimiento'?: string;
+    // 'Grupo de pago'?: string;
+    // 'Movilidad geográfica'?: string;
+    // 'Personas.ProvNumSoe'?: string;
+    // 'Empresas.Empresa'?: string;
+    // 'Empresas.CifDni'?: string;
+    // 'NumeroPatronal'?: string;
+    // 'Número patronal'?: string;
 }
 
 // Datos normalizados para procesamiento
@@ -30,6 +55,7 @@ export interface ProcessedUserData {
     first_surname: string;
     second_surname?: string;
     email?: string;
+    phone?: string;
     birth_date?: Date;
     professional_category?: string;
     salary_group?: number;

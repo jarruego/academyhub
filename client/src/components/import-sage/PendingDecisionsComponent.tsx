@@ -127,7 +127,9 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
     };
 
     // Obtener valores para comparación
-    const csvNss = detailData?.csvRowData?.['Personas.ProvNumSoe'] || detailData?.csvRowData?.['NSS'];
+    const csvNss = detailData?.csvRowData?.['Personas ProvNumSoe'];
+    // Legacy desactivado:
+    // const csvNss = detailData?.csvRowData?.['Personas.ProvNumSoe'] || detailData?.csvRowData?.['NSS'];
     const csvEmail = detailData?.csvRowData?.['email'] || detailData?.csvRowData?.['Email'] || detailData?.csvRowData?.['mail'];
 
     return (

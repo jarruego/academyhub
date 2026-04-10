@@ -7,3 +7,4 @@ export { useRecentJobs, useActiveJobs } from './useImportJobs';
 export { useFailedUsers, useFailedUsersStats } from './useFailedUsers';
 export { useSftpConnection } from './useSftpConnection';
 export { useSftpFileDownload } from './useSftpFileDownload';
+export { useCancelImport } from './useCancelImport';

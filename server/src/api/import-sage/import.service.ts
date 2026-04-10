@@ -660,6 +660,11 @@ export class ImportService {
      */
     private async processCSVBackground(jobId: string, buffer: Buffer, filename: string): Promise<void> {
         try {
+            if (await this.isJobCancelled(jobId)) {
+                this.logger.warn(`Importación ${jobId} cancelada antes de iniciar procesamiento.`);
+                return;
+            }
+
             await this.updateJobStatus(jobId, ImportJobStatus.PROCESSING);
             
             // ===== OPTIMIZACIÓN EGRESS: Precargar datos en memoria =====
@@ -687,6 +692,7 @@ export class ImportService {
             // PROCESAMIENTO EN LOTES PARA ARCHIVOS GRANDES
             const BATCH_SIZE = totalRows > 10000 ? 1000 : 500; // Lotes de 1000 para archivos grandes
             const MEMORY_CHECK_INTERVAL = 100; // Comprobar memoria cada 100 registros
+            const CANCEL_CHECK_INTERVAL = 25;
             
             this.logger.warn(`📊 Procesando ${totalRows} registros en lotes de ${BATCH_SIZE}`);
 
@@ -700,6 +706,12 @@ export class ImportService {
                 // Procesar lote actual
                 for (let i = 0; i < currentBatch.length; i++) {
                     const globalIndex = batchStart + i;
+
+                    if (globalIndex % CANCEL_CHECK_INTERVAL === 0 && await this.isJobCancelled(jobId)) {
+                        this.logger.warn(`Importación ${jobId} cancelada por el usuario en fila ${globalIndex + 1}.`);
+                        return;
+                    }
+
                     try {
                         const row = currentBatch[i];
                         const processedData = this.normalizeCSVRow(row, globalIndex + 1);
@@ -734,6 +746,11 @@ export class ImportService {
                     }
                 }
 
+                if (await this.isJobCancelled(jobId)) {
+                    this.logger.warn(`Importación ${jobId} cancelada por el usuario al finalizar lote.`);
+                    return;
+                }
+
                 // Pausa entre lotes para permitir que el sistema respire
                 if (batchEnd < csvData.length) {
                     this.logger.warn(`⏸️  Pausa entre lotes... (${summary.processed_rows}/${totalRows} completados)`);
@@ -741,15 +758,36 @@ export class ImportService {
                 }
             }
 
+            if (await this.isJobCancelled(jobId)) {
+                this.logger.warn(`Importación ${jobId} cancelada antes de finalizar job.`);
+                return;
+            }
+
             // Finalizar trabajo
             // Actualizar progreso final por si acaso no se actualizó en el último lote
             await this.updateJobProgress(jobId, totalRows, summary.processed_rows);
+
+            if (await this.isJobCancelled(jobId)) {
+                this.logger.warn(`Importación ${jobId} cancelada antes de guardar resumen final.`);
+                return;
+            }
+
             await this.completeJob(jobId, summary);
 
         } catch (error: any) {
+            if (await this.isJobCancelled(jobId)) {
+                this.logger.warn(`Importación ${jobId} cancelada mientras se procesaba. Se omite marcar como fallo.`);
+                return;
+            }
+
             this.logger.error(`Error en procesamiento de CSV: ${error?.message || error}`);
             await this.failJob(jobId, error?.message || error.toString());
         }
+    }
+
+    private async isJobCancelled(jobId: string): Promise<boolean> {
+        const job = await this.getJobStatus(jobId);
+        return job?.status === ImportJobStatus.CANCELLED;
     }
 
     /**
@@ -863,9 +901,9 @@ export class ImportService {
                         }
 
                         // Validar campos
-                        if (dataArray.length < 15) {
+                        if (dataArray.length < 20) {
                             if (errorCount < 10) {
-                                this.logger.warn(`⚠️ Línea ${lineCount}: ${dataArray.length} campos (esperados 20)`);
+                                this.logger.warn(`⚠️ Línea ${lineCount}: ${dataArray.length} campos (esperados al menos 20)`);
                             }
                             errorCount++;
                             if (errorCount > MAX_ERRORS) {
@@ -916,26 +954,32 @@ export class ImportService {
         const cleanData = dataArray.map(field => this.cleanTextEncoding(field || ''));
         
         return {
-            'EmpleadoNomina.CodigoEmpresa': cleanData[0] || '',
-            'Cód. centro trabajo': cleanData[1] || '',
+            'empleadoNomina codigoempresa': cleanData[0] || '',
+            'Cód centro trabajo': cleanData[1] || '',
             'Centro trabajo': cleanData[2] || '',
-            'EmpleadoNomina.CodigoEmpleado': cleanData[3] || '',
-            'Personas.Dni': cleanData[4] || '',
-            'Nombre cli/pro.': cleanData[5] || '',
+            'EmpleadoNomina CodigoEmpleado': cleanData[3] || '',
+            'personas dni': cleanData[4] || '',
+            'Nombre cli/pro': cleanData[5] || '',
             'Apellidos': cleanData[6] || '',
-            'Fecha de alta': cleanData[7] || '',
-            'Fecha de baja': cleanData[8] || '',
+            'Fecha de Alta': cleanData[7] || '',
+            'Fecha de Baja': cleanData[8] || '',
             'Categoría': cleanData[9] || '',
             'Email': cleanData[10] || '',
-            'Fecha de nacimiento': cleanData[11] || '',
-            'Grupo de pago': cleanData[12] || '',
-            'Movilidad geográfica': cleanData[13] || '',
-            'Personas.ProvNumSoe': cleanData[14] || '',
+            'Fecha de Nacimiento': cleanData[11] || '',
+            'Grupo de Pago': cleanData[12] || '',
+            'Movilidad geografica': cleanData[13] || '',
+            'Personas ProvNumSoe': cleanData[14] || '',
             'Sexo': cleanData[15] || '',
             'Tarifa': cleanData[16] || '',
-            'Empresas.Empresa': cleanData[17] || '',
-            'Empresas.CifDni': cleanData[18] || '',
-            'Número patronal': cleanData[19] || ''
+            'Empresas Empresa': cleanData[17] || '',
+            'Empresas CifDni': cleanData[18] || '',
+            'Numero_Patr': cleanData[19] || '',
+            'Txt_GrupoPago': cleanData[20] || '',
+            'Txt_Tarifa': cleanData[21] || '',
+            'CategoriaCuentaAnual': cleanData[22] || '',
+            'Txt_CategoriaCuentaAnual': cleanData[23] || '',
+            'Código nivel': cleanData[24] || '',
+            'Nivel Estudios': cleanData[25] || ''
         };
     }
 
@@ -1001,46 +1045,100 @@ export class ImportService {
      * Normaliza una fila del CSV a datos procesables
      */
     private normalizeCSVRow(row: SageCSVRow, rowNumber: number): ProcessedUserData {
+        const getValue = (...keys: string[]): string => {
+            for (const key of keys) {
+                const value = (row as any)?.[key];
+                if (typeof value === 'string' && value.trim() !== '') {
+                    return value;
+                }
+            }
+            return '';
+        };
+
         // Separar apellidos
-        const apellidos = row['Apellidos']?.trim() || '';
+        const apellidos = getValue('Apellidos').trim();
         const apellidosParts = apellidos.split(' ');
         const firstSurname = apellidosParts[0] || '';
         const secondSurname = apellidosParts.slice(1).join(' ') || undefined;
 
         // Convertir notación científica del NSS
-        const nssRaw = row['Personas.ProvNumSoe'];
+        const nssRaw = getValue(
+            'Personas ProvNumSoe',
+            // 'Personas.ProvNumSoe', // Legacy desactivado
+        );
         const nss = this.convertScientificNotation(nssRaw);
 
         // Convertir fechas
-        const birthDate = this.parseDate(row['Fecha de nacimiento']);
-        const startDate = this.parseDate(row['Fecha de alta']);
-        const endDate = this.parseDate(row['Fecha de baja']);
+        const birthDate = this.parseDate(getValue(
+            'Fecha de Nacimiento',
+            // 'Fecha de nacimiento', // Legacy desactivado
+        ));
+        const startDate = this.parseDate(getValue(
+            'Fecha de Alta',
+            // 'Fecha de alta', // Legacy desactivado
+        ));
+        const endDate = this.parseDate(getValue(
+            'Fecha de Baja',
+            // 'Fecha de baja', // Legacy desactivado
+        ));
 
         // Convertir grupo de cotización
-        const salaryGroup = row['Tarifa'] ? parseInt(row['Tarifa']) : undefined;
+        const tarifa = getValue('Tarifa');
+        const salaryGroup = tarifa ? parseInt(tarifa) : undefined;
+
+        const phoneValue = getValue(
+            'Movilidad geografica',
+            // 'Movilidad geográfica', // Legacy desactivado
+        );
 
         const normalizedData = {
             // Datos del usuario
-            dni: row['Personas.Dni']?.trim(),
-            name: row['Nombre cli/pro.']?.trim(),
+            dni: getValue(
+                'personas dni',
+                // 'Personas.Dni', // Legacy desactivado
+            ).trim(),
+            name: getValue(
+                'Nombre cli/pro',
+                // 'Nombre cli/pro.', // Legacy desactivado
+            ).trim(),
             first_surname: firstSurname,
             second_surname: secondSurname,
-            email: row['Email']?.trim() || undefined,
+            email: getValue('Email').trim() || undefined,
+            phone: phoneValue.trim() || undefined,
             birth_date: birthDate,
-            professional_category: row['Categoría']?.trim() || undefined,
+            professional_category: getValue('Categoría').trim() || undefined,
             salary_group: salaryGroup,
             nss: nss,
-            import_id: row['EmpleadoNomina.CodigoEmpleado']?.trim(),
+            import_id: getValue(
+                'EmpleadoNomina CodigoEmpleado',
+                // 'EmpleadoNomina.CodigoEmpleado', // Legacy desactivado
+            ).trim(),
 
             // Datos de la empresa
-            company_name: row['Empresas.Empresa']?.trim(),
-            company_cif: row['Empresas.CifDni']?.trim(),
-            company_import_id: row['Empresas.Empresa']?.trim(),
+            company_name: getValue(
+                'Empresas Empresa',
+                // 'Empresas.Empresa', // Legacy desactivado
+            ).trim(),
+            company_cif: getValue(
+                'Empresas CifDni',
+                // 'Empresas.CifDni', // Legacy desactivado
+            ).trim(),
+            company_import_id: getValue(
+                'Empresas Empresa',
+                // 'Empresas.Empresa', // Legacy desactivado
+            ).trim(),
 
             // Datos del centro
-            center_name: row['Centro trabajo']?.trim(),
-            center_code: row['Cód. centro trabajo']?.trim(),
-            employer_number: row['Número patronal']?.trim() || undefined,
+            center_name: getValue('Centro trabajo').trim(),
+            center_code: getValue(
+                'Cód centro trabajo',
+                // 'Cód. centro trabajo', // Legacy desactivado
+            ).trim(),
+            employer_number: getValue(
+                'Numero_Patr',
+                // 'NumeroPatronal', // Legacy desactivado
+                // 'Número patronal', // Legacy desactivado
+            ).trim() || undefined,
 
             // Datos de la relación
             start_date: startDate,
@@ -1784,7 +1882,9 @@ export class ImportService {
      */
     private extractNSSFromCSV(csvRowData: any): string | null {
         if (!csvRowData || typeof csvRowData !== 'object') return null;
-        const nssRaw = csvRowData['Personas.ProvNumSoe'];
+        const nssRaw = csvRowData['Personas ProvNumSoe'];
+        // Legacy desactivado:
+        // const nssRaw = csvRowData['Personas.ProvNumSoe'] || csvRowData['NSS'];
         return this.convertScientificNotation(nssRaw) || null;
     }
 
@@ -1814,6 +1914,10 @@ export class ImportService {
             updates.email = data.email;
         }
 
+        if (!existingUser.phone && data.phone) {
+            updates.phone = data.phone;
+        }
+
         return updates;
     }
 
@@ -1839,7 +1943,7 @@ export class ImportService {
             salary_group: data.salary_group || null,
             nss: data.nss || null,
             registration_date: new Date(),
-            phone: null,
+            phone: data.phone || null,
             document_type: document_type,
             gender: Gender.OTHER,
             // Set explicit defaults to avoid NULLs from imports
@@ -2375,7 +2479,8 @@ export class ImportService {
                     name: csvData.name,
                     first_surname: csvData.first_surname,
                     second_surname: csvData.second_surname,
-                    email: csvData.email
+                    email: csvData.email,
+                    phone: csvData.phone
                 },
                 
                 // Datos BD antes del cambio (para reversión)
@@ -2385,7 +2490,8 @@ export class ImportService {
                     name: existingUser.name,
                     first_surname: existingUser.first_surname,
                     second_surname: existingUser.second_surname,
-                    email: existingUser.email
+                    email: existingUser.email,
+                    phone: existingUser.phone
                 },
                 
                 // Datos BD después del cambio
@@ -2395,11 +2501,12 @@ export class ImportService {
                     name: csvData.name,
                     first_surname: csvData.first_surname,
                     second_surname: csvData.second_surname,
-                    email: csvData.email || existingUser.email
+                    email: csvData.email || existingUser.email,
+                    phone: csvData.phone || existingUser.phone
                 },
                 
                 // Incluir 'nss' porque en la acción manual actualizamos NSS desde el CSV
-                updated_fields: ["dni", "nss", "name", "first_surname", "second_surname", "email"],
+                updated_fields: ["dni", "nss", "name", "first_surname", "second_surname", "email", "phone"],
                 can_revert: true
             };
 
@@ -2414,6 +2521,7 @@ export class ImportService {
                     first_surname: csvData.first_surname,
                     second_surname: csvData.second_surname,
                     email: csvData.email || existingUser.email, // Usar email CSV o mantener BD
+                    phone: csvData.phone || existingUser.phone,
                     updatedAt: new Date()
                 })
                 .where(eq(users.id_user, userId));
@@ -2479,6 +2587,7 @@ export class ImportService {
                     first_surname: metadata.original_bd.first_surname,
                     second_surname: metadata.original_bd.second_surname,
                     email: metadata.original_bd.email,
+                    phone: metadata.original_bd.phone ?? null,
                     updatedAt: new Date()
                 })
                 .where(eq(users.id_user, userId));

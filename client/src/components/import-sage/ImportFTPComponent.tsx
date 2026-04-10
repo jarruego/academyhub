@@ -5,6 +5,7 @@ import { useImportUploadFtp } from '../../hooks/api/import-sage/useImportUploadF
 import { useJobStatus } from '../../hooks/api/import-sage/useJobStatus';
 import { useSftpConnection } from '../../hooks/api/import-sage/useSftpConnection';
 import { useSftpFileDownload } from '../../hooks/api/import-sage/useSftpFileDownload';
+import { useCancelImport } from '../../hooks/api/import-sage/useCancelImport';
 import { ImportSummary } from '../../types/import.types';
 
 const { Title, Text, Paragraph } = Typography;
@@ -18,6 +19,7 @@ export const ImportFTPComponent: React.FC = () => {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const ftpMutation = useImportUploadFtp();
+  const cancelMutation = useCancelImport();
   const {
     data: jobStatus,
     isLoading: isStatusLoading,
@@ -50,6 +52,11 @@ export const ImportFTPComponent: React.FC = () => {
       setIsPolling(false);
       message.error(jobStatus.errorMessage || 'La importación desde FTP falló');
     }
+
+    if (jobStatus.status === 'cancelled') {
+      setIsPolling(false);
+      message.warning('Importación cancelada');
+    }
   }, [jobStatus, message]);
 
   const handleStart = async () => {
@@ -77,6 +84,18 @@ export const ImportFTPComponent: React.FC = () => {
     setImportSummary(null);
   };
 
+  const handleCancelImport = async () => {
+    if (!currentJobId) return;
+
+    try {
+      await cancelMutation.mutateAsync(currentJobId);
+      await refetchStatus();
+      message.success('Solicitud de cancelación enviada');
+    } catch (error: unknown) {
+      message.error(error instanceof Error ? error.message : 'Error cancelando importación');
+    }
+  };
+
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
@@ -99,6 +118,8 @@ export const ImportFTPComponent: React.FC = () => {
         return <Tag color="blue" icon={<Spin size="small" />}>Procesando</Tag>;
       case 'pending':
         return <Tag color="default" icon={<ExclamationCircleOutlined />}>Pendiente</Tag>;
+      case 'cancelled':
+        return <Tag color="orange" icon={<StopOutlined />}>Cancelado</Tag>;
       default:
         return null;
     }
@@ -181,9 +202,19 @@ export const ImportFTPComponent: React.FC = () => {
               Reintentar estado
             </Button>
           )}
+          {currentJobId && isPolling && (
+            <Button
+              danger
+              icon={<StopOutlined />}
+              onClick={handleCancelImport}
+              loading={cancelMutation.isPending}
+            >
+              Cancelar importación
+            </Button>
+          )}
           {currentJobId && (
-            <Button icon={<StopOutlined />} onClick={handleReset}>
-              Reset
+            <Button icon={<CloseCircleOutlined />} onClick={handleReset}>
+              Limpiar vista
             </Button>
           )}
         </Space>
