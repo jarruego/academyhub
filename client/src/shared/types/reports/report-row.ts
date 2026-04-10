@@ -18,9 +18,12 @@ export type ReportRow = {
   group_start_date?: string | Date | null;
   group_end_date?: string | Date | null;
   role_shortname?: string | null;
+  professional_category?: string | null;
+  gender?: string | null;
   completion_percentage?: number | string | null;
   time_spent?: number | null;
   course_name?: string | null;
+  modality?: string | null;
   moodle_id?: number | null;
   moodle_username?: string | null;
   moodle_password?: string | null;

@@ -19,6 +19,8 @@ import type { ReportExportRequest } from '../../hooks/api/reports/use-export-rep
 import { ReportRow } from '../../shared/types/reports/report-row';
 import { PaginationResult } from '../../shared/types/pagination';
 import type { Center } from '../../shared/types/center/center';
+import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
+import { getApiHost } from '../../utils/api/get-api-host.util';
 
 const formatTimeSpent = (value?: number | null) => {
   if (value === null || value === undefined) return '-';
@@ -153,6 +155,7 @@ export default function ReportsRoute() {
   const [exportReportType, setExportReportType] = useState<'dedication' | 'certification' | 'bonification' | 'excel'>('dedication');
 
   const { exportPdf: doExportPdf } = useReportExport();
+  const request = useAuthenticatedAxios<PaginationResult<ReportRow>>();
   const [modal, modalContextHolder] = Modal.useModal();
 
   const handleExport = async () => {
@@ -184,6 +187,109 @@ export default function ReportsRoute() {
   const paginated: PaginationResult<ReportRow> | undefined = data;
   const rows: ReportRow[] = paginated?.data ?? [];
   const total: number | undefined = paginated?.total;
+
+  const excelOldHeader = [
+    'Tipo Curso',
+    'Curso',
+    'Grupo',
+    'Fec. Ini. Curso',
+    'Fec. Fin Curso',
+    'F.Ini. Grupo',
+    'F.Fin Grupo',
+    'Id. Moodle',
+    'Nombre Alumno',
+    '1 Apellido',
+    '2 Apellido',
+    'Dni',
+    'Email',
+    'Teléfono',
+    'Rol',
+    'Cargo',
+    'Sexo',
+    '% Realizado',
+    'Tiempo Empleado',
+    'Centro',
+    'Nº Patronal',
+    'Empresa',
+  ];
+
+  const escapeCsvCell = (value: unknown) => {
+    if (value === null || value === undefined) return '""';
+    const text = String(value).replace(/"/g, '""').replace(/\r?\n/g, ' ');
+    return `"${text}"`;
+  };
+
+  const mapRowToExcelOld = (row: ReportRow) => {
+    const completion = row.completion_percentage ?? '';
+    const timeSpent = row.time_spent === null || row.time_spent === undefined ? '' : formatTimeSpent(row.time_spent);
+
+    return [
+      row.modality ?? '',
+      row.course_name ?? '',
+      row.group_name ?? '',
+      '',
+      '',
+      row.group_start_date ? dayjs(row.group_start_date).format('DD/MM/YYYY') : '',
+      row.group_end_date ? dayjs(row.group_end_date).format('DD/MM/YYYY') : '',
+      row.moodle_id ?? '',
+      row.name ?? '',
+      row.first_surname ?? '',
+      row.second_surname ?? '',
+      row.dni ?? '',
+      row.email ?? '',
+      row.phone ?? '',
+      row.role_shortname ?? '',
+      row.professional_category ?? '',
+      row.gender ?? '',
+      completion,
+      timeSpent,
+      row.center_name ?? '',
+      row.employer_number ?? '',
+      row.company_name ?? '',
+    ];
+  };
+
+  const buildExcelOldCsv = (sourceRows: ReportRow[]) => {
+    const lines = [
+      excelOldHeader.map(escapeCsvCell).join(';'),
+      ...sourceRows.map((row) => mapRowToExcelOld(row).map(escapeCsvCell).join(';')),
+    ];
+
+    return lines.join('\r\n');
+  };
+
+  const fetchAllFilteredRowsForExcelOld = async () => {
+    const batchSize = 2000;
+    let currentPage = 1;
+    let totalPages = 1;
+    const allRows: ReportRow[] = [];
+
+    while (currentPage <= totalPages) {
+      const { data: pageResult } = await request({
+        method: 'GET',
+        url: `${getApiHost()}/reports`,
+        params: { ...params, page: currentPage, limit: batchSize },
+      });
+
+      allRows.push(...(pageResult?.data ?? []));
+      totalPages = Number(pageResult?.totalPages ?? 1);
+      currentPage += 1;
+    }
+
+    return allRows;
+  };
+
+  const downloadCsvFile = (csvContent: string, filename: string) => {
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
 
   
 
@@ -498,12 +604,12 @@ export default function ReportsRoute() {
             <Space>
               <Select
                 value={exportReportType}
-                onChange={(val) => setExportReportType(val as 'dedication' | 'certification' | 'bonification')}
+                onChange={(val) => setExportReportType(val as 'dedication' | 'certification' | 'bonification' | 'excel')}
                 options={[
                   { label: 'PDF Dedicación', value: 'dedication' },
                   { label: 'PDF Certificado', value: 'certification' },
                   { label: 'PDF Bonificada', value: 'bonification' },
-                  { label: 'Exportar a Excel', value: 'excel' },
+                  { label: 'Exportar a Excel OLD', value: 'excel' },
                 ]}
                 style={{ minWidth: 220 }}
               />
@@ -513,93 +619,29 @@ export default function ReportsRoute() {
                   const selected = selectedRowKeys && selectedRowKeys.length ? rows.filter(row => selectedRowKeys.includes(getRowKey(row))) : [];
                   if (!selected.length) {
                     modal.confirm({
-                      title: 'Exportación a Excel',
+                      title: 'Exportación a Excel OLD',
                       content: 'No ha seleccionado alumnos para exportar. ¿Desea exportar todos los registros filtrados?',
                       okText: 'Exportar todos',
                       cancelText: 'Cancelar',
                       onOk: async () => {
                         // Exportar todos los registros filtrados (todas las páginas)
                         try {
-                          // Clonar los filtros actuales y quitar paginación
-                          const fullParams = { ...params, page: 1, limit: 100000 };
-                          // Llamar a la API para obtener todos los datos filtrados
-                          const axios = await import('axios');
-                          const apiHost = (await import('../../utils/api/get-api-host.util')).getApiHost();
-                          const token = localStorage.getItem('token');
-                          const response = await axios.default.get(`${apiHost}/reports`, {
-                            params: fullParams,
-                            headers: token ? { Authorization: `Bearer ${token}` } : {},
-                          });
-                          const allRows = response.data?.data ?? [];
+                          const allRows = await fetchAllFilteredRowsForExcelOld();
                           if (!allRows.length) {
-                            modal.error({ title: 'Exportación a Excel', content: 'No hay registros para exportar.' });
+                            modal.error({ title: 'Exportación a Excel OLD', content: 'No hay registros para exportar.' });
                             return;
                           }
-                          const header = columns.map(col => col.title);
-                          const csvRows = allRows.map((row: ReportRow) => {
-                            return columns.map(col => {
-                              let val = row[col.dataIndex as keyof ReportRow];
-                              if (col.dataIndex === 'group_start_date' || col.dataIndex === 'group_end_date') {
-                                return val ? dayjs(val).format('DD/MM/YYYY') : '';
-                              }
-                              if (col.dataIndex === 'time_spent') {
-                                return formatTimeSpent(val as number | null);
-                              }
-                              if (typeof val === 'string') {
-                                return '"' + val.replace(/"/g, '""').replace(/\n/g, ' ') + '"';
-                              }
-                              return val ?? '';
-                            });
-                          });
-                          const csvContent = [header, ...csvRows].map(r => r.join(';')).join('\r\n');
-                          const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-                          const url = window.URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = 'informe.csv';
-                          document.body.appendChild(a);
-                          a.click();
-                          a.remove();
-                          window.URL.revokeObjectURL(url);
+                          const csvContent = buildExcelOldCsv(allRows);
+                          downloadCsvFile(csvContent, 'informe-old.csv');
                         } catch (err) {
-                          modal.error({ title: 'Exportación a Excel', content: 'Error al obtener todos los registros.' });
+                          modal.error({ title: 'Exportación a Excel OLD', content: 'Error al obtener todos los registros.' });
                         }
                       },
                     });
                     return;
                   }
-                  // Cabecera
-                  const header = columns.map(col => col.title);
-                  // Filas
-                  const csvRows = selected.map(row => {
-                    return columns.map(col => {
-                      let val = row[col.dataIndex as keyof typeof row];
-                      // Formatear fechas
-                      if (col.dataIndex === 'group_start_date' || col.dataIndex === 'group_end_date') {
-                        return val ? dayjs(val).format('DD/MM/YYYY') : '';
-                      }
-                      // Formatear tiempo
-                      if (col.dataIndex === 'time_spent') {
-                        return formatTimeSpent(val as number | null);
-                      }
-                      // Escapar comillas y saltos de línea
-                      if (typeof val === 'string') {
-                        return '"' + val.replace(/"/g, '""').replace(/\n/g, ' ') + '"';
-                      }
-                      return val ?? '';
-                    });
-                  });
-                  const csvContent = [header, ...csvRows].map(r => r.join(';')).join('\r\n');
-                  // BOM para Excel
-                  const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = 'informe.csv';
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  window.URL.revokeObjectURL(url);
+                  const csvContent = buildExcelOldCsv(selected);
+                  downloadCsvFile(csvContent, 'informe-old.csv');
                 } else {
                   setExportModalVisible(true);
                 }

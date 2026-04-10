@@ -49,6 +49,12 @@ export class ReportRowDTO {
   role_shortname?: string;
 
   @ApiPropertyOptional()
+  professional_category?: string | null;
+
+  @ApiPropertyOptional()
+  gender?: string | null;
+
+  @ApiPropertyOptional()
   completion_percentage?: number | string;
 
   @ApiPropertyOptional()
