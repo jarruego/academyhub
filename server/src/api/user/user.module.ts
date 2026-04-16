@@ -12,14 +12,22 @@ import { UserGroupRepository } from 'src/database/repository/group/user-group.re
 import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
 import { MoodleUserModule } from '../moodle-user/moodle-user.module';
 import { MoodleModule } from '../moodle/moodle.module';
+import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
+import { UserCoursesCertificateService } from './user-courses-certificate.service';
+import { PdfService } from 'src/common/pdf/pdf.service';
+import { ReportRenderer } from '../reports/report-renderer.service';
 
 @Module({
   providers: [
     UserService, 
     UserComparisonService,
+    UserCoursesCertificateService,
+    PdfService,
+    ReportRenderer,
     UserRepository, 
     CenterRepository, 
     CompanyRepository, 
+    OrganizationRepository,
     UserGroupRepository, 
     UserCourseRepository
   ],

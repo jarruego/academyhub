@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards, ParseIntPipe, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards, ParseIntPipe, BadRequestException, Res } from '@nestjs/common';
 import { CreateUserDTO } from '../../dto/user/create-user.dto';
 import { UpdateUserDTO } from '../../dto/user/update-user.dto';
 import { UserService } from './user.service';
@@ -7,12 +7,15 @@ import { FilterUserDTO } from 'src/dto/user/filter-user.dto';
 import { RoleGuard } from 'src/guards/role.guard';
 import { Role } from 'src/guards/role.enum';
 import { PaginatedUsersResult, UserWithCenters } from 'src/types/user/paginated-users.interface';
+import type { Response } from 'express';
+import { UserCoursesCertificateService } from './user-courses-certificate.service';
 
 @Controller('user')
 export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly moodleService: MoodleService,
+    private readonly userCoursesCertificateService: UserCoursesCertificateService,
   ) {}
 
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
@@ -89,6 +92,17 @@ export class UserController {
   async findCoursesByUser(@Param('id') id: string) {
     const numericId = parseInt(id, 10);
     return this.userService.findCoursesByUserId(numericId);
+  }
+
+  @Get(':id/courses-certificate')
+  async getCoursesCertificateByUser(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ) {
+    if (!Number.isFinite(id) || id <= 0) {
+      throw new BadRequestException('Invalid user id');
+    }
+    await this.userCoursesCertificateService.streamByUserId(id, res);
   }
 
   @Get(':id')

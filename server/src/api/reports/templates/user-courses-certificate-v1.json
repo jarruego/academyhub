@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "id": "user-courses-certificate-v1",
+    "title": "Certificado de cursos por usuario"
+  },
+  "variables": [
+    "issuer",
+    "logo",
+    "signature",
+    "student_name",
+    "student_dni",
+    "rows",
+    "company_city",
+    "issue_date"
+  ],
+  "styles": {
+    "headerTitle": {
+      "fontSize": 16,
+      "align": "center"
+    },
+    "paragraph": {
+      "fontSize": 10,
+      "align": "left"
+    },
+    "tableHeader": {
+      "fontSize": 10,
+      "align": "left"
+    },
+    "tableCell": {
+      "fontSize": 9,
+      "align": "left"
+    },
+    "closingCenteredBold": {
+      "fontSize": 11,
+      "align": "center",
+      "font": "Helvetica-Bold",
+      "marginTopLines": 2,
+      "marginBottomLines": 1
+    }
+  },
+  "pages": [
+    {
+      "elements": [
+        {
+          "type": "image",
+          "var": "logo",
+          "width": 120,
+          "position": "top-right"
+        },
+        {
+          "type": "paragraph",
+          "text": "{{issuer}}",
+          "style": "paragraph"
+        },
+        {
+          "type": "title",
+          "text": "Certifica",
+          "style": "headerTitle",
+          "marginTopLines": 1
+        },
+        {
+          "type": "paragraph",
+          "text": "Que el alumno/a {{student_name}}, con dni {{student_dni}}, ha realizado los siguientes cursos:",
+          "style": "paragraph",
+          "marginTopLines": 1
+        },
+        {
+          "type": "table",
+          "rowsVar": "rows",
+          "columns": [
+            {
+              "title": "Curso",
+              "path": "course_name"
+            },
+            {
+              "title": "Modalidad",
+              "path": "modality",
+              "width": 95
+            },
+            {
+              "title": "Progreso",
+              "path": "completion",
+              "width": 70
+            }
+          ],
+          "headerStyle": "tableHeader",
+          "cellStyle": "tableCell",
+          "marginTopLines": 1
+        },
+        {
+          "type": "paragraph",
+          "text": "Y para que asi conste, lo firmo en {{company_city}} a fecha {{issue_date}}",
+          "style": "closingCenteredBold"
+        },
+        {
+          "type": "image",
+          "var": "signature",
+          "width": 200,
+          "position": "center",
+          "marginTopLines": 1
+        }
+      ]
+    }
+  ]
+}
