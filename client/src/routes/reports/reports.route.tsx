@@ -205,12 +205,12 @@ export default function ReportsRoute() {
     'Teléfono',
     'Rol',
     'Cargo',
-    'Sexo',
     '% Realizado',
     'Tiempo Empleado',
     'Centro',
     'Nº Patronal',
     'Empresa',
+    'NIF',
   ];
 
   const escapeCsvCell = (value: unknown) => {
@@ -240,12 +240,12 @@ export default function ReportsRoute() {
       row.phone ?? '',
       row.role_shortname ?? '',
       row.professional_category ?? '',
-      row.gender ?? '',
       completion,
       timeSpent,
       row.center_name ?? '',
       row.employer_number ?? '',
       row.company_name ?? '',
+      row.company_cif ?? '',
     ];
   };
 
