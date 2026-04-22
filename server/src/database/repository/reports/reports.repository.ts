@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { Repository, QueryOptions } from "../repository";
 import { and, eq, sql, or, count, desc } from "drizzle-orm";
-import type { SQL } from 'drizzle-orm/sql/sql.js';
-import type { PgColumn } from 'drizzle-orm/pg-core/columns/index.js';
+import type { SQL } from "drizzle-orm/sql";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { userTable } from "src/database/schema/tables/user.table";
 import { groupTable } from "src/database/schema/tables/group.table";
