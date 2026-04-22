@@ -1,0 +1,1 @@
+ALTER TABLE "users" RENAME COLUMN "professional_category" TO "job_position";

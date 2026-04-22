@@ -260,6 +260,13 @@
       "when": 1775044943711,
       "tag": "0036_narrow_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1776862017812,
+      "tag": "0037_tan_harpoon",
+      "breakpoints": true
     }
   ]
 }
