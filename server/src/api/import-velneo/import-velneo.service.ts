@@ -400,7 +400,7 @@ export class ImportVelneoService {
         name: name || '', first_surname: first_surname || '', second_surname: second_surname || null,
         dni: dniToSave, document_type: dniToSave && /^[XYZ]/i.test(String(dniToSave)) ? 'NIE' : 'DNI',
         email: email || null, phone: phone || null, nss: nssToSave,
-        registration_date: null, birth_date: null, gender: 'Other', professional_category: null,
+        registration_date: null, birth_date: null, gender: 'Other', job_position: null,
         salary_group: 0, disability: false, terrorism_victim: false, gender_violence_victim: false,
         education_level: row.education_level || null, address: null, postal_code: null, city: null, province: null, country: null,
         observations: null, seasonalWorker: false, erteLaw: false, accreditationDiploma: 'S'

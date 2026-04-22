@@ -68,7 +68,7 @@ export class CreateUserDTO {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  professional_category: string;
+  job_position: string;
 
   @ApiPropertyOptional()
   @IsOptional()

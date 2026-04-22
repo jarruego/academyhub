@@ -60,7 +60,7 @@ export class UserRepository extends Repository {
         if (filter.nss) where.push(ilike(userTable.nss, `%{filter.nss}%`));
         // if (filter.document_type) where.push(ilike(userTable.document_type, `%{filter.document_type}%`));
         if (filter.birth_date) where.push(eq(userTable.birth_date, filter.birth_date));
-        if (filter.professional_category) where.push(ilike(userTable.professional_category, `%{filter.professional_category}%`));
+        if (filter.job_position) where.push(ilike(userTable.job_position, `%{filter.job_position}%`));
         if (filter.salary_group) where.push(eq(userTable.salary_group, filter.salary_group));
         if (filter.education_level) where.push(ilike(userTable.education_level, `%{filter.education_level}%`));
         if (filter.postal_code) where.push(ilike(userTable.postal_code, `%{filter.postal_code}%`));

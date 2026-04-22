@@ -49,7 +49,7 @@ export class ReportRowDTO {
   role_shortname?: string;
 
   @ApiPropertyOptional()
-  professional_category?: string | null;
+  job_position?: string | null;
 
   @ApiPropertyOptional()
   gender?: string | null;

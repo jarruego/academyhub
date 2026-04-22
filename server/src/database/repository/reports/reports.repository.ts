@@ -218,7 +218,7 @@ export class ReportsRepository extends Repository {
       group_start_date: r.group?.start_date ?? null,
       group_end_date: r.group?.end_date ?? null,
       role_shortname: r.role?.role_shortname ?? null,
-      professional_category: r.user?.professional_category ?? null,
+      job_position: r.user?.job_position ?? null,
       gender: r.user?.gender ?? null,
       completion_percentage: r.user_group?.completion_percentage ?? r.user_course?.completion_percentage ?? null,
       time_spent: r.user_course?.time_spent ?? null,

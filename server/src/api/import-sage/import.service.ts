@@ -1106,7 +1106,7 @@ export class ImportService {
             email: getValue('Email').trim() || undefined,
             phone: phoneValue.trim() || undefined,
             birth_date: birthDate,
-            professional_category: getValue('Categoría').trim() || undefined,
+            job_position: getValue('Categoría').trim() || undefined,
             salary_group: salaryGroup,
             nss: nss,
             import_id: getValue(
@@ -1898,8 +1898,8 @@ export class ImportService {
             updates.salary_group = data.salary_group;
         }
 
-        if (!existingUser.professional_category && data.professional_category) {
-            updates.professional_category = data.professional_category;
+        if (!existingUser.job_position && data.job_position) {
+            updates.job_position = data.job_position;
         }
 
         if (!existingUser.birth_date && data.birth_date) {
@@ -1939,7 +1939,7 @@ export class ImportService {
             dni: data.dni,
             email: data.email || null,
             birth_date: data.birth_date || null,
-            professional_category: data.professional_category || null,
+            job_position: data.job_position || null,
             salary_group: data.salary_group || null,
             nss: data.nss || null,
             registration_date: new Date(),

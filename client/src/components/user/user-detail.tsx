@@ -55,7 +55,7 @@ const USER_FORM_SCHEMA = z.object({
   }).nullish(),
   phone: z.string({ required_error: "El teléfono es obligatorio" }).nullish(),
   address: z.string().nullish(),
-  professional_category: z.string().nullish(),
+  job_position: z.string().nullish(),
   salary_group: z.number().int().positive().nullish(),
   disability: z.boolean().nullish().default(false),
   terrorism_victim: z.boolean().nullish().default(false),
@@ -364,8 +364,8 @@ const navigate = useNavigate();
             <Form.Item label="NSS (Seg.Social)" name="nss" style={{ width: '20ch' }}>
               <Controller name="nss" control={control} render={({ field }) => <Input {...field} id="nss" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} readOnly={!canEdit} />} />
             </Form.Item>
-            <Form.Item label="Categoría Profesional" name="professional_category" style={{ flex: 1 }}>
-              <Controller name="professional_category" control={control} render={({ field }) => <Input {...field} id="professional_category" autoComplete="organization-title" value={field.value ?? undefined} readOnly={!canEdit} />} />
+            <Form.Item label="Puesto de trabajo" name="job_position" style={{ flex: 1 }}>
+              <Controller name="job_position" control={control} render={({ field }) => <Input {...field} id="job_position" autoComplete="organization-title" value={field.value ?? undefined} readOnly={!canEdit} />} />
             </Form.Item>
           </div>
           <div style={{ display: 'flex', gap: '16px' }}>

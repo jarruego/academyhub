@@ -56,7 +56,7 @@ export class FilterUserDTO {
 
   @IsOptional()
   @IsString()
-  professional_category?: string;
+  job_position?: string;
 
   @IsOptional()
   @IsInt()

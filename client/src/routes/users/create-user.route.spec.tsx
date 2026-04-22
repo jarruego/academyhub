@@ -40,7 +40,7 @@ describe("<CreateUserRoute/>", () => {
             const province = await screen.findByTestId("province");
             const city = await screen.findByTestId("city");
             const postalCode = await screen.findByTestId("postal-code");
-            const professionalCategory = await screen.findByTestId("professional-category");
+            const jobPosition = await screen.findByTestId("job-position");
             const educationLevel = await screen.findByTestId("education-level");
             const nss = await screen.findByTestId("nss");
             const submit = await screen.findByTestId("submit");
@@ -56,7 +56,7 @@ describe("<CreateUserRoute/>", () => {
             await userEvent.type(province, "Madrid");
             await userEvent.type(city, "Madrid");
             await userEvent.type(postalCode, "28080");
-            await userEvent.type(professionalCategory, "Ingeniero");
+            await userEvent.type(jobPosition, "Ingeniero");
             await userEvent.type(educationLevel, "Universitario");
             await userEvent.type(nss, "123456789");
             await userEvent.click(submit);

@@ -239,7 +239,7 @@ export default function ReportsRoute() {
       row.email ?? '',
       row.phone ?? '',
       row.role_shortname ?? '',
-      row.professional_category ?? '',
+      row.job_position ?? '',
       completion,
       timeSpent,
       row.center_name ?? '',

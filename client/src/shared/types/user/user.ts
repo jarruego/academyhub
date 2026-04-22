@@ -11,7 +11,7 @@ export type User = {
     document_type?: DocumentType | null;
     phone?: string | null;
     address?: string | null;
-    professional_category?: string | null;
+    job_position?: string | null;
     salary_group?: number | null;
     birth_date?: Date | null;
     disability?: boolean | null;

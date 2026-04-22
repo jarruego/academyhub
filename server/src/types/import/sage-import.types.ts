@@ -10,7 +10,7 @@ export interface SageCSVRow {
     'Apellidos': string;                             // Apellidos -> users.first_surname + second_surname
     'Fecha de Alta': string;                         // Fecha alta -> user_center.start_date
     'Fecha de Baja': string;                         // Fecha baja -> user_center.end_date
-    'Categoría': string;                             // Categoría -> users.professional_category
+    'Categoría': string;                             // Categoría -> users.job_position
     'Email': string;                                 // Email -> users.email
     'Fecha de Nacimiento': string;                   // Fecha nacimiento -> users.birth_date
     'Grupo de Pago': string;                         // No usado
@@ -57,7 +57,7 @@ export interface ProcessedUserData {
     email?: string;
     phone?: string;
     birth_date?: Date;
-    professional_category?: string;
+    job_position?: string;
     salary_group?: number;
     nss?: string;
     import_id: string; // EmpleadoNomina.CodigoEmpleado
