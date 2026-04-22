@@ -267,6 +267,13 @@
       "when": 1776862017812,
       "tag": "0037_tan_harpoon",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1776862752982,
+      "tag": "0038_lucky_thor_girl",
+      "breakpoints": true
     }
   ]
 }
