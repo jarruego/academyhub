@@ -219,8 +219,15 @@ export default function ReportsRoute() {
     return `"${text}"`;
   };
 
+  const formatSpanishDecimal = (value: unknown) => {
+    if (value === null || value === undefined || value === '') return '';
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) return String(value);
+    return numberValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const mapRowToExcelOld = (row: ReportRow) => {
-    const completion = row.completion_percentage ?? '';
+    const completion = formatSpanishDecimal(row.completion_percentage);
     const timeSpent = row.time_spent === null || row.time_spent === undefined ? '' : formatTimeSpent(row.time_spent);
 
     return [
