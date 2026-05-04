@@ -46,9 +46,12 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
 
     if (!decision) return null;
 
+    const csvRowData = detailData?.csvRowData;
+    const csvNss = csvRowData?.['Personas ProvNumSoe'] ?? csvRowData?.nss;
+
     const renderCSVData = () => {
         if (detailLoading) return <Spin size="small" tip="Cargando datos CSV..." />;
-        const data = detailData?.csvRowData;
+        const data = csvRowData;
         if (!data || typeof data !== 'object') return null;
 
         return (
@@ -119,6 +122,9 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
                         <Descriptions.Item label="Primer Apellido">{decision.firstSurnameCSV}</Descriptions.Item>
                         {decision.secondSurnameCSV && (
                             <Descriptions.Item label="Segundo Apellido">{decision.secondSurnameCSV}</Descriptions.Item>
+                        )}
+                        {csvNss && (
+                            <Descriptions.Item label="NSS">{csvNss}</Descriptions.Item>
                         )}
                         <Descriptions.Item label="Fuente">{decision.importSource}</Descriptions.Item>
                         <Descriptions.Item label="Procesado">{new Date(decision.createdAt).toLocaleString()}</Descriptions.Item>
