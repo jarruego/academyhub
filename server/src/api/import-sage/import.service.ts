@@ -533,6 +533,13 @@ export class ImportService {
     }
 
     private async findCsvFilesRecursive(rootDir: string): Promise<string[]> {
+        try {
+            await access(rootDir);
+        } catch (err) {
+            this.logger.warn(`Directorio de extracción no encontrado: ${rootDir}`);
+            return [];
+        }
+
         const entries = await readdir(rootDir, { withFileTypes: true });
         const csvFiles: string[] = [];
 

@@ -103,6 +103,20 @@ class RevertDecisionDto {
     reason?: string;
 }
 
+// Tipo local para representar los ficheros subidos por multer
+type MulterFile = {
+    fieldname: string;
+    originalname: string;
+    encoding: string;
+    mimetype: string;
+    size: number;
+    buffer: Buffer;
+    destination?: string;
+    filename?: string;
+    path?: string;
+    stream?: NodeJS.ReadableStream;
+};
+
 @ApiTags('Import')
 @ApiBearerAuth()
 @Controller('api/import')
@@ -140,7 +154,7 @@ export class ImportController {
             fileSize: 50 * 1024 * 1024 // 50MB máximo
         }
     }))
-    async uploadCSV(@UploadedFile() file: Express.Multer.File): Promise<UploadCSVResponseDto> {
+    async uploadCSV(@UploadedFile() file: MulterFile): Promise<UploadCSVResponseDto> {
         if (!file) {
             throw new HttpException('No se ha proporcionado ningún archivo', HttpStatus.BAD_REQUEST);
         }
