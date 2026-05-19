@@ -1166,12 +1166,20 @@ export class ImportService {
         if (!value || value.trim() === '') return undefined;
         
         try {
-            // Reemplazar coma por punto para el parseFloat
-            const normalizedValue = value.replace(',', '.');
+            const raw = value.trim();
+
+            // Si el valor es una cadena de solo dígitos, preservarla tal cual
+            // (para mantener ceros a la izquierda como en algunos NSS)
+            if (/^\d+$/.test(raw)) {
+                return raw;
+            }
+
+            // Reemplazar coma por punto para el parseFloat en otros formatos
+            const normalizedValue = raw.replace(',', '.');
             const numericValue = parseFloat(normalizedValue);
-            
+
             if (isNaN(numericValue)) return undefined;
-            
+
             // Convertir a entero y luego a string para evitar decimales
             const integerValue = Math.floor(numericValue);
             return integerValue.toString();
