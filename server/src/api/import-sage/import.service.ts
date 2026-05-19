@@ -3012,6 +3012,40 @@ export class ImportService {
     }
 
     /**
+     * Elimina una decisión pendiente de la base de datos
+     */
+    async deleteDecision(decisionId: number): Promise<void> {
+        try {
+            const decision = await this.databaseService.db
+                .select()
+                .from(import_decisions)
+                .where(eq(import_decisions.id, decisionId))
+                .limit(1);
+
+            if (!decision.length) {
+                throw new Error('Decisión no encontrada');
+            }
+
+            const decisionRecord = decision[0];
+
+            // Solo permitir eliminar decisiones pendientes (no procesadas)
+            if (decisionRecord.processed) {
+                throw new Error('No se puede eliminar una decisión que ya ha sido procesada');
+            }
+
+            // Eliminar la decisión
+            await this.databaseService.db
+                .delete(import_decisions)
+                .where(eq(import_decisions.id, decisionId));
+
+            this.logger.log(`Decisión ${decisionId} eliminada exitosamente`);
+        } catch (error: any) {
+            this.logger.error('Error eliminando decisión:', error.message);
+            throw new Error(`Error eliminando decisión: ${error.message}`);
+        }
+    }
+
+    /**
      * Verifica la conexión al servidor de transferencia de datos (SFTP o FTP)
      */
     async checkSftpConnection(): Promise<{ isConnected: boolean; message: string; filename?: string }> {

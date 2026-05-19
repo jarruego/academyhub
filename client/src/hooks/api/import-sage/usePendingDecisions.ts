@@ -90,3 +90,36 @@ export const useProcessDecision = () => {
         },
     });
 };
+
+const deleteDecision = async (decisionId: number, token: string): Promise<void> => {
+    const response = await fetch(`${getApiHost()}/api/import/pending-decisions/${decisionId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+};
+
+export const useDeleteDecision = () => {
+    const queryClient = useQueryClient();
+    const { authInfo: { token } } = useAuthInfo();
+
+    return useMutation({
+        mutationFn: (decisionId: number) => deleteDecision(decisionId, token),
+        onSuccess: () => {
+            // Invalidar la query de decisiones pendientes para refrescar la lista
+            queryClient.invalidateQueries({ queryKey: ['pendingDecisions'] });
+        },
+        onError: (error) => {
+            console.error('Error deleting decision:', error);
+        },
+    });
+};

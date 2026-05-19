@@ -3,6 +3,7 @@ import {
     Post,
     Get,
     Put,
+    Delete,
     Param,
     Body,
     UploadedFile,
@@ -584,6 +585,46 @@ export class ImportController {
         const result = await this.importService.checkSftpConnection();
         this.logger.log(`[checkSftpConnection] Resultado: ${JSON.stringify(result)}`);
         return result;
+    }
+
+    /**
+     * Eliminar decisión pendiente
+     */
+    @Delete('pending-decisions/:decisionId')
+    @ApiOperation({ summary: 'Eliminar una decisión pendiente' })
+    @ApiResponse({ status: 200, description: 'Decisión eliminada exitosamente' })
+    @ApiResponse({ status: 404, description: 'Decisión no encontrada' })
+    @ApiResponse({ status: 400, description: 'La decisión no puede ser eliminada' })
+    async deleteDecision(@Param('decisionId') decisionId: string) {
+        const id = parseInt(decisionId);
+        
+        if (isNaN(id)) {
+            throw new HttpException('ID de decisión inválido', HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            await this.importService.deleteDecision(id);
+
+            return {
+                message: 'Decisión eliminada exitosamente',
+                decisionId: id
+            };
+        } catch (error: any) {
+            const errorMessage = error?.message || String(error);
+            
+            if (errorMessage.includes('no encontrada')) {
+                throw new HttpException(errorMessage, HttpStatus.NOT_FOUND);
+            }
+            
+            if (errorMessage.includes('No se puede eliminar')) {
+                throw new HttpException(errorMessage, HttpStatus.BAD_REQUEST);
+            }
+
+            throw new HttpException(
+                `Error eliminando decisión: ${errorMessage}`,
+                HttpStatus.INTERNAL_SERVER_ERROR
+            );
+        }
     }
 
     /**

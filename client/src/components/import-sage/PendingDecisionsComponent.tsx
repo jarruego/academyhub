@@ -26,7 +26,7 @@ import {
     SyncOutlined,
     SearchOutlined
 } from '@ant-design/icons';
-import { usePendingDecisions, useProcessDecision, usePendingDecision } from '../../hooks/api/import-sage/usePendingDecisions';
+import { usePendingDecisions, useProcessDecision, usePendingDecision, useDeleteDecision } from '../../hooks/api/import-sage/usePendingDecisions';
 import { PendingDecision, ProcessDecisionRequest } from '../../types/import.types';
 import { detectDocumentType, validateNSS } from '../../utils/detect-document-type';
 
@@ -48,7 +48,8 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
     loading
 }) => {
     const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip' | 'update_and_link'>('update_and_link');
-    const { modal } = App.useApp();
+    const { modal, message } = App.useApp();
+    const deleteDecisionMutation = useDeleteDecision();
 
     useEffect(() => {
         if (open) {
@@ -72,6 +73,27 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                 onProcess(decision.id, { action: selectedAction });
                 onClose();
                 setSelectedAction('update_and_link');
+            },
+        });
+    };
+
+    const handleDelete = () => {
+        modal.confirm({
+            title: 'Eliminar Decisión',
+            icon: <ExclamationCircleOutlined />,
+            content: `¿Estás seguro de que deseas eliminar esta decisión pendiente? Esta acción no se puede deshacer.`,
+            okText: 'Eliminar',
+            okType: 'danger',
+            cancelText: 'Cancelar',
+            onOk: async () => {
+                try {
+                    await deleteDecisionMutation.mutateAsync(decision.id);
+                    message.success('Decisión eliminada exitosamente');
+                    onClose();
+                    setSelectedAction('update_and_link');
+                } catch (error: any) {
+                    message.error(`Error eliminando decisión: ${error?.message || 'Error desconocido'}`);
+                }
             },
         });
     };
@@ -138,24 +160,31 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
             open={open}
             onCancel={onClose}
             width={800}
-            footer={[
-                <Button key="cancel" onClick={onClose}>
-                    Cancelar
-                </Button>,
-                <Button
-                    key="process"
-                    type="primary"
-                    loading={loading}
-                    onClick={handleProcess}
-                    icon={selectedAction === 'link' ? <LinkOutlined /> : 
-                          selectedAction === 'update_and_link' ? <SyncOutlined /> :
-                          selectedAction === 'create_new' ? <UserAddOutlined /> : <CloseOutlined />}
-                >
-                    {selectedAction === 'link' ? 'Vincular' :
-                     selectedAction === 'update_and_link' ? 'Actualizar y Vincular' :
-                     selectedAction === 'create_new' ? 'Crear Nuevo' : 'Omitir'}
-                </Button>
-            ]}
+            footer={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Button key="delete" danger loading={deleteDecisionMutation.isPending} onClick={handleDelete} icon={<CloseOutlined />}>
+                        Eliminar
+                    </Button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <Button key="cancel" onClick={onClose}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            key="process"
+                            type="primary"
+                            loading={loading}
+                            onClick={handleProcess}
+                            icon={selectedAction === 'link' ? <LinkOutlined /> : 
+                                  selectedAction === 'update_and_link' ? <SyncOutlined /> :
+                                  selectedAction === 'create_new' ? <UserAddOutlined /> : <CloseOutlined />}
+                        >
+                            {selectedAction === 'link' ? 'Vincular' :
+                             selectedAction === 'update_and_link' ? 'Actualizar y Vincular' :
+                             selectedAction === 'create_new' ? 'Crear Nuevo' : 'Omitir'}
+                        </Button>
+                    </div>
+                </div>
+            }
         >
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <Alert
