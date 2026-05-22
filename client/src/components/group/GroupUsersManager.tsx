@@ -23,6 +23,7 @@ import SendMailToGroupModal from '../mail/SendMailToGroupModal';
 interface Props {
   groupId: number | null | undefined;
   courseName?: string;
+  courseModality?: string | null;
   groupStart?: string | Date | null;
   groupEnd?: string | Date | null;
 }
@@ -59,7 +60,7 @@ const isStudentUser = (user: User): boolean => {
   return typeof role === 'string' ? role.toLowerCase() === 'student' : false;
 };
 
-const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, groupEnd }) => {
+const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, groupStart, groupEnd }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [modal, modalContextHolder] = Modal.useModal();
   const [notificationApi, notificationContextHolder] = notification.useNotification();
@@ -93,6 +94,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
   const { previewUsersToCreate, addUsers } = useMoodleGroupMembersApi();
   const exportUsersToMailCsv = useExportUsersToMailCsv();
   const exportUsersToSmsCsv = useExportUsersToSmsCsv();
+  const isPresentialCourse = String(courseModality ?? '').toLowerCase() === 'presencial';
 
   // NOTE: we intentionally avoid mounting a course query on every render because the
   // course short_name is only needed when exporting SMS CSV. Instead we pass the
@@ -227,6 +229,10 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
   };
 
   const columns = useMemo(() => {
+    if (isPresentialCourse) {
+      return USERS_TABLE_COLUMNS.filter((column) => column.title !== 'Rol' && column.title !== 'Tiempo usado');
+    }
+
     const groupSyncedColumn = {
       title: <Tooltip title="Indica si el usuario fue subido a Moodle">M</Tooltip>,
       dataIndex: 'moodle_synced_at',
@@ -241,10 +247,9 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
       }
     } as const;
 
-    // Removed separate 'M' column — keep only the Moodle (previously G) column which indicates sync
     const baseColumns = filterUsersTimeSpentColumn(USERS_TABLE_COLUMNS, itopTrainingEnabled);
     return [groupSyncedColumn, ...baseColumns];
-  }, [itopTrainingEnabled]);
+  }, [isPresentialCourse, itopTrainingEnabled]);
 
   // Compute totals for footer: total students and students with >=75% completion
   const { totalStudents, studentsAtOrAbove75 } = useMemo(() => {
@@ -291,62 +296,56 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
             >
               Importar XLS
             </Button>
-            <Button
-              type="default"
-              icon={<CloudDownloadOutlined style={{ color: '#f56b00' }} />}
+            {!isPresentialCourse && (
+              <Button
+                type="default"
+                icon={<CloudDownloadOutlined style={{ color: '#f56b00' }} />}
                 onClick={async () => {
-                if (!groupId) return;
-                const moodleId = groupData?.moodle_id;
-                if (!moodleId) {
-                  messageApi.warning('El grupo local no está asociado a un grupo de Moodle');
-                  return;
-                }
+                  if (!groupId) return;
+                  const moodleId = groupData?.moodle_id;
+                  if (!moodleId) {
+                    messageApi.warning('El grupo local no está asociado a un grupo de Moodle');
+                    return;
+                  }
 
-                try {
-                  // Call lightweight per-user sync instead of the full import
-                  const response = await syncMoodleGroupMembers(moodleId);
-                  const result = response.data;
-                  if (result?.success) {
-                    // Show both a toast and a persistent notification with the summary message
-                    messageApi.success(result.message || 'Usuarios sincronizados desde Moodle');
-                    notificationApi.success({
-                      message: 'Sincronización completada',
-                      description: result.message || 'Usuarios sincronizados desde Moodle',
-                      duration: 5,
-                    });
-
-                    // If there are per-user errors, also show a modal with up to 10 entries.
-                    // Open the modal slightly after showing notifications so they remain visible.
-                    if (result.details && result.details.length > 0) {
-                      const max = 10;
-                      const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => {
-                        const idPart = d.userId ?? 'id?';
-                        const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
-                        return <li key={idx}>{`${userPart}: ${d.error}`}</li>;
+                  try {
+                    const response = await syncMoodleGroupMembers(moodleId);
+                    const result = response.data;
+                    if (result?.success) {
+                      messageApi.success(result.message || 'Usuarios sincronizados desde Moodle');
+                      notificationApi.success({
+                        message: 'Sincronización completada',
+                        description: result.message || 'Usuarios sincronizados desde Moodle',
+                        duration: 5,
                       });
-                      const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
-                      setTimeout(() => {
-                        const summary = extractSummary(result.message);
-                        modal.info({
-                          title: 'Sincronización completada con errores',
-                          width: 600,
-                          content: (
-                            <div>
-                              <p>{summary}</p>
-                              <div>
-                                <strong>Errores:</strong>
-                                <ul style={{ marginTop: 8 }}>{items}</ul>
-                                {more}
-                              </div>
-                            </div>
-                          ),
+
+                      if (result.details && result.details.length > 0) {
+                        const max = 10;
+                        const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => {
+                          const idPart = d.userId ?? 'id?';
+                          const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
+                          return <li key={idx}>{`${userPart}: ${d.error}`}</li>;
                         });
-                      }, 100);
-                    }
-                    refetch();
-                  } else {
-                    // If the operation returned failure, show details if present
-                    if (result?.details && result.details.length > 0) {
+                        const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+                        setTimeout(() => {
+                          modal.info({
+                            title: 'Sincronización completada con errores',
+                            width: 600,
+                            content: (
+                              <div>
+                                <p>{extractSummary(result.message)}</p>
+                                <div>
+                                  <strong>Errores:</strong>
+                                  <ul style={{ marginTop: 8 }}>{items}</ul>
+                                  {more}
+                                </div>
+                              </div>
+                            ),
+                          });
+                        }, 100);
+                      }
+                      refetch();
+                    } else if (result?.details && result.details.length > 0) {
                       const max = 10;
                       const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => {
                         const idPart = d.userId ?? 'id?';
@@ -354,15 +353,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                         return <li key={idx}>{`${userPart} - ${d.error}`}</li>;
                       });
                       const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
-                      // Show modal including the summary message and the list of errors
                       setTimeout(() => {
-                        const summary = extractSummary(result.message);
                         modal.error({
                           title: 'Error al sincronizar usuarios desde Moodle',
                           width: 600,
                           content: (
                             <div>
-                              <p>{summary}</p>
+                              <p>{extractSummary(result.message)}</p>
                               <div>
                                 <strong>Errores:</strong>
                                 <ul style={{ marginTop: 8 }}>{items}</ul>
@@ -375,23 +372,24 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                     } else {
                       messageApi.error(result?.error || result?.message || 'Error al sincronizar usuarios desde Moodle');
                     }
+                  } catch (err) {
+                    console.error('Error sincronizando usuarios desde Moodle:', err);
+                    messageApi.error('Error al traer usuarios desde Moodle');
                   }
-                } catch (err) {
-                  console.error('Error sincronizando usuarios desde Moodle:', err);
-                  messageApi.error('Error al traer usuarios desde Moodle');
-                }
-              }}
-              loading={(syncMoodleGroupMembersPending) || isGroupLoading}
-              disabled={isGroupLoading || !groupData?.moodle_id}
-            >
-              Traer Moodle
-            </Button>
-            <Button
-              type="default"
-              icon={<SaveOutlined style={{ color: '#fa8c16' }} />}
-              onClick={async () => {
-                if (!groupId) return;
-                if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para subir a Moodle');
+                }}
+                loading={(syncMoodleGroupMembersPending) || isGroupLoading}
+                disabled={isGroupLoading || !groupData?.moodle_id}
+              >
+                Traer Moodle
+              </Button>
+            )}
+            {!isPresentialCourse && (
+              <Button
+                type="default"
+                icon={<SaveOutlined style={{ color: '#fa8c16' }} />}
+                onClick={async () => {
+                  if (!groupId) return;
+                  if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para subir a Moodle');
 
                 try {
                   const toCreate = await previewUsersToCreate(Number(groupId), selectedUserIds);
@@ -514,12 +512,12 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, groupStart, g
                   console.error('Error previsualizando usuarios a crear en Moodle:', err);
                   messageApi.error('No se pudo previsualizar la creación de usuarios en Moodle');
                 }
-              }}
-              
-              disabled={isGroupLoading}
-            >
-              Subir Moodle
-            </Button>
+                }}
+                disabled={isGroupLoading}
+              >
+                Subir Moodle
+              </Button>
+            )}
             <Button
               type="default"
               icon={<MergeCellsOutlined />}

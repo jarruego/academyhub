@@ -74,6 +74,7 @@ export default function CourseDetailRoute() {
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [modal, contextHolder] = Modal.useModal();
   const [userToLookup, setUserToLookup] = useState<number | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Provide explicit defaultValues so controlled inputs are never undefined on first render
   const defaultModality = Object.values(CourseModality)[0] as CourseModality;
@@ -142,7 +143,7 @@ export default function CourseDetailRoute() {
       start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
       end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
     });
-    navigate(-1);
+    setShowSuccessModal(true);
   };
 
   const handleDelete = async () => {
@@ -438,6 +439,7 @@ export default function CourseDetailRoute() {
                 <GroupUsersManager 
                   groupId={selectedGroupId}
                   courseName={courseData?.course_name}
+                  courseModality={courseData?.modality}
                   groupStart={sortedGroups.find(g => g.id_group === selectedGroupId)?.start_date}
                   groupEnd={sortedGroups.find(g => g.id_group === selectedGroupId)?.end_date}
                 />
@@ -484,6 +486,15 @@ export default function CourseDetailRoute() {
         setUserToLookup(null);
       }} footer={null}>
         {userToLookup && <UserDetail userId={userToLookup} />}
+      </Modal>
+      <Modal
+        title="Éxito"
+        open={showSuccessModal}
+        onOk={() => setShowSuccessModal(false)}
+        okText="Aceptar"
+        cancelButtonProps={{ style: { display: 'none' } }}
+      >
+        <p>El curso se ha guardado correctamente.</p>
       </Modal>
     </div>
   );

@@ -155,6 +155,7 @@ export default function EditGroupRoute() {
           <GroupUsersManager
             groupId={id_group ? parseInt(id_group, 10) : null}
             courseName={courseData?.course_name}
+            courseModality={courseData?.modality}
             groupStart={groupData?.start_date}
             groupEnd={groupData?.end_date}
           />
