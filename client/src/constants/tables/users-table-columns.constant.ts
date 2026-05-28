@@ -27,7 +27,7 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
     { title: 'Nombre', dataIndex: ['name'], sorter: {
         compare: (a,b) => a.name.localeCompare(b.name),
         multiple: 2
-    } }, 
+    } },
     { title: 'Apellidos', dataIndex: ['first_surname'], sorter: {
         compare: (a, b) => (a.first_surname || '').localeCompare(b.first_surname || ''),
     } },

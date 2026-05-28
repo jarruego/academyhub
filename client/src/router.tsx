@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import HomeRoute from './routes/home.route';
 import UsersRoute from './routes/users/users.route';
@@ -13,9 +14,9 @@ import CompaniesRoute from './routes/companies/companies.route';
 import CreateCompanyRoute from './routes/companies/create-company.route';
 import CompanyDetailRoute from './routes/companies/company-detail.route';
 import CreateCenterRoute from './routes/centers/create-center.route';
-import EditCenterRoute from './routes/centers/center-detail.route'; 
-import CentersRoute from './routes/centers/centers.route'; 
-import { Layout, Menu, Button } from 'antd';
+import EditCenterRoute from './routes/centers/center-detail.route';
+import CentersRoute from './routes/centers/centers.route';
+import { Layout, Menu, Button, Drawer, Grid } from 'antd';
 import type { MenuProps } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 import ToolsRoute from './routes/tools/tools.route';
@@ -40,59 +41,100 @@ import {
   ToolOutlined,
   TeamOutlined,
   MailOutlined,
+  MenuOutlined,
 } from '@ant-design/icons';
 
-const { Sider, Content } = Layout;
+const { Sider, Content, Header } = Layout;
 
-const Sidebar = () => {
+const SIDER_BG = '#001529';
+
+interface SidebarProps {
+  isMobile: boolean;
+  drawerOpen: boolean;
+  onClose: () => void;
+}
+
+const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
   const { logout } = useAuthInfo();
   const role = useRole();
 
   type MenuItem = NonNullable<MenuProps['items']>[number];
 
+  // onClose is called on every leaf Link click so the drawer closes on navigation.
+  // On desktop onClose is a no-op.
   const menuItems: NonNullable<MenuProps['items']> = [
-    { key: '/', icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
-    { key: '/users', icon: <UserOutlined />, label: <Link to="/users">Usuarios</Link> },
-  { key: '/groups', icon: <TeamOutlined />, label: <Link to="/groups">Grupos</Link> },
-  { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">Cursos</Link> },
-  { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies">Empresas</Link> },
-    { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers">Centros</Link> },
+    { key: '/', icon: <HomeOutlined />, label: <Link to="/" onClick={onClose}>Home</Link> },
+    { key: '/users', icon: <UserOutlined />, label: <Link to="/users" onClick={onClose}>Usuarios</Link> },
+    { key: '/groups', icon: <TeamOutlined />, label: <Link to="/groups" onClick={onClose}>Grupos</Link> },
+    { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses" onClick={onClose}>Cursos</Link> },
+    { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies" onClick={onClose}>Empresas</Link> },
+    { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers" onClick={onClose}>Centros</Link> },
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER
-      ? [
-          { key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports">Informes</Link> },
-        ]
+      ? [{ key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports" onClick={onClose}>Informes</Link> }]
       : []),
   ];
 
-  // Build Administration parent with children placed at the end of the menu
-  const adminChildren: MenuItem[] = [];
-  // Only ADMIN users should see the Administración parent and its children
   if (role?.toLowerCase() === Role.ADMIN) {
-    adminChildren.push({ key: '/organization', icon: <SettingOutlined />, label: <Link to="/organization">Organización</Link> });
-    adminChildren.push({ key: '/organization/smtp', icon: <MailOutlined />, label: <Link to="/organization/smtp">SMTP</Link> });
-    adminChildren.push({ key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools">Herramientas</Link> });
+    const adminChildren: MenuItem[] = [
+      { key: '/organization', icon: <SettingOutlined />, label: <Link to="/organization" onClick={onClose}>Organización</Link> },
+      { key: '/organization/smtp', icon: <MailOutlined />, label: <Link to="/organization/smtp" onClick={onClose}>SMTP</Link> },
+      { key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools" onClick={onClose}>Herramientas</Link> },
+    ];
     menuItems.push({ key: 'administracion', icon: <SettingOutlined />, label: <span>Administración</span>, children: adminChildren });
   }
 
-
-  return (
-    <Sider>
-      <Menu
-        theme="dark"
-        mode="inline"
-        items={menuItems}
-      />
+  const menuContent = (
+    <>
+      <Menu theme="dark" mode="inline" items={menuItems} />
       <Button onClick={logout} style={{ margin: '16px' }}>Cerrar sesión</Button>
-    </Sider>
+    </>
   );
+
+  if (isMobile) {
+    return (
+      <Drawer
+        placement="left"
+        open={drawerOpen}
+        onClose={onClose}
+        width={220}
+        title={<span style={{ color: '#fff' }}>AcademyHub</span>}
+        closeIcon={<span style={{ color: 'rgba(255,255,255,0.65)' }}>✕</span>}
+        styles={{
+          body: { padding: 0, background: SIDER_BG },
+          header: { background: SIDER_BG, borderBottom: '1px solid #1f1f1f' },
+        }}
+      >
+        {menuContent}
+      </Drawer>
+    );
+  }
+
+  return <Sider>{menuContent}</Sider>;
 };
 
 export default function AppRouter() {
+  const screens = Grid.useBreakpoint();
+  const isMobile = screens.md === false;
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   return (
     <Router>
       <Layout style={{ minHeight: '100vh' }}>
-        <Sidebar />
+        <Sidebar
+          isMobile={isMobile}
+          drawerOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+        />
         <Layout>
+          {isMobile && (
+            <Header style={{ padding: '0 16px', display: 'flex', alignItems: 'center', background: SIDER_BG }}>
+              <Button
+                type="text"
+                icon={<MenuOutlined style={{ color: '#fff', fontSize: 18 }} />}
+                onClick={() => setDrawerOpen(true)}
+              />
+            </Header>
+          )}
           <Content style={{ margin: '16px' }}>
             <Routes>
               <Route path="/" element={<HomeRoute />} />
@@ -107,8 +149,8 @@ export default function AppRouter() {
               <Route path="/groups/:id_group/edit" element={<EditGroupRoute />} />
               <Route path="/companies" element={<CompaniesRoute />} />
               <Route path="/companies/:id_company" element={<CompanyDetailRoute />} />
-              <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} /> 
-              <Route path="/centers/:id_center/edit" element={<EditCenterRoute />} /> 
+              <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} />
+              <Route path="/centers/:id_center/edit" element={<EditCenterRoute />} />
               <Route path="/add-company" element={<CreateCompanyRoute />} />
               <Route path="/organization" element={<OrganizationSettingsPage />} />
               <Route path="/centers" element={<CentersRoute />} />

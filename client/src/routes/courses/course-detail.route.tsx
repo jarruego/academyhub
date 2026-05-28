@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table, Select, Checkbox, Modal, App, Tabs } from "antd";
+import { Button, DatePicker, Form, Input, Table, Select, Checkbox, Modal, App, Tabs, Row, Col } from "antd";
 import HtmlEditor from '../../components/courses/HtmlEditor';
 import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
@@ -51,19 +51,17 @@ export default function CourseDetailRoute() {
   const { id_course } = useParams();
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
   const { data: groupsData, isLoading: isGroupsLoading } = useGroupsQuery(id_course || "");
-  // Sort groups by start_date first (descending - most recent first), then group_name (ascending) as secondary
   const sortedGroups = useMemo(() => {
     const list = groupsData ?? [];
     return [...list].sort((a, b) => {
       const toMillis = (d: string | Date | null | undefined) => {
-        if (!d) return Number.NEGATIVE_INFINITY; // missing dates go last when sorting desc
+        if (!d) return Number.NEGATIVE_INFINITY;
         const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
         return Number.isFinite(t) ? t : Number.NEGATIVE_INFINITY;
       };
       const aStart = toMillis(a.start_date);
       const bStart = toMillis(b.start_date);
-      if (aStart !== bStart) return bStart - aStart; // descending by start_date (most recent first)
-      // tie-breaker: group_name ascending
+      if (aStart !== bStart) return bStart - aStart;
       return (a.group_name ?? '').localeCompare(b.group_name ?? '');
     });
   }, [groupsData]);
@@ -76,7 +74,6 @@ export default function CourseDetailRoute() {
   const [userToLookup, setUserToLookup] = useState<number | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Provide explicit defaultValues so controlled inputs are never undefined on first render
   const defaultModality = Object.values(CourseModality)[0] as CourseModality;
   const { handleSubmit, control, reset, formState: { errors }, watch } = useForm<z.infer<typeof COURSE_DETAIL_FORM_SCHEMA>>({
     resolver: zodResolver(COURSE_DETAIL_FORM_SCHEMA),
@@ -131,7 +128,6 @@ export default function CourseDetailRoute() {
   if (isCourseLoading || isGroupsLoading) return <div>Cargando...</div>;
 
   const submit: SubmitHandler<z.infer<typeof COURSE_DETAIL_FORM_SCHEMA>> = async (info) => {
-    // Siempre enviar todos los campos, incluyendo contents, aunque se guarde desde cualquier pestaña
     const data = {
       ...info,
       hours: info.hours !== undefined && info.hours !== null ? Number(info.hours) : 0,
@@ -177,11 +173,9 @@ export default function CourseDetailRoute() {
     setSelectedRowKeys([record.id_group]);
   };
 
-  // Confirms bonification and generates the XML
-  
-
-  // Tabs: Ficha (formulario), Contenidos (HTML)
   const contentsValue = watch('contents');
+  const hasMoodleId = Boolean(courseData?.moodle_id);
+
   return (
     <div>
       {contextHolder}
@@ -190,184 +184,206 @@ export default function CourseDetailRoute() {
         label: 'Ficha',
         children: (
           <Form layout="vertical" onFinish={handleSubmit(submit)}>
-            <div>
-              {/* Keep id_course in the form but hidden from the UI */}
-              <Controller name="id_course" control={control} render={({ field }) => <input type="hidden" {...field} id="id_course" value={field.value ?? ''} />} />
-            </div>
-            {/* ...campos del formulario como antes... */}
-            <div style={{ display: 'flex', gap: '16px' }}>
-              {courseData?.moodle_id ? (
-                <Form.Item label="ID Moodle" name="moodle_id" style={{ width: 140 }}>
-                  <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" readOnly value={field.value ?? ''} />} />
+            <Controller name="id_course" control={control} render={({ field }) => <input type="hidden" {...field} id="id_course" value={field.value ?? ''} />} />
+
+            {/* Nombre del curso */}
+            <Row gutter={[16, 0]}>
+              {hasMoodleId && (
+                <Col xs={24} sm={6} md={4}>
+                  <Form.Item label="ID Moodle" name="moodle_id">
+                    <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" readOnly value={field.value ?? ''} />} />
+                  </Form.Item>
+                </Col>
+              )}
+              <Col xs={24} sm={hasMoodleId ? 18 : 24} md={hasMoodleId ? 13 : 17}>
+                <Form.Item
+                  label="Nombre del curso"
+                  name="course_name"
+                  required
+                  help={errors.course_name?.message}
+                  validateStatus={errors.course_name ? "error" : undefined}
+                >
+                  <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" value={field.value ?? ''} readOnly={!canEdit} />} />
                 </Form.Item>
-              ) : null}
-              <Form.Item
-                label="Nombre del curso"
-                name="course_name"
-                style={{ flex: 2 }}
-                required={true}
-                help={errors.course_name?.message}
-                validateStatus={errors.course_name ? "error" : undefined}
-              >
-                <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" value={field.value ?? ''} readOnly={!canEdit} />} />
-              </Form.Item>
-              <Form.Item
-                label="Nombre corto"
-                name="short_name"
-                style={{ flex: 1 }}
-                required={true}
-                help={errors.short_name?.message}
-                validateStatus={errors.short_name ? "error" : undefined}
-              >
-                <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" value={field.value ?? ''} readOnly={!canEdit} />} />
-              </Form.Item>
-            </div>
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
-              <Form.Item
-                label="Fecha Inicio"
-                name="start_date"
-                help={errors.start_date?.message}
-                validateStatus={errors.start_date ? "error" : undefined}
-              >
-                <Controller
+              </Col>
+              <Col xs={24} sm={24} md={7}>
+                <Form.Item
+                  label="Nombre corto"
+                  name="short_name"
+                  required
+                  help={errors.short_name?.message}
+                  validateStatus={errors.short_name ? "error" : undefined}
+                >
+                  <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" value={field.value ?? ''} readOnly={!canEdit} />} />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {/* Fechas, modalidad y datos numéricos */}
+            <Row gutter={[16, 0]}>
+              <Col xs={24} sm={12} md={4}>
+                <Form.Item
+                  label="Fecha Inicio"
                   name="start_date"
-                  control={control}
-                  render={({ field }) => (
-                    <DatePicker
-                      {...field}
-                      value={field.value ? dayjs(field.value) : null}
-                      onChange={date => {
-                        if (!canEdit) return;
-                        field.onChange(date ? date.toDate() : null);
-                      }}
-                      id="start_date"
-                      inputReadOnly={!canEdit}
-                      open={canEdit ? undefined : false}
-                      allowClear={canEdit}
-                    />
-                  )}
-                />
-              </Form.Item>
-              <Form.Item
-                label="Fecha Fin"
-                name="end_date"
-                help={errors.end_date?.message}
-                validateStatus={errors.end_date ? "error" : undefined}
-              >
-                <Controller
+                  help={errors.start_date?.message}
+                  validateStatus={errors.start_date ? "error" : undefined}
+                >
+                  <Controller
+                    name="start_date"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePicker
+                        {...field}
+                        style={{ width: '100%' }}
+                        value={field.value ? dayjs(field.value) : null}
+                        onChange={date => {
+                          if (!canEdit) return;
+                          field.onChange(date ? date.toDate() : null);
+                        }}
+                        id="start_date"
+                        inputReadOnly={!canEdit}
+                        open={canEdit ? undefined : false}
+                        allowClear={canEdit}
+                      />
+                    )}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={4}>
+                <Form.Item
+                  label="Fecha Fin"
                   name="end_date"
-                  control={control}
-                  render={({ field }) => (
-                    <DatePicker
-                      {...field}
-                      value={field.value ? dayjs(field.value) : null}
-                      onChange={date => {
-                        if (!canEdit) return;
-                        field.onChange(date ? date.toDate() : null);
-                      }}
-                      id="end_date"
-                      inputReadOnly={!canEdit}
-                      open={canEdit ? undefined : false}
-                      allowClear={canEdit}
-                    />
-                  )}
-                />
-              </Form.Item>
-              <Form.Item
-                label="Modalidad"
-                name="modality"
-                required={true}
-                help={errors.modality?.message}
-                validateStatus={errors.modality ? "error" : undefined}
-              >
-                <Controller
+                  help={errors.end_date?.message}
+                  validateStatus={errors.end_date ? "error" : undefined}
+                >
+                  <Controller
+                    name="end_date"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePicker
+                        {...field}
+                        style={{ width: '100%' }}
+                        value={field.value ? dayjs(field.value) : null}
+                        onChange={date => {
+                          if (!canEdit) return;
+                          field.onChange(date ? date.toDate() : null);
+                        }}
+                        id="end_date"
+                        inputReadOnly={!canEdit}
+                        open={canEdit ? undefined : false}
+                        allowClear={canEdit}
+                      />
+                    )}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={5}>
+                <Form.Item
+                  label="Modalidad"
                   name="modality"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      {...field}
-                      id="modality"
-                      data-testid="modality"
-                      onChange={(value) => {
-                        if (!canEdit) return;
-                        field.onChange(value);
-                      }}
-                      open={canEdit ? undefined : false}
-                      showSearch={canEdit}
-                      allowClear={canEdit}
-                    >
-                      {Object.values(CourseModality).map((modality) => (
-                        <Select.Option key={modality} value={modality} data-testid={`modality-option-${modality}`}>
-                          {modality}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  )}
-                />
-              </Form.Item>
-              <Form.Item
-                label="Horas"
-                name="hours"
-                help={errors.hours?.message}
-                validateStatus={errors.hours ? "error" : undefined}
-              >
-                <Controller
+                  required
+                  help={errors.modality?.message}
+                  validateStatus={errors.modality ? "error" : undefined}
+                >
+                  <Controller
+                    name="modality"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        {...field}
+                        id="modality"
+                        data-testid="modality"
+                        onChange={(value) => {
+                          if (!canEdit) return;
+                          field.onChange(value);
+                        }}
+                        open={canEdit ? undefined : false}
+                        showSearch={canEdit}
+                        allowClear={canEdit}
+                      >
+                        {Object.values(CourseModality).map((modality) => (
+                          <Select.Option key={modality} value={modality} data-testid={`modality-option-${modality}`}>
+                            {modality}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={12} sm={6} md={3}>
+                <Form.Item
+                  label="Horas"
                   name="hours"
-                  control={control}
-                  render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" style={{ width: 80 }} value={field.value ?? ''} readOnly={!canEdit} />}
-                />
-              </Form.Item>
-              <Form.Item
-                label="Precio/hora"
-                name="price_per_hour"
-                help={errors.price_per_hour?.message}
-                validateStatus={errors.price_per_hour ? "error" : undefined}
-              >
-                <Controller
+                  help={errors.hours?.message}
+                  validateStatus={errors.hours ? "error" : undefined}
+                >
+                  <Controller
+                    name="hours"
+                    control={control}
+                    render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" value={field.value ?? ''} readOnly={!canEdit} />}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={12} sm={6} md={3}>
+                <Form.Item
+                  label="Precio/hora"
                   name="price_per_hour"
-                  control={control}
-                  render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" style={{ width: 100 }} value={field.value ?? ''} readOnly={!canEdit} />}
-                />
-              </Form.Item>
-              <Form.Item
-                label="FUNDAE ID"
-                name="fundae_id"
-                help={errors.fundae_id?.message}
-                validateStatus={errors.fundae_id ? "error" : undefined}
-              >
-                <Controller
+                  help={errors.price_per_hour?.message}
+                  validateStatus={errors.price_per_hour ? "error" : undefined}
+                >
+                  <Controller
+                    name="price_per_hour"
+                    control={control}
+                    render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" value={field.value ?? ''} readOnly={!canEdit} />}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={3}>
+                <Form.Item
+                  label="FUNDAE ID"
                   name="fundae_id"
-                  control={control}
-                  render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} value={field.value ?? ''} readOnly={!canEdit} />}
-                />
-              </Form.Item>
-              <Form.Item
-                label="Activo"
-                name="active"
-                valuePropName="checked"
-                help={errors.active?.message}
-                validateStatus={errors.active ? "error" : undefined}
-              >
-                <Controller
+                  help={errors.fundae_id?.message}
+                  validateStatus={errors.fundae_id ? "error" : undefined}
+                >
+                  <Controller
+                    name="fundae_id"
+                    control={control}
+                    render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" value={field.value ?? ''} readOnly={!canEdit} />}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={2}>
+                <Form.Item
+                  label="Activo"
                   name="active"
-                  control={control}
-                  render={({ field }) => (
-                    <Checkbox
-                      {...field}
-                      id="active"
-                      checked={!!field.value}
-                      onChange={canEdit ? field.onChange : undefined}
-                      onClick={preventReadOnlyClick}
-                    >
-                      {""}
-                    </Checkbox>
-                  )}
-                />
-              </Form.Item>
-            </div>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <div style={{ marginTop: 8, display: 'flex', width: '30%', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  valuePropName="checked"
+                  help={errors.active?.message}
+                  validateStatus={errors.active ? "error" : undefined}
+                >
+                  <Controller
+                    name="active"
+                    control={control}
+                    render={({ field }) => (
+                      <Checkbox
+                        {...field}
+                        id="active"
+                        checked={!!field.value}
+                        onChange={canEdit ? field.onChange : undefined}
+                        onClick={preventReadOnlyClick}
+                      >
+                        {""}
+                      </Checkbox>
+                    )}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {/* Grupos del curso y gestión de usuarios — stacked en mobile, side-by-side en lg+ */}
+            <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
+              <Col xs={24} lg={8}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <h3 style={{ margin: 0 }}>Grupos del Curso</h3>
                   <AuthzHide roles={[Role.ADMIN]}>
                     <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>
@@ -434,18 +450,19 @@ export default function CourseDetailRoute() {
                     style: { cursor: 'pointer' }
                   })}
                 />
-              </div>
-              <div style={{ marginTop: 8, width: '70%' }}>
-                <GroupUsersManager 
+              </Col>
+              <Col xs={24} lg={16}>
+                <GroupUsersManager
                   groupId={selectedGroupId}
                   courseName={courseData?.course_name}
                   courseModality={courseData?.modality}
                   groupStart={sortedGroups.find(g => g.id_group === selectedGroupId)?.start_date}
                   groupEnd={sortedGroups.find(g => g.id_group === selectedGroupId)?.end_date}
                 />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '16px' }}>
+              </Col>
+            </Row>
+
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 16 }}>
               <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
                 <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-course">Guardar Curso</Button>
               </AuthzHide>
@@ -469,7 +486,7 @@ export default function CourseDetailRoute() {
                 )}
               />
             </Form.Item>
-            <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ display: 'flex', gap: '16px', marginTop: 8 }}>
               <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
                 <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-contents">Guardar Contenidos</Button>
               </AuthzHide>

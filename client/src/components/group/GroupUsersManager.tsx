@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Table, Button, message, Modal, notification } from 'antd';
+import { Table, Button, message, Modal, notification, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
 import { Tooltip } from 'antd';
-import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined } from '@ant-design/icons';
+import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined, DownOutlined } from '@ant-design/icons';
 import { AuthzHide } from '../permissions/authz-hide';
 import CreateUserGroupModal from './CreateUserGroupModal';
 import ImportUsersToGroupModal from './ImportUsersToGroupModal';
@@ -96,12 +97,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const exportUsersToSmsCsv = useExportUsersToSmsCsv();
   const isPresentialCourse = String(courseModality ?? '').toLowerCase() === 'presencial';
 
-  // NOTE: we intentionally avoid mounting a course query on every render because the
-  // course short_name is only needed when exporting SMS CSV. Instead we pass the
-  // groupData.id_course to the export hook and let it fetch the course lazily when
-  // the export is triggered.
-
-
   const handleMarkBelow75 = () => {
     if (!usersData) return;
     const getPercent = (v: unknown) => {
@@ -110,7 +105,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
     };
     const ids = usersData
       .filter((u: User) => {
-        // only students
         const percent = getPercent(u.completion_percentage);
         return isStudentUser(u) && percent > 0 && percent < 75;
       })
@@ -133,10 +127,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       return n > 0 && n <= 1 ? n * 100 : n;
     };
     const ids = usersData
-      .filter((u: User) => {
-        // only students
-        return isStudentUser(u) && getPercent(u.completion_percentage) >= 75;
-      })
+      .filter((u: User) => isStudentUser(u) && getPercent(u.completion_percentage) >= 75)
       .map(u => u.id_user);
     setSelectedUserIds(ids);
   };
@@ -155,12 +146,10 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       const response = await createBonificationFile.mutateAsync({ groupId: Number(groupId), userIds: selectedUserIds });
       const blob = response.data as Blob;
 
-      // Determine filename: prefer Content-Disposition from server, otherwise use group name
       let filename = `grupo_${groupId}.xml`;
       try {
         const cd = response.headers?.['content-disposition'] || response.headers?.['Content-Disposition'];
         if (cd) {
-          // Common patterns: filename="name.xml" or filename*=UTF-8''name.xml
           const fnStar = /filename\*=(?:UTF-8''?)?([^;\n\r]+)/i.exec(cd);
           const fn = fnStar ? decodeURIComponent(fnStar[1].trim()) : (/filename="?([^";]+)"?/i.exec(cd)?.[1]);
           if (fn) filename = fn.replace(/\s+$/g, '');
@@ -168,7 +157,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
           filename = `${groupData.group_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.xml`;
         }
       } catch {
-        // fallback handled below
+        // fallback filename already set
       }
 
       const url = window.URL.createObjectURL(blob);
@@ -217,14 +206,217 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
             if (text) detail = text;
           }
         } else if (typeof data === 'object' && data && 'message' in (data as Record<string, unknown>)) {
-          const message = (data as { message?: string | string[] }).message;
-          detail = Array.isArray(message) ? message.join(', ') : message;
+          const msg = (data as { message?: string | string[] }).message;
+          detail = Array.isArray(msg) ? msg.join(', ') : msg;
         }
       } catch {
         // ignore parsing errors and show generic message
       }
 
       messageApi.error(detail || 'No se pudo generar el XML');
+    }
+  };
+
+  const handleTraerMoodle = async () => {
+    if (!groupId) return;
+    const moodleId = groupData?.moodle_id;
+    if (!moodleId) {
+      messageApi.warning('El grupo local no está asociado a un grupo de Moodle');
+      return;
+    }
+    try {
+      const response = await syncMoodleGroupMembers(moodleId);
+      const result = response.data;
+      if (result?.success) {
+        messageApi.success(result.message || 'Usuarios sincronizados desde Moodle');
+        notificationApi.success({
+          message: 'Sincronización completada',
+          description: result.message || 'Usuarios sincronizados desde Moodle',
+          duration: 5,
+        });
+        if (result.details && result.details.length > 0) {
+          const max = 10;
+          const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => {
+            const idPart = d.userId ?? 'id?';
+            const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
+            return <li key={idx}>{`${userPart}: ${d.error}`}</li>;
+          });
+          const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+          setTimeout(() => {
+            modal.info({
+              title: 'Sincronización completada con errores',
+              width: 600,
+              content: (
+                <div>
+                  <p>{extractSummary(result.message)}</p>
+                  <div>
+                    <strong>Errores:</strong>
+                    <ul style={{ marginTop: 8 }}>{items}</ul>
+                    {more}
+                  </div>
+                </div>
+              ),
+            });
+          }, 100);
+        }
+        refetch();
+      } else if (result?.details && result.details.length > 0) {
+        const max = 10;
+        const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => {
+          const idPart = d.userId ?? 'id?';
+          const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
+          return <li key={idx}>{`${userPart} - ${d.error}`}</li>;
+        });
+        const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+        setTimeout(() => {
+          modal.error({
+            title: 'Error al sincronizar usuarios desde Moodle',
+            width: 600,
+            content: (
+              <div>
+                <p>{extractSummary(result.message)}</p>
+                <div>
+                  <strong>Errores:</strong>
+                  <ul style={{ marginTop: 8 }}>{items}</ul>
+                  {more}
+                </div>
+              </div>
+            ),
+          });
+        }, 100);
+      } else {
+        messageApi.error(result?.error || result?.message || 'Error al sincronizar usuarios desde Moodle');
+      }
+    } catch (err) {
+      console.error('Error sincronizando usuarios desde Moodle:', err);
+      messageApi.error('Error al traer usuarios desde Moodle');
+    }
+  };
+
+  const handleSubirMoodle = async () => {
+    if (!groupId) return;
+    if (!selectedUserIds || selectedUserIds.length === 0) {
+      messageApi.warning('Selecciona al menos un usuario para subir a Moodle');
+      return;
+    }
+    try {
+      const toCreate = await previewUsersToCreate(Number(groupId), selectedUserIds);
+      if (Array.isArray(toCreate) && toCreate.length > 0) {
+        modal.confirm({
+          title: `Se crearán ${toCreate.length} usuario(s) en Moodle`,
+          width: 700,
+          content: (
+            <div>
+              <p>Los siguientes usuarios no tienen cuenta en Moodle y se crearán si continúas:</p>
+              <ul style={{ maxHeight: 300, overflowY: 'auto' }}>{toCreate.map((t: UserToCreate) => (
+                <li key={t.localUserId} style={{ marginBottom: 6 }}>
+                  <strong>{t.name || `Usuario ${t.localUserId}`}</strong>
+                  {t.email ? ` — ${t.email}` : ''}
+                  <div>Usuario sugerido: <code>{t.suggestedUsername}</code></div>
+                </li>
+              ))}</ul>
+              <p style={{ marginTop: 8 }}><em>Se generará una contraseña segura para cada cuenta. Se almacenará localmente en el mapeo de Moodle.</em></p>
+            </div>
+          ),
+          onOk: async () => {
+            try {
+              const resp = await addUsers(Number(groupId), selectedUserIds);
+              const result = (resp as { data?: SyncResponse })?.data;
+              if (result?.success) {
+                messageApi.success(result.message || 'Usuarios añadidos a Moodle');
+                if (result.details && result.details.length > 0) {
+                  const max = 10;
+                  const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
+                  const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+                  setTimeout(() => {
+                    modal.info({
+                      title: 'Subida a Moodle con avisos',
+                      width: 600,
+                      content: (
+                        <div>
+                          <p>{extractSummary(result.message)}</p>
+                          <ul style={{ marginTop: 8 }}>{items}</ul>
+                          {more}
+                        </div>
+                      )
+                    });
+                  }, 100);
+                }
+              } else {
+                if (result?.details && result.details.length > 0) {
+                  const max = 10;
+                  const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
+                  const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+                  setTimeout(() => {
+                    modal.error({
+                      title: 'Error al añadir usuarios a Moodle',
+                      width: 600,
+                      content: (
+                        <div>
+                          <p>{extractSummary(result.message)}</p>
+                          <ul style={{ marginTop: 8 }}>{items}</ul>
+                          {more}
+                        </div>
+                      )
+                    });
+                  }, 100);
+                } else {
+                  messageApi.error(result?.error || result?.message || 'Error al añadir usuarios a Moodle');
+                }
+              }
+            } catch (err) {
+              console.error('Error añadiendo usuarios a Moodle:', err);
+              messageApi.error('Error al subir usuarios a Moodle');
+            } finally {
+              refetch();
+            }
+          },
+          okText: 'Crear y subir',
+          cancelText: 'Cancelar',
+        });
+      } else {
+        modal.confirm({
+          title: 'Subir usuarios a Moodle',
+          content: `¿Deseas añadir ${selectedUserIds.length} usuario(s) seleccionados al grupo de Moodle asociado?`,
+          onOk: async () => {
+            try {
+              const resp = await addUsers(Number(groupId), selectedUserIds);
+              const result = (resp as { data?: SyncResponse })?.data;
+              if (result?.success) {
+                messageApi.success(result.message || 'Usuarios añadidos a Moodle');
+                if (result.details && result.details.length > 0) {
+                  const max = 10;
+                  const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
+                  const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
+                  setTimeout(() => {
+                    modal.info({
+                      title: 'Subida a Moodle con avisos',
+                      width: 600,
+                      content: (
+                        <div>
+                          <p>{extractSummary(result.message)}</p>
+                          <ul style={{ marginTop: 8 }}>{items}</ul>
+                          {more}
+                        </div>
+                      )
+                    });
+                  }, 100);
+                }
+              } else {
+                messageApi.error(result?.error || result?.message || 'Error al añadir usuarios a Moodle');
+              }
+            } catch (err) {
+              console.error('Error añadiendo usuarios a Moodle:', err);
+              messageApi.error('Error al subir usuarios a Moodle');
+            } finally {
+              refetch();
+            }
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Error previsualizando usuarios a crear en Moodle:', err);
+      messageApi.error('No se pudo previsualizar la creación de usuarios en Moodle');
     }
   };
 
@@ -237,11 +429,11 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       title: <Tooltip title="Indica si el usuario fue subido a Moodle">M</Tooltip>,
       dataIndex: 'moodle_synced_at',
       key: 'moodle_synced',
+      fixed: 'left' as const,
       width: 56,
       render: (_: unknown, user: User) => {
         const synced = user.moodle_synced_at;
         if (!synced) return <span style={{ color: '#ff4d4f', fontWeight: 700 }}>N</span>;
-        // show a simple check with tooltip of date
         const date = typeof synced === 'string' ? new Date(synced) : (synced as Date);
         return <span title={date ? date.toLocaleString() : String(synced)} style={{ color: '#52c41a', fontWeight: 700 }}>S</span>;
       }
@@ -251,7 +443,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
     return [groupSyncedColumn, ...baseColumns];
   }, [isPresentialCourse, itopTrainingEnabled]);
 
-  // Compute totals for footer: total students and students with >=75% completion
   const { totalStudents, studentsAtOrAbove75 } = useMemo(() => {
     let total = 0;
     let at75 = 0;
@@ -274,320 +465,179 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
     return { totalStudents: total, studentsAtOrAbove75: at75 };
   }, [usersData]);
 
+  // ── Menús de los dropdowns ──────────────────────────────────────────────────
+
+  const usuariosMenuItems: MenuProps['items'] = [
+    {
+      key: 'gestor',
+      icon: <TeamOutlined />,
+      label: 'Gestor de Usuarios',
+    },
+    {
+      key: 'importar',
+      icon: <FileExcelOutlined style={{ color: '#008000' }} />,
+      label: 'Importar XLS',
+    },
+  ];
+
+  const moodleMenuItems: MenuProps['items'] = [
+    {
+      key: 'traer',
+      icon: <CloudDownloadOutlined style={{ color: '#f56b00' }} />,
+      label: 'Traer desde Moodle',
+      disabled: isGroupLoading || !groupData?.moodle_id,
+    },
+    {
+      key: 'subir',
+      icon: <SaveOutlined style={{ color: '#fa8c16' }} />,
+      label: 'Subir a Moodle',
+      disabled: isGroupLoading,
+    },
+  ];
+
+  const exportarMenuItems: MenuProps['items'] = [
+    {
+      key: 'csv-mail',
+      icon: <MergeCellsOutlined />,
+      label: 'CSV Email',
+      disabled: isGroupLoading,
+    },
+    {
+      key: 'csv-sms',
+      icon: <MobileOutlined />,
+      label: 'CSV SMS',
+      disabled: isGroupLoading,
+    },
+  ];
+
+  const seleccionMenuItems: MenuProps['items'] = [
+    {
+      key: 'sel-zero',
+      label: <span style={{ color: '#ff4d4f' }}>Seleccionar 0%</span>,
+      disabled: !usersData || usersData.length === 0,
+    },
+    {
+      key: 'sel-below75',
+      label: <span style={{ color: '#ff4d4f' }}>Seleccionar 1–75%</span>,
+      disabled: !usersData || usersData.length === 0,
+    },
+    {
+      key: 'sel-above75',
+      label: <span style={{ color: '#52c41a' }}>Seleccionar ≥75%</span>,
+      disabled: !usersData || usersData.length === 0,
+    },
+  ];
+
+  const handleUsuariosMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'gestor' && groupId) setIsManageModalOpen(true);
+    if (key === 'importar' && groupId) setIsImportModalOpen(true);
+  };
+
+  const handleMoodleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'traer') void handleTraerMoodle();
+    if (key === 'subir') void handleSubirMoodle();
+  };
+
+  const handleExportarMenuClick: MenuProps['onClick'] = async ({ key }) => {
+    if (key === 'csv-mail') {
+      if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
+      if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para exportar');
+      try {
+        const result = await exportUsersToMailCsv(selectedUserIds, usersData, groupData?.group_name);
+        if (!result || result.rowsCount === 0) { messageApi.info('Exportación cancelada'); return; }
+        messageApi.success(`CSV exportado correctamente (${result.rowsCount} filas)`);
+      } catch (err) {
+        console.error('Error exportando CSV', err);
+        messageApi.error('Error al exportar CSV');
+      }
+    }
+    if (key === 'csv-sms') {
+      if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
+      if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para exportar');
+      try {
+        const courseId = groupData?.id_course;
+        const groupName = groupData?.group_name ?? '';
+        const result = await exportUsersToSmsCsv(selectedUserIds, usersData, courseId, groupName);
+        if (!result || result.rowsCount === 0) { messageApi.info('Exportación cancelada'); return; }
+        messageApi.success(`CSV SMS exportado correctamente (${result.rowsCount} filas)`);
+      } catch (err) {
+        console.error('Error exportando SMS CSV', err);
+        const errMsg = err instanceof Error ? err.message : String(err);
+        messageApi.error(`Error al exportar SMS CSV: ${errMsg}`);
+      }
+    }
+  };
+
+  const handleSeleccionMenuClick: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'sel-zero') handleMarkZero();
+    if (key === 'sel-below75') handleMarkBelow75();
+    if (key === 'sel-above75') handleMark75();
+  };
+
   return (
     <div>
-  {contextHolder}
-  {modalContextHolder}
-  {notificationContextHolder}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+      {contextHolder}
+      {modalContextHolder}
+      {notificationContextHolder}
+
+      {/* ── Botonera ────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+
+        {/* Izquierda: acciones de gestión */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-            <Button
-              type="default"
-              icon={<TeamOutlined />}
-              onClick={() => groupId ? setIsManageModalOpen(true) : null}
-            >
-              Gestor Usuarios
-            </Button>
-            <Button
-              type="default"
-              icon={<FileExcelOutlined style={{ color: '#008000' }} />}
-              onClick={() => groupId ? setIsImportModalOpen(true) : null}
-            >
-              Importar XLS
-            </Button>
-            {!isPresentialCourse && (
-              <Button
-                type="default"
-                icon={<CloudDownloadOutlined style={{ color: '#f56b00' }} />}
-                onClick={async () => {
-                  if (!groupId) return;
-                  const moodleId = groupData?.moodle_id;
-                  if (!moodleId) {
-                    messageApi.warning('El grupo local no está asociado a un grupo de Moodle');
-                    return;
-                  }
-
-                  try {
-                    const response = await syncMoodleGroupMembers(moodleId);
-                    const result = response.data;
-                    if (result?.success) {
-                      messageApi.success(result.message || 'Usuarios sincronizados desde Moodle');
-                      notificationApi.success({
-                        message: 'Sincronización completada',
-                        description: result.message || 'Usuarios sincronizados desde Moodle',
-                        duration: 5,
-                      });
-
-                      if (result.details && result.details.length > 0) {
-                        const max = 10;
-                        const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => {
-                          const idPart = d.userId ?? 'id?';
-                          const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
-                          return <li key={idx}>{`${userPart}: ${d.error}`}</li>;
-                        });
-                        const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
-                        setTimeout(() => {
-                          modal.info({
-                            title: 'Sincronización completada con errores',
-                            width: 600,
-                            content: (
-                              <div>
-                                <p>{extractSummary(result.message)}</p>
-                                <div>
-                                  <strong>Errores:</strong>
-                                  <ul style={{ marginTop: 8 }}>{items}</ul>
-                                  {more}
-                                </div>
-                              </div>
-                            ),
-                          });
-                        }, 100);
-                      }
-                      refetch();
-                    } else if (result?.details && result.details.length > 0) {
-                      const max = 10;
-                      const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => {
-                        const idPart = d.userId ?? 'id?';
-                        const userPart = d.username ? `${d.username} (${idPart})` : `${idPart}`;
-                        return <li key={idx}>{`${userPart} - ${d.error}`}</li>;
-                      });
-                      const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
-                      setTimeout(() => {
-                        modal.error({
-                          title: 'Error al sincronizar usuarios desde Moodle',
-                          width: 600,
-                          content: (
-                            <div>
-                              <p>{extractSummary(result.message)}</p>
-                              <div>
-                                <strong>Errores:</strong>
-                                <ul style={{ marginTop: 8 }}>{items}</ul>
-                                {more}
-                              </div>
-                            </div>
-                          ),
-                        });
-                      }, 100);
-                    } else {
-                      messageApi.error(result?.error || result?.message || 'Error al sincronizar usuarios desde Moodle');
-                    }
-                  } catch (err) {
-                    console.error('Error sincronizando usuarios desde Moodle:', err);
-                    messageApi.error('Error al traer usuarios desde Moodle');
-                  }
-                }}
-                loading={(syncMoodleGroupMembersPending) || isGroupLoading}
-                disabled={isGroupLoading || !groupData?.moodle_id}
-              >
-                Traer Moodle
+            <Dropdown menu={{ items: usuariosMenuItems, onClick: handleUsuariosMenuClick }}>
+              <Button icon={<TeamOutlined />}>
+                Usuarios <DownOutlined />
               </Button>
-            )}
-            {!isPresentialCourse && (
-              <Button
-                type="default"
-                icon={<SaveOutlined style={{ color: '#fa8c16' }} />}
-                onClick={async () => {
-                  if (!groupId) return;
-                  if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para subir a Moodle');
+            </Dropdown>
 
-                try {
-                  const toCreate = await previewUsersToCreate(Number(groupId), selectedUserIds);
-                  // If there are users to create, show modal with details and ask confirmation
-                  if (Array.isArray(toCreate) && toCreate.length > 0) {
-                    modal.confirm({
-                      title: `Se crearán ${toCreate.length} usuario(s) en Moodle`,
-                      width: 700,
-                      content: (
-                        <div>
-                          <p>Los siguientes usuarios no tienen cuenta en Moodle y se crearán si continúas:</p>
-                          <ul style={{ maxHeight: 300, overflowY: 'auto' }}>{toCreate.map((t: UserToCreate) => (
-                            <li key={t.localUserId} style={{ marginBottom: 6 }}>
-                              <strong>{t.name || `Usuario ${t.localUserId}`}</strong>
-                              {t.email ? ` — ${t.email}` : ''}
-                              <div>Usuario sugerido: <code>{t.suggestedUsername}</code></div>
-                            </li>
-                          ))}</ul>
-                          <p style={{ marginTop: 8 }}><em>Se generará una contraseña segura para cada cuenta. Se almacenará localmente en el mapeo de Moodle.</em></p>
-                        </div>
-                      ),
-                      onOk: async () => {
-                        try {
-                          const resp = await addUsers(Number(groupId), selectedUserIds);
-                          const result = (resp as { data?: SyncResponse })?.data;
-                          if (result?.success) {
-                            messageApi.success(result.message || 'Usuarios añadidos a Moodle');
-                            if (result.details && result.details.length > 0) {
-                              const max = 10;
-                              const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
-                              const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
-                              setTimeout(() => {
-                                modal.info({
-                                  title: 'Subida a Moodle con avisos',
-                                  width: 600,
-                                  content: (
-                                    <div>
-                                      <p>{extractSummary(result.message)}</p>
-                                      <ul style={{ marginTop: 8 }}>{items}</ul>
-                                      {more}
-                                    </div>
-                                  )
-                                });
-                              }, 100);
-                            }
-                          } else {
-                            if (result?.details && result.details.length > 0) {
-                              const max = 10;
-                              const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
-                              const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
-                              setTimeout(() => {
-                                modal.error({
-                                  title: 'Error al añadir usuarios a Moodle',
-                                  width: 600,
-                                  content: (
-                                    <div>
-                                      <p>{extractSummary(result.message)}</p>
-                                      <ul style={{ marginTop: 8 }}>{items}</ul>
-                                      {more}
-                                    </div>
-                                  )
-                                });
-                              }, 100);
-                            } else {
-                              messageApi.error(result?.error || result?.message || 'Error al añadir usuarios a Moodle');
-                            }
-                          }
-                        } catch (err) {
-                          console.error('Error añadiendo usuarios a Moodle:', err);
-                          messageApi.error('Error al subir usuarios a Moodle');
-                        } finally {
-                          refetch();
-                        }
-                      },
-                      okText: 'Crear y subir',
-                      cancelText: 'Cancelar',
-                    });
-                  } else {
-                    // No users to create — simple confirmation
-                    modal.confirm({
-                      title: 'Subir usuarios a Moodle',
-                      content: `¿Deseas añadir ${selectedUserIds.length} usuario(s) seleccionados al grupo de Moodle asociado?`,
-                      onOk: async () => {
-                        try {
-                          const resp = await addUsers(Number(groupId), selectedUserIds);
-                          const result = (resp as { data?: SyncResponse })?.data;
-                          if (result?.success) {
-                            messageApi.success(result.message || 'Usuarios añadidos a Moodle');
-                            if (result.details && result.details.length > 0) {
-                              const max = 10;
-                              const items = result.details.slice(0, max).map((d: SyncDetail, idx: number) => <li key={idx}>{`${d.userId ?? 'id?'} - ${d.error}`}</li>);
-                              const more = result.details.length > max ? <p>... y {result.details.length - max} más</p> : null;
-                              setTimeout(() => {
-                                modal.info({
-                                  title: 'Subida a Moodle con avisos',
-                                  width: 600,
-                                  content: (
-                                    <div>
-                                      <p>{extractSummary(result.message)}</p>
-                                      <ul style={{ marginTop: 8 }}>{items}</ul>
-                                      {more}
-                                    </div>
-                                  )
-                                });
-                              }, 100);
-                            }
-                          } else {
-                            messageApi.error(result?.error || result?.message || 'Error al añadir usuarios a Moodle');
-                          }
-                        } catch (err) {
-                          console.error('Error añadiendo usuarios a Moodle:', err);
-                          messageApi.error('Error al subir usuarios a Moodle');
-                        } finally {
-                          refetch();
-                        }
-                      }
-                    });
-                  }
-                } catch (err) {
-                  console.error('Error previsualizando usuarios a crear en Moodle:', err);
-                  messageApi.error('No se pudo previsualizar la creación de usuarios en Moodle');
-                }
-                }}
-                disabled={isGroupLoading}
+            {!isPresentialCourse && (
+              <Dropdown
+                menu={{ items: moodleMenuItems, onClick: handleMoodleMenuClick }}
+                disabled={syncMoodleGroupMembersPending}
               >
-                Subir Moodle
-              </Button>
+                <Button
+                  icon={<CloudDownloadOutlined style={{ color: '#f56b00' }} />}
+                  loading={syncMoodleGroupMembersPending}
+                >
+                  Moodle <DownOutlined />
+                </Button>
+              </Dropdown>
             )}
+
+            <Dropdown menu={{ items: exportarMenuItems, onClick: handleExportarMenuClick }}>
+              <Button icon={<MergeCellsOutlined />}>
+                Exportar <DownOutlined />
+              </Button>
+            </Dropdown>
+          </AuthzHide>
+
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.VIEWER]}>
             <Button
               type="default"
-              icon={<MergeCellsOutlined />}
-              onClick={async () => {
-                if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
-                if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para exportar');
-                try {
-                  const result = await exportUsersToMailCsv(selectedUserIds, usersData, groupData?.group_name);
-                  if (!result || result.rowsCount === 0) {
-                    // treated as cancellation (user closed save dialog) or nothing exported
-                    messageApi.info('Exportación cancelada');
-                    return;
-                  }
-                  messageApi.success(`CSV exportado correctamente (${result.rowsCount} filas)`);
-                } catch (err) {
-                  console.error('Error exportando CSV', err);
-                  messageApi.error('Error al exportar CSV');
+              icon={<MailOutlined />}
+              onClick={() => {
+                if (!selectedUserIds || selectedUserIds.length === 0) {
+                  messageApi.warning('Selecciona al menos un usuario');
+                  return;
                 }
+                setIsSendMailOpen(true);
               }}
-              disabled={isGroupLoading}
             >
-              .csv
-            </Button>
-            <Button
-              type="default"
-              icon={<MobileOutlined />}
-              onClick={async () => {
-                if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
-                if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para exportar');
-                try {
-                  const courseId = groupData?.id_course;
-                  const groupName = groupData?.group_name ?? '';
-                  const result = await exportUsersToSmsCsv(selectedUserIds, usersData, courseId, groupName);
-                  if (!result || result.rowsCount === 0) {
-                    messageApi.info('Exportación cancelada');
-                    return;
-                  }
-                  messageApi.success(`CSV SMS exportado correctamente (${result.rowsCount} filas)`);
-                } catch (err) {
-                  console.error('Error exportando SMS CSV', err);
-                  const errMsg = err instanceof Error ? err.message : String(err);
-                  messageApi.error(`Error al exportar SMS CSV: ${errMsg}`);
-                }
-              }}
-              disabled={isGroupLoading}
-            >
-              .csv
+              Correo
             </Button>
           </AuthzHide>
         </div>
-        <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.VIEWER]}>
-          <Button
-            type="default"
-            icon={<MailOutlined />}
-            onClick={() => {
-              if (!selectedUserIds || selectedUserIds.length === 0) {
-                messageApi.warning('Selecciona al menos un usuario');
-                return;
-              }
-              setIsSendMailOpen(true);
-            }}
-          >
-            Correo
-          </Button>
-        </AuthzHide>
+
+        {/* Derecha: selección rápida + bonificación */}
         <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={handleMarkZero} disabled={!usersData || usersData.length === 0} style={{ color: '#ff4d4f' }}>0%</Button>
-            <Button onClick={handleMarkBelow75} disabled={!usersData || usersData.length === 0} style={{ color: '#ff4d4f' }}>1-75%</Button>
-            <Button onClick={handleMark75} disabled={!usersData || usersData.length === 0} style={{ color: '#52c41a' }}>≥75%</Button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Dropdown menu={{ items: seleccionMenuItems, onClick: handleSeleccionMenuClick }}>
+              <Button disabled={!usersData || usersData.length === 0}>
+                Selección <DownOutlined />
+              </Button>
+            </Dropdown>
             <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
               Bonificar
             </Button>
@@ -601,11 +651,10 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         columns={columns}
         loading={isLoading}
         pagination={false}
-        // Fixed table header with vertical scroll
-        scroll={{ y: 500 }}
+        scroll={{ x: 'max-content', y: 500 }}
         footer={() => {
           const syncedAt = groupData?.moodle_synced_at;
-          const formattedDate = syncedAt 
+          const formattedDate = syncedAt
             ? new Date(syncedAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })
             : 'Sin sincronizar';
           return (
@@ -629,7 +678,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
               const url = `${window.location.origin}/users/${uid}`;
               window.open(url, '_blank', 'noopener,noreferrer');
             } catch {
-              // Fallback: open relative path
               window.open(`/users/${uid}`, '_blank');
             }
           },
