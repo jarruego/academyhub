@@ -1,13 +1,22 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { AuthUserRepository } from "src/database/repository/auth/auth_user.repository";
 import { AuthUserInsertModel, AuthUserSelectModel, AuthUserUpdateModel } from "src/database/schema/tables/auth_user.table";
 import { CreateUserDTO } from "src/dto/auth/create-user.dto";
 import { UpdateUserDTO } from "src/dto/auth/update-user.dto";
 import { hashWithSalt } from "src/utils/crypto/password-hashing.util";
+import { moodleUserAuthUserTable } from "src/database/schema/tables/moodle_user_auth_user.table";
+import { moodleUserTable } from "src/database/schema/tables/moodle_user.table";
+import { eq } from "drizzle-orm";
+import { DatabaseService } from "src/database/database.service";
+import { DATABASE_PROVIDER } from "src/database/database.module";
 
 @Injectable()
 export class AuthUserService {
-  constructor(private readonly authUserRepository: AuthUserRepository) {}
+  constructor(
+    private readonly authUserRepository: AuthUserRepository,
+    @Inject(DATABASE_PROVIDER)
+    private readonly dbService: DatabaseService
+  ) {}
 
   async findByUsername(username: string): Promise<AuthUserSelectModel | undefined> {
     return await this.authUserRepository.findByUsername(username);
@@ -65,5 +74,38 @@ export class AuthUserService {
 
   async deleteUser(id: number): Promise<void> {
     await this.authUserRepository.deleteById(id);
+  }
+
+  // === Vínculos entre auth_user y moodle_user ===
+  async getMoodleLinksByAuthUser(id_auth_user: number) {
+    // Join con moodle_users para incluir username
+    const db = this.dbService.db;
+    return db.select({
+      id: moodleUserAuthUserTable.id,
+      id_moodle_user: moodleUserAuthUserTable.id_moodle_user,
+      id_auth_user: moodleUserAuthUserTable.id_auth_user,
+      moodle_token: moodleUserAuthUserTable.moodle_token,
+      createdAt: moodleUserAuthUserTable.createdAt,
+      updatedAt: moodleUserAuthUserTable.updatedAt,
+      moodle_user: {
+        id_moodle_user: moodleUserTable.id_moodle_user,
+        moodle_username: moodleUserTable.moodle_username,
+      },
+    })
+      .from(moodleUserAuthUserTable)
+      .leftJoin(moodleUserTable, eq(moodleUserAuthUserTable.id_moodle_user, moodleUserTable.id_moodle_user))
+      .where(eq(moodleUserAuthUserTable.id_auth_user, id_auth_user));
+  }
+
+  async addMoodleLink(dto: { id_moodle_user: number; id_auth_user: number; moodle_token: string }) {
+    return this.dbService.db.insert(moodleUserAuthUserTable).values(dto).returning();
+  }
+
+  async updateMoodleLink(id: number, dto: { moodle_token: string }) {
+    return this.dbService.db.update(moodleUserAuthUserTable).set(dto).where(eq(moodleUserAuthUserTable.id, id)).returning();
+  }
+
+  async deleteMoodleLink(id: number) {
+    return this.dbService.db.delete(moodleUserAuthUserTable).where(eq(moodleUserAuthUserTable.id, id)).returning();
   }
 }

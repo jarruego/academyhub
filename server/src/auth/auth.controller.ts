@@ -1,9 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Public } from "src/guards/auth/public.guard";
 import { AuthService } from "./auth.service";
 import { LoginDTO } from "src/dto/auth/login.dto";
 import { CreateUserDTO } from "src/dto/auth/create-user.dto";
+import { RoleGuard } from "src/guards/role.guard";
+import { Role } from "src/guards/role.enum";
 
 @Controller("auth")
 /**
@@ -38,6 +40,7 @@ export class AuthController {
    * @param createUserDto - Data Transfer Object containing user registration details.
    * @returns A promise that resolves with the registration result.
    */
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @HttpCode(HttpStatus.CREATED)
   @Post("signup")
   async signup(@Body() createUserDto: CreateUserDTO) {

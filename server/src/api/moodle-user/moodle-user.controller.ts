@@ -1,5 +1,4 @@
 import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards } from '@nestjs/common';
-import { CreateMoodleUserDTO } from '../../dto/moodle-user/create-moodle-user.dto';
 import { UpdateMoodleUserDTO } from '../../dto/moodle-user/update-moodle-user.dto';
 import { FilterMoodleUserDTO } from '../../dto/moodle-user/filter-moodle-user.dto';
 import { MoodleUserService } from './moodle-user.service';
@@ -14,15 +13,12 @@ export class MoodleUserController {
     private readonly moodleUserService: MoodleUserService,
   ) {}
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
-  @Post()
-  @ApiOperation({ summary: 'Crear nuevo usuario de Moodle' })
-  @ApiResponse({ status: 201, description: 'Usuario de Moodle creado exitosamente' })
-  @ApiResponse({ status: 400, description: 'Datos inválidos' })
-  async create(@Body() createMoodleUserDTO: CreateMoodleUserDTO) {
-    return this.moodleUserService.create(createMoodleUserDTO);
+  @Get('search')
+  async search(@Query('query') query: string) {
+    // Busca por username (ilike)
+    if (!query || query.length < 2) return [];
+    return this.moodleUserService.searchByUsername(query);
   }
-
   @UseGuards(RoleGuard([Role.ADMIN]))
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar usuario de Moodle' })

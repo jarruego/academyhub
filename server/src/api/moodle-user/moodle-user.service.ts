@@ -312,4 +312,8 @@ export class MoodleUserService {
       return { updated: allMoodleUsers.length };
     });
   }
+
+  async searchByUsername(query: string) {
+    return this.moodleUserRepository.findAll({ moodle_username: query });
+  }
 }

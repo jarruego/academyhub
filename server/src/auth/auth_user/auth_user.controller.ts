@@ -9,6 +9,41 @@ import { UpdateUserDTO } from "src/dto/auth/update-user.dto";
 export class AuthUserController {
   constructor(private readonly authUserService: AuthUserService) {}
 
+  // === Vínculos entre auth_user y moodle_user ===
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @Get(':id/moodle-links')
+  async getMoodleLinks(@Param('id') id: string) {
+    return this.authUserService.getMoodleLinksByAuthUser(Number(id));
+  }
+
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @Post(':id/moodle-links')
+  async addMoodleLink(
+    @Param('id') id: string,
+    @Body() dto: { id_moodle_user: number; moodle_token: string }
+  ) {
+    return this.authUserService.addMoodleLink({
+      id_auth_user: Number(id),
+      id_moodle_user: dto.id_moodle_user,
+      moodle_token: dto.moodle_token,
+    });
+  }
+
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @Put('moodle-links/:linkId')
+  async updateMoodleLink(
+    @Param('linkId') linkId: string,
+    @Body() dto: { moodle_token: string }
+  ) {
+    return this.authUserService.updateMoodleLink(Number(linkId), dto);
+  }
+
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @Delete('moodle-links/:linkId')
+  async deleteMoodleLink(@Param('linkId') linkId: string) {
+    return this.authUserService.deleteMoodleLink(Number(linkId));
+  }
+
   @UseGuards(RoleGuard([Role.ADMIN]))
   @Get()
   async findAll() {
