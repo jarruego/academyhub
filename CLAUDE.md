@@ -57,7 +57,7 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 ### Three distinct user concepts
 - **`auth_user`** — login credentials (`username`, `password` (scrypt+salt), `role`). Roles: `admin`, `manager`, `viewer`. Optionally holds a per-user `moodleToken` that overrides the org-level token.
 - **`user`** — training domain users (students/employees). Linked to courses via `user_course`, to groups via `user_group`, to centers via `user_center`. Can optionally be linked to a `moodle_user` via `moodle_user_auth_user`.
-- **`moodle_user`** — a Moodle platform user record, synced from Moodle. The `moodle_user_auth_user` table is a many-to-many bridge between `auth_user` and `moodle_user`.
+- **`moodle_user`** — a Moodle platform user record, synced from Moodle. Its `id_user` FK references the `user` table (domain user), **not** `auth_user`. The `moodle_user_auth_user` table is a many-to-many bridge between `auth_user` and `moodle_user`; each row has its own `moodle_token` field.
 
 ### `user_roles` table
 A lookup catalog of role definitions (`role_shortname`, `role_description`) used during Velneo imports to label roles within groups/courses. Not the same as `auth_user.role`.
@@ -80,15 +80,26 @@ Migration files live in `server/drizzle/`. After modifying any table file under 
 2. `auth_user.moodleToken` — fallback por usuario autenticado
 3. `MoodleService.resolveMoodleToken()` — token global de organización (predeterminado cuando `moodleSenderChoice = 'default'`)
 
+This chain is currently only implemented inside `MailService.resolveToken()`. Other call sites must implement it manually (or refactor into a shared utility) — there is no standalone helper for it yet.
+
 ### Mail system
 Mail templates are stored in the database (`mail_templates` table). Template images are stored in Supabase Storage (`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` env vars). `MailService` sends Moodle notifications using the token resolution chain above.
+
+**`moodleSenderChoice`** — parameter accepted by `POST /mail/send` and `POST /mail/send-from-template` that controls which Moodle token is used when `sendViaMoodle = true`:
+- `'default'` — org-level token via `MoodleService.resolveMoodleToken()`
+- `'auth'` — token from `moodle_user_auth_user` for the current `auth_user` (highest `id`), fallback to `auth_user.moodleToken`
+- `'tutor'` — token from `moodle_user_auth_user` for the tutor's `moodle_user` (highest `id`); tutor is resolved as `user` → `moodle_user` (prefer `is_main_user`) → `moodle_user_auth_user`
+
+`GET /mail/tutor-moodle-token-status/:tutorUserId` — lightweight check used by the frontend to show a warning in `SendMailToGroupModal` when the selected tutor has no Moodle token (falls back to org-level token silently).
+
+`MailModule` imports `MoodleModule` (for `MoodleService`). Avoid creating a reverse import from `MoodleModule` into `MailModule` — it would create a circular dependency.
 
 ### Reports system
 PDF generation uses `ReportsPdfService` backed by `ReportRenderer` (`src/api/reports/report-renderer.service.ts`). Templates are JSON files in `src/api/reports/templates/*.json` that declare pages, element types (`title`, `paragraph`, `table`, `image`), styles, and `{{variable}}` placeholders filled at render time. `renderTemplate()` streams a PDF to a response; `renderTemplateIntoDocument()` writes into an existing PDFKit doc for multi-template composition. `PdfService` (`src/common/pdf/pdf.service.ts`) is the shared PDFKit wrapper.
 
 ### Import flows
 - **SAGE** (`api/import-sage/`): The active import path. Parses a CSV (uploaded manually or fetched via SFTP/FTP) and upserts users+companies. Uses a **decision workflow**: each run creates an `import_job` with `import_decisions` rows requiring human review before committing (matches by DNI/email/name using Levenshtein distance). `ImportModule.onModuleInit()` cleans up jobs stuck in `PROCESSING` state on every app startup.
-- **Velneo** (`api/import-velneo/`): Legacy one-time migration tool used during initial data load. Processes a full Velneo ERP CSV dump in phases (users → companies → associate → courses → groups). Not actively maintained.
+- **Velneo** (`api/import-velneo/`): Legacy one-time migration tool used during initial data load. Processes a full Velneo ERP CSV dump in phases (users → companies → associate → courses → groups). Not actively maintained. The upload endpoint requires `ADMIN` role (`@UseGuards(RoleGuard([Role.ADMIN]))`).
 
 ### Scheduler
 Internal cron scheduler; tasks in `server/src/scheduler/tasks/`. Active tasks:
@@ -123,7 +134,19 @@ Each domain under `client/src/hooks/api/` has separate `.query.ts` and `.mutatio
 `AuthProvider` (`client/src/providers/auth/auth.provider.tsx`) persists `{ token, user }` to `localStorage` under the key `"userInfo"`. On mount it reads it back via `readUserInfo()`. `useAuthInfo()` exposes the context; `useRole()` extracts the role. Routes check role to show/hide menu items. All protected routes are guarded on the server side by the global `AuthGuard`. Use `<AuthzHide roles={[Role.ADMIN]}>` (`client/src/components/permissions/authz-hide.tsx`) to conditionally render UI elements based on role.
 
 ### Routing
-`client/src/router.tsx` defines all routes. The sidebar is role-aware: Reports is visible to `admin`, `manager`, and `viewer`; the Administración sub-menu (Organization, SMTP, Tools) is only visible to `admin`.
+`client/src/router.tsx` defines all routes and the top-level layout. The sidebar is role-aware: Reports is visible to `admin`, `manager`, and `viewer`; the Administración sub-menu (Organization, SMTP, Tools) is only visible to `admin`.
+
+**Responsive sidebar:** breakpoint is `md` (768 px). On `md+` a persistent `<Sider>` is rendered. Below `md` the Sider is replaced by a `<Header>` with a hamburger button that opens a `<Drawer>`. Use `screens.md === false` (not `!screens.md`) to detect mobile — avoids a flash on first render when `useBreakpoint` hasn't resolved yet. Drawer closes when any leaf `<Link>` is clicked; the Administración sub-menu can expand/collapse without closing the drawer because `onClick={onClose}` is placed on the `<Link>` nodes, not on the `<Menu>`.
+
+### Responsive design conventions
+
+**Form layouts:** replace `<div style={{ display: 'flex', gap: 16 }}>` with `<Row gutter={[16, 0]}>` + `<Col xs={24} sm={X} md={Y}>`. Never use hardcoded pixel widths (`width: 80`, `flex: 1`) on `<Form.Item>` — let the `<Col>` control the width. `<DatePicker>` and `<Select>` inside a Col need `style={{ width: '100%' }}` to fill their column.
+
+**Wide tables:** add `scroll={{ x: 'max-content', y: N }}` and pin key columns with `fixed: 'left'`. Fixed columns must be contiguous from the left edge — if a dynamic column (e.g. the "M" Moodle-synced indicator in `GroupUsersManager`) precedes a fixed column, it must also be `fixed: 'left'`.
+
+**Table navigation:** main list tables (`users`, `groups`, `courses`, `companies`, `centers`) use `onClick` on `onRow` for single-click navigation. Tables inside detail pages (`GroupUsersManager` user table, `course-detail` groups table) keep `onDoubleClick` to avoid conflicts with row selection.
+
+**Toolbar with many actions:** group actions semantically into `<Dropdown menu={...}>` buttons rather than individual buttons. In `GroupUsersManager` the original buttons are collapsed into: *Usuarios* (Gestor + Importar XLS), *Moodle* (Traer + Subir, non-presencial only), *Exportar* (.csv mail + .csv SMS), *Correo* (standalone), *Selección* (0% + 1–75% + ≥75%), *Bonificar* (standalone primary). Use `MenuProps['onClick']` for the menu handler; async handlers are called via `void handler()` inside the click callback.
 
 ### Type sharing
 Shared types between components and hooks live in `client/src/shared/types/`. Component-level types stay in `client/src/types/`. Zod schemas for form validation are in `client/src/schemas/` (currently only Spanish DNI and CIF validators; form schemas are co-located with their route components).
@@ -157,9 +180,51 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 ## Key Conventions
 
 - **Password hashing**: `scryptSync` with random salt, stored as `salt:hash`. Never use the legacy `hash()` (SHA-256) for new passwords.
-- **Public routes**: Decorate controller methods with `@Public()` to bypass the global `AuthGuard`.
+- **Public routes**: Decorate controller methods with `@Public()` to bypass the global `AuthGuard`. Currently only `POST /auth/login` and `GET /api/files/organization/:filename` are public.
 - **Role-based access**: Apply `@UseGuards(RoleGuard([Role.ADMIN]))` (`src/guards/role.guard.ts`) on a controller or handler to restrict access beyond just authentication. JWT must still be valid.
 - **DTO validation**: All controller inputs use class-validator DTOs. `ValidationPipe({ whitelist: true, transform: true })` strips unknown fields globally.
-- **Swagger**: Available at `http://localhost:3000/documentation` in dev.
+- **Swagger**: Available at `http://localhost:3000/documentation` in dev. No authentication guard — do not expose in production without restricting access.
 - **Static files**: Server serves `server/public/` at root; uploaded files go to `server/public/uploads/`.
 - **Client tests**: Vitest with `happy-dom` environment. Test files are co-located with routes/components as `*.spec.tsx`.
+
+## Security Architecture
+
+### Guards
+
+| Guard | File | Scope | Behavior |
+|---|---|---|---|
+| `AuthGuard` | `src/guards/auth/auth.guard.ts` | Global (`APP_GUARD`) | Validates JWT Bearer token on every request; bypassed by `@Public()` |
+| `ThrottlerGuard` | NestJS throttler | Global | 120 req / 60s; login overridden to 8 req / 60s |
+| `RoleGuard(roles[])` | `src/guards/role.guard.ts` | Per handler/controller | Checks `request.user.role` against allowed roles array |
+| `@Public()` | `src/guards/auth/public.guard.ts` | Per handler/controller | Sets `IS_PUBLIC_KEY` metadata to skip `AuthGuard` |
+
+**Rule:** every new controller handler must have either `@Public()` (justified) or an explicit `@UseGuards(RoleGuard([...]))`. Relying on the global `AuthGuard` alone is only acceptable for read-only GET endpoints.
+
+### CORS
+
+Configured in `server/src/main.ts` with an explicit origin allowlist. Adding a new frontend origin requires updating `allowedOrigins` there and redeploying the backend.
+
+Allowed origins:
+- `http://localhost:5173` (Vite dev)
+- `http://localhost:4173` (Vite preview)
+- `https://app.mecohisa.com` (production)
+
+Requests without an `Origin` header (server-to-server: Render, Moodle, cron jobs, curl) are always allowed — CORS is a browser-only mechanism.
+
+### JWT lifecycle
+
+- **Issued** at `POST /auth/login` (`auth/auth.service.ts`) — payload: `{ id, username, role }`
+- **Secret**: `process.env.JWT_SECRET`; **expiry**: `process.env.JWT_EXPIRES_IN` (default `7d`)
+- **Validated** by global `AuthGuard` on every request
+- **No refresh token, no revocation, no logout endpoint** — if a token is compromised, it stays valid until expiry. Rotating `JWT_SECRET` invalidates all active sessions.
+
+### Known open security items
+
+The following gaps were identified in a 2025-05 security review and are not yet addressed:
+
+- **No token revocation**: 7-day JWTs cannot be invalidated individually. Mitigate by keeping `JWT_EXPIRES_IN` short (e.g. `8h`) or implementing a deny-list.
+- **Swagger unauthenticated**: `/documentation` is publicly accessible. Add an auth middleware or restrict via reverse-proxy in production.
+- **No startup validation of critical env vars**: if `JWT_SECRET` or `APP_MASTER_KEY` are missing, the app starts and fails at runtime. Add a startup check in `main.ts`.
+- **No per-user/IP rate limiting**: ThrottlerGuard is global. A single IP can exhaust the quota for all users.
+- **Body limit 50 MB on all routes**: justified for CSV imports but applies to every endpoint. Consider narrowing it to upload-specific routes.
+- **No audit log**: sensitive operations (user create/delete, imports, role changes) are not logged to a persistent audit table.
