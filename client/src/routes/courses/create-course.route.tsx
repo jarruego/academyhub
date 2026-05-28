@@ -17,11 +17,11 @@ const CREATE_COURSE_FORM = z.object({
   start_date: z.date().nullable().optional(),
   end_date: z.date().nullable().optional(),
   modality: z.nativeEnum(CourseModality, { required_error: "La modalidad es obligatoria" }),
-  hours: z.number().optional(),
-  price_per_hour: z.number().optional(),
+  hours: z.coerce.number().optional(),
+  price_per_hour: z.coerce.number().optional(),
   fundae_id: z.string().optional(),
   active: z.boolean().optional(),
-  moodle_id: z.number().optional(),
+  moodle_id: z.coerce.number().optional(),
   category: z.string().optional(),
 });
 
