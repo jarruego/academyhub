@@ -73,6 +73,7 @@ export class UserGroupRepository extends Repository {
         return rows.map((r) => ({
             ...r.users,
             completion_percentage: r.user_course.completion_percentage,
+            time_spent: r.user_course.time_spent ?? null,
             id_role: r.user_group?.id_role,
             is_tutor: r.user_group?.is_tutor ?? false,
             role_shortname: r.role?.role_shortname,
