@@ -18,10 +18,12 @@ academyhub/
 
 ### Client (`cd client`)
 ```bash
-npm run dev          # Start dev server (Vite)
+npm run dev          # Start dev server (Vite, proxies /api → localhost:3000)
 npm run build        # TypeScript check + Vite build
 npm run lint         # ESLint
-npm test             # Vitest
+npm test             # Vitest (all tests)
+npm test -- path/to/file.spec.tsx          # Run a single test file
+npm test -- --reporter=verbose             # Verbose output
 ```
 
 ### Server (`cd server`)
@@ -30,6 +32,7 @@ npm run start:dev    # NestJS watch mode
 npm run build        # nest build
 npm run lint         # ESLint --fix
 npm test             # Jest (unit tests in src/**/*.spec.ts)
+npm test -- auth.service.spec              # Run a single test file by pattern
 npm run test:e2e     # E2E tests (test/jest-e2e.json)
 npm run db:generate  # drizzle-kit generate (after schema changes)
 npm run db:migrate   # drizzle-kit migrate (apply migrations)
@@ -45,9 +48,9 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 ## Server Architecture
 
 ### Module hierarchy
-- `AppModule` — root, registers global `ThrottlerGuard` (120 req/min) and `AuthGuard` (JWT Bearer on all routes except `@Public()`)
+- `AppModule` — root, registers global `ThrottlerGuard` (120 req/min) and `AuthGuard` (JWT Bearer on all routes except `@Public()`). Body size limit is 50 MB (for large CSV imports).
 - `DatabaseModule` — global, provides `DATABASE_PROVIDER` token (a `DatabaseService` wrapping a Drizzle + `pg.Pool` instance)
-- `ApiModule` — aggregates all feature modules: Company, Center, Course, Group, User, Moodle, MoodleUser, ImportSage, ImportVelneo, Reports, Organization, Files, Mail
+- `ApiModule` — aggregates all feature modules: Company, Center, Course, Group, User, AuthUser, Moodle, MoodleUser, ImportSage, ImportVelneo, Reports, Organization, Files, Mail, UserRoles
 - `AuthModule` — login endpoint, issues JWT; `auth_user` table is separate from the main `user` table
 - `SchedulerModule` — internal cron scheduler using `node-cron`; each task implements `ScheduledTask` interface
 
@@ -62,6 +65,10 @@ A lookup catalog of role definitions (`role_shortname`, `role_description`) used
 ### Database access pattern
 All DB access goes through repositories in `server/src/database/repository/`. Each repository receives the `DATABASE_PROVIDER` injection token and calls `db.select(...)`, `db.insert(...)`, etc. using Drizzle ORM. Schema is defined in `server/src/database/schema/tables/*.table.ts` and re-exported from `server/src/database/schema.ts`.
 
+The base `Repository` class (`src/database/repository/repository.ts`) exposes `dbService`, a `query()` method (uses an active transaction if one is passed), and a `transaction()` wrapper. Pass a transaction object through service calls to make multiple repository operations atomic.
+
+Key junction tables: `user_center`, `user_course`, `user_group`, `moodle_user_auth_user`. Most domain tables have an `organization_id` FK (single-org in practice but schema supports multi-tenancy).
+
 ### Drizzle migrations
 Migration files live in `server/drizzle/`. After modifying any table file under `schema/tables/`, run `npm run db:generate` then `npm run db:migrate`. The `unaccent` and `pg_trgm` PostgreSQL extensions must exist before the first migration (requires superuser).
 
@@ -73,31 +80,53 @@ Migration files live in `server/drizzle/`. After modifying any table file under 
 2. `auth_user.moodleToken` — fallback por usuario autenticado
 3. `MoodleService.resolveMoodleToken()` — token global de organización (predeterminado cuando `moodleSenderChoice = 'default'`)
 
+### Mail system
+Mail templates are stored in the database (`mail_templates` table). Template images are stored in Supabase Storage (`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` env vars). `MailService` sends Moodle notifications using the token resolution chain above.
+
+### Reports system
+PDF generation uses `ReportsPdfService` backed by `ReportRenderer` (`src/api/reports/report-renderer.service.ts`). Templates are JSON files in `src/api/reports/templates/*.json` that declare pages, element types (`title`, `paragraph`, `table`, `image`), styles, and `{{variable}}` placeholders filled at render time. `renderTemplate()` streams a PDF to a response; `renderTemplateIntoDocument()` writes into an existing PDFKit doc for multi-template composition. `PdfService` (`src/common/pdf/pdf.service.ts`) is the shared PDFKit wrapper.
+
 ### Import flows
-- **SAGE** (`api/import-sage/`): The active import path. Parses a CSV (uploaded manually or fetched via SFTP/FTP) and upserts users+companies. Uses a **decision workflow**: each run creates an `import_job` with `import_decisions` rows requiring human review before committing (matches by DNI/email/name using Levenshtein distance).
+- **SAGE** (`api/import-sage/`): The active import path. Parses a CSV (uploaded manually or fetched via SFTP/FTP) and upserts users+companies. Uses a **decision workflow**: each run creates an `import_job` with `import_decisions` rows requiring human review before committing (matches by DNI/email/name using Levenshtein distance). `ImportModule.onModuleInit()` cleans up jobs stuck in `PROCESSING` state on every app startup.
 - **Velneo** (`api/import-velneo/`): Legacy one-time migration tool used during initial data load. Processes a full Velneo ERP CSV dump in phases (users → companies → associate → courses → groups). Not actively maintained.
 
 ### Scheduler
-Internal cron scheduler; tasks in `server/src/scheduler/tasks/`. Controlled via env vars:
+Internal cron scheduler; tasks in `server/src/scheduler/tasks/`. Active tasks:
+- `moodle-active-progress.task.ts` — syncs active course progress from Moodle
+- `sage-import.task.ts` — automated SAGE CSV import from SFTP
+
+Controlled via env vars:
 - `ENABLE_CRON_SCHEDULER=true` — master switch
-- Each task has its own `TASK_ENABLED` and `TASK_CRON` env vars
+- `SAGE_IMPORT_ENABLED` / `SAGE_IMPORT_CRON` — SAGE CSV import (default: enabled, `0 2 * * *`)
+- `MOODLE_ACTIVE_SYNC_ENABLED` / `MOODLE_ACTIVE_SYNC_CRON` — progress sync (default: disabled, `0 4 * * *`)
 - Designed for single-instance deployments only
+
+### Common utilities
+- `src/utils/crypto/secrets.util.ts` — AES encryption/decryption for org-level secrets (Moodle token)
+- `src/utils/crypto/password-hashing.util.ts` — scrypt password hashing
+- `src/common/pdf/pdf.service.ts` — shared PDF generation
+- `src/common/storage/supabase-storage.service.ts` — Supabase Storage for mail template images
+- `src/common/utils/dayjs-tz.ts` — timezone-aware date handling (used by scheduler and reports)
 
 ## Client Architecture
 
 ### API communication
 - `getApiHost()` (`client/src/utils/api/get-api-host.util.ts`) — returns `VITE_API_URL` in dev, or the hardcoded Render URL in production
+- Vite proxies `/api` → `http://localhost:3000` in dev (configured in `vite.config.ts`)
 - `useAuthenticatedAxios()` — hook that returns an Axios caller pre-configured with `Authorization: Bearer <token>`
 - All data-fetching hooks live under `client/src/hooks/api/` and use TanStack Query
 
+### Hooks pattern
+Each domain under `client/src/hooks/api/` has separate `.query.ts` and `.mutation.ts` files. Queries use `useSuspenseQuery` or `useQuery`; mutations use `useMutation` with `onSuccess` invalidating related queries. Query keys follow a hierarchical array pattern: `["resource", ...filters]` (e.g., `["moodle-links", authUserId]`). Errors are typed as `AxiosError<ApiErrorDto>`.
+
 ### Auth flow
-`AuthProvider` (`client/src/providers/auth/auth.provider.tsx`) persists `{ token, user }` to `localStorage` under the key `"userInfo"`. On mount it reads it back via `readUserInfo()`. `useAuthInfo()` exposes the context; `useRole()` extracts the role. Routes check role to show/hide menu items. All protected routes are guarded on the server side by the global `AuthGuard`.
+`AuthProvider` (`client/src/providers/auth/auth.provider.tsx`) persists `{ token, user }` to `localStorage` under the key `"userInfo"`. On mount it reads it back via `readUserInfo()`. `useAuthInfo()` exposes the context; `useRole()` extracts the role. Routes check role to show/hide menu items. All protected routes are guarded on the server side by the global `AuthGuard`. Use `<AuthzHide roles={[Role.ADMIN]}>` (`client/src/components/permissions/authz-hide.tsx`) to conditionally render UI elements based on role.
 
 ### Routing
 `client/src/router.tsx` defines all routes. The sidebar is role-aware: Reports is visible to `admin`, `manager`, and `viewer`; the Administración sub-menu (Organization, SMTP, Tools) is only visible to `admin`.
 
 ### Type sharing
-Shared types between components and hooks live in `client/src/shared/types/`. Component-level types stay in `client/src/types/`. Zod schemas for form validation are in `client/src/schemas/`.
+Shared types between components and hooks live in `client/src/shared/types/`. Component-level types stay in `client/src/types/`. Zod schemas for form validation are in `client/src/schemas/` (currently only Spanish DNI and CIF validators; form schemas are co-located with their route components).
 
 ## Environment Variables
 
@@ -107,13 +136,18 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 | `DATABASE_URL` | Yes | PostgreSQL connection URL |
 | `JWT_SECRET` | Yes | JWT signing secret |
 | `JWT_EXPIRES_IN` | No | Token expiry (default `7d`) |
-| `MOODLE_TOKEN` | Yes | Moodle API token |
+| `MOODLE_TOKEN` | No | Legacy fallback Moodle token (may not be set in production) |
 | `MOODLE_URL` | Yes | Moodle API base URL |
+| `PORT` | No | HTTP port (default `3000`) |
 | `DB_SSL` | No | Set `true` for SSL (auto-enabled in production) |
 | `DB_POOL_MAX` | No | PG pool size (default `10`) |
 | `ENABLE_CRON_SCHEDULER` | No | `true` to enable internal cron |
 | `SCHEDULER_TIMEZONE` | No | Cron timezone (default `UTC`) |
+| `APP_MASTER_KEY` | Yes | Base64 AES-256 key for encrypting secrets at rest (Moodle token, SFTP password). Generate with `openssl rand -base64 32`. |
 | `SFTP_SAGE_*` | No | SFTP credentials for SAGE import |
+| `SUPABASE_URL` | No | Supabase project URL (mail template images) |
+| `SUPABASE_SERVICE_ROLE_KEY` | No | Supabase service role key |
+| `SUPABASE_STORAGE_BUCKET` | No | Supabase bucket name for mail images |
 
 ### Client (`client/.env`)
 | Variable | Description |
@@ -124,6 +158,8 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 
 - **Password hashing**: `scryptSync` with random salt, stored as `salt:hash`. Never use the legacy `hash()` (SHA-256) for new passwords.
 - **Public routes**: Decorate controller methods with `@Public()` to bypass the global `AuthGuard`.
+- **Role-based access**: Apply `@UseGuards(RoleGuard([Role.ADMIN]))` (`src/guards/role.guard.ts`) on a controller or handler to restrict access beyond just authentication. JWT must still be valid.
 - **DTO validation**: All controller inputs use class-validator DTOs. `ValidationPipe({ whitelist: true, transform: true })` strips unknown fields globally.
 - **Swagger**: Available at `http://localhost:3000/documentation` in dev.
 - **Static files**: Server serves `server/public/` at root; uploaded files go to `server/public/uploads/`.
+- **Client tests**: Vitest with `happy-dom` environment. Test files are co-located with routes/components as `*.spec.tsx`.
