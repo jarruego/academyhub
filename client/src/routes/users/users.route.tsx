@@ -196,7 +196,7 @@ export default function UsersRoute() {
         }
       ]} 
       onRow={(record: User) => ({
-        onDoubleClick: () => {
+        onClick: () => {
             const uid = Number(record.id_user);
             if (!Number.isFinite(uid)) return;
             const url = `${window.location.origin}/users/${uid}`;

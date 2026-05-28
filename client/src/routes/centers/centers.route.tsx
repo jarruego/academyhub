@@ -52,7 +52,7 @@ export default function CentersRoute() {
         dataSource={filteredCenters}
         loading={isCentersLoading}
         onRow={(record) => ({
-          onDoubleClick: () => navigate(`/centers/${record.id_center}/edit`, { state: { from: '/centers' } }),
+          onClick: () => navigate(`/centers/${record.id_center}/edit`, { state: { from: '/centers' } }),
           style: { cursor: 'pointer' }
         })}
       />

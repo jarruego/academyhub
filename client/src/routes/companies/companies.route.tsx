@@ -41,7 +41,7 @@ export default function CompaniesRoute() {
       dataSource={companiesData} 
       loading={isCompaniesLoading}
       onRow={(record) => ({
-        onDoubleClick: () => navigate(`/companies/${record.id_company}`),
+        onClick: () => navigate(`/companies/${record.id_company}`),
         style: { cursor: 'pointer' }
       })}
     />

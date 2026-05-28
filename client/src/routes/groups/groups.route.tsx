@@ -108,7 +108,7 @@ export default function GroupsRoute() {
         dataSource={filtered}
         loading={isGroupsLoading || isCoursesLoading}
         onRow={(record) => ({
-          onDoubleClick: () => {
+          onClick: () => {
             try {
               const url = `${window.location.origin}/groups/${record.id_group}/edit`;
               window.open(url, '_blank', 'noopener,noreferrer');

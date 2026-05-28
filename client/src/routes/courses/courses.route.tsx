@@ -113,7 +113,7 @@ export default function CoursesRoute() {
       dataSource={dataSource} 
       loading={isCoursesLoading || isAllGroupsLoading}
       onRow={(record) => ({
-        onDoubleClick: () => navigate(`/courses/${record.id_course}`),
+        onClick: () => navigate(`/courses/${record.id_course}`),
         style: { cursor: 'pointer' }
       })}
     />
