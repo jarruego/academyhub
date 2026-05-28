@@ -1,12 +1,15 @@
-import { Controller, Post, UploadedFile, UseInterceptors, Body, Delete, BadRequestException } from '@nestjs/common';
+import { Controller, Post, UploadedFile, UseInterceptors, Body, Delete, BadRequestException, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ImportVelneoService } from './import-velneo.service';
+import { RoleGuard } from '../../guards/role.guard';
+import { Role } from '../../guards/role.enum';
 
 @Controller('api/import-velneo')
 export class ImportVelneoController {
   constructor(private readonly importVelneoService: ImportVelneoService) {}
 
   @Post('upload-csv')
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @UseInterceptors(FileInterceptor('file'))
   async uploadCSV(@UploadedFile() file: Express.Multer.File, @Body('phase') phase?: string) {
     console.log('[ImportVelneoController] uploadCSV recibido:', file);

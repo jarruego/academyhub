@@ -14,7 +14,22 @@ async function bootstrap() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb' }));
 
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'https://app.mecohisa.com',
+  ];
+
   app.enableCors({
+    origin: (origin, callback) => {
+      // Permitir peticiones sin origen (server-to-server, curl, Postman)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origen no permitido — ${origin}`));
+      }
+    },
+    credentials: true,
     exposedHeaders: ['Content-Disposition', 'Content-Type'],
   });
   // Serve static files from `public` so requests to /uploads/* map to server/public/uploads/*
