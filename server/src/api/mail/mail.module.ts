@@ -7,12 +7,13 @@ import { MailController } from './mail.controller';
 import { MailTemplatesService } from './mail-templates.service';
 import { MailTemplatesController } from './mail-templates.controller';
 import { MoodleUserModule } from '../moodle-user/moodle-user.module';
+import { MoodleModule } from '../moodle/moodle.module';
 import { MoodleMessageService } from './moodle-message.service';
 import { AuthUserRepository } from '../../database/repository/auth/auth_user.repository';
 import { StorageModule } from '../../common/storage/storage.module';
 
 @Module({
-  imports: [DatabaseModule, MoodleUserModule, StorageModule],
+  imports: [DatabaseModule, MoodleUserModule, StorageModule, MoodleModule],
   providers: [SmtpSettingsService, MailService, MailTemplatesService, MoodleMessageService, AuthUserRepository],
   controllers: [SmtpSettingsController, MailController, MailTemplatesController],
   exports: [SmtpSettingsService, MailTemplatesService],

@@ -2,6 +2,8 @@ import { useMutation } from '@tanstack/react-query';
 import { useAuthenticatedAxios } from '../../../utils/api/use-authenticated-axios.util';
 import { getApiHost } from '../../../utils/api/get-api-host.util';
 
+export type MoodleSenderChoice = 'default' | 'auth' | 'tutor';
+
 export interface SendMailRequest {
   userId?: number;
   templateId: number;
@@ -14,6 +16,8 @@ export interface SendMailRequest {
   toEmail: string;
   sendViaMoodle?: boolean;
   authUserId?: number;
+  moodleSenderChoice?: MoodleSenderChoice;
+  tutorUserId?: number;
 }
 
 export function useSendMailMutation() {

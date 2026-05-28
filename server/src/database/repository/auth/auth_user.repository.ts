@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { authUserTable, AuthUserSelectModel, AuthUserInsertModel, AuthUserUpdateModel } from "src/database/schema/tables/auth_user.table";
-import { eq, ilike, and } from "drizzle-orm";
+import { moodleUserAuthUserTable } from "src/database/schema/tables/moodle_user_auth_user.table";
+import { eq, ilike, and, desc } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
 
 @Injectable()
@@ -54,5 +55,25 @@ export class AuthUserRepository extends Repository {
             .delete(authUserTable)
             .where(eq(authUserTable.id, id));
         return result;
+    }
+
+    async findTopMoodleLinkByAuthUserId(id_auth_user: number, options?: QueryOptions) {
+        const rows = await this.query(options)
+            .select()
+            .from(moodleUserAuthUserTable)
+            .where(eq(moodleUserAuthUserTable.id_auth_user, id_auth_user))
+            .orderBy(desc(moodleUserAuthUserTable.id))
+            .limit(1);
+        return rows?.[0];
+    }
+
+    async findTopMoodleLinkByMoodleUserId(id_moodle_user: number, options?: QueryOptions) {
+        const rows = await this.query(options)
+            .select()
+            .from(moodleUserAuthUserTable)
+            .where(eq(moodleUserAuthUserTable.id_moodle_user, id_moodle_user))
+            .orderBy(desc(moodleUserAuthUserTable.id))
+            .limit(1);
+        return rows?.[0];
     }
 }

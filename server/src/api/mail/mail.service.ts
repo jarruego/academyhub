@@ -4,7 +4,10 @@ import { MailTemplatesService } from './mail-templates.service';
 import { MoodleUserRepository } from 'src/database/repository/moodle-user/moodle-user.repository';
 import { MoodleMessageService } from './moodle-message.service';
 import { AuthUserRepository } from 'src/database/repository/auth/auth_user.repository';
+import { MoodleService } from '../moodle/moodle.service';
 import * as nodemailer from 'nodemailer';
+
+export type MoodleSenderChoice = 'default' | 'auth' | 'tutor';
 
 export interface SendMailOptions {
   to: string | string[];
@@ -17,6 +20,8 @@ export interface SendMailOptions {
   sendViaMoodle?: boolean;
   authUserId?: number;
   userId?: number;
+  moodleSenderChoice?: MoodleSenderChoice;
+  tutorUserId?: number;
 }
 
 export interface SendMailFromTemplateOptions {
@@ -31,6 +36,8 @@ export interface SendMailFromTemplateOptions {
   reply_to?: string;
   sendViaMoodle?: boolean;
   authUserId?: number;
+  moodleSenderChoice?: MoodleSenderChoice;
+  tutorUserId?: number;
 }
 
 @Injectable()
@@ -41,23 +48,42 @@ export class MailService {
     private readonly moodleUserRepository: MoodleUserRepository,
     private readonly moodleMessageService: MoodleMessageService,
     private readonly authUserRepository: AuthUserRepository,
+    private readonly moodleService: MoodleService,
   ) {}
+
+  private async resolveToken(
+    choice: MoodleSenderChoice | undefined,
+    authUserId: number | undefined,
+    tutorUserId: number | undefined,
+  ): Promise<string | undefined> {
+    if (!choice || choice === 'default') return this.moodleService.resolveMoodleToken();
+
+    if (choice === 'auth' && authUserId) {
+      const link = await this.authUserRepository.findTopMoodleLinkByAuthUserId(authUserId);
+      if (link?.moodle_token) return link.moodle_token;
+      const authUser = await this.authUserRepository.findById(authUserId);
+      return authUser?.moodleToken ?? undefined;
+    }
+
+    if (choice === 'tutor' && tutorUserId) {
+      const moodleUsers = await this.moodleUserRepository.findByUserId(tutorUserId);
+      const moodleUser = moodleUsers.find((mu) => mu.is_main_user) ?? moodleUsers[0];
+      if (moodleUser) {
+        const link = await this.authUserRepository.findTopMoodleLinkByMoodleUserId(moodleUser.id_moodle_user);
+        if (link?.moodle_token) return link.moodle_token;
+      }
+    }
+
+    return undefined;
+  }
 
   async sendMail(options: SendMailOptions) {
     if (options.sendViaMoodle) {
-      console.log('[MailService] Enviando vía Moodle:', { 
-        userId: options.userId,
-        subject: options.subject, 
-        authUserId: options.authUserId 
-      });
-      
-      // Obtener token del usuario autenticado si está disponible
-      let token: string | undefined;
-      if (options.authUserId) {
-        const authUser = await this.authUserRepository.findById(options.authUserId);
-        token = authUser?.moodleToken ?? undefined;
-        console.log('[MailService] Token del usuario autenticado:', token ? 'Disponible' : 'No disponible');
-      }
+      const token = await this.resolveToken(
+        options.moodleSenderChoice,
+        options.authUserId,
+        options.tutorUserId,
+      );
 
       let messageText = options.html || options.text || '';
       
@@ -71,26 +97,18 @@ export class MailService {
 
       try {
         const moodleUsers = await this.moodleUserRepository.findByUserId(options.userId);
-        console.log('[MailService] Usuarios de Moodle encontrados para userId', options.userId, ':', moodleUsers.length);
-        
         if (moodleUsers.length > 0) {
           const moodleUser = moodleUsers.find((mu) => mu.is_main_user) ?? moodleUsers[0];
-          console.log('[MailService] Enviando a Moodle user ID:', moodleUser.moodle_id);
-          console.log('[MailService] Contenido (primeros 200 chars):', messageText.substring(0, 200));
-          
           await this.moodleMessageService.sendMessage({
             toUserId: moodleUser.moodle_id,
             text: messageText,
-            textFormat: 1, // Siempre HTML
+            textFormat: 1,
             token,
           });
-          
-          console.log('[MailService] Mensaje enviado correctamente a Moodle');
         } else {
           throw new Error(`No se encontró usuario de Moodle para userId ${options.userId}`);
         }
       } catch (error) {
-        console.error('[MailService] Error al enviar mensaje de Moodle:', error);
         throw error;
       }
       // Continuar para enviar también por SMTP
@@ -177,6 +195,16 @@ export class MailService {
       sendViaMoodle: options.sendViaMoodle,
       authUserId: options.authUserId,
       userId: options.userId,
+      moodleSenderChoice: options.moodleSenderChoice,
+      tutorUserId: options.tutorUserId,
     });
+  }
+
+  async tutorHasMoodleToken(tutorUserId: number): Promise<boolean> {
+    const moodleUsers = await this.moodleUserRepository.findByUserId(tutorUserId);
+    const moodleUser = moodleUsers.find((mu) => mu.is_main_user) ?? moodleUsers[0];
+    if (!moodleUser) return false;
+    const link = await this.authUserRepository.findTopMoodleLinkByMoodleUserId(moodleUser.id_moodle_user);
+    return !!link?.moodle_token;
   }
 }

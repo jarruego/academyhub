@@ -3,6 +3,7 @@ import { useMailTemplatesQuery } from '../../hooks/api/mail/use-mail-templates';
 import { useSmtpSettingsQuery } from '../../hooks/api/mail/use-smtp-settings';
 import { useSendMailMutation } from '../../hooks/api/mail/use-send-mail.mutation';
 import { useSendCustomMailMutation } from '../../hooks/api/mail/use-send-custom-mail.mutation';
+import { useTutorMoodleTokenStatusQuery } from '../../hooks/api/mail/use-tutor-moodle-token-status.query';
 import { useState } from 'react';
 import { useAuthInfo } from '../../providers/auth/auth.context';
 import type { SmtpSettingsForm } from '../../shared/types/mail/smtp-settings.types';
@@ -57,6 +58,10 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
   const [finalResults, setFinalResults] = useState<{ sent: number; skipped: number; failed: number } | null>(null);
 
   const selectedTemplateData = templates?.find((t) => t.id === selectedTemplate);
+  const { data: tutorTokenStatus } = useTutorMoodleTokenStatusQuery(
+    fromChoice === 'tutor' && sendViaMoodle ? selectedTutorId : undefined
+  );
+  const tutorMissingToken = fromChoice === 'tutor' && sendViaMoodle && !!selectedTutorId && tutorTokenStatus?.hasToken === false;
 
   const renderPreview = (subject?: string, content?: string, isHtml?: boolean) => {
     const previewContent = content ?? '';
@@ -150,6 +155,8 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
             sendViaMoodle,
             authUserId: authInfo?.user?.id,
             fromName: fromChoice === 'auth' ? authInfo?.user?.name : fromChoice === 'tutor' ? selectedTutor?.name : undefined,
+            moodleSenderChoice: fromChoice,
+            tutorUserId: fromChoice === 'tutor' ? selectedTutorId : undefined,
           });
         } else {
           await sendCustomMail({
@@ -162,6 +169,8 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
             sendViaMoodle,
             authUserId: authInfo?.user?.id,
             userId: user.id_user,
+            moodleSenderChoice: fromChoice,
+            tutorUserId: fromChoice === 'tutor' ? selectedTutorId : undefined,
           });
         }
         sent += 1;
@@ -191,7 +200,7 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
           <Progress
             type="circle"
             percent={Math.round((sendingProgress.current / sendingProgress.total) * 100)}
-            width={120}
+            size={120}
           />
           <div style={{ marginTop: 16 }}>
             <Typography.Text>
@@ -340,7 +349,18 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
 
           <Form.Item>
             <Checkbox checked={sendViaMoodle} onChange={(e) => setSendViaMoodle(e.target.checked)}>
-              Enviar Notificación por Plataforma Moodle ({authInfo?.user?.name || 'Usuario'})
+              Enviar Notificación por Plataforma Moodle
+              {tutorMissingToken
+                ? <span style={{ color: '#ff4d4f', marginLeft: 4 }}>⚠ sin token Moodle para el tutor — se usará el token global</span>
+                : <span style={{ color: '#888', marginLeft: 4 }}>
+                    ({fromChoice === 'tutor'
+                      ? (selectedTutor?.name || 'selecciona un tutor')
+                      : fromChoice === 'auth'
+                        ? (authInfo?.user?.name || 'Usuario')
+                        : 'token global'
+                    })
+                  </span>
+              }
             </Checkbox>
           </Form.Item>
 

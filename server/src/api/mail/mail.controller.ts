@@ -1,6 +1,6 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { SmtpSettingsService } from './smtp-settings.service';
-import { MailService, SendMailOptions } from './mail.service';
+import { MailService, SendMailOptions, MoodleSenderChoice } from './mail.service';
 import { SmtpSettingsDto } from '../../dto/mail/smtp-settings.dto';
 import { RoleGuard } from '../../guards/role.guard';
 import { Role } from '../../guards/role.enum';
@@ -17,6 +17,8 @@ interface SendMailFromTemplateDto {
   toEmail: string;
   sendViaMoodle?: boolean;
   authUserId?: number;
+  moodleSenderChoice?: MoodleSenderChoice;
+  tutorUserId?: number;
 }
 
 @Controller('mail')
@@ -108,7 +110,16 @@ export class MailController {
       reply_to: body.replyTo,
       sendViaMoodle: body.sendViaMoodle,
       authUserId: body.authUserId,
+      moodleSenderChoice: body.moodleSenderChoice,
+      tutorUserId: body.tutorUserId,
     });
     return { success: true, message: 'Correo enviado correctamente' };
+  }
+
+  @Get('tutor-moodle-token-status/:tutorUserId')
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  async tutorMoodleTokenStatus(@Param('tutorUserId', ParseIntPipe) tutorUserId: number) {
+    const hasToken = await this.mailService.tutorHasMoodleToken(tutorUserId);
+    return { hasToken };
   }
 }

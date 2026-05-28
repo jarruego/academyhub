@@ -197,7 +197,7 @@ export class MoodleService {
      * Resolve the Moodle token. Priority: DB (organization_settings.encrypted_secrets.moodle_token) -> process.env.MOODLE_TOKEN
      * For single-center deployments we pick the first organization_settings row if no centerId is provided.
      */
-    private async resolveMoodleToken(centerId?: number): Promise<string | undefined> {
+    async resolveMoodleToken(centerId?: number): Promise<string | undefined> {
         try {
             // Try to find a token configured in the DB
             let rows: OrganizationSettingsSelectModel[] = [];
