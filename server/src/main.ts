@@ -7,7 +7,18 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import "dotenv/config";
 
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'APP_MASTER_KEY', 'DATABASE_URL', 'MOODLE_URL'];
+
+function validateEnv() {
+  const missing = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
+  if (missing.length > 0) {
+    throw new Error(`Variables de entorno requeridas no definidas: ${missing.join(', ')}`);
+  }
+}
+
 async function bootstrap() {
+  validateEnv();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Aumentar límites de body size para importaciones de CSV grandes
@@ -40,12 +51,14 @@ async function bootstrap() {
 // La opción 'transform: true' convierte los datos de entrada a los tipos esperados.
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  const config = new DocumentBuilder()
-    .setTitle('AcademyHub API - Gestión de formación para pymes con integración Moodle')
-    .setDescription('API RESTful para la plataforma AcademyHub, orientada a la gestión integral de cursos, usuarios, centros y empresas en pequeñas y medianas empresas (pymes) que utilizan Moodle. Facilita la administración de la formación presencial y online, cumpliendo normativas SEPE y FUNDAE, y promoviendo la digitalización del sector formativo.\n\nRESTful API for the AcademyHub platform, focused on the comprehensive management of courses, users, centers, and companies in small and medium-sized enterprises (SMEs) using Moodle. It streamlines the administration of both in-person and online training, ensures compliance with SEPE and FUNDAE regulations, and promotes digitalization in the training sector.')
-    .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('documentation', app, documentFactory);
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('AcademyHub API - Gestión de formación para pymes con integración Moodle')
+      .setDescription('API RESTful para la plataforma AcademyHub, orientada a la gestión integral de cursos, usuarios, centros y empresas en pequeñas y medianas empresas (pymes) que utilizan Moodle. Facilita la administración de la formación presencial y online, cumpliendo normativas SEPE y FUNDAE, y promoviendo la digitalización del sector formativo.\n\nRESTful API for the AcademyHub platform, focused on the comprehensive management of courses, users, centers, and companies in small and medium-sized enterprises (SMEs) using Moodle. It streamlines the administration of both in-person and online training, ensures compliance with SEPE and FUNDAE regulations, and promotes digitalization in the training sector.')
+      .build();
+    const documentFactory = () => SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('documentation', app, documentFactory);
+  }
 
   await app.listen(process.env.PORT ?? 3000);
 }

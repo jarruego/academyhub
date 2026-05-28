@@ -223,8 +223,8 @@ Requests without an `Origin` header (server-to-server: Render, Moodle, cron jobs
 The following gaps were identified in a 2025-05 security review and are not yet addressed:
 
 - **No token revocation**: 7-day JWTs cannot be invalidated individually. Mitigate by keeping `JWT_EXPIRES_IN` short (e.g. `8h`) or implementing a deny-list.
-- **Swagger unauthenticated**: `/documentation` is publicly accessible. Add an auth middleware or restrict via reverse-proxy in production.
-- **No startup validation of critical env vars**: if `JWT_SECRET` or `APP_MASTER_KEY` are missing, the app starts and fails at runtime. Add a startup check in `main.ts`.
+- **Swagger**: only registered when `NODE_ENV !== 'production'` — returns 404 in production. ✅ Fixed.
+- **Startup env var validation**: `validateEnv()` in `main.ts` checks `JWT_SECRET`, `APP_MASTER_KEY`, `DATABASE_URL`, `MOODLE_URL` before the app starts and throws if any are missing. ✅ Fixed.
 - **No per-user/IP rate limiting**: ThrottlerGuard is global. A single IP can exhaust the quota for all users.
 - **Body limit 50 MB on all routes**: justified for CSV imports but applies to every endpoint. Consider narrowing it to upload-specific routes.
 - **No audit log**: sensitive operations (user create/delete, imports, role changes) are not logged to a persistent audit table.
