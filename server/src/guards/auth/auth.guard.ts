@@ -8,12 +8,14 @@ import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import { Request } from "express";
 import { IS_PUBLIC_KEY } from "src/guards/auth/public.guard";
+import { RevokedTokenService } from "src/auth/revoked-token.service";
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly reflector: Reflector
+    private readonly reflector: Reflector,
+    private readonly revokedTokenService: RevokedTokenService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -22,7 +24,6 @@ export class AuthGuard implements CanActivate {
       context.getClass(),
     ]);
     if (isPublic) {
-      // 💡 See this condition
       return true;
     }
 
@@ -35,8 +36,9 @@ export class AuthGuard implements CanActivate {
       const payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.JWT_SECRET
       });
-      // 💡 We're assigning the payload to the request object here
-      // so that we can access it in our route handlers
+      if (payload.jti && await this.revokedTokenService.isRevoked(payload.jti)) {
+        throw new UnauthorizedException();
+      }
       request["user"] = payload;
     } catch {
       throw new UnauthorizedException();

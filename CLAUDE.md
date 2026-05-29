@@ -215,14 +215,15 @@ Requests without an `Origin` header (server-to-server: Render, Moodle, cron jobs
 
 - **Issued** at `POST /auth/login` (`auth/auth.service.ts`) — payload: `{ id, username, role }`
 - **Secret**: `process.env.JWT_SECRET`; **expiry**: `process.env.JWT_EXPIRES_IN` (default `7d`)
-- **Validated** by global `AuthGuard` on every request
-- **No refresh token, no revocation, no logout endpoint** — if a token is compromised, it stays valid until expiry. Rotating `JWT_SECRET` invalidates all active sessions.
+- **Validated** by global `AuthGuard` on every request — also checks `revoked_tokens` table for logged-out tokens
+- **Logout**: `POST /auth/logout` — revokes the current token by inserting its `jti` in `revoked_tokens`; returns 204
+- **No refresh token** — single-use JWT until expiry or explicit logout. Rotating `JWT_SECRET` invalidates all active sessions.
 
 ### Known open security items
 
 The following gaps were identified in a 2025-05 security review and are not yet addressed:
 
-- **No token revocation**: 7-day JWTs cannot be invalidated individually. Mitigate by keeping `JWT_EXPIRES_IN` short (e.g. `8h`) or implementing a deny-list.
+- **Token revocation**: `POST /auth/logout` inserts the token's `jti` into the `revoked_tokens` table; `AuthGuard` rejects revoked tokens on every request. Tokens include a `jti` (UUID) since 2026-05. ✅ Fixed.
 - **Swagger**: only registered when `NODE_ENV !== 'production'` — returns 404 in production. ✅ Fixed.
 - **Startup env var validation**: `validateEnv()` in `main.ts` checks `JWT_SECRET`, `APP_MASTER_KEY`, `DATABASE_URL`, `MOODLE_URL` before the app starts and throws if any are missing. ✅ Fixed.
 - **No per-user/IP rate limiting**: ThrottlerGuard is global. A single IP can exhaust the quota for all users.
