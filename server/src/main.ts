@@ -21,6 +21,9 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Necesario para que req.ip sea la IP real del cliente detrás del proxy de Render
+  app.set('trust proxy', 1);
+
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
 

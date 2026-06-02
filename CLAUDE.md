@@ -226,6 +226,6 @@ The following gaps were identified in a 2025-05 security review and are not yet 
 - **Token revocation**: `POST /auth/logout` inserts the token's `jti` into the `revoked_tokens` table; `AuthGuard` rejects revoked tokens on every request. Tokens include a `jti` (UUID) since 2026-05. ✅ Fixed.
 - **Swagger**: only registered when `NODE_ENV !== 'production'` — returns 404 in production. ✅ Fixed.
 - **Startup env var validation**: `validateEnv()` in `main.ts` checks `JWT_SECRET`, `APP_MASTER_KEY`, `DATABASE_URL`, `MOODLE_URL` before the app starts and throws if any are missing. ✅ Fixed.
-- **No per-user/IP rate limiting**: ThrottlerGuard is global. A single IP can exhaust the quota for all users.
+- **Per-IP rate limiting**: `trust proxy 1` enabled in `main.ts` so Render's `X-Forwarded-For` header is trusted and `req.ip` reflects the real client IP. ThrottlerGuard already tracks per-IP by default. ✅ Fixed.
 - **Body limit**: JSON/URL-encoded bodies capped at 1 MB globally. File uploads (CSV, images) use Multer (`FileInterceptor`) which tiene su propio parser — no se ven afectados por este límite. ✅ Fixed.
 - **No audit log**: sensitive operations (user create/delete, imports, role changes) are not logged to a persistent audit table.
