@@ -227,5 +227,5 @@ The following gaps were identified in a 2025-05 security review and are not yet 
 - **Swagger**: only registered when `NODE_ENV !== 'production'` — returns 404 in production. ✅ Fixed.
 - **Startup env var validation**: `validateEnv()` in `main.ts` checks `JWT_SECRET`, `APP_MASTER_KEY`, `DATABASE_URL`, `MOODLE_URL` before the app starts and throws if any are missing. ✅ Fixed.
 - **No per-user/IP rate limiting**: ThrottlerGuard is global. A single IP can exhaust the quota for all users.
-- **Body limit 50 MB on all routes**: justified for CSV imports but applies to every endpoint. Consider narrowing it to upload-specific routes.
+- **Body limit**: JSON/URL-encoded bodies capped at 1 MB globally. File uploads (CSV, images) use Multer (`FileInterceptor`) which tiene su propio parser — no se ven afectados por este límite. ✅ Fixed.
 - **No audit log**: sensitive operations (user create/delete, imports, role changes) are not logged to a persistent audit table.
