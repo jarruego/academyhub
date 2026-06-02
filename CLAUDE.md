@@ -48,10 +48,10 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 ## Server Architecture
 
 ### Module hierarchy
-- `AppModule` — root, registers global `ThrottlerGuard` (120 req/min) and `AuthGuard` (JWT Bearer on all routes except `@Public()`). Body size limit is 50 MB (for large CSV imports).
+- `AppModule` — root, registers global `ThrottlerGuard` (120 req/min per IP) and `AuthGuard` (JWT Bearer on all routes except `@Public()`). JSON body limit is 1 MB; file uploads use Multer (no limit shared).
 - `DatabaseModule` — global, provides `DATABASE_PROVIDER` token (a `DatabaseService` wrapping a Drizzle + `pg.Pool` instance)
 - `ApiModule` — aggregates all feature modules: Company, Center, Course, Group, User, AuthUser, Moodle, MoodleUser, ImportSage, ImportVelneo, Reports, Organization, Files, Mail, UserRoles
-- `AuthModule` — login endpoint, issues JWT; `auth_user` table is separate from the main `user` table
+- `AuthModule` — login/logout endpoints, issues JWT; `auth_user` table is separate from the main `user` table
 - `SchedulerModule` — internal cron scheduler using `node-cron`; each task implements `ScheduledTask` interface
 
 ### Three distinct user concepts
@@ -85,12 +85,7 @@ This chain is currently only implemented inside `MailService.resolveToken()`. Ot
 ### Mail system
 Mail templates are stored in the database (`mail_templates` table). Template images are stored in Supabase Storage (`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` env vars). `MailService` sends Moodle notifications using the token resolution chain above.
 
-**`moodleSenderChoice`** — parameter accepted by `POST /mail/send` and `POST /mail/send-from-template` that controls which Moodle token is used when `sendViaMoodle = true`:
-- `'default'` — org-level token via `MoodleService.resolveMoodleToken()`
-- `'auth'` — token from `moodle_user_auth_user` for the current `auth_user` (highest `id`), fallback to `auth_user.moodleToken`
-- `'tutor'` — token from `moodle_user_auth_user` for the tutor's `moodle_user` (highest `id`); tutor is resolved as `user` → `moodle_user` (prefer `is_main_user`) → `moodle_user_auth_user`
-
-`GET /mail/tutor-moodle-token-status/:tutorUserId` — lightweight check used by the frontend to show a warning in `SendMailToGroupModal` when the selected tutor has no Moodle token (falls back to org-level token silently).
+`POST /mail/send` and `POST /mail/send-from-template` accept a `moodleSenderChoice` parameter (`'default'` | `'auth'` | `'tutor'`) that selects which Moodle token is used. See `MailService.resolveToken()` for the full logic.
 
 `MailModule` imports `MoodleModule` (for `MoodleService`). Avoid creating a reverse import from `MoodleModule` into `MailModule` — it would create a circular dependency.
 
@@ -140,13 +135,11 @@ Each domain under `client/src/hooks/api/` has separate `.query.ts` and `.mutatio
 
 ### Responsive design conventions
 
-**Form layouts:** replace `<div style={{ display: 'flex', gap: 16 }}>` with `<Row gutter={[16, 0]}>` + `<Col xs={24} sm={X} md={Y}>`. Never use hardcoded pixel widths (`width: 80`, `flex: 1`) on `<Form.Item>` — let the `<Col>` control the width. `<DatePicker>` and `<Select>` inside a Col need `style={{ width: '100%' }}` to fill their column.
+**Form layouts:** replace `<div style={{ display: 'flex', gap: 16 }}>` with `<Row gutter={[16, 0]}>` + `<Col xs={24} sm={X} md={Y}>`. Never use hardcoded pixel widths on `<Form.Item>` — let the `<Col>` control the width. `<DatePicker>` and `<Select>` inside a Col need `style={{ width: '100%' }}` to fill their column.
 
-**Wide tables:** add `scroll={{ x: 'max-content', y: N }}` and pin key columns with `fixed: 'left'`. Fixed columns must be contiguous from the left edge — if a dynamic column (e.g. the "M" Moodle-synced indicator in `GroupUsersManager`) precedes a fixed column, it must also be `fixed: 'left'`.
+**Wide tables:** add `scroll={{ x: 'max-content', y: N }}` and pin key columns with `fixed: 'left'`. Fixed columns must be contiguous from the left edge.
 
-**Table navigation:** main list tables (`users`, `groups`, `courses`, `companies`, `centers`) use `onClick` on `onRow` for single-click navigation. Tables inside detail pages (`GroupUsersManager` user table, `course-detail` groups table) keep `onDoubleClick` to avoid conflicts with row selection.
-
-**Toolbar with many actions:** group actions semantically into `<Dropdown menu={...}>` buttons rather than individual buttons. In `GroupUsersManager` the original buttons are collapsed into: *Usuarios* (Gestor + Importar XLS), *Moodle* (Traer + Subir, non-presencial only), *Exportar* (.csv mail + .csv SMS), *Correo* (standalone), *Selección* (0% + 1–75% + ≥75%), *Bonificar* (standalone primary). Use `MenuProps['onClick']` for the menu handler; async handlers are called via `void handler()` inside the click callback.
+**Table navigation:** main list tables (`users`, `groups`, `courses`, `companies`, `centers`) use `onClick` on `onRow` for single-click navigation. Tables inside detail pages keep `onDoubleClick` to avoid conflicts with row selection.
 
 ### Type sharing
 Shared types between components and hooks live in `client/src/shared/types/`. Component-level types stay in `client/src/types/`. Zod schemas for form validation are in `client/src/schemas/` (currently only Spanish DNI and CIF validators; form schemas are co-located with their route components).
@@ -166,7 +159,7 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 | `DB_POOL_MAX` | No | PG pool size (default `10`) |
 | `ENABLE_CRON_SCHEDULER` | No | `true` to enable internal cron |
 | `SCHEDULER_TIMEZONE` | No | Cron timezone (default `UTC`) |
-| `APP_MASTER_KEY` | Yes | Base64 AES-256 key for encrypting secrets at rest (Moodle token, SFTP password). Generate with `openssl rand -base64 32`. |
+| `APP_MASTER_KEY` | Yes | Base64 AES-256 key for encrypting secrets at rest. Generate with `openssl rand -base64 32`. |
 | `SFTP_SAGE_*` | No | SFTP credentials for SAGE import |
 | `SUPABASE_URL` | No | Supabase project URL (mail template images) |
 | `SUPABASE_SERVICE_ROLE_KEY` | No | Supabase service role key |
@@ -183,7 +176,7 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 - **Public routes**: Decorate controller methods with `@Public()` to bypass the global `AuthGuard`. Currently only `POST /auth/login` and `GET /api/files/organization/:filename` are public.
 - **Role-based access**: Apply `@UseGuards(RoleGuard([Role.ADMIN]))` (`src/guards/role.guard.ts`) on a controller or handler to restrict access beyond just authentication. JWT must still be valid.
 - **DTO validation**: All controller inputs use class-validator DTOs. `ValidationPipe({ whitelist: true, transform: true })` strips unknown fields globally.
-- **Swagger**: Available at `http://localhost:3000/documentation` in dev. No authentication guard — do not expose in production without restricting access.
+- **Swagger**: Only active when `NODE_ENV !== 'production'` (`http://localhost:3000/documentation` in dev).
 - **Static files**: Server serves `server/public/` at root; uploaded files go to `server/public/uploads/`.
 - **Client tests**: Vitest with `happy-dom` environment. Test files are co-located with routes/components as `*.spec.tsx`.
 
@@ -194,7 +187,7 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 | Guard | File | Scope | Behavior |
 |---|---|---|---|
 | `AuthGuard` | `src/guards/auth/auth.guard.ts` | Global (`APP_GUARD`) | Validates JWT Bearer token on every request; bypassed by `@Public()` |
-| `ThrottlerGuard` | NestJS throttler | Global | 120 req / 60s; login overridden to 8 req / 60s |
+| `ThrottlerGuard` | NestJS throttler | Global | 120 req / 60s per IP; login overridden to 8 req / 60s |
 | `RoleGuard(roles[])` | `src/guards/role.guard.ts` | Per handler/controller | Checks `request.user.role` against allowed roles array |
 | `@Public()` | `src/guards/auth/public.guard.ts` | Per handler/controller | Sets `IS_PUBLIC_KEY` metadata to skip `AuthGuard` |
 
@@ -202,30 +195,17 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 
 ### CORS
 
-Configured in `server/src/main.ts` with an explicit origin allowlist. Adding a new frontend origin requires updating `allowedOrigins` there and redeploying the backend.
-
-Allowed origins:
-- `http://localhost:5173` (Vite dev)
-- `http://localhost:4173` (Vite preview)
-- `https://app.mecohisa.com` (production)
-
-Requests without an `Origin` header (server-to-server: Render, Moodle, cron jobs, curl) are always allowed — CORS is a browser-only mechanism.
+Configured in `server/src/main.ts` with an explicit origin allowlist: `localhost:5173`, `localhost:4173`, `https://app.mecohisa.com`. Requests without `Origin` header (server-to-server) are always allowed.
 
 ### JWT lifecycle
 
-- **Issued** at `POST /auth/login` (`auth/auth.service.ts`) — payload: `{ id, username, role }`
+- **Issued** at `POST /auth/login` — payload: `{ id, username, role, jti }`
 - **Secret**: `process.env.JWT_SECRET`; **expiry**: `process.env.JWT_EXPIRES_IN` (default `7d`)
-- **Validated** by global `AuthGuard` on every request — also checks `revoked_tokens` table for logged-out tokens
-- **Logout**: `POST /auth/logout` — revokes the current token by inserting its `jti` in `revoked_tokens`; returns 204
-- **No refresh token** — single-use JWT until expiry or explicit logout. Rotating `JWT_SECRET` invalidates all active sessions.
+- **Validated** by global `AuthGuard` on every request — also checks `revoked_tokens` table
+- **Logout**: `POST /auth/logout` — inserts `jti` in `revoked_tokens`; returns 204
+- **No refresh token** — rotating `JWT_SECRET` invalidates all active sessions.
 
 ### Known open security items
 
-The following gaps were identified in a 2025-05 security review and are not yet addressed:
-
-- **Token revocation**: `POST /auth/logout` inserts the token's `jti` into the `revoked_tokens` table; `AuthGuard` rejects revoked tokens on every request. Tokens include a `jti` (UUID) since 2026-05. ✅ Fixed.
-- **Swagger**: only registered when `NODE_ENV !== 'production'` — returns 404 in production. ✅ Fixed.
-- **Startup env var validation**: `validateEnv()` in `main.ts` checks `JWT_SECRET`, `APP_MASTER_KEY`, `DATABASE_URL`, `MOODLE_URL` before the app starts and throws if any are missing. ✅ Fixed.
-- **Per-IP rate limiting**: `trust proxy 1` enabled in `main.ts` so Render's `X-Forwarded-For` header is trusted and `req.ip` reflects the real client IP. ThrottlerGuard already tracks per-IP by default. ✅ Fixed.
-- **Body limit**: JSON/URL-encoded bodies capped at 1 MB globally. File uploads (CSV, images) use Multer (`FileInterceptor`) which tiene su propio parser — no se ven afectados por este límite. ✅ Fixed.
 - **No audit log**: sensitive operations (user create/delete, imports, role changes) are not logged to a persistent audit table.
+- **Contraseñas sin complejidad**: only `MinLength(8)` enforced; no uppercase/number/special char requirement.
