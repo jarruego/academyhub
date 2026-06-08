@@ -75,12 +75,12 @@ Migration files live in `server/drizzle/`. After modifying any table file under 
 ### Moodle integration
 `MoodleService` (`server/src/api/moodle/moodle.service.ts`) wraps all Moodle Web Services calls. The org-level Moodle token is stored encrypted in `organization_settings` (via `secrets.util.ts`) and can be overridden per `auth_user.moodleToken`. The optional custom plugin `block_advanced_reports_get_userstats` is gated by `organization_settings.settings.plugins.itop_training`.
 
-**Token resolution:** `process.env.MOODLE_TOKEN` is a legacy fallback that may not be set in production. The real org-level token lives in `organization_settings.encrypted_secrets` and must be read via `MoodleService.resolveMoodleToken()` (public method). For Moodle notification sending, `MailService.resolveToken()` implements the full priority chain:
-1. `moodle_user_auth_user.moodle_token` — token específico del vínculo (par `auth_user` + `moodle_user`), se toma el de mayor `id` si hay varios
-2. `auth_user.moodleToken` — fallback por usuario autenticado
-3. `MoodleService.resolveMoodleToken()` — token global de organización (predeterminado cuando `moodleSenderChoice = 'default'`)
+**Token resolution:** `process.env.MOODLE_TOKEN` is a legacy fallback that may not be set in production. The real org-level token lives in `organization_settings.encrypted_secrets`, read via `MoodleService.resolveMoodleToken()`. `MailService.resolveToken()` implements the full priority chain for notifications:
+1. `moodle_user_auth_user.moodle_token` — link-specific token for the `auth_user`+`moodle_user` pair (highest `id` wins if several)
+2. `auth_user.moodleToken` — per-authenticated-user fallback
+3. `MoodleService.resolveMoodleToken()` — org-level token (default when `moodleSenderChoice = 'default'`)
 
-This chain is currently only implemented inside `MailService.resolveToken()`. Other call sites must implement it manually (or refactor into a shared utility) — there is no standalone helper for it yet.
+Only implemented in `MailService.resolveToken()` — other call sites must replicate it manually; no shared helper exists yet.
 
 ### Mail system
 Mail templates are stored in the database (`mail_templates` table). Template images are stored in Supabase Storage (`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` env vars). `MailService` sends Moodle notifications using the token resolution chain above.
@@ -173,8 +173,7 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 ## Key Conventions
 
 - **Password hashing**: `scryptSync` with random salt, stored as `salt:hash`. Never use the legacy `hash()` (SHA-256) for new passwords.
-- **Public routes**: Decorate controller methods with `@Public()` to bypass the global `AuthGuard`. Currently only `POST /auth/login` and `GET /api/files/organization/:filename` are public.
-- **Role-based access**: Apply `@UseGuards(RoleGuard([Role.ADMIN]))` (`src/guards/role.guard.ts`) on a controller or handler to restrict access beyond just authentication. JWT must still be valid.
+- **Public routes**: only `POST /auth/login` and `GET /api/files/organization/:filename` are decorated `@Public()` (see Guards table below for mechanics).
 - **DTO validation**: All controller inputs use class-validator DTOs. `ValidationPipe({ whitelist: true, transform: true })` strips unknown fields globally.
 - **Swagger**: Only active when `NODE_ENV !== 'production'` (`http://localhost:3000/documentation` in dev).
 - **Static files**: Server serves `server/public/` at root; uploaded files go to `server/public/uploads/`.
