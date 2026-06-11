@@ -53,6 +53,7 @@ import { CenterInsertModel } from "src/database/schema/tables/center.table";
 import { UserCenterInsertModel } from "src/database/schema/tables/user_center.table";
 import { DocumentType } from "src/types/user/document-type.enum";
 import { Gender } from "src/types/user/gender.enum";
+import { mapSageEducationLevel } from "./education-level.util";
 
 @Injectable()
 export class ImportService {
@@ -1118,10 +1119,18 @@ export class ImportService {
         const sexo = getValue('Sexo').trim();
         const gender = sexo === '1' ? Gender.MALE : sexo === '2' ? Gender.FEMALE : undefined;
 
+        // Nivel de estudios: código SEPE o texto libre -> código FUNDAE (1-10)
+        const educationLevel = mapSageEducationLevel(getValue('Código nivel'), getValue('Nivel Estudios'));
+
         const phoneValue = getValue(
             'Movilidad geografica',
             // 'Movilidad geográfica', // Legacy desactivado
         );
+
+        // Email: si no tiene formato válido se descarta (mejor vacío que basura
+        // que luego bloquearía notificaciones o el alta en Moodle)
+        const emailRaw = getValue('Email').trim();
+        const email = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailRaw) ? emailRaw : undefined;
 
         const normalizedData = {
             // Datos del usuario
@@ -1135,12 +1144,13 @@ export class ImportService {
             ).trim(),
             first_surname: firstSurname,
             second_surname: secondSurname,
-            email: getValue('Email').trim() || undefined,
+            email: email,
             phone: phoneValue.trim() || undefined,
             birth_date: birthDate,
             job_position: getValue('Categoría').trim() || undefined,
             salary_group: salaryGroup,
             gender: gender,
+            education_level: educationLevel,
             nss: nss,
             import_id: getValue(
                 'EmpleadoNomina CodigoEmpleado',
@@ -1955,8 +1965,12 @@ export class ImportService {
             updates.job_position = data.job_position;
         }
 
-        if (!existingUser.birth_date && data.birth_date) {
-            updates.birth_date = data.birth_date;
+        if (data.birth_date) {
+            const sameDay = existingUser.birth_date
+                && new Date(existingUser.birth_date).toDateString() === data.birth_date.toDateString();
+            if (!existingUser.birth_date || (options.overwriteBirthDate && !sameDay)) {
+                updates.birth_date = data.birth_date;
+            }
         }
 
         if (!existingUser.nss && data.nss) {
@@ -1965,6 +1979,15 @@ export class ImportService {
 
         if (!existingUser.email && data.email) {
             updates.email = data.email;
+        }
+
+        // Nivel de estudios: fill-gaps por defecto; con overwriteEducationLevel
+        // se fuerza el valor derivado del CSV (solo cuando el CSV trae algo
+        // clasificable — si no, nunca se borra el valor existente).
+        if (data.education_level
+            && (options.overwriteEducationLevel || !existingUser.education_level)
+            && String(existingUser.education_level ?? '') !== data.education_level) {
+            updates.education_level = data.education_level;
         }
 
         if (!existingUser.phone && data.phone) {
@@ -2003,7 +2026,7 @@ export class ImportService {
             disability: false,
             terrorism_victim: false,
             gender_violence_victim: false,
-            education_level: null,
+            education_level: data.education_level || null,
             address: null,
             postal_code: null,
             city: null,

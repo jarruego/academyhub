@@ -14,8 +14,7 @@ import {
     App,
     Descriptions,
     Tag,
-    Divider,
-    Checkbox
+    Divider
 } from 'antd';
 import {
     UploadOutlined,
@@ -27,7 +26,8 @@ import {
 import type { UploadProps } from 'antd';
 import { useImportUpload } from '../../hooks/api/import-sage/useImportUpload';
 import { useJobStatus } from '../../hooks/api/import-sage/useJobStatus';
-import { ImportSummary, JobStatus } from '../../types/import.types';
+import { ImportSummary, JobStatus, ImportOverwriteOptions, DEFAULT_IMPORT_OVERWRITE_OPTIONS } from '../../types/import.types';
+import { ImportOverwriteOptionsForm } from './ImportOverwriteOptions';
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -46,8 +46,7 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
     const [currentJobId, setCurrentJobId] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
-    const [overwriteGender, setOverwriteGender] = useState(false);
-    const [overwriteSalaryGroup, setOverwriteSalaryGroup] = useState(false);
+    const [overwriteOptions, setOverwriteOptions] = useState<ImportOverwriteOptions>(DEFAULT_IMPORT_OVERWRITE_OPTIONS);
 
     const uploadMutation = useImportUpload();
     const {
@@ -103,8 +102,9 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
             try {
                 const formData = new FormData();
                 formData.append('file', file as File);
-                formData.append('overwriteGender', String(overwriteGender));
-                formData.append('overwriteSalaryGroup', String(overwriteSalaryGroup));
+                Object.entries(overwriteOptions).forEach(([key, val]) => {
+                    formData.append(key, String(val));
+                });
 
                 const result = await uploadMutation.mutateAsync(formData);
                 setCurrentJobId(result.jobId);
@@ -186,32 +186,11 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
                     </p>
                 </Dragger>
 
-                <div>
-                    <Space direction="vertical" size={4}>
-                        <Checkbox
-                            checked={overwriteGender}
-                            onChange={(e) => setOverwriteGender(e.target.checked)}
-                            disabled={uploadMutation.isPending || isPolling}
-                        >
-                            Sobrescribir el sexo de todos los usuarios con el valor del CSV
-                        </Checkbox>
-                        <Checkbox
-                            checked={overwriteSalaryGroup}
-                            onChange={(e) => setOverwriteSalaryGroup(e.target.checked)}
-                            disabled={uploadMutation.isPending || isPolling}
-                        >
-                            Sobrescribir el grupo de cotización de todos los usuarios con el valor del CSV
-                        </Checkbox>
-                    </Space>
-                    {(overwriteGender || overwriteSalaryGroup) && (
-                        <Alert
-                            type="warning"
-                            showIcon
-                            style={{ marginTop: 8 }}
-                            message={`Se sobrescribirá ${[overwriteGender ? 'el sexo' : null, overwriteSalaryGroup ? 'el grupo de cotización' : null].filter(Boolean).join(' y ')} en todos los usuarios del CSV, aunque ya tengan un valor asignado. El resto de campos no se verán afectados.`}
-                        />
-                    )}
-                </div>
+                <ImportOverwriteOptionsForm
+                    value={overwriteOptions}
+                    onChange={setOverwriteOptions}
+                    disabled={uploadMutation.isPending || isPolling}
+                />
 
                 <Alert
                     message="Formato del archivo"

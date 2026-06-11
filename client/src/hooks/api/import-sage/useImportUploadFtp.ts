@@ -1,12 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
-import { UploadResponse } from '../../../types/import.types';
+import { UploadResponse, ImportOverwriteOptions } from '../../../types/import.types';
 import { useAuthInfo } from '../../../providers/auth/auth.context';
 import { getApiHost } from '../../../utils/api/get-api-host.util';
 
-interface FtpPayload {
+interface FtpPayload extends Partial<ImportOverwriteOptions> {
   path?: string;
-  overwriteGender?: boolean;
-  overwriteSalaryGroup?: boolean;
 }
 
 const startImportFromFtp = async (payload: FtpPayload, token: string): Promise<UploadResponse> => {

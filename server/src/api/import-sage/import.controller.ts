@@ -52,6 +52,18 @@ class UploadCsvFromFtpDto {
     @Transform(toBoolean)
     @IsBoolean()
     overwriteSalaryGroup?: boolean;
+
+    // Ídem para la fecha de nacimiento.
+    @IsOptional()
+    @Transform(toBoolean)
+    @IsBoolean()
+    overwriteBirthDate?: boolean;
+
+    // Ídem para el nivel de estudios.
+    @IsOptional()
+    @Transform(toBoolean)
+    @IsBoolean()
+    overwriteEducationLevel?: boolean;
 }
 
 // Opciones de la subida manual de CSV (multipart/form-data)
@@ -65,6 +77,16 @@ class UploadCsvOptionsDto {
     @Transform(toBoolean)
     @IsBoolean()
     overwriteSalaryGroup?: boolean;
+
+    @IsOptional()
+    @Transform(toBoolean)
+    @IsBoolean()
+    overwriteBirthDate?: boolean;
+
+    @IsOptional()
+    @Transform(toBoolean)
+    @IsBoolean()
+    overwriteEducationLevel?: boolean;
 }
 
 class JobStatusResponseDto {
@@ -196,7 +218,9 @@ export class ImportController {
         try {
             const jobId = await this.importService.startImportJob(file.buffer, file.originalname, {
                 overwriteGender: body?.overwriteGender === true,
-                overwriteSalaryGroup: body?.overwriteSalaryGroup === true
+                overwriteSalaryGroup: body?.overwriteSalaryGroup === true,
+                overwriteBirthDate: body?.overwriteBirthDate === true,
+                overwriteEducationLevel: body?.overwriteEducationLevel === true
             });
             
             return {
@@ -220,7 +244,9 @@ export class ImportController {
     async uploadCSVFromFtp(@Body() body: UploadCsvFromFtpDto = {} as UploadCsvFromFtpDto): Promise<UploadCSVResponseDto> {
         const jobId = await this.importService.startImportJobFromFtp(body.path, {
             overwriteGender: body.overwriteGender === true,
-            overwriteSalaryGroup: body.overwriteSalaryGroup === true
+            overwriteSalaryGroup: body.overwriteSalaryGroup === true,
+            overwriteBirthDate: body.overwriteBirthDate === true,
+            overwriteEducationLevel: body.overwriteEducationLevel === true
         });
         return {
             jobId,

@@ -27,8 +27,8 @@ export interface SageCSVRow {
     'Txt_Tarifa': string;                            // No usado
     'CategoriaCuentaAnual': string;                  // No usado
     'Txt_CategoriaCuentaAnual': string;              // No usado
-    'Código nivel': string;                          // No usado
-    'Nivel Estudios': string;                        // No usado
+    'Código nivel': string;                          // Código SEPE de nivel formativo ('0' = no informado) -> users.education_level (mapeado a FUNDAE)
+    'Nivel Estudios': string;                        // Texto libre -> users.education_level (clasificado por palabras clave si no hay código)
 
     // Compatibilidad con formato anterior (desactivada intencionalmente)
     // Se deja como referencia documental por si en el futuro se necesita reactivar.
@@ -62,6 +62,7 @@ export interface ProcessedUserData {
     job_position?: string;
     salary_group?: number;
     gender?: Gender;
+    education_level?: string; // Código FUNDAE 1-10 (ver education-level.util.ts)
     nss?: string;
     import_id: string; // EmpleadoNomina.CodigoEmpleado
     
@@ -95,6 +96,10 @@ export interface SageImportOptions {
     // en todos los usuarios procesados. Si es false (defecto), solo se rellena
     // cuando en BD está vacío (null o 0).
     overwriteSalaryGroup?: boolean;
+    // Ídem para la fecha de nacimiento.
+    overwriteBirthDate?: boolean;
+    // Ídem para el nivel de estudios (código FUNDAE derivado del CSV).
+    overwriteEducationLevel?: boolean;
 }
 
 // Resultado del procesamiento de un registro

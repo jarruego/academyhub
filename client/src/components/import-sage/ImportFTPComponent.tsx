@@ -1,20 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Space, Typography, Button, Alert, Input, Tag, Progress, Spin, Divider, Statistic, Row, Col, App, Checkbox } from 'antd';
+import { Card, Space, Typography, Button, Alert, Input, Tag, Progress, Spin, Divider, Statistic, Row, Col, App } from 'antd';
 import { CloudDownloadOutlined, ReloadOutlined, StopOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, WifiOutlined } from '@ant-design/icons';
 import { useImportUploadFtp } from '../../hooks/api/import-sage/useImportUploadFtp';
 import { useJobStatus } from '../../hooks/api/import-sage/useJobStatus';
 import { useSftpConnection } from '../../hooks/api/import-sage/useSftpConnection';
 import { useSftpFileDownload } from '../../hooks/api/import-sage/useSftpFileDownload';
 import { useCancelImport } from '../../hooks/api/import-sage/useCancelImport';
-import { ImportSummary } from '../../types/import.types';
+import { ImportSummary, ImportOverwriteOptions, DEFAULT_IMPORT_OVERWRITE_OPTIONS } from '../../types/import.types';
+import { ImportOverwriteOptionsForm } from './ImportOverwriteOptions';
 
 const { Title, Text, Paragraph } = Typography;
 
 export const ImportFTPComponent: React.FC = () => {
   const { message } = App.useApp();
   const [remotePath, setRemotePath] = useState('');
-  const [overwriteGender, setOverwriteGender] = useState(false);
-  const [overwriteSalaryGroup, setOverwriteSalaryGroup] = useState(false);
+  const [overwriteOptions, setOverwriteOptions] = useState<ImportOverwriteOptions>(DEFAULT_IMPORT_OVERWRITE_OPTIONS);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
@@ -63,7 +63,7 @@ export const ImportFTPComponent: React.FC = () => {
 
   const handleStart = async () => {
     try {
-      const result = await ftpMutation.mutateAsync({ path: remotePath || undefined, overwriteGender, overwriteSalaryGroup });
+      const result = await ftpMutation.mutateAsync({ path: remotePath || undefined, ...overwriteOptions });
       setCurrentJobId(result.jobId);
       setIsPolling(true);
       setImportSummary(null);
@@ -180,32 +180,11 @@ export const ImportFTPComponent: React.FC = () => {
           disabled={ftpMutation.isPending || isPolling}
         />
 
-        <div>
-          <Space direction="vertical" size={4}>
-            <Checkbox
-              checked={overwriteGender}
-              onChange={(e) => setOverwriteGender(e.target.checked)}
-              disabled={ftpMutation.isPending || isPolling}
-            >
-              Sobrescribir el sexo de todos los usuarios con el valor del CSV
-            </Checkbox>
-            <Checkbox
-              checked={overwriteSalaryGroup}
-              onChange={(e) => setOverwriteSalaryGroup(e.target.checked)}
-              disabled={ftpMutation.isPending || isPolling}
-            >
-              Sobrescribir el grupo de cotización de todos los usuarios con el valor del CSV
-            </Checkbox>
-          </Space>
-          {(overwriteGender || overwriteSalaryGroup) && (
-            <Alert
-              type="warning"
-              showIcon
-              style={{ marginTop: 8 }}
-              message={`Se sobrescribirá ${[overwriteGender ? 'el sexo' : null, overwriteSalaryGroup ? 'el grupo de cotización' : null].filter(Boolean).join(' y ')} en todos los usuarios del CSV, aunque ya tengan un valor asignado. El resto de campos no se verán afectados.`}
-            />
-          )}
-        </div>
+        <ImportOverwriteOptionsForm
+          value={overwriteOptions}
+          onChange={setOverwriteOptions}
+          disabled={ftpMutation.isPending || isPolling}
+        />
 
         <Space>
           <Button

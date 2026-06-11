@@ -92,3 +92,18 @@ export interface JobInfo {
     completedAt?: string;
     errorMessage?: string;
 }
+// Opciones de sobrescritura de campos en la importación SAGE.
+// Las claves coinciden con los nombres que espera el backend (SageImportOptions).
+export interface ImportOverwriteOptions {
+    overwriteGender: boolean;
+    overwriteSalaryGroup: boolean;
+    overwriteBirthDate: boolean;
+    overwriteEducationLevel: boolean;
+}
+
+export const DEFAULT_IMPORT_OVERWRITE_OPTIONS: ImportOverwriteOptions = {
+    overwriteGender: false,
+    overwriteSalaryGroup: false,
+    overwriteBirthDate: false,
+    overwriteEducationLevel: false,
+};
