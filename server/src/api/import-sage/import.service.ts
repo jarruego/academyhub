@@ -62,6 +62,9 @@ export class ImportService {
     private centersCache: Map<string, any> = new Map();   // key: import_id
     private usersCache: Map<string, any> = new Map();     // key: DNI o NSS
     private usersByIdCache: Map<number, any> = new Map(); // key: id_user — para similitud sin N+1
+    // Cache write-through de user_center, SOLO activo durante una importación (null = inactivo).
+    // Fuera de importación (p.ej. resolución de decisiones) se consulta BD directa.
+    private userCenterCache: Map<number, any[]> | null = null; // key: id_user
 
     constructor(
         @Inject(DATABASE_PROVIDER) 
@@ -82,6 +85,7 @@ export class ImportService {
         this.centersCache.clear();
         this.usersCache.clear();
         this.usersByIdCache.clear();
+        this.userCenterCache = null;
 
         try {
             // Precargar empresas (solo columnas necesarias)
@@ -137,6 +141,19 @@ export class ImportService {
                 this.usersByIdCache.set(user.id_user, user);
             }
             this.logger.log(`✅ Precargados ${usersData.length} usuarios`);
+
+            // Precargar relaciones user_center (evita 2 queries por fila durante el import)
+            const relationsData = await this.databaseService.db
+                .select()
+                .from(user_center);
+
+            const ucCache = new Map<number, any[]>();
+            for (const rel of relationsData) {
+                const list = ucCache.get(rel.id_user);
+                if (list) list.push(rel); else ucCache.set(rel.id_user, [rel]);
+            }
+            this.userCenterCache = ucCache;
+            this.logger.log(`✅ Precargadas ${relationsData.length} relaciones usuario-centro`);
 
             const elapsed = Date.now() - startTime;
             this.logger.log(`✅ Precarga completada en ${elapsed}ms`);
@@ -789,6 +806,9 @@ export class ImportService {
 
             this.logger.error(`Error en procesamiento de CSV: ${error?.message || error}`);
             await this.failJob(jobId, error?.message || error.toString());
+        } finally {
+            // Desactivar cache: fuera de la importación user_center se lee de BD
+            this.userCenterCache = null;
         }
     }
 
@@ -2011,22 +2031,26 @@ export class ImportService {
     /**
      * Procesa la relación usuario-centro
      */
-    private async processUserCenterRelation(userId: number, centerId: number, data: ProcessedUserData): Promise<void> {
-        // Buscar relación existente
-        const existing = await this.databaseService.db
+    /**
+     * Devuelve las relaciones user_center de un usuario.
+     * Con cache activo (durante import) lee de memoria; si no, consulta BD.
+     */
+    private async getUserCenterRelations(userId: number): Promise<any[]> {
+        if (this.userCenterCache) {
+            return this.userCenterCache.get(userId) ?? [];
+        }
+        return this.databaseService.db
             .select()
             .from(user_center)
-            .where(
-                and(
-                    eq(user_center.id_user, userId),
-                    eq(user_center.id_center, centerId)
-                )
-            )
-            .limit(1);
+            .where(eq(user_center.id_user, userId));
+    }
 
-        if (existing.length > 0) {
+    private async processUserCenterRelation(userId: number, centerId: number, data: ProcessedUserData): Promise<void> {
+        const relations = await this.getUserCenterRelations(userId);
+        const relation = relations.find(r => r.id_center === centerId);
+
+        if (relation) {
             // Actualizar fechas si es necesario
-            const relation = existing[0];
             const updates: Partial<UserCenterInsertModel> = {};
 
             // 1. Detectar reincorporación (start_date > end_date existente)
@@ -2071,6 +2095,7 @@ export class ImportService {
                             eq(user_center.id_center, centerId)
                         )
                     );
+                Object.assign(relation, updates); // write-through al cache
             }
         } else {
             // Crear nueva relación; is_main_center se recalcula en ensureMainCenter()
@@ -2082,9 +2107,15 @@ export class ImportService {
                 is_main_center: false
             };
 
-            await this.databaseService.db
+            const [created] = await this.databaseService.db
                 .insert(user_center)
-                .values(newRelation);
+                .values(newRelation)
+                .returning();
+
+            if (this.userCenterCache) {
+                const list = this.userCenterCache.get(userId);
+                if (list) list.push(created); else this.userCenterCache.set(userId, [created]);
+            }
         }
     }
 
@@ -2097,10 +2128,7 @@ export class ImportService {
      * 3. Si todos están de baja, el de baja más reciente (último centro).
      */
     private async ensureMainCenter(userId: number): Promise<void> {
-        const relations = await this.databaseService.db
-            .select()
-            .from(user_center)
-            .where(eq(user_center.id_user, userId));
+        const relations = await this.getUserCenterRelations(userId);
 
         if (relations.length === 0) {
             return;
