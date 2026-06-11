@@ -2024,20 +2024,6 @@ export class ImportService {
             )
             .limit(1);
 
-        // Recuperar el centro principal actual para este usuario (si existe)
-        const currentMain = await this.databaseService.db
-            .select()
-            .from(user_center)
-            .where(
-                and(
-                    eq(user_center.id_user, userId),
-                    eq(user_center.is_main_center, true)
-                )
-            )
-            .limit(1);
-
-        const currentMainStart: Date | undefined = currentMain.length > 0 ? currentMain[0].start_date : undefined;
-
         if (existing.length > 0) {
             // Actualizar fechas si es necesario
             const relation = existing[0];
@@ -2052,13 +2038,18 @@ export class ImportService {
             // 2. Si no es reincorporación, aplicar lógicas normales
             else {
                 // 2a. Actualizar start_date solo si es más reciente
-                if (data.start_date && (!relation.start_date || data.start_date > relation.start_date)) {
+                const incomingStartIsNewer = data.start_date && (!relation.start_date || data.start_date > relation.start_date);
+                if (incomingStartIsNewer) {
                     updates.start_date = data.start_date;
                 }
 
-                // 2b. Actualizar end_date solo si es más reciente
-                if (data.end_date && (!relation.end_date || data.end_date > relation.end_date)) {
-                    updates.end_date = data.end_date;
+                // 2b. Actualizar end_date solo si la fila entrante es más reciente que la existente.
+                // Si la fila entrante tiene start_date más antiguo, no tocar el estado actual
+                // (evita que una fila desordenada sobrescriba un registro activo con end_date=NULL)
+                if (incomingStartIsNewer && data.end_date) {
+                    if (!relation.end_date || data.end_date > relation.end_date) {
+                        updates.end_date = data.end_date;
+                    }
                 }
             }
 
@@ -2068,42 +2059,7 @@ export class ImportService {
                 this.logger.warn(`⚠️ Inconsistencia detectada: start_date (${data.start_date.toISOString().split('T')[0]}) > end_date (${data.end_date.toISOString().split('T')[0]}) para usuario ${userId} en centro ${centerId}. Limpiando end_date.`);
             }
 
-            // 4. Lógica para is_main_center según fecha de alta comparada con el main actual
-            // Determinar la fecha efectiva de inicio tras las actualizaciones
-            const effectiveStart: Date | undefined = (updates.start_date as Date) || relation.start_date || undefined;
-
-            if (effectiveStart) {
-                // Si no hay centro principal actual, este registro se convierte en principal
-                if (!currentMainStart) {
-                    updates.is_main_center = true;
-                    // Poner a false cualquier otro (por seguridad)
-                    await this.databaseService.db
-                        .update(user_center)
-                        .set({ is_main_center: false })
-                        .where(eq(user_center.id_user, userId));
-                } else {
-                    // Si la fecha efectiva es más reciente que la del main actual y el main actual es distinto
-                    if ((!currentMainStart || effectiveStart > currentMainStart) && !(currentMain.length > 0 && currentMain[0].id_center === centerId)) {
-                        // Poner a false el main actual
-                        await this.databaseService.db
-                            .update(user_center)
-                            .set({ is_main_center: false })
-                            .where(
-                                and(
-                                    eq(user_center.id_user, userId),
-                                    eq(user_center.is_main_center, true)
-                                )
-                            );
-
-                        updates.is_main_center = true;
-                    } else {
-                        // Si este registro era main y ahora su fecha es menor o igual, asegurarse de marcar false
-                        if (relation.is_main_center && currentMain.length > 0 && currentMain[0].id_center !== centerId && effectiveStart <= currentMainStart) {
-                            updates.is_main_center = false;
-                        }
-                    }
-                }
-            }
+            // is_main_center se recalcula siempre en ensureMainCenter() tras procesar la fila
 
             if (Object.keys(updates).length > 0) {
                 await this.databaseService.db
@@ -2117,36 +2073,13 @@ export class ImportService {
                     );
             }
         } else {
-            // Crear nueva relación
-            // Determinar is_main_center basándonos en la fecha de alta y el main actual
-            let shouldBeMain = false;
-            if (data.start_date) {
-                if (!currentMainStart) {
-                    shouldBeMain = true;
-                } else if (data.start_date > currentMainStart) {
-                    shouldBeMain = true;
-                }
-            }
-
-            // Si debe ser main, limpiar el main anterior
-            if (shouldBeMain) {
-                await this.databaseService.db
-                    .update(user_center)
-                    .set({ is_main_center: false })
-                    .where(
-                        and(
-                            eq(user_center.id_user, userId),
-                            eq(user_center.is_main_center, true)
-                        )
-                    );
-            }
-
+            // Crear nueva relación; is_main_center se recalcula en ensureMainCenter()
             const newRelation: UserCenterInsertModel = {
                 id_user: userId,
                 id_center: centerId,
                 start_date: data.start_date,
                 end_date: data.end_date,
-                is_main_center: shouldBeMain
+                is_main_center: false
             };
 
             await this.databaseService.db
@@ -2156,42 +2089,55 @@ export class ImportService {
     }
 
     /**
-     * Asegura que el usuario tenga un centro principal
+     * Recalcula el centro principal del usuario.
+     * Regla: un centro activo (end_date IS NULL) siempre gana a uno cerrado;
+     * entre activos, el de alta más reciente; si todos están de baja,
+     * el de baja más reciente (último centro en el que estuvo).
      */
     private async ensureMainCenter(userId: number): Promise<void> {
-        // Verificar si ya tiene un centro principal
-        const hasMainCenter = await this.databaseService.db
+        const relations = await this.databaseService.db
             .select()
             .from(user_center)
+            .where(eq(user_center.id_user, userId));
+
+        if (relations.length === 0) {
+            return;
+        }
+
+        const time = (d: Date | null) => (d ? new Date(d).getTime() : 0);
+        const active = relations.filter(r => !r.end_date);
+        const pool = active.length > 0 ? active : relations;
+        const key = active.length > 0
+            ? (r: typeof relations[number]) => time(r.start_date)
+            : (r: typeof relations[number]) => time(r.end_date);
+
+        const winner = pool.reduce((best, r) => (key(r) > key(best) ? r : best));
+
+        // Si ya está correcto (único main y es el ganador), no tocar nada
+        const currentMains = relations.filter(r => r.is_main_center);
+        if (currentMains.length === 1 && currentMains[0].id_center === winner.id_center) {
+            return;
+        }
+
+        await this.databaseService.db
+            .update(user_center)
+            .set({ is_main_center: false })
             .where(
                 and(
                     eq(user_center.id_user, userId),
                     eq(user_center.is_main_center, true)
                 )
-            )
-            .limit(1);
+            );
 
-        if (hasMainCenter.length === 0) {
-            // Buscar el centro con la fecha de inicio más reciente
-            const mostRecentCenter = await this.databaseService.db
-                .select()
-                .from(user_center)
-                .where(eq(user_center.id_user, userId))
-                .orderBy(desc(user_center.start_date))
-                .limit(1);
-
-            if (mostRecentCenter.length > 0) {
-                await this.databaseService.db
-                    .update(user_center)
-                    .set({ is_main_center: true })
-                    .where(
-                        and(
-                            eq(user_center.id_user, userId),
-                            eq(user_center.id_center, mostRecentCenter[0].id_center)
-                        )
-                    );
-            }
-        }
+        await this.databaseService.db
+            .update(user_center)
+            .set({ is_main_center: true })
+            .where(
+                and(
+                    eq(user_center.id_user, userId),
+                    eq(user_center.id_center, winner.id_center)
+                )
+            );
     }
 
     /**

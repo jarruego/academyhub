@@ -93,7 +93,13 @@ Mail templates are stored in the database (`mail_templates` table). Template ima
 PDF generation uses `ReportsPdfService` backed by `ReportRenderer` (`src/api/reports/report-renderer.service.ts`). Templates are JSON files in `src/api/reports/templates/*.json` that declare pages, element types (`title`, `paragraph`, `table`, `image`), styles, and `{{variable}}` placeholders filled at render time. `renderTemplate()` streams a PDF to a response; `renderTemplateIntoDocument()` writes into an existing PDFKit doc for multi-template composition. `PdfService` (`src/common/pdf/pdf.service.ts`) is the shared PDFKit wrapper.
 
 ### Import flows
-- **SAGE** (`api/import-sage/`): The active import path. Parses a CSV (uploaded manually or fetched via SFTP/FTP) and upserts users+companies. Uses a **decision workflow**: each run creates an `import_job` with `import_decisions` rows requiring human review before committing (matches by DNI/email/name using Levenshtein distance). `ImportModule.onModuleInit()` cleans up jobs stuck in `PROCESSING` state on every app startup.
+- **SAGE** (`api/import-sage/`): Active import path. Semicolon-delimited CSV (uploaded manually or via SFTP); **may arrive unordered**. Each run creates an `import_job`; rows processed sequentially. Key CSV fields: `[1]` center code, `[2]` center name, `[3]` employee code, `[4]` DNI, `[5]` name, `[6]` surnames, `[7]` start_date, `[8]` end_date, `[10]` email, `[14]` NSS, `[17]` company name, `[18]` company CIF.
+
+  **Match order per row:** DNI exact → NSS conflict → name similarity ≥0.9 (Levenshtein) → create new user. When a match is ambiguous, creates an `import_decision` for manual review; **center assignment is skipped until the decision is resolved**.
+
+  **`buildUserUpdates` policy:** fill-gaps-only — only fills fields that are empty in DB, never overwrites. `name`/`first_surname`/`second_surname`/`dni` are never updated for existing users. (May change in future to always sync some fields from SAGE — see [[project_sage_import_field-update]].)
+
+  **`user_center`:** one record per user+center pair (no history). `is_main_center` is fully recalculated by `ensureMainCenter()` after each row (row order never matters): active records (`end_date IS NULL`) always beat closed ones; among active, highest `start_date`; if all closed, highest `end_date`. `ImportModule.onModuleInit()` cleans up jobs stuck in `PROCESSING` on startup.
 - **Velneo** (`api/import-velneo/`): Legacy one-time migration tool used during initial data load. Processes a full Velneo ERP CSV dump in phases (users → companies → associate → courses → groups). Not actively maintained. The upload endpoint requires `ADMIN` role (`@UseGuards(RoleGuard([Role.ADMIN]))`).
 
 ### Scheduler
