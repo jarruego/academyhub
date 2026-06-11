@@ -5,6 +5,8 @@ import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 interface FtpPayload {
   path?: string;
+  overwriteGender?: boolean;
+  overwriteSalaryGroup?: boolean;
 }
 
 const startImportFromFtp = async (payload: FtpPayload, token: string): Promise<UploadResponse> => {

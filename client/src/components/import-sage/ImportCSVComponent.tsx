@@ -14,7 +14,8 @@ import {
     App,
     Descriptions,
     Tag,
-    Divider
+    Divider,
+    Checkbox
 } from 'antd';
 import {
     UploadOutlined,
@@ -45,6 +46,8 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
     const [currentJobId, setCurrentJobId] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+    const [overwriteGender, setOverwriteGender] = useState(false);
+    const [overwriteSalaryGroup, setOverwriteSalaryGroup] = useState(false);
 
     const uploadMutation = useImportUpload();
     const {
@@ -100,6 +103,8 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
             try {
                 const formData = new FormData();
                 formData.append('file', file as File);
+                formData.append('overwriteGender', String(overwriteGender));
+                formData.append('overwriteSalaryGroup', String(overwriteSalaryGroup));
 
                 const result = await uploadMutation.mutateAsync(formData);
                 setCurrentJobId(result.jobId);
@@ -180,6 +185,33 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
                         Solo archivos CSV. Tamaño máximo: 50MB
                     </p>
                 </Dragger>
+
+                <div>
+                    <Space direction="vertical" size={4}>
+                        <Checkbox
+                            checked={overwriteGender}
+                            onChange={(e) => setOverwriteGender(e.target.checked)}
+                            disabled={uploadMutation.isPending || isPolling}
+                        >
+                            Sobrescribir el sexo de todos los usuarios con el valor del CSV
+                        </Checkbox>
+                        <Checkbox
+                            checked={overwriteSalaryGroup}
+                            onChange={(e) => setOverwriteSalaryGroup(e.target.checked)}
+                            disabled={uploadMutation.isPending || isPolling}
+                        >
+                            Sobrescribir el grupo de cotización de todos los usuarios con el valor del CSV
+                        </Checkbox>
+                    </Space>
+                    {(overwriteGender || overwriteSalaryGroup) && (
+                        <Alert
+                            type="warning"
+                            showIcon
+                            style={{ marginTop: 8 }}
+                            message={`Se sobrescribirá ${[overwriteGender ? 'el sexo' : null, overwriteSalaryGroup ? 'el grupo de cotización' : null].filter(Boolean).join(' y ')} en todos los usuarios del CSV, aunque ya tengan un valor asignado. El resto de campos no se verán afectados.`}
+                        />
+                    )}
+                </div>
 
                 <Alert
                     message="Formato del archivo"

@@ -33,7 +33,8 @@ import {
     ImportSummary,
     SAGE_CSV_CONFIG,
     SIMILARITY_CONFIG,
-    SimilarityMatch
+    SimilarityMatch,
+    SageImportOptions
 } from "src/types/import/sage-import.types";
 
 import {
@@ -293,7 +294,7 @@ export class ImportService {
     /**
      * Inicia un trabajo de importación desde un archivo CSV
      */
-    async startImportJob(buffer: Buffer, filename: string): Promise<string> {
+    async startImportJob(buffer: Buffer, filename: string, options: SageImportOptions = {}): Promise<string> {
         const jobId = this.generateJobId();
         
         try {
@@ -318,7 +319,7 @@ export class ImportService {
             await this.keepOnlyLatestJobs(30);
 
             // Procesar CSV en background
-            this.processCSVBackground(jobId, buffer, filename);
+            this.processCSVBackground(jobId, buffer, filename, options);
 
             return jobId;
         } catch (error: any) {
@@ -332,7 +333,7 @@ export class ImportService {
      * Las credenciales se leen primero de BD (organization settings), luego de variables de entorno.
      * La ruta puede sobreescribirse mediante remotePath.
      */
-    async startImportJobFromFtp(remotePath?: string): Promise<string> {
+    async startImportJobFromFtp(remotePath?: string, options: SageImportOptions = {}): Promise<string> {
         const config = await this.getFileTransferConfig();
         const filePath = remotePath || config.path;
 
@@ -347,7 +348,7 @@ export class ImportService {
             remotePath: filePath,
         });
 
-        return this.startImportJob(buffer, filename);
+        return this.startImportJob(buffer, filename, options);
     }
 
     /**
@@ -682,7 +683,7 @@ export class ImportService {
     /**
      * Procesa el CSV en segundo plano
      */
-    private async processCSVBackground(jobId: string, buffer: Buffer, filename: string): Promise<void> {
+    private async processCSVBackground(jobId: string, buffer: Buffer, filename: string, options: SageImportOptions = {}): Promise<void> {
         try {
             if (await this.isJobCancelled(jobId)) {
                 this.logger.warn(`Importación ${jobId} cancelada antes de iniciar procesamiento.`);
@@ -739,7 +740,7 @@ export class ImportService {
                     try {
                         const row = currentBatch[i];
                         const processedData = this.normalizeCSVRow(row, globalIndex + 1);
-                        const result = await this.processUserRecord(processedData);
+                        const result = await this.processUserRecord(processedData, options);
 
                         this.updateSummaryFromResult(summary, result);
                         summary.processed_rows = globalIndex + 1;
@@ -1113,6 +1114,10 @@ export class ImportService {
         const tarifa = getValue('Tarifa');
         const salaryGroup = tarifa ? parseInt(tarifa) : undefined;
 
+        // Sexo: SAGE codifica 1=Hombre, 2=Mujer; cualquier otro valor se ignora
+        const sexo = getValue('Sexo').trim();
+        const gender = sexo === '1' ? Gender.MALE : sexo === '2' ? Gender.FEMALE : undefined;
+
         const phoneValue = getValue(
             'Movilidad geografica',
             // 'Movilidad geográfica', // Legacy desactivado
@@ -1135,6 +1140,7 @@ export class ImportService {
             birth_date: birthDate,
             job_position: getValue('Categoría').trim() || undefined,
             salary_group: salaryGroup,
+            gender: gender,
             nss: nss,
             import_id: getValue(
                 'EmpleadoNomina CodigoEmpleado',
@@ -1249,16 +1255,16 @@ export class ImportService {
     /**
      * Procesa un registro de usuario completo
      */
-    private async processUserRecord(data: ProcessedUserData): Promise<ProcessingResult> {
+    private async processUserRecord(data: ProcessedUserData, options: SageImportOptions = {}): Promise<ProcessingResult> {
         try {
             // 1. Buscar o crear empresa
             const company = await this.findOrCreateCompany(data);
-            
+
             // 2. Buscar o crear centro
             const center = await this.findOrCreateCenter(data, company.id_company);
-            
+
             // 3. Procesar usuario
-            const userResult = await this.processUser(data);
+            const userResult = await this.processUser(data, options);
             
             if (userResult.action === 'decision_required') {
                 return userResult;
@@ -1484,7 +1490,7 @@ export class ImportService {
     /**
      * Procesa un usuario (buscar, crear o decisión manual) - OPTIMIZADO
      */
-    private async processUser(data: ProcessedUserData): Promise<ProcessingResult> {
+    private async processUser(data: ProcessedUserData, options: SageImportOptions = {}): Promise<ProcessingResult> {
         // ===== OPTIMIZACIÓN: Buscar en cache primero por DNI =====
         let existingByDni = this.findUserInCache(data.dni, undefined, undefined);
         
@@ -1507,7 +1513,7 @@ export class ImportService {
 
         if (existingByDni) {
             // Usuario existe, actualizar campos faltantes
-            const updates = this.buildUserUpdates(existingByDni, data);
+            const updates = this.buildUserUpdates(existingByDni, data, options);
             
             if (Object.keys(updates).length > 0) {
                 await this.databaseService.db
@@ -1564,7 +1570,7 @@ export class ImportService {
                     // Aplicar la decisión anterior automáticamente (misma lógica que para similitud)
                     switch (processedDecision.action) {
                         case 'link':
-                            const updates = this.buildUserUpdates(user, data);
+                            const updates = this.buildUserUpdates(user, data, options);
                             if (Object.keys(updates).length > 0) {
                                 await this.databaseService.db
                                     .update(users)
@@ -1637,7 +1643,7 @@ export class ImportService {
                                 .limit(1);
 
                             if (user.length > 0) {
-                                const updates = this.buildUserUpdates(user[0], data);
+                                const updates = this.buildUserUpdates(user[0], data, options);
                                 if (Object.keys(updates).length > 0) {
                                     await this.databaseService.db
                                         .update(users)
@@ -1926,11 +1932,23 @@ export class ImportService {
     /**
      * Construye actualizaciones para usuario existente
      */
-    private buildUserUpdates(existingUser: any, data: ProcessedUserData): Partial<UserInsertModel> {
+    private buildUserUpdates(existingUser: any, data: ProcessedUserData, options: SageImportOptions = {}): Partial<UserInsertModel> {
         const updates: Partial<UserInsertModel> = {};
 
-        if (!existingUser.salary_group && data.salary_group) {
+        // Grupo de cotización: 0 (default de Velneo) se trata como vacío; con
+        // overwriteSalaryGroup se fuerza el valor del CSV siempre.
+        if (data.salary_group && (options.overwriteSalaryGroup || !existingUser.salary_group)
+            && existingUser.salary_group !== data.salary_group) {
             updates.salary_group = data.salary_group;
+        }
+
+        // Sexo: 'Other' (default de la columna) se trata como desconocido y se
+        // rellena; con overwriteGender se fuerza el valor del CSV siempre.
+        if (data.gender) {
+            const genderUnknown = !existingUser.gender || existingUser.gender === Gender.OTHER;
+            if ((options.overwriteGender || genderUnknown) && existingUser.gender !== data.gender) {
+                updates.gender = data.gender;
+            }
         }
 
         if (!existingUser.job_position && data.job_position) {
@@ -1980,7 +1998,7 @@ export class ImportService {
             registration_date: new Date(),
             phone: data.phone || null,
             document_type: document_type,
-            gender: Gender.OTHER,
+            gender: data.gender ?? Gender.OTHER,
             // Set explicit defaults to avoid NULLs from imports
             disability: false,
             terrorism_victim: false,

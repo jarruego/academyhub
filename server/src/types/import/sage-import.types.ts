@@ -1,3 +1,5 @@
+import { Gender } from "../user/gender.enum";
+
 // Estructura de datos del CSV de SAGE
 export interface SageCSVRow {
     // Formato actual
@@ -16,7 +18,7 @@ export interface SageCSVRow {
     'Grupo de Pago': string;                         // No usado
     'Movilidad geografica': string;                  // users.phone
     'Personas ProvNumSoe': string;                   // NSS -> users.nss (convertir notación científica)
-    'Sexo': string;                                  // No usado
+    'Sexo': string;                                  // 1=Hombre, 2=Mujer -> users.gender
     'Tarifa': string;                                // Grupo cotización -> users.salary_group
     'Empresas Empresa': string;                      // Nombre empresa -> companies.company_name + import_id
     'Empresas CifDni': string;                       // CIF empresa -> companies.cif
@@ -59,6 +61,7 @@ export interface ProcessedUserData {
     birth_date?: Date;
     job_position?: string;
     salary_group?: number;
+    gender?: Gender;
     nss?: string;
     import_id: string; // EmpleadoNomina.CodigoEmpleado
     
@@ -79,6 +82,19 @@ export interface ProcessedUserData {
     // Metadatos
     original_row: SageCSVRow;
     row_number: number;
+}
+
+// Opciones de una importación SAGE (extensible: en el futuro pueden añadirse
+// más campos forzados, p.ej. salary_group)
+export interface SageImportOptions {
+    // Si es true, el sexo del CSV sobreescribe el de BD en todos los usuarios
+    // procesados. Si es false (defecto), solo se rellena cuando en BD es
+    // null/'Other' (se trata 'Other' como "desconocido" porque es el default).
+    overwriteGender?: boolean;
+    // Si es true, el grupo de cotización (Tarifa) del CSV sobreescribe el de BD
+    // en todos los usuarios procesados. Si es false (defecto), solo se rellena
+    // cuando en BD está vacío (null o 0).
+    overwriteSalaryGroup?: boolean;
 }
 
 // Resultado del procesamiento de un registro

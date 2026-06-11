@@ -18,7 +18,8 @@ import {
 import { Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags, ApiOperation, ApiConsumes, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
-import { IsEnum, IsOptional, IsNumber, IsString } from "class-validator";
+import { IsBoolean, IsEnum, IsOptional, IsNumber, IsString } from "class-validator";
+import { Transform } from "class-transformer";
 import { RoleGuard } from "src/guards/role.guard";
 import { Role } from "src/guards/role.enum";
 import { ImportService } from "./import.service";
@@ -31,10 +32,39 @@ class UploadCSVResponseDto {
     message: string;
 }
 
+// Convierte 'true'/'false' (campos multipart llegan como string) a boolean
+const toBoolean = ({ value }: { value: unknown }) => value === true || value === 'true';
+
 class UploadCsvFromFtpDto {
     @IsOptional()
     @IsString()
     path?: string;
+
+    // Si es true, el sexo del CSV sobreescribe el de BD en todos los usuarios
+    // procesados (solo ese campo). Por defecto solo se rellena si es desconocido.
+    @IsOptional()
+    @Transform(toBoolean)
+    @IsBoolean()
+    overwriteGender?: boolean;
+
+    // Ídem para el grupo de cotización (columna Tarifa del CSV).
+    @IsOptional()
+    @Transform(toBoolean)
+    @IsBoolean()
+    overwriteSalaryGroup?: boolean;
+}
+
+// Opciones de la subida manual de CSV (multipart/form-data)
+class UploadCsvOptionsDto {
+    @IsOptional()
+    @Transform(toBoolean)
+    @IsBoolean()
+    overwriteGender?: boolean;
+
+    @IsOptional()
+    @Transform(toBoolean)
+    @IsBoolean()
+    overwriteSalaryGroup?: boolean;
 }
 
 class JobStatusResponseDto {
@@ -155,13 +185,19 @@ export class ImportController {
             fileSize: 50 * 1024 * 1024 // 50MB máximo
         }
     }))
-    async uploadCSV(@UploadedFile() file: MulterFile): Promise<UploadCSVResponseDto> {
+    async uploadCSV(
+        @UploadedFile() file: MulterFile,
+        @Body() body: UploadCsvOptionsDto
+    ): Promise<UploadCSVResponseDto> {
         if (!file) {
             throw new HttpException('No se ha proporcionado ningún archivo', HttpStatus.BAD_REQUEST);
         }
 
         try {
-            const jobId = await this.importService.startImportJob(file.buffer, file.originalname);
+            const jobId = await this.importService.startImportJob(file.buffer, file.originalname, {
+                overwriteGender: body?.overwriteGender === true,
+                overwriteSalaryGroup: body?.overwriteSalaryGroup === true
+            });
             
             return {
                 jobId,
@@ -182,7 +218,10 @@ export class ImportController {
     @ApiOperation({ summary: 'Iniciar importación SAGE descargando el CSV desde FTP' })
     @ApiResponse({ status: 201, description: 'Importación iniciada desde FTP', type: UploadCSVResponseDto })
     async uploadCSVFromFtp(@Body() body: UploadCsvFromFtpDto = {} as UploadCsvFromFtpDto): Promise<UploadCSVResponseDto> {
-        const jobId = await this.importService.startImportJobFromFtp(body.path);
+        const jobId = await this.importService.startImportJobFromFtp(body.path, {
+            overwriteGender: body.overwriteGender === true,
+            overwriteSalaryGroup: body.overwriteSalaryGroup === true
+        });
         return {
             jobId,
             message: 'Importación iniciada desde FTP'
