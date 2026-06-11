@@ -53,7 +53,7 @@ import { CenterInsertModel } from "src/database/schema/tables/center.table";
 import { UserCenterInsertModel } from "src/database/schema/tables/user_center.table";
 import { DocumentType } from "src/types/user/document-type.enum";
 import { Gender } from "src/types/user/gender.enum";
-import { mapSageEducationLevel } from "./education-level.util";
+import { mapSageEducationLevel, FUNDAE_DEFAULT_EDUCATION_LEVEL } from "./education-level.util";
 
 @Injectable()
 export class ImportService {
@@ -1981,12 +1981,14 @@ export class ImportService {
             updates.email = data.email;
         }
 
-        // Nivel de estudios: fill-gaps por defecto; con overwriteEducationLevel
-        // se fuerza el valor derivado del CSV (solo cuando el CSV trae algo
-        // clasificable — si no, nunca se borra el valor existente).
-        if (data.education_level
-            && (options.overwriteEducationLevel || !existingUser.education_level)
-            && String(existingUser.education_level ?? '') !== data.education_level) {
+        // Nivel de estudios: si en BD está vacío se rellena con el valor del CSV
+        // o, en su defecto, con '10 - Otras titulaciones'. La sobreescritura solo
+        // aplica valores realmente clasificados del CSV — el default 10 nunca
+        // pisa un valor existente.
+        if (!existingUser.education_level) {
+            updates.education_level = data.education_level ?? FUNDAE_DEFAULT_EDUCATION_LEVEL;
+        } else if (options.overwriteEducationLevel && data.education_level
+            && String(existingUser.education_level) !== data.education_level) {
             updates.education_level = data.education_level;
         }
 
@@ -2026,7 +2028,7 @@ export class ImportService {
             disability: false,
             terrorism_victim: false,
             gender_violence_victim: false,
-            education_level: data.education_level || null,
+            education_level: data.education_level || FUNDAE_DEFAULT_EDUCATION_LEVEL,
             address: null,
             postal_code: null,
             city: null,

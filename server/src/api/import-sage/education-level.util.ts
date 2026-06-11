@@ -7,9 +7,14 @@
  *     Social/SEPE ('0' = no informado).
  *  2. 'Nivel Estudios' — texto libre, se clasifica por palabras clave.
  *
- * Si ninguna fuente clasifica, devuelve undefined y el import no escribe nada
- * (el campo queda para rellenar a mano; el front avisa al guardar).
+ * Si ninguna fuente clasifica, devuelve undefined; el import aplica entonces
+ * FUNDAE_DEFAULT_EDUCATION_LEVEL para rellenar huecos (nunca sobreescribe).
  */
+
+// Nivel FUNDAE asignado por el import cuando el CSV no trae nada clasificable:
+// '10 - Otras titulaciones' (criterio de negocio). Solo se usa para rellenar
+// huecos (usuarios nuevos o sin nivel en BD), nunca para sobreescribir.
+export const FUNDAE_DEFAULT_EDUCATION_LEVEL = '10';
 
 // Códigos SEPE observados en los exports de SAGE -> código FUNDAE.
 // Los códigos 21/22 -> 3 y 52 -> 10 son criterio validado de negocio.
