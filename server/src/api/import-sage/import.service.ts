@@ -2090,9 +2090,11 @@ export class ImportService {
 
     /**
      * Recalcula el centro principal del usuario.
-     * Regla: un centro activo (end_date IS NULL) siempre gana a uno cerrado;
-     * entre activos, el de alta más reciente; si todos están de baja,
-     * el de baja más reciente (último centro en el que estuvo).
+     * Reglas:
+     * 1. Si el main actual sigue activo (end_date IS NULL), no se toca
+     *    (protege asignaciones manuales frente al import diario).
+     * 2. Si no, entre centros activos gana el de alta más antigua.
+     * 3. Si todos están de baja, el de baja más reciente (último centro).
      */
     private async ensureMainCenter(userId: number): Promise<void> {
         const relations = await this.databaseService.db
@@ -2104,17 +2106,26 @@ export class ImportService {
             return;
         }
 
-        const time = (d: Date | null) => (d ? new Date(d).getTime() : 0);
-        const active = relations.filter(r => !r.end_date);
-        const pool = active.length > 0 ? active : relations;
-        const key = active.length > 0
-            ? (r: typeof relations[number]) => time(r.start_date)
-            : (r: typeof relations[number]) => time(r.end_date);
+        const currentMains = relations.filter(r => r.is_main_center);
 
-        const winner = pool.reduce((best, r) => (key(r) > key(best) ? r : best));
+        // Main actual activo: no sobreescribir
+        if (currentMains.length === 1 && !currentMains[0].end_date) {
+            return;
+        }
+
+        const active = relations.filter(r => !r.end_date);
+        let winner: typeof relations[number];
+        if (active.length > 0) {
+            // Alta más antigua; sin fecha de alta = menor prioridad
+            const key = (r: typeof relations[number]) => (r.start_date ? new Date(r.start_date).getTime() : Infinity);
+            winner = active.reduce((best, r) => (key(r) < key(best) ? r : best));
+        } else {
+            // Baja más reciente
+            const key = (r: typeof relations[number]) => (r.end_date ? new Date(r.end_date).getTime() : 0);
+            winner = relations.reduce((best, r) => (key(r) > key(best) ? r : best));
+        }
 
         // Si ya está correcto (único main y es el ganador), no tocar nada
-        const currentMains = relations.filter(r => r.is_main_center);
         if (currentMains.length === 1 && currentMains[0].id_center === winner.id_center) {
             return;
         }

@@ -99,7 +99,7 @@ PDF generation uses `ReportsPdfService` backed by `ReportRenderer` (`src/api/rep
 
   **`buildUserUpdates` policy:** fill-gaps-only — only fills fields that are empty in DB, never overwrites. `name`/`first_surname`/`second_surname`/`dni` are never updated for existing users. (May change in future to always sync some fields from SAGE — see [[project_sage_import_field-update]].)
 
-  **`user_center`:** one record per user+center pair (no history). `is_main_center` is fully recalculated by `ensureMainCenter()` after each row (row order never matters): active records (`end_date IS NULL`) always beat closed ones; among active, highest `start_date`; if all closed, highest `end_date`. `ImportModule.onModuleInit()` cleans up jobs stuck in `PROCESSING` on startup.
+  **`user_center`:** one record per user+center pair (no history). `is_main_center` is recalculated by `ensureMainCenter()` after each row: if current main is still active (`end_date IS NULL`) it is never overwritten (protects manual assignments); otherwise among active records the **oldest** `start_date` wins; if all closed, highest `end_date`. `ImportModule.onModuleInit()` cleans up jobs stuck in `PROCESSING` on startup.
 - **Velneo** (`api/import-velneo/`): Legacy one-time migration tool used during initial data load. Processes a full Velneo ERP CSV dump in phases (users → companies → associate → courses → groups). Not actively maintained. The upload endpoint requires `ADMIN` role (`@UseGuards(RoleGuard([Role.ADMIN]))`).
 
 ### Scheduler
