@@ -761,14 +761,17 @@ export class ImportService {
                         }
 
                     } catch (error: any) {
-                        this.logger.error(`Error procesando fila ${globalIndex + 1}: ${error?.message || error}`);
+                        const errorMessage = [error?.message || String(error), error?.cause?.message]
+                            .filter(Boolean)
+                            .join(' | Causa: ');
+                        this.logger.error(`Error procesando fila ${globalIndex + 1}: ${errorMessage}`);
                         summary.errors++;
                         // Evitar que error_details crezca sin límite y consuma memoria.
                         // Guardamos solo una muestra para diagnóstico rápido.
                         if (summary.error_details.length < MAX_ERROR_DETAILS_IN_MEMORY) {
                             summary.error_details.push({
                                 row: globalIndex + 1,
-                                message: error?.message || error.toString(),
+                                message: errorMessage,
                                 data: undefined
                             });
                         }
@@ -1298,15 +1301,21 @@ export class ImportService {
             };
 
         } catch (error: any) {
-            this.logger.error(`Error procesando registro: ${error?.message || error}`, data);
-            
+            // Drizzle envuelve el error de PG: la causa real (p.ej. "duplicate
+            // key value violates unique constraint") está en error.cause
+            const errorMessage = [error?.message || String(error), error?.cause?.message]
+                .filter(Boolean)
+                .join(' | Causa: ');
+
+            this.logger.error(`Error procesando registro: ${errorMessage}`, data);
+
             // CRÍTICO: Asegurar que el usuario se guarde en el sistema de respaldo
-            await this.createFailedUserRecord(data, `Error en processUserRecord: ${error?.message || error}`);
-            
+            await this.createFailedUserRecord(data, `Error en processUserRecord: ${errorMessage}`);
+
             return {
                 success: false,
                 action: 'error',
-                error_message: error?.message || error.toString()
+                error_message: errorMessage
             };
         }
     }
@@ -1527,7 +1536,21 @@ export class ImportService {
         if (existingByDni) {
             // Usuario existe, actualizar campos faltantes
             const updates = this.buildUserUpdates(existingByDni, data, options);
-            
+
+            // Conflicto: el NSS a rellenar ya pertenece a otro usuario.
+            // Se resuelve vía decisión manual (o se aplica la decisión previa).
+            if (updates.nss) {
+                const nssOwner = await this.findNssOwner(updates.nss, existingByDni.id_user);
+                if (nssOwner) {
+                    const conflictResult = await this.handleNssConflictOnMatchedUser(nssOwner, data, updates, options);
+                    if (conflictResult) {
+                        return conflictResult;
+                    }
+                    // null => decisión previa fue "omitir": seguir con el usuario
+                    // matcheado por DNI, sin el NSS (ya eliminado de updates)
+                }
+            }
+
             if (Object.keys(updates).length > 0) {
                 await this.databaseService.db
                     .update(users)
@@ -1657,6 +1680,7 @@ export class ImportService {
 
                             if (user.length > 0) {
                                 const updates = this.buildUserUpdates(user[0], data, options);
+                                await this.dropNssIfTaken(updates, bestMatch.user_id);
                                 if (Object.keys(updates).length > 0) {
                                     await this.databaseService.db
                                         .update(users)
@@ -1945,6 +1969,113 @@ export class ImportService {
     /**
      * Construye actualizaciones para usuario existente
      */
+    /**
+     * Devuelve el usuario (distinto de excludeUserId) que ya tiene asignado el
+     * NSS dado, o null si está libre.
+     */
+    private async findNssOwner(nss: string, excludeUserId: number): Promise<any | null> {
+        let other = this.findUserInCache(undefined, nss, undefined);
+        if (!other) {
+            const result = await this.databaseService.db
+                .select()
+                .from(users)
+                .where(eq(users.nss, nss))
+                .limit(1);
+            other = result[0];
+        }
+        return other && other.id_user !== excludeUserId ? other : null;
+    }
+
+    /**
+     * Si las actualizaciones incluyen un NSS que ya pertenece a otro usuario,
+     * lo descarta para no violar la restricción única de `users.nss`.
+     */
+    private async dropNssIfTaken(updates: Partial<UserInsertModel>, userId: number): Promise<void> {
+        if (!updates.nss) return;
+
+        const other = await this.findNssOwner(updates.nss, userId);
+        if (other) {
+            this.logger.warn(`NSS ${updates.nss} ya asignado al usuario ${other.id_user} (${other.name} ${other.first_surname ?? ''}); se omite su actualización en el usuario ${userId}`);
+            delete updates.nss;
+        }
+    }
+
+    /**
+     * Conflicto de NSS sobre un usuario matcheado por DNI: la fila del CSV
+     * corresponde por documento al usuario A, pero su NSS ya pertenece al
+     * usuario B (caso real: misma persona con ficha NIE y ficha DNI en SAGE).
+     * Se gestiona vía decisión manual reutilizando el flujo existente:
+     *  - 'link' / 'update_and_link' (decidido) -> la fila se aplica a B.
+     *  - 'skip' (decidido) -> devuelve null: el llamador aplica la fila a A
+     *    sin el NSS (se elimina de updates aquí).
+     *  - sin decisión -> se crea una pendiente y la fila queda retenida.
+     */
+    private async handleNssConflictOnMatchedUser(
+        nssOwner: any,
+        data: ProcessedUserData,
+        updates: Partial<UserInsertModel>,
+        options: SageImportOptions
+    ): Promise<ProcessingResult | null> {
+        const match: SimilarityMatch = {
+            user_id: nssOwner.id_user,
+            name: nssOwner.name,
+            first_surname: nssOwner.first_surname,
+            second_surname: nssOwner.second_surname,
+            dni: nssOwner.dni,
+            similarity_score: 0.99
+        };
+
+        // 1. ¿Decisión ya tomada anteriormente para este par CSV/usuario?
+        const processedDecision = await this.checkProcessedDecision(data, match);
+        if (processedDecision.exists) {
+            if (processedDecision.action === 'link' || processedDecision.action === 'update_and_link') {
+                // La ficha buena es la del dueño del NSS: aplicar la fila a B
+                const ownerUpdates = this.buildUserUpdates(nssOwner, data, options);
+                delete ownerUpdates.nss; // B ya tiene ese NSS
+                if (Object.keys(ownerUpdates).length > 0) {
+                    await this.databaseService.db
+                        .update(users)
+                        .set(ownerUpdates)
+                        .where(eq(users.id_user, nssOwner.id_user));
+                    return { success: true, action: 'updated', user_id: nssOwner.id_user };
+                }
+                return { success: true, action: 'linked', user_id: nssOwner.id_user };
+            }
+            // 'skip' u otra acción: ignorar el conflicto y aplicar a A sin NSS
+            this.logger.warn(`Conflicto de NSS ${data.nss} con usuario ${nssOwner.id_user} ya decidido como '${processedDecision.action}'; se aplica la fila sin NSS`);
+            delete updates.nss;
+            return null;
+        }
+
+        // 2. ¿Ya hay una decisión pendiente?
+        const existingDecisionId = await this.checkExistingDecision(data, match);
+        if (existingDecisionId) {
+            return {
+                success: true,
+                action: 'decision_required',
+                similarity_score: 0.99,
+                decision_id: existingDecisionId
+            };
+        }
+
+        // 3. Crear decisión manual para el conflicto
+        const decisionId = await this.createImportDecision(data, match);
+        if (decisionId === -1) {
+            // No se pudo crear: degradar al comportamiento seguro (sin NSS)
+            this.logger.warn(`No se pudo crear decisión por conflicto de NSS ${data.nss}; se aplica la fila sin NSS`);
+            delete updates.nss;
+            return null;
+        }
+
+        this.logger.warn(`Conflicto de NSS ${data.nss}: la fila de DNI ${data.dni} matchea a un usuario pero el NSS pertenece al usuario ${nssOwner.id_user} — creada decisión ${decisionId} (posible identidad duplicada NIE/DNI)`);
+        return {
+            success: true,
+            action: 'decision_required',
+            similarity_score: 0.99,
+            decision_id: decisionId
+        };
+    }
+
     private buildUserUpdates(existingUser: any, data: ProcessedUserData, options: SageImportOptions = {}): Partial<UserInsertModel> {
         const updates: Partial<UserInsertModel> = {};
 
