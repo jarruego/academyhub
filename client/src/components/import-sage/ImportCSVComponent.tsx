@@ -28,6 +28,7 @@ import { useImportUpload } from '../../hooks/api/import-sage/useImportUpload';
 import { useJobStatus } from '../../hooks/api/import-sage/useJobStatus';
 import { ImportSummary, JobStatus, ImportOverwriteOptions, DEFAULT_IMPORT_OVERWRITE_OPTIONS } from '../../types/import.types';
 import { ImportOverwriteOptionsForm } from './ImportOverwriteOptions';
+import { ImportErrorDetails } from './ImportErrorDetails';
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -372,7 +373,7 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
                 {importSummary.errors > 0 && (
                     <Alert
                         message="Errores en la Importación"
-                        description={`Se encontraron ${importSummary.errors} errores durante el procesamiento. Revisa los logs para más detalles.`}
+                        description={<ImportErrorDetails summary={importSummary} />}
                         type="error"
                         showIcon
                         style={{ marginTop: 16 }}

@@ -59,6 +59,9 @@ import { mapSageEducationLevel, FUNDAE_DEFAULT_EDUCATION_LEVEL } from "./educati
 export class ImportService {
     private readonly logger = new Logger(ImportService.name);
 
+    // Máximo de detalles de error guardados en el resumen de un job (limita memoria)
+    private static readonly MAX_ERROR_DETAILS_IN_MEMORY = 100;
+
     // ===== OPTIMIZACIÓN EGRESS: Cache en memoria para reducir queries =====
     private companiesCache: Map<string, any> = new Map(); // key: CIF o import_id
     private centersCache: Map<string, any> = new Map();   // key: import_id
@@ -700,7 +703,7 @@ export class ImportService {
             const totalRows = csvData.length;
             await this.updateJobProgress(jobId, totalRows, 0);
 
-            const MAX_ERROR_DETAILS_IN_MEMORY = 100;
+            const MAX_ERROR_DETAILS_IN_MEMORY = ImportService.MAX_ERROR_DETAILS_IN_MEMORY;
 
             const summary: ImportSummary = {
                 total_rows: totalRows,
@@ -743,7 +746,7 @@ export class ImportService {
                         const processedData = this.normalizeCSVRow(row, globalIndex + 1);
                         const result = await this.processUserRecord(processedData, options);
 
-                        this.updateSummaryFromResult(summary, result);
+                        this.updateSummaryFromResult(summary, result, globalIndex + 1);
                         summary.processed_rows = globalIndex + 1;
 
                         // Actualizar progreso cada 50 filas
@@ -2317,9 +2320,18 @@ export class ImportService {
             .where(eq(import_jobs.job_id, jobId));
     }
 
-    private updateSummaryFromResult(summary: ImportSummary, result: ProcessingResult): void {
+    private updateSummaryFromResult(summary: ImportSummary, result: ProcessingResult, rowNumber?: number): void {
         if (!result.success) {
             summary.errors++;
+            // Guardar el detalle (con el mismo límite que los errores lanzados)
+            // para que el resumen de la UI pueda mostrar fila y causa.
+            if (summary.error_details.length < ImportService.MAX_ERROR_DETAILS_IN_MEMORY) {
+                summary.error_details.push({
+                    row: rowNumber ?? -1,
+                    message: result.error_message || 'Error desconocido',
+                    data: undefined
+                });
+            }
             return;
         }
 

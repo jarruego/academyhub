@@ -1,18 +1,20 @@
 import React from 'react';
 import { Card, Tabs, Typography, Space } from 'antd';
-import { 
-    UploadOutlined, 
-    CheckSquareOutlined, 
+import {
+    UploadOutlined,
+    CheckSquareOutlined,
     CheckCircleOutlined,
     HistoryOutlined,
-    CloudDownloadOutlined
+    CloudDownloadOutlined,
+    WarningOutlined
 } from '@ant-design/icons';
-import { 
+import {
     ImportCSVComponent,
     ImportFTPComponent,
     PendingDecisionsComponent,
     ProcessedDecisionsComponent,
-    ImportJobsHistoryComponent
+    ImportJobsHistoryComponent,
+    FailedUsersView
 } from '../import-sage';
 import { AuthzHide } from '../permissions/authz-hide';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
@@ -60,6 +62,16 @@ const SageImport: React.FC = () => {
                 </span>
             ),
             children: <ProcessedDecisionsComponent />
+        },
+        {
+            key: 'failed',
+            label: (
+                <span>
+                    <WarningOutlined />
+                    Usuarios Fallidos
+                </span>
+            ),
+            children: <FailedUsersView />
         },
         {
             key: 'history',

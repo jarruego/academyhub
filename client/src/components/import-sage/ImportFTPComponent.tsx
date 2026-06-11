@@ -8,6 +8,7 @@ import { useSftpFileDownload } from '../../hooks/api/import-sage/useSftpFileDown
 import { useCancelImport } from '../../hooks/api/import-sage/useCancelImport';
 import { ImportSummary, ImportOverwriteOptions, DEFAULT_IMPORT_OVERWRITE_OPTIONS } from '../../types/import.types';
 import { ImportOverwriteOptionsForm } from './ImportOverwriteOptions';
+import { ImportErrorDetails } from './ImportErrorDetails';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -298,7 +299,7 @@ export const ImportFTPComponent: React.FC = () => {
           {importSummary.errors > 0 && (
             <Alert
               message="Errores en la importación"
-              description={`Se encontraron ${importSummary.errors} errores durante el procesamiento.`}
+              description={<ImportErrorDetails summary={importSummary} />}
               type="error"
               showIcon
             />
