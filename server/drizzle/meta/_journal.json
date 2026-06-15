@@ -288,6 +288,13 @@
       "when": 1780036521067,
       "tag": "0040_graceful_arachne",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1781506250412,
+      "tag": "0041_optimal_shen",
+      "breakpoints": true
     }
   ]
 }

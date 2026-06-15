@@ -1,4 +1,4 @@
-import { pgTable, integer, primaryKey, timestamp, text, boolean } from "drizzle-orm/pg-core";
+import { pgTable, integer, primaryKey, timestamp, text, boolean, index } from "drizzle-orm/pg-core";
 import { userTable } from "./user.table";
 import { centerTable } from "./center.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
@@ -12,7 +12,9 @@ export const userCenterTable = pgTable("user_center", {
   
 }, (table) => {
   return {
-    pk: primaryKey(table.id_user, table.id_center)
+    pk: primaryKey(table.id_user, table.id_center),
+    // id_center: lookup inverso "usuarios de un centro" (el PK indexa id_user primero)
+    centerIdx: index("idx_user_center_id_center").on(table.id_center),
   };
 });
 

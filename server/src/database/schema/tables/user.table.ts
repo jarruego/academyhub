@@ -1,5 +1,5 @@
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { pgTable, serial, text, integer, boolean, date, pgEnum, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, date, pgEnum, timestamp, index } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { Gender } from "../../../types/user/gender.enum";
 import { DocumentType } from "../../../types/user/document-type.enum";
@@ -38,6 +38,11 @@ export const userTable = pgTable("users", {
     erteLaw: boolean("erteLaw").default(false),
     accreditationDiploma: text("accreditationDiploma").default("S"),
     ...TIMESTAMPS
+}, (table) => {
+    return {
+        // email se consulta en el matching de importación y en lookups; no es unique
+        emailIdx: index("idx_users_email").on(table.email),
+    };
 });
 
 // Modelos generados por Drizzle

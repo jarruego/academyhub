@@ -48,12 +48,70 @@ export class OrganizationService {
     },
   } as const;
 
+  // Rutas dentro de `settings` (JSONB) que contienen secretos y NO deben
+  // exponerse al cliente. Cada entrada es [contenedor, campo].
+  private static readonly SETTINGS_SECRET_PATHS: ReadonlyArray<[string, string]> = [
+    ['file_transfer', 'password'],
+    ['sftp', 'password'],
+  ];
+
   constructor(
     private readonly organizationRepository: OrganizationRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
   ) {}
 
-  /** Return organization settings (without encrypted_secrets) or null */
+  /**
+   * Devuelve una copia de `settings` con los secretos (contraseñas de
+   * transferencia de archivos) redactados a cadena vacía. No muta el original.
+   * El cliente nunca debe recibir estas contraseñas; al guardar, si llegan
+   * vacías se preservan las existentes (ver `preserveSecretSettings`).
+   */
+  private redactSecretSettings(settings: unknown): unknown {
+    if (!settings || typeof settings !== 'object') return settings;
+    // Clonado profundo simple (settings es JSON serializable)
+    const clone = JSON.parse(JSON.stringify(settings)) as Record<string, unknown>;
+    for (const [container, field] of OrganizationService.SETTINGS_SECRET_PATHS) {
+      const obj = clone[container];
+      if (obj && typeof obj === 'object' && field in (obj as Record<string, unknown>)) {
+        const val = (obj as Record<string, unknown>)[field];
+        if (typeof val === 'string' && val.length > 0) {
+          (obj as Record<string, unknown>)[field] = '';
+        }
+      }
+    }
+    return clone;
+  }
+
+  /**
+   * Antes de persistir: si una contraseña de secreto llega vacía/ausente en el
+   * payload pero existe en la BD, se restaura la existente. Evita que el editor
+   * JSON (que reenvía `settings` completo con la contraseña redactada) borre las
+   * credenciales reales. No muta los argumentos.
+   */
+  private preserveSecretSettings(incoming: unknown, existing: unknown): unknown {
+    if (!incoming || typeof incoming !== 'object') return incoming;
+    const result = JSON.parse(JSON.stringify(incoming)) as Record<string, unknown>;
+    const prev = (existing && typeof existing === 'object') ? existing as Record<string, unknown> : {};
+    for (const [container, field] of OrganizationService.SETTINGS_SECRET_PATHS) {
+      const obj = result[container];
+      // Solo actuamos si el contenedor sigue presente en el payload (si el admin
+      // lo elimina por completo, respetamos esa intención).
+      if (!obj || typeof obj !== 'object') continue;
+      const incomingVal = (obj as Record<string, unknown>)[field];
+      const isEmpty = incomingVal === undefined || incomingVal === null || incomingVal === '';
+      if (!isEmpty) continue;
+      const prevContainer = prev[container];
+      const prevVal = (prevContainer && typeof prevContainer === 'object')
+        ? (prevContainer as Record<string, unknown>)[field]
+        : undefined;
+      if (typeof prevVal === 'string' && prevVal.length > 0) {
+        (obj as Record<string, unknown>)[field] = prevVal;
+      }
+    }
+    return result;
+  }
+
+  /** Return organization settings (without encrypted_secrets nor plaintext secrets) or null */
   async getSettings() {
     return await this.databaseService.db.transaction(async transaction => {
       const row = await this.organizationRepository.findFirst({ transaction });
@@ -67,7 +125,8 @@ export class OrganizationService {
         ? rest.settings
         : { ...this.DEFAULT_SETTINGS };
 
-      return { ...rest, settings };
+      // Redactar secretos (contraseñas FTP/SFTP) antes de devolver al cliente
+      return { ...rest, settings: this.redactSecretSettings(settings) };
     });
   }
 
@@ -140,8 +199,15 @@ export class OrganizationService {
         }
       }
 
+      // Preservar contraseñas de secretos: si el payload las trae vacías
+      // (porque el cliente recibió la versión redactada), se reinyectan las
+      // existentes para no borrar credenciales reales al guardar.
+      const settingsToPersist = payload.settings !== undefined
+        ? this.preserveSecretSettings(payload.settings, existing?.settings)
+        : undefined;
+
       const upsertPayload: Partial<OrganizationSettingsInsertModel> = {
-        settings: payload.settings ?? undefined,
+        settings: settingsToPersist as OrganizationSettingsInsertModel['settings'] ?? undefined,
         encrypted_secrets: transformedSecrets as OrganizationSettingsInsertModel['encrypted_secrets'] ?? undefined,
       };
 
@@ -153,7 +219,8 @@ export class OrganizationService {
       // strip encrypted_secrets
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { encrypted_secrets, ...rest } = fresh as OrganizationSettingsSelectModel;
-      return rest;
+      // Redactar secretos también en la respuesta del guardado
+      return { ...rest, settings: this.redactSecretSettings(rest.settings) };
     });
   }
 
@@ -167,7 +234,7 @@ export class OrganizationService {
       // strip encrypted_secrets
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { encrypted_secrets, ...rest } = refreshed as OrganizationSettingsSelectModel;
-      return rest;
+      return { ...rest, settings: this.redactSecretSettings(rest.settings) };
     });
   }
 }

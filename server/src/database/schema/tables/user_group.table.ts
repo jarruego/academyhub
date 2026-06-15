@@ -1,4 +1,4 @@
-import { pgTable, integer, primaryKey, date, decimal, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, integer, primaryKey, date, decimal, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { userTable } from "./user.table";
 import { groupTable } from "./group.table";
@@ -20,7 +20,9 @@ export const userGroupTable = pgTable("user_group", {
   moodle_synced_at: timestamp("moodle_synced_at"),
 }, (table) => {
   return {
-    pk: primaryKey(table.id_user, table.id_group)
+    pk: primaryKey(table.id_user, table.id_group),
+    // id_group: lookup inverso "usuarios de un grupo" y joins de reports
+    groupIdx: index("idx_user_group_id_group").on(table.id_group),
   };
 });
 

@@ -1,9 +1,5 @@
 //Hashear contraseñas con SALT y compararlas de forma segura
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
-
-export function hash(text: string): string {
-  return createHash("sha256").update(text).digest("base64");
-}
+import { randomBytes, scryptSync, timingSafeEqual } from "crypto";
 
 export function hashWithSalt(password: string): string {
   const salt: string = randomBytes(16).toString("base64");
@@ -12,15 +8,6 @@ export function hashWithSalt(password: string): string {
   );
 
   return `${salt}:${hashedPassword}`;
-}
-
-export function compareHash(
-  originalPassword: string,
-  strangePassword: string
-): boolean {
-  return (
-    hash(originalPassword) === hash(strangePassword)
-  );
 }
 
 export function compareHashWithSalt(

@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, numeric, jsonb, boolean, timestamp, integer, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, numeric, jsonb, boolean, timestamp, integer, primaryKey, index } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { userTable } from "./user.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
@@ -41,6 +41,13 @@ export const importDecisionsTable = pgTable('import_decisions', {
     notes: varchar('notes', { length: 500 }),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => {
+    return {
+        // Listado de decisiones pendientes/procesadas (filtra por processed)
+        processedIdx: index('idx_import_decisions_processed').on(table.processed),
+        // Búsqueda de decisiones existentes por DNI durante el matching
+        dniCsvIdx: index('idx_import_decisions_dni_csv').on(table.dni_csv),
+    };
 });
 
 // Tipos exportados para TypeScript

@@ -1,5 +1,5 @@
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import { pgTable, serial, text, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, index } from "drizzle-orm/pg-core";
 import { userTable } from "./user.table";
 import { TIMESTAMPS } from "./timestamps";
 
@@ -11,6 +11,11 @@ export const moodleUserTable = pgTable("moodle_users", {
     moodle_password: text("moodle_password"),
     is_main_user: boolean("is_main_user").notNull().default(false),
     ...TIMESTAMPS
+}, (table) => {
+    return {
+        // id_user: FK usada para resolver el moodle_user de un usuario de dominio
+        userIdx: index("idx_moodle_users_id_user").on(table.id_user),
+    };
 });
 
 // Modelos generados por Drizzle

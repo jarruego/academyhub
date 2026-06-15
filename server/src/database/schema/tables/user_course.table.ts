@@ -1,4 +1,4 @@
-import { pgTable, integer, date, decimal, doublePrecision, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, integer, date, decimal, doublePrecision, primaryKey, index } from "drizzle-orm/pg-core";
 import { userTable } from "./user.table";
 import { courseTable } from "./course.table";
 import { moodleUserTable } from "./moodle_user.table";
@@ -17,7 +17,9 @@ export const userCourseTable = pgTable("user_course", {
   time_spent: integer("time_spent"),
 }, (table) => {
   return {
-    pk: primaryKey({columns: [table.id_user, table.id_course]})
+    pk: primaryKey({columns: [table.id_user, table.id_course]}),
+    // id_course: lookup inverso "usuarios de un curso" y joins de reports
+    courseIdx: index("idx_user_course_id_course").on(table.id_course),
   };
 });
 
