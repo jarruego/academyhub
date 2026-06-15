@@ -187,6 +187,7 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 - **Swagger**: Only active when `NODE_ENV !== 'production'` (`http://localhost:3000/documentation` in dev).
 - **Static files**: Server serves `server/public/` at root; uploaded files go to `server/public/uploads/`.
 - **Client tests**: Vitest with `happy-dom` environment. Test files are co-located with routes/components as `*.spec.tsx`.
+- **Server tests**: Jest + ts-jest, co-located `*.spec.ts` under `src/`. `src/*` path alias resolved via jest `moduleNameMapper` (`^src/(.*)$`→`<rootDir>/$1`); use it when a spec pulls in schema/modules. Covered: `secrets.util`, SMTP service/controller, `education-level.util`, import `buildUserUpdates` + `findSimilarUsers` (pure methods tested via cast, seeding `usersByIdCache` to avoid DB), `AuthGuard` + `RoleGuard`. ~112 tests. Run `npm test` from `server/` (not repo root).
 
 ## Security Architecture
 
