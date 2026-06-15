@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
@@ -7,6 +7,7 @@ import { AuthGuard } from './guards/auth/auth.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { ApiModule } from './api/api.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
+import { AuditInterceptor } from './interceptors/audit.interceptor';
 
 @Module({
   imports: [
@@ -35,6 +36,10 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
     },
   ],
 })

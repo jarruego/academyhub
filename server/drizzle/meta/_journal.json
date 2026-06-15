@@ -309,6 +309,13 @@
       "when": 1781511039347,
       "tag": "0043_fancy_klaw",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1781515242298,
+      "tag": "0044_smiling_inertia",
+      "breakpoints": true
     }
   ]
 }
