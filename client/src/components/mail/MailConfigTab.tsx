@@ -11,7 +11,9 @@ const SMTP_SCHEMA: z.ZodType<SmtpSettingsForm> = z.object({
   host: z.string().min(1, 'El servidor es obligatorio'),
   port: z.coerce.number().int().min(1, 'El puerto es obligatorio'),
   user: z.string().min(1, 'El usuario es obligatorio'),
-  password: z.string().min(1, 'La contraseña es obligatoria'),
+  // La contraseña puede ir vacía: significa "mantener la actual". La obligatoriedad
+  // cuando no hay contraseña guardada se valida en el submit (ver onSubmit).
+  password: z.string(),
   secure: z.boolean(),
   from_email: z.string().email('Introduce un email válido'),
   from_name: z.string().optional(),
@@ -25,6 +27,9 @@ export default function MailConfigTab() {
   const sendTestMail = useSendTestMail();
   const [testModalOpen, setTestModalOpen] = useState(false);
   const [testEmail, setTestEmail] = useState('');
+  // Indica si ya hay una contraseña SMTP guardada en el servidor. La contraseña
+  // real nunca se descarga al cliente; el backend la devuelve enmascarada.
+  const [hasStoredPassword, setHasStoredPassword] = useState(false);
   const { handleSubmit, control, reset, formState: { errors, isSubmitting } } = useForm<SmtpSettingsForm>({
     resolver: zodResolver(SMTP_SCHEMA),
     defaultValues: {
@@ -41,12 +46,15 @@ export default function MailConfigTab() {
 
   useEffect(() => {
     if (data) {
-      const smtp = data as SmtpSettingsForm;
+      const smtp = data as SmtpSettingsForm & { hasPassword?: boolean };
+      setHasStoredPassword(!!smtp.hasPassword);
       reset({
         host: smtp.host ?? '',
         port: typeof smtp.port === 'number' ? smtp.port : 465,
         user: smtp.user ?? '',
-        password: smtp.password ?? '',
+        // La contraseña real nunca llega al cliente: el campo arranca vacío.
+        // Dejarlo vacío al guardar mantiene la contraseña ya almacenada.
+        password: '',
         secure: typeof smtp.secure === 'boolean' ? smtp.secure : true,
         from_email: smtp.from_email ?? '',
         from_name: smtp.from_name ?? '',
@@ -55,6 +63,11 @@ export default function MailConfigTab() {
   }, [data, reset]);
 
   const onSubmit = async (values: SmtpSettingsForm) => {
+    // Si no hay contraseña guardada todavía, es obligatorio introducir una.
+    if (!hasStoredPassword && !values.password) {
+      messageApi.error('La contraseña es obligatoria');
+      return;
+    }
     try {
       await saveMutation.mutateAsync(values);
       messageApi.success('Configuración SMTP guardada');
@@ -136,12 +149,17 @@ export default function MailConfigTab() {
             {errors?.user && <div style={{ color: 'red' }}>{errors.user?.message}</div>}
           </div>
           <div style={{ marginBottom: 16 }}>
-            <label>Contraseña *</label>
+            <label>{hasStoredPassword ? 'Contraseña' : 'Contraseña *'}</label>
             <Controller
               name="password"
               control={control}
               render={({ field }) => (
-                <Input.Password {...field} status={errors?.password ? 'error' : undefined} autoComplete="new-password" />
+                <Input.Password
+                  {...field}
+                  status={errors?.password ? 'error' : undefined}
+                  autoComplete="new-password"
+                  placeholder={hasStoredPassword ? 'Dejar en blanco para mantener la actual' : undefined}
+                />
               )}
             />
             {errors?.password && <div style={{ color: 'red' }}>{errors.password?.message}</div>}

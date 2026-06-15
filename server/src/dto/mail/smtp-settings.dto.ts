@@ -10,8 +10,11 @@ export class SmtpSettingsDto {
   @IsString()
   user!: string;
 
+  // Opcional: si llega vacío/ausente al guardar o probar, se usa la contraseña
+  // ya almacenada (el cliente nunca recibe la contraseña real, solo enmascarada).
+  @IsOptional()
   @IsString()
-  password!: string;
+  password?: string;
 
   @IsBoolean()
   secure!: boolean;

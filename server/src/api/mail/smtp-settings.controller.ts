@@ -8,15 +8,26 @@ import { Role } from '../../guards/role.enum';
 export class SmtpSettingsController {
   constructor(private readonly smtpSettingsService: SmtpSettingsService) {}
 
+  /**
+   * Nunca exponer la contraseña al cliente: se devuelve enmascarada ('') más un
+   * flag `hasPassword`. El formulario envía la contraseña solo si el admin la
+   * cambia; si llega vacía, el backend preserva la almacenada.
+   */
+  private mask(row: Awaited<ReturnType<SmtpSettingsService['getSettings']>>) {
+    if (!row) return null;
+    const hasPassword = typeof row.password === 'string' && row.password.length > 0;
+    return { ...row, password: '', hasPassword };
+  }
+
   @Get()
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
   async getSettings() {
-    return await this.smtpSettingsService.getSettings();
+    return this.mask(await this.smtpSettingsService.getSettings());
   }
 
   @Post()
   @UseGuards(RoleGuard([Role.ADMIN]))
   async saveSettings(@Body() body: SmtpSettingsDto) {
-    return await this.smtpSettingsService.saveSettings(body);
+    return this.mask(await this.smtpSettingsService.saveSettings(body));
   }
 }

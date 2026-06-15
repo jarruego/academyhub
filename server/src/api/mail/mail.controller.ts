@@ -31,6 +31,9 @@ export class MailController {
   @Post('connection')
   @UseGuards(RoleGuard([Role.ADMIN]))
   async testConnection(@Body() body: SmtpSettingsDto) {
+    // Si la contraseña llega vacía (el formulario no la reenvía cuando no se
+    // cambia), usar la almacenada (descifrada) para probar la conexión.
+    const pass = await this.resolveSmtpPassword(body.password);
     // Intenta crear un transporter y verificar la conexión
     const nodemailer = await import('nodemailer');
     const transporter = nodemailer.createTransport({
@@ -39,11 +42,22 @@ export class MailController {
       secure: body.secure,
       auth: {
         user: body.user,
-        pass: body.password,
+        pass,
       },
     });
     await transporter.verify();
     return { ok: true };
+  }
+
+  /**
+   * Devuelve la contraseña a usar para probar SMTP: la proporcionada si no está
+   * vacía; en caso contrario, la almacenada (descifrada). Evita exigir al admin
+   * reescribir la contraseña solo para probar la conexión.
+   */
+  private async resolveSmtpPassword(provided?: string): Promise<string | undefined> {
+    if (provided !== undefined && provided !== null && provided !== '') return provided;
+    const stored = await this.smtpSettingsService.getSettings();
+    return stored?.password || undefined;
   }
 
   @Post('send')
@@ -51,6 +65,7 @@ export class MailController {
   async sendTestMail(@Body() body: SendMailOptions & { smtp?: SmtpSettingsDto }) {
     // Si se pasa smtp, usarlo temporalmente para este envío
     if (body.smtp) {
+      const pass = await this.resolveSmtpPassword(body.smtp.password);
       const nodemailer = await import('nodemailer');
       const transporter = nodemailer.createTransport({
         host: body.smtp.host,
@@ -58,7 +73,7 @@ export class MailController {
         secure: body.smtp.secure,
         auth: {
           user: body.smtp.user,
-          pass: body.smtp.password,
+          pass,
         },
       });
       const fromEmail = body.smtp.from_email;

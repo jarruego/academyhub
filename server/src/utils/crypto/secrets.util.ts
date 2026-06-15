@@ -46,3 +46,38 @@ export function tryEncryptSecret(plain?: string): EncryptedSecret | undefined {
   const tag = cipher.getAuthTag();
   return { ct: ct.toString('base64'), iv: iv.toString('base64'), tag: tag.toString('base64') };
 }
+
+/**
+ * Cifra un secreto para guardarlo en una columna de texto. Serializa el objeto
+ * cifrado a JSON. Si no se puede cifrar (sin APP_MASTER_KEY) devuelve el texto
+ * plano para no romper el flujo (degradación segura). Conserva null/undefined.
+ */
+export function encryptSecretToString(plain?: string | null): string | null | undefined {
+  if (plain === undefined || plain === null || plain === '') return plain;
+  const enc = tryEncryptSecret(plain);
+  if (!enc) return plain; // sin clave: se almacena en claro (no debería ocurrir, APP_MASTER_KEY es obligatoria)
+  return JSON.stringify(enc);
+}
+
+/**
+ * Descifra un valor leído de una columna de texto. Es retro-compatible:
+ * - Si el valor es texto plano legacy (no es JSON cifrado), lo devuelve tal cual.
+ * - Si es un objeto cifrado válido, lo descifra.
+ * - Si el descifrado falla (p.ej. clave rotada), devuelve el valor almacenado
+ *   sin lanzar excepción (degradación segura; nunca rompe el flujo de lectura).
+ */
+export function decryptSecretFromString(stored?: string | null): string | null | undefined {
+  if (stored === undefined || stored === null || stored === '') return stored;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stored);
+  } catch {
+    return stored; // texto plano legacy
+  }
+  if (!isEncryptedSecret(parsed)) return stored; // JSON que no es un secreto: tratar como texto plano
+  try {
+    return decryptSecret(parsed);
+  } catch {
+    return stored; // degradación segura ante fallo de descifrado
+  }
+}

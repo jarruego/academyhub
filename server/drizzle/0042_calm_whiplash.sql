@@ -1,0 +1,1 @@
+ALTER TABLE "smtp_settings" ALTER COLUMN "password" SET DATA TYPE text;
