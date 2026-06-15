@@ -116,7 +116,7 @@ Controlled via env vars:
 - Designed for single-instance deployments only
 
 ### Common utilities
-- `src/utils/crypto/secrets.util.ts` — AES encryption/decryption for org-level secrets (Moodle token)
+- `src/utils/crypto/secrets.util.ts` — AES-256-GCM for org-level secrets (Moodle token) and string-column secrets (SMTP password): `encryptSecretToString`/`decryptSecretFromString`
 - `src/utils/crypto/password-hashing.util.ts` — scrypt password hashing
 - `src/common/pdf/pdf.service.ts` — shared PDF generation
 - `src/common/storage/supabase-storage.service.ts` — Supabase Storage for mail template images
@@ -180,7 +180,8 @@ Shared types between components and hooks live in `client/src/shared/types/`. Co
 
 ## Key Conventions
 
-- **Password hashing**: `scryptSync` with random salt, stored as `salt:hash`. Never use the legacy `hash()` (SHA-256) for new passwords.
+- **Password hashing**: `scryptSync` with random salt, stored as `salt:hash` (`compareHashWithSalt`, timing-safe). Legacy `hash()`/`compareHash` removed.
+- **Secrets at rest**: SMTP password is encrypted (AES-256-GCM JSON) via `secrets.util` `encryptSecretToString`/`decryptSecretFromString` (back-compat with legacy plaintext); never returned to client (`smtp-settings.controller` masks to `''` + `hasPassword`). Org `settings.file_transfer.password`/`settings.sftp.password` are redacted on GET and preserved on save (`organization.service`). `moodle_users.moodle_password` is intentionally NOT encrypted (shown in welcome emails/report PDFs).
 - **Public routes**: only `POST /auth/login` and `GET /api/files/organization/:filename` are decorated `@Public()` (see Guards table below for mechanics).
 - **DTO validation**: All controller inputs use class-validator DTOs. `ValidationPipe({ whitelist: true, transform: true })` strips unknown fields globally.
 - **Swagger**: Only active when `NODE_ENV !== 'production'` (`http://localhost:3000/documentation` in dev).
