@@ -157,3 +157,44 @@ describe('ImportService.findSimilarUsers (similitud + filtro DNI/NSS)', () => {
     expect(res).toHaveLength(0);
   });
 });
+
+describe('ImportService.startImportJobFromFtp (fallos reflejados en historial)', () => {
+  let svc: any;
+  const config = { type: 'ftp', host: 'h', port: 21, user: 'u', password: 'p', path: '/datos.7z' };
+  beforeEach(() => { svc = makeService(); });
+
+  it('marca el job como FAILED y relanza si la descarga/extracción falla', async () => {
+    jest.spyOn(svc, 'createSageJob').mockResolvedValue('job-x');
+    jest.spyOn(svc, 'getFileTransferConfig').mockResolvedValue(config);
+    jest.spyOn(svc, 'downloadCsv').mockRejectedValue(new Error('El archivo 7Z datos.7z no contiene ningún CSV'));
+    const failSpy = jest.spyOn(svc, 'failJob').mockResolvedValue(undefined);
+    const launchSpy = jest.spyOn(svc, 'launchBackgroundImport').mockReturnValue(undefined);
+
+    await expect(svc.startImportJobFromFtp()).rejects.toThrow('no contiene ningún CSV');
+    expect(failSpy).toHaveBeenCalledWith('job-x', expect.stringContaining('no contiene ningún CSV'));
+    expect(launchSpy).not.toHaveBeenCalled();
+  });
+
+  it('trunca el mensaje de error a 500 caracteres (límite de columna)', async () => {
+    jest.spyOn(svc, 'createSageJob').mockResolvedValue('job-z');
+    jest.spyOn(svc, 'getFileTransferConfig').mockResolvedValue(config);
+    jest.spyOn(svc, 'downloadCsv').mockRejectedValue(new Error('x'.repeat(1000)));
+    const failSpy = jest.spyOn(svc, 'failJob').mockResolvedValue(undefined);
+    jest.spyOn(svc, 'launchBackgroundImport').mockReturnValue(undefined);
+
+    await expect(svc.startImportJobFromFtp()).rejects.toThrow();
+    expect(String(failSpy.mock.calls[0][1]).length).toBeLessThanOrEqual(500);
+  });
+
+  it('lanza el procesamiento en background si la descarga tiene éxito', async () => {
+    jest.spyOn(svc, 'createSageJob').mockResolvedValue('job-y');
+    jest.spyOn(svc, 'getFileTransferConfig').mockResolvedValue({ ...config, path: '/datos.csv' });
+    jest.spyOn(svc, 'downloadCsv').mockResolvedValue({ buffer: Buffer.from('a;b'), filename: 'datos.csv' });
+    const failSpy = jest.spyOn(svc, 'failJob').mockResolvedValue(undefined);
+    const launchSpy = jest.spyOn(svc, 'launchBackgroundImport').mockReturnValue(undefined);
+
+    await expect(svc.startImportJobFromFtp()).resolves.toBe('job-y');
+    expect(launchSpy).toHaveBeenCalled();
+    expect(failSpy).not.toHaveBeenCalled();
+  });
+});

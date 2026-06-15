@@ -303,60 +303,89 @@ export class ImportService {
      * Inicia un trabajo de importación desde un archivo CSV
      */
     async startImportJob(buffer: Buffer, filename: string, options: SageImportOptions = {}): Promise<string> {
-        const jobId = this.generateJobId();
-        
+        const jobId = await this.createSageJob();
         try {
-            // Verificar tamaño del archivo
-            const fileSizeMB = buffer.length / (1024 * 1024);
-            if (fileSizeMB > 50) {
-                this.logger.warn(`⚠️  ARCHIVO MUY GRANDE: ${fileSizeMB.toFixed(2)}MB`);
-                this.logger.warn(`💡 RECOMENDACIÓN: Para archivos > 50MB, considera dividir en partes más pequeñas`);
-                this.logger.warn(`📝 O usar el procesamiento en lotes que se activará automáticamente`);
-            }
-
-            // Crear registro de trabajo
-            await this.databaseService.db.insert(import_jobs).values({
-                job_id: jobId,
-                import_type: ImportType.SAGE,
-                status: ImportJobStatus.PENDING,
-                total_rows: 0,
-                processed_rows: 0
-            });
-
-            // Retención: conservar solo los 30 jobs más recientes
-            await this.keepOnlyLatestJobs(30);
-
-            // Procesar CSV en background
-            this.processCSVBackground(jobId, buffer, filename, options);
-
+            this.launchBackgroundImport(jobId, buffer, filename, options);
             return jobId;
         } catch (error: any) {
-            this.logger.error(`Error iniciando trabajo de importación: ${error?.message || error}`);
+            const message = this.shortJobError('Error iniciando importación', error);
+            this.logger.error(message);
+            await this.failJob(jobId, message);
             throw error;
         }
     }
 
     /**
-     * Inicia un trabajo de importación obteniendo el CSV desde un servidor SFTP.
+     * Crea el registro de import_job (estado PENDING) y aplica la retención.
+     * Crearlo al inicio permite reflejar en el historial los fallos que ocurren
+     * ANTES de procesar filas (p.ej. descarga FTP o extracción del comprimido).
+     */
+    private async createSageJob(): Promise<string> {
+        const jobId = this.generateJobId();
+        await this.databaseService.db.insert(import_jobs).values({
+            job_id: jobId,
+            import_type: ImportType.SAGE,
+            status: ImportJobStatus.PENDING,
+            total_rows: 0,
+            processed_rows: 0
+        });
+        // Retención: conservar solo los 30 jobs más recientes
+        await this.keepOnlyLatestJobs(30);
+        return jobId;
+    }
+
+    /** Lanza el procesamiento del CSV en background (avisa si el archivo es muy grande). */
+    private launchBackgroundImport(jobId: string, buffer: Buffer, filename: string, options: SageImportOptions): void {
+        const fileSizeMB = buffer.length / (1024 * 1024);
+        if (fileSizeMB > 50) {
+            this.logger.warn(`⚠️  ARCHIVO MUY GRANDE: ${fileSizeMB.toFixed(2)}MB`);
+            this.logger.warn(`💡 RECOMENDACIÓN: Para archivos > 50MB, considera dividir en partes más pequeñas`);
+            this.logger.warn(`📝 O usar el procesamiento en lotes que se activará automáticamente`);
+        }
+        // Procesar CSV en background
+        this.processCSVBackground(jobId, buffer, filename, options);
+    }
+
+    /** Mensaje de error corto (<=500 chars, límite de la columna error_message). */
+    private shortJobError(context: string, error: unknown): string {
+        const detail = error instanceof Error ? error.message : String(error);
+        return `${context}: ${detail}`.slice(0, 500);
+    }
+
+    /**
+     * Inicia un trabajo de importación obteniendo el CSV desde un servidor SFTP/FTP.
      * Las credenciales se leen primero de BD (organization settings), luego de variables de entorno.
      * La ruta puede sobreescribirse mediante remotePath.
+     *
+     * El import_job se crea ANTES de la descarga/extracción para que cualquier fallo
+     * grave previo al procesamiento (FTP caído, fichero ausente/corrupto, comprimido
+     * sin CSV) quede registrado en el historial como FAILED en vez de perderse.
      */
     async startImportJobFromFtp(remotePath?: string, options: SageImportOptions = {}): Promise<string> {
-        const config = await this.getFileTransferConfig();
-        const filePath = remotePath || config.path;
+        const jobId = await this.createSageJob();
+        try {
+            const config = await this.getFileTransferConfig();
+            const filePath = remotePath || config.path;
 
-        this.logger.log(`Descargando CSV SAGE desde ${config.type.toUpperCase()} ${config.host}:${config.port} ruta=${filePath}`);
+            this.logger.log(`Descargando CSV SAGE desde ${config.type.toUpperCase()} ${config.host}:${config.port} ruta=${filePath}`);
 
-        const { buffer, filename } = await this.downloadCsv({
-            type: config.type,
-            host: config.host,
-            port: config.port,
-            user: config.user,
-            password: config.password,
-            remotePath: filePath,
-        });
+            const { buffer, filename } = await this.downloadCsv({
+                type: config.type,
+                host: config.host,
+                port: config.port,
+                user: config.user,
+                password: config.password,
+                remotePath: filePath,
+            });
 
-        return this.startImportJob(buffer, filename, options);
+            this.launchBackgroundImport(jobId, buffer, filename, options);
+            return jobId;
+        } catch (error: any) {
+            const message = this.shortJobError('Fallo al obtener el CSV desde FTP/SFTP', error);
+            this.logger.error(message);
+            await this.failJob(jobId, message);
+            throw error;
+        }
     }
 
     /**
