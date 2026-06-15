@@ -216,5 +216,5 @@ Configured in `server/src/main.ts` with an explicit origin allowlist: `localhost
 
 ### Known open security items
 
-- **Audit log (HTTP-level)**: `AuditInterceptor` (global `APP_INTERCEPTOR`, `src/interceptors/audit.interceptor.ts`) records mutating requests (POST/PUT/PATCH/DELETE) to the `audit_log` table — actor (`request.user`), method, path, route params, status, IP. Best-effort (never breaks/blocks the request) and **does not store request bodies** (avoids logging passwords/tokens). GETs and per-row import DB writes are not audited (only the originating HTTP call).
+- **Audit log (HTTP-level)**: `AuditInterceptor` (global `APP_INTERCEPTOR`, `src/interceptors/audit.interceptor.ts`) records mutating requests (POST/PUT/PATCH/DELETE) to the `audit_log` table — actor (`request.user`), method, path, route params, status, IP. Best-effort (never breaks/blocks the request) and **does not store request bodies** (avoids logging passwords/tokens). GETs and per-row import DB writes are not audited (only the originating HTTP call). Read-only query API: `GET /audit-log` (ADMIN, `api/audit/`) paginated + filterable (method/actor/date); UI at Administración → Herramientas → "Registro de auditoría" (`/tools/audit-log`).
 - **Contraseñas sin complejidad**: only `MinLength(8)` enforced; no uppercase/number/special char requirement.

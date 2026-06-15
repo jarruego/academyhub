@@ -1,5 +1,5 @@
 import { Button, Card, List } from "antd";
-import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined } from "@ant-design/icons";
+import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
@@ -49,6 +49,15 @@ const tools = [
     adminOnly: true,
     type: "link" as const,
     linkTo: "/tools/user-management",
+  },
+  {
+    key: "audit-log",
+    label: "Registro de auditoría",
+    description: "Consulta quién realizó cada operación (altas, bajas, importaciones, cambios de rol…).",
+    icon: <SafetyCertificateOutlined style={{ fontSize: 20 }} />,
+    adminOnly: true,
+    type: "link" as const,
+    linkTo: "/tools/audit-log",
   },
   // Aquí se pueden añadir más herramientas en el futuro
 ];

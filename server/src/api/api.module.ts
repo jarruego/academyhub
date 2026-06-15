@@ -12,8 +12,9 @@ import { ReportsModule } from './reports/reports.module';
 import { MailModule } from './mail/mail.module';
 import { OrganizationModule } from './organization/organization.module';
 import { FilesModule } from './files/files.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
-  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, MoodleUserModule, ImportModule, ImportVelneoModule, ReportsModule, OrganizationModule, FilesModule, MailModule],
+  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, MoodleUserModule, ImportModule, ImportVelneoModule, ReportsModule, OrganizationModule, FilesModule, MailModule, AuditModule],
 })
 export class ApiModule {}
