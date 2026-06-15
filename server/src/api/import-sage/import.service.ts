@@ -1456,27 +1456,9 @@ export class ImportService {
 
     private async createFailedUserRecord(data: ProcessedUserData, reason: string): Promise<number> {
         try {
-            // Crear tabla de respaldo para usuarios fallidos
-            await this.databaseService.db.execute(sql`
-                CREATE TABLE IF NOT EXISTS failed_user_imports (
-                    id SERIAL PRIMARY KEY,
-                    dni VARCHAR(20),
-                    name VARCHAR(100),
-                    first_surname VARCHAR(100),
-                    second_surname VARCHAR(100),
-                    email VARCHAR(255),
-                    import_id VARCHAR(50),
-                    nss VARCHAR(20),
-                    company_name VARCHAR(255),
-                    center_name VARCHAR(255),
-                    csv_row_data JSONB NOT NULL,
-                    failure_reason TEXT,
-                    import_source VARCHAR(50) DEFAULT 'sage',
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
-
-            // Insertar el usuario fallido
+            // La tabla failed_user_imports está versionada en migraciones
+            // (drizzle/0043). Ya NO se crea con DDL aquí: ejecutar CREATE TABLE en
+            // cada fila fallida era un coste innecesario en el hot-path del import.
             const result = await this.databaseService.db.execute(sql`
                 INSERT INTO failed_user_imports (
                     dni, name, first_surname, second_surname, email, import_id, nss,

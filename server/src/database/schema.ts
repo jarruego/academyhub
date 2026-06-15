@@ -15,6 +15,7 @@ import { organizationSettingsTable } from "./schema/tables/organization_settings
 import { smtpSettingsTable } from "./schema/tables/smtp_settings.table";
 import { mailTemplatesTable } from "./schema/tables/mail_templates.table";
 import { revokedTokensTable } from "./schema/tables/revoked_tokens.table";
+import { failedUserImportsTable } from "./schema/tables/failed_user_imports.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality } from "./schema/tables/course.table";
@@ -37,6 +38,7 @@ export const organization_settings = organizationSettingsTable;
 export const mail_templates = mailTemplatesTable;
 export const smtp_settings = smtpSettingsTable;
 export const revoked_tokens = revokedTokensTable;
+export const failed_user_imports = failedUserImportsTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
