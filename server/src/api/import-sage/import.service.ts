@@ -139,6 +139,10 @@ export class ImportService {
                 .from(users);
 
             for (const user of usersData) {
+                // Precalcular nombre normalizado + longitud una sola vez: findSimilarUsers
+                // los reutiliza en cada fila, evitando reconstruir el string N·M veces.
+                (user as any).__simName = this.buildSimilarityName(user);
+                (user as any).__simLen = ((user as any).__simName as string).length;
                 if (user.dni) this.usersCache.set(`dni:${user.dni}`, user);
                 if (user.nss) this.usersCache.set(`nss:${user.nss}`, user);
                 if (user.email) this.usersCache.set(`email:${user.email}`, user);
@@ -1749,46 +1753,69 @@ export class ImportService {
         }
 
         const matches: SimilarityMatch[] = [];
-        const targetName = `${data.name} ${data.first_surname} ${data.second_surname || ''}`.trim().toLowerCase();
+        const targetName = this.buildSimilarityName(data);
+        const targetLen = targetName.length;
+        // Margen máximo de diferencia de longitud que aún permite alcanzar el
+        // umbral. Como dist(Levenshtein) >= |lenA - lenB| y sim = 1 - dist/maxLen,
+        // si |lenA - lenB| > (1-THRESHOLD)*maxLen es IMPOSIBLE llegar al umbral,
+        // así que evitamos el cálculo caro de Levenshtein. No altera resultados.
+        const maxDiffFactor = 1 - SIMILARITY_CONFIG.THRESHOLD;
 
         for (const user of usersIterable) {
-            const userName = `${user.name} ${user.first_surname} ${user.second_surname || ''}`.trim().toLowerCase();
-            
-            if (userName.length >= SIMILARITY_CONFIG.MIN_NAME_LENGTH) {
-                const similarity = 1 - (distance(targetName, userName) / Math.max(targetName.length, userName.length));
-                
-                if (similarity >= SIMILARITY_CONFIG.THRESHOLD) {
-                    // FILTRO CRUCIAL: Si tanto DNI como NSS son diferentes y ambos existen, omitir este match
-                    // porque claramente es una persona diferente
-                    const csvHasDni = data.dni && data.dni.trim() !== '';
-                    const csvHasNss = data.nss && data.nss.trim() !== '';
-                    const userHasDni = user.dni && user.dni.trim() !== '';
-                    const userHasNss = user.nss && user.nss.trim() !== '';
-                    
-                    // Si ambos tienen DNI y NSS, y ambos son diferentes, skip este match
-                    if (csvHasDni && csvHasNss && userHasDni && userHasNss) {
-                        const dniDifferent = data.dni.trim().toLowerCase() !== user.dni.trim().toLowerCase();
-                        const nssDifferent = data.nss.trim().toLowerCase() !== user.nss.trim().toLowerCase();
-                        
-                        if (dniDifferent && nssDifferent) {
-                            this.logger.warn(`🚫 Omitiendo match por DNI y NSS diferentes: CSV(${data.dni}/${data.nss}) vs BD(${user.dni}/${user.nss}) para usuario ${user.name} ${user.first_surname}`);
-                            continue; // Saltar este usuario, es claramente diferente
-                        }
-                    }
-                    
-                    matches.push({
-                        user_id: user.id_user,
-                        name: user.name!,
-                        first_surname: user.first_surname!,
-                        second_surname: user.second_surname,
-                        dni: user.dni!,
-                        similarity_score: similarity
-                    });
+            // Reutiliza el nombre normalizado precalculado en preload si existe
+            // (evita reconstruir el string en cada fila); si no, lo calcula.
+            const userName: string = user.__simName ?? this.buildSimilarityName(user);
+            const userLen: number = user.__simLen ?? userName.length;
+
+            if (userLen < SIMILARITY_CONFIG.MIN_NAME_LENGTH) continue;
+
+            const maxLen = Math.max(targetLen, userLen);
+            // Pre-filtro barato por longitud (descarta solo candidatos que no
+            // pueden llegar al umbral; idéntico resultado, menos Levenshtein).
+            if (Math.abs(targetLen - userLen) > maxDiffFactor * maxLen) continue;
+
+            const similarity = 1 - (distance(targetName, userName) / maxLen);
+            if (similarity < SIMILARITY_CONFIG.THRESHOLD) continue;
+
+            // FILTRO CRUCIAL: Si tanto DNI como NSS son diferentes y ambos existen, omitir este match
+            // porque claramente es una persona diferente
+            const csvHasDni = data.dni && data.dni.trim() !== '';
+            const csvHasNss = data.nss && data.nss.trim() !== '';
+            const userHasDni = user.dni && user.dni.trim() !== '';
+            const userHasNss = user.nss && user.nss.trim() !== '';
+
+            // Si ambos tienen DNI y NSS, y ambos son diferentes, skip este match
+            if (csvHasDni && csvHasNss && userHasDni && userHasNss) {
+                const dniDifferent = data.dni.trim().toLowerCase() !== user.dni.trim().toLowerCase();
+                const nssDifferent = data.nss.trim().toLowerCase() !== user.nss.trim().toLowerCase();
+
+                if (dniDifferent && nssDifferent) {
+                    this.logger.warn(`🚫 Omitiendo match por DNI y NSS diferentes: CSV(${data.dni}/${data.nss}) vs BD(${user.dni}/${user.nss}) para usuario ${user.name} ${user.first_surname}`);
+                    continue; // Saltar este usuario, es claramente diferente
                 }
             }
+
+            matches.push({
+                user_id: user.id_user,
+                name: user.name!,
+                first_surname: user.first_surname!,
+                second_surname: user.second_surname,
+                dni: user.dni!,
+                similarity_score: similarity
+            });
         }
 
         return matches.sort((a, b) => b.similarity_score - a.similarity_score);
+    }
+
+    /**
+     * Nombre normalizado para comparar similitud: "nombre apellido1 apellido2" en
+     * minúsculas y sin espacios sobrantes. Debe construirse igual para el registro
+     * del CSV y para los usuarios de BD, de ahí el mismo template (idéntico al uso
+     * histórico para no cambiar qué usuarios casan).
+     */
+    private buildSimilarityName(u: { name?: string | null; first_surname?: string | null; second_surname?: string | null }): string {
+        return `${u.name} ${u.first_surname} ${u.second_surname || ''}`.trim().toLowerCase();
     }
 
     /**

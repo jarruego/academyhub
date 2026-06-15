@@ -142,4 +142,18 @@ describe('ImportService.findSimilarUsers (similitud + filtro DNI/NSS)', () => {
     const res = await svc.findSimilarUsers({ name: 'Jo', first_surname: '', second_surname: '' });
     expect(res).toHaveLength(0);
   });
+
+  it('usa el nombre precalculado (__simName) si está presente y devuelve el mismo match', async () => {
+    // Estado tras preload: objeto con __simName/__simLen ya calculados
+    seed([{ id_user: 1, name: 'Juan', first_surname: 'Perez', second_surname: 'Lopez', dni: '', nss: '', __simName: 'juan perez lopez', __simLen: 16 }]);
+    const res = await svc.findSimilarUsers({ name: 'Juan', first_surname: 'Perez', second_surname: 'Lopez' });
+    expect(res).toHaveLength(1);
+    expect(res[0].user_id).toBe(1);
+  });
+
+  it('no casa nombres con longitudes muy dispares (pre-filtro por longitud)', async () => {
+    seed([U({ id_user: 1, name: 'Juanito', first_surname: 'Perez', second_surname: 'Lopezzzzzzzzz' })]);
+    const res = await svc.findSimilarUsers({ name: 'Ana', first_surname: 'Gil', second_surname: '' });
+    expect(res).toHaveLength(0);
+  });
 });
