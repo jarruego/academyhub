@@ -753,7 +753,6 @@ export class ImportService {
 
             // PROCESAMIENTO EN LOTES PARA ARCHIVOS GRANDES
             const BATCH_SIZE = totalRows > 10000 ? 1000 : 500; // Lotes de 1000 para archivos grandes
-            const MEMORY_CHECK_INTERVAL = 100; // Comprobar memoria cada 100 registros
             const CANCEL_CHECK_INTERVAL = 25;
             
             this.logger.warn(`📊 Procesando ${totalRows} registros en lotes de ${BATCH_SIZE}`);
@@ -787,12 +786,6 @@ export class ImportService {
                             await this.updateJobProgress(jobId, totalRows, globalIndex + 1);
                         }
 
-                        // Comprobar memoria y hacer pausa cada cierto número de registros
-                        if (globalIndex % MEMORY_CHECK_INTERVAL === 0 && globalIndex > 0) {
-                            // Pequeña pausa para permitir garbage collection
-                            await new Promise(resolve => setTimeout(resolve, 10));
-                        }
-
                     } catch (error: any) {
                         const errorMessage = [error?.message || String(error), error?.cause?.message]
                             .filter(Boolean)
@@ -814,12 +807,6 @@ export class ImportService {
                 if (await this.isJobCancelled(jobId)) {
                     this.logger.warn(`Importación ${jobId} cancelada por el usuario al finalizar lote.`);
                     return;
-                }
-
-                // Pausa entre lotes para permitir que el sistema respire
-                if (batchEnd < csvData.length) {
-                    this.logger.warn(`⏸️  Pausa entre lotes... (${summary.processed_rows}/${totalRows} completados)`);
-                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
             }
 
