@@ -87,6 +87,8 @@ Mail templates are stored in the database (`mail_templates` table). Template ima
 
 `POST /mail/send` and `POST /mail/send-from-template` accept a `moodleSenderChoice` parameter (`'default'` | `'auth'` | `'tutor'`) that selects which Moodle token is used. See `MailService.resolveToken()` for the full logic.
 
+Every real send is recorded in the `email_log` table by `MailService.sendMail` (wraps `deliverMail`): actor (from JWT, passed by the controller via `@Req`), recipient, subject, template id/name, sender mode, the **resolved real sender** (`from_name`/`from_email` — what the recipient sees, returned by `deliverMail`), `via_moodle`, and `status` (`sent`/`failed` + `error_message`). Best-effort (`recordEmailLog` never throws/blocks the send) and **never stores the email body** (it contains the `{CLAVE_MOODLE}` password). Has a free-text `notes` column for future use. The ad-hoc "test mail" path (`/mail/send` with an inline `smtp` body) is not logged. Read-only query API: `GET /email-log` (ADMIN, served by `EmailLogController` in `api/audit/`, paginated + filters status/actor/recipient); UI at Administración → Herramientas → "Registro de envíos de correo" (`/tools/email-log`).
+
 `MailModule` imports `MoodleModule` (for `MoodleService`). Avoid creating a reverse import from `MoodleModule` into `MailModule` — it would create a circular dependency.
 
 ### Reports system

@@ -25,6 +25,7 @@ import MoodleImportRoute from './routes/tools/moodle-import.route';
 import SageImportRoute from './routes/tools/import-sage.route';
 import ImportVelneoRoute from './routes/tools/import-velneo.route';
 import AuditLogRoute from './routes/tools/audit-log.route';
+import EmailLogRoute from './routes/tools/email-log.route';
 import UserManagementRoute from './routes/auth-users/auth-user-management.route';
 import ReportsRoute from './routes/reports/reports.route';
 import OrganizationSettingsPage from './routes/organization/OrganizationSettingsPage';
@@ -163,6 +164,7 @@ export default function AppRouter() {
               <Route path="/tools/import-sage" element={<SageImportRoute />} />
               <Route path="/tools/import-velneo" element={ImportVelneoRoute.element} />
               <Route path="/tools/audit-log" element={<AuditLogRoute />} />
+              <Route path="/tools/email-log" element={<EmailLogRoute />} />
               <Route path="/organization/smtp" element={<SmtpSettingsPage />} />
             </Routes>
           </Content>

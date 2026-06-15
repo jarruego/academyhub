@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Body, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, ParseIntPipe, Req } from '@nestjs/common';
 import { SmtpSettingsService } from './smtp-settings.service';
-import { MailService, SendMailOptions, MoodleSenderChoice } from './mail.service';
+import { MailService, SendMailOptions, MoodleSenderChoice, EmailActor } from './mail.service';
 import { SmtpSettingsDto } from '../../dto/mail/smtp-settings.dto';
 import { RoleGuard } from '../../guards/role.guard';
 import { Role } from '../../guards/role.enum';
@@ -27,6 +27,13 @@ export class MailController {
     private readonly smtpSettingsService: SmtpSettingsService,
     private readonly mailService: MailService,
   ) {}
+
+  /** Extrae el actor autenticado (del JWT) para auditar el envío en email_log. */
+  private actorFromReq(req: any): EmailActor | undefined {
+    const user = req?.user;
+    if (!user) return undefined;
+    return { id: user.id, username: user.username, role: user.role };
+  }
 
   @Post('connection')
   @UseGuards(RoleGuard([Role.ADMIN]))
@@ -62,7 +69,7 @@ export class MailController {
 
   @Post('send')
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
-  async sendTestMail(@Body() body: SendMailOptions & { smtp?: SmtpSettingsDto }) {
+  async sendTestMail(@Body() body: SendMailOptions & { smtp?: SmtpSettingsDto }, @Req() req: any) {
     // Si se pasa smtp, usarlo temporalmente para este envío
     if (body.smtp) {
       const pass = await this.resolveSmtpPassword(body.smtp.password);
@@ -105,14 +112,14 @@ export class MailController {
       await transporter.sendMail(mailOptions);
       return { ok: true };
     } else {
-      await this.mailService.sendMail(body);
+      await this.mailService.sendMail({ ...body, actor: this.actorFromReq(req) });
       return { ok: true };
     }
   }
 
   @Post('send-from-template')
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
-  async sendMailFromTemplate(@Body() body: SendMailFromTemplateDto) {
+  async sendMailFromTemplate(@Body() body: SendMailFromTemplateDto, @Req() req: any) {
     await this.mailService.sendMailFromTemplate({
       to: body.toEmail,
       templateId: body.templateId,
@@ -127,6 +134,7 @@ export class MailController {
       authUserId: body.authUserId,
       moodleSenderChoice: body.moodleSenderChoice,
       tutorUserId: body.tutorUserId,
+      actor: this.actorFromReq(req),
     });
     return { success: true, message: 'Correo enviado correctamente' };
   }
