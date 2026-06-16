@@ -1351,7 +1351,8 @@ export class MoodleService {
                 modality: CourseModality.ONLINE,
                 hours: 0,
                 price_per_hour: null,
-                active: true,
+                // `active` is no longer forced here: the course's active state is
+                // derived from its groups (see utils/group-active.util.ts).
                 fundae_id: "",
                 moodle_synced_at: new Date(),
             };

@@ -337,6 +337,13 @@
       "when": 1781595757451,
       "tag": "0047_organic_revanche",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1781604176071,
+      "tag": "0048_salty_vanisher",
+      "breakpoints": true
     }
   ]
 }

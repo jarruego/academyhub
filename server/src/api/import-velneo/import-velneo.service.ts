@@ -924,7 +924,7 @@ export class ImportVelneoService {
           course_name: courseName || 'SIN_NOMBRE',
           short_name: row.course_short_name || courseName || undefined,
           modality: mapCourseModality(row.course_modality || row.modality || row.modalidad || undefined),
-          active: true,
+          // `active` is derived from the course's groups; not forced on import.
           hours: courseHours,
           fundae_id: fundaeId,
           price_per_hour: pricePerHour

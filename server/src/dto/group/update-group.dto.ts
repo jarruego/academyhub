@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsOptional, IsString, IsInt, IsDate } from "class-validator";
+import { IsOptional, IsString, IsInt, IsDate, IsEnum } from "class-validator";
+import { GroupActiveMode } from "src/types/group/group-active-mode.enum";
 
 export class UpdateGroupDTO {
   @ApiPropertyOptional()
@@ -39,4 +40,9 @@ export class UpdateGroupDTO {
   @IsOptional()
   @IsString()
   fundae_id: string;
+
+  @ApiPropertyOptional({ enum: GroupActiveMode })
+  @IsOptional()
+  @IsEnum(GroupActiveMode)
+  active_mode?: GroupActiveMode;
 }

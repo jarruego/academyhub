@@ -17,6 +17,19 @@ Only implemented in `MailService.resolveToken()` — other call sites must repli
 
 The Moodle **URL** resolves with priority: DB `encrypted_secrets.moodle_url` → `settings.moodle.url` → `process.env.MOODLE_URL`.
 
+## Active courses & groups (daily sync gate)
+
+The authoritative "active" state lives at the **group** level and is resolved by `groupActiveCondition()` (`server/src/utils/group-active.util.ts`, SQL) with a client mirror `isGroupActive()` (`client/src/utils/group-active.util.ts`, TS) — **keep both in sync**. Resolution order:
+1. `groups.active_mode = 'active'` → active (manual override).
+2. `groups.active_mode = 'inactive'` → inactive (manual override).
+3. `groups.active_mode = 'auto'` (default) → active only if `start_date` **and** `end_date` are set and `NOW()` ∈ `[start_date, end_date + ACTIVE_GROUP_GRACE_DAYS]`. Missing either date ⇒ inactive.
+
+`ACTIVE_GROUP_GRACE_DAYS = 2` is a code constant (no env var); the client constant mirrors it. **Group dates are local metadata, not provided by Moodle** (`upsertMoodleGroup` only syncs name/description) — they must be maintained in the group form or via SAGE, otherwise an `auto` group is never active.
+
+- **Daily sync**: `MoodleActiveProgressTask` → `getActiveCoursesProgress()` → `groupRepository.findActiveGroupsWithCourse()` syncs progress **only for active groups**. Gated by `MOODLE_ACTIVE_SYNC_ENABLED` (default false), cron `MOODLE_ACTIVE_SYNC_CRON` (default `0 4 * * *`).
+- **Course active = derived**: a course is active iff it has ≥1 active group. The legacy `courses.active` boolean is no longer the source of truth: the Moodle import no longer forces it to `true`, the course form shows a read-only derived tag, and `user-course.repository` computes `course.active` via an EXISTS-active-group subquery. The client course/group lists compute the tag from `isGroupActive`.
+- Override is editable per group via `active_mode` (group form / `CreateGroupDTO`/`UpdateGroupDTO`).
+
 ## Mail system
 Mail templates are stored in the database (`mail_templates` table). Template images are stored in Supabase Storage (`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` env vars). `MailService` sends Moodle notifications using the token resolution chain above.
 

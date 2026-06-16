@@ -1,4 +1,4 @@
-import { Button, Table, Input } from "antd";
+import { Button, Table, Input, Tag } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useAllGroupsQuery } from "../../hooks/api/groups/use-all-groups.query";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
@@ -8,6 +8,7 @@ import { Group } from "../../shared/types/group/group";
 import { Course } from "../../shared/types/course/course";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { isGroupActive } from "../../utils/group-active.util";
 
 export default function GroupsRoute() {
   const { data: groupsData, isLoading: isGroupsLoading } = useAllGroupsQuery();
@@ -103,6 +104,21 @@ export default function GroupsRoute() {
             title: 'FUNDAE',
             dataIndex: 'fundae_id',
             sorter: (a: Group, b: Group) => (a.fundae_id ?? '').localeCompare(b.fundae_id ?? ''),
+          },
+          {
+            title: 'Estado',
+            key: 'active',
+            render: (_: unknown, record: Group) => {
+              const active = isGroupActive(record);
+              const forced = record.active_mode && record.active_mode !== 'auto';
+              return (
+                <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                  <Tag color={active ? 'green' : 'red'}>{active ? 'Activo' : 'Inactivo'}</Tag>
+                  {forced && <Tag color="gold">Manual</Tag>}
+                </span>
+              );
+            },
+            sorter: (a: Group, b: Group) => Number(isGroupActive(a)) - Number(isGroupActive(b)),
           },
         ]}
         dataSource={filtered}

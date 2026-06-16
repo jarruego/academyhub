@@ -20,6 +20,7 @@ import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { useSetGroupTutorsMutation } from "../../hooks/api/groups/use-set-group-tutors.mutation";
+import { isGroupActive, GROUP_ACTIVE_MODE_OPTIONS } from "../../utils/group-active.util";
 dayjs.extend(utc);
 
 const GROUP_FORM_SCHEMA = z.object({
@@ -30,6 +31,7 @@ const GROUP_FORM_SCHEMA = z.object({
   description: z.string().optional().nullish(),
   start_date: z.date().nullish(),
   end_date: z.date().nullish(),
+  active_mode: z.enum(["auto", "active", "inactive"]).optional().nullish(),
   fundae_id: z.string().optional().nullish(),
 });
 
@@ -40,8 +42,16 @@ export default function EditGroupRoute() {
   const { data: courseData } = useCourseQuery(groupData?.id_course ? String(groupData.id_course) : "");
   const { mutateAsync: updateGroup } = useUpdateGroupMutation(id_group || "");
   const { mutateAsync: deleteGroup } = useDeleteGroupMutation(id_group || "");
-  const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof GROUP_FORM_SCHEMA>>({
+  const { handleSubmit, control, reset, watch, formState: { errors } } = useForm<z.infer<typeof GROUP_FORM_SCHEMA>>({
     resolver: zodResolver(GROUP_FORM_SCHEMA),
+  });
+  const watchedActiveMode = watch("active_mode");
+  const watchedStartDate = watch("start_date");
+  const watchedEndDate = watch("end_date");
+  const resolvedActive = isGroupActive({
+    start_date: watchedStartDate ?? undefined,
+    end_date: watchedEndDate ?? undefined,
+    active_mode: watchedActiveMode ?? undefined,
   });
   const [modal, contextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
@@ -225,6 +235,29 @@ export default function EditGroupRoute() {
                   />
                 )}
               />
+            </Form.Item>
+            <Form.Item label="Estado de actividad" name="active_mode"
+              help={errors.active_mode?.message}
+              validateStatus={errors.active_mode ? "error" : undefined}
+            >
+              <Controller
+                name="active_mode"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    {...field}
+                    id="active_mode"
+                    style={{ minWidth: 200 }}
+                    value={field.value ?? 'auto'}
+                    options={GROUP_ACTIVE_MODE_OPTIONS}
+                    onChange={(value) => field.onChange(value)}
+                    disabled={!canEdit}
+                  />
+                )}
+              />
+            </Form.Item>
+            <Form.Item label="Estado actual">
+              <Tag color={resolvedActive ? 'green' : 'red'}>{resolvedActive ? 'Activo' : 'Inactivo'}</Tag>
             </Form.Item>
           </div>
           <Form.Item label="Descripción" name="description"

@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message, DatePicker } from "antd";
+import { Button, Form, Input, message, DatePicker, Select } from "antd";
 import { useCreateGroupMutation } from "../../hooks/api/groups/use-create-group.mutation";
 import { SaveOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
@@ -10,12 +10,14 @@ import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { GROUP_ACTIVE_MODE_OPTIONS } from "../../utils/group-active.util";
 
 const CREATE_GROUP_FORM = z.object({
   group_name: z.string({ required_error: "El nombre del grupo es obligatorio" }).min(2, "El nombre es demasiado corto"),
   description: z.string().optional(),
   start_date: z.date().nullable().optional(),
   end_date: z.date().nullable().optional(),
+  active_mode: z.enum(["auto", "active", "inactive"]).optional(),
   fundae_id: z.string().optional(),
   id_course: z.coerce.number(),
 });
@@ -130,6 +132,27 @@ export default function CreateGroupRoute() {
             validateStatus={errors.fundae_id ? "error" : undefined}
           >
             <Controller name="fundae_id" control={control} render={({ field }) => <Input id="fundae_id" autoComplete="off" {...field} />} />
+          </Form.Item>
+          <Form.Item
+            label="Estado de actividad"
+            name="active_mode"
+            help={errors.active_mode?.message}
+            validateStatus={errors.active_mode ? "error" : undefined}
+          >
+            <Controller
+              name="active_mode"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  id="active_mode"
+                  style={{ minWidth: 200 }}
+                  value={field.value ?? 'auto'}
+                  options={GROUP_ACTIVE_MODE_OPTIONS}
+                  onChange={(value) => field.onChange(value)}
+                />
+              )}
+            />
           </Form.Item>
         </div>
         <Form.Item>

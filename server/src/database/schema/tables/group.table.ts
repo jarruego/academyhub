@@ -1,7 +1,10 @@
-import { pgTable, serial, integer, text, date, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, date, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { courseTable } from "./course.table";
 import { TIMESTAMPS } from "./timestamps";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
+import { GroupActiveMode } from "../../../types/group/group-active-mode.enum";
+
+export const groupActiveMode = pgEnum('group_active_mode', Object.values(GroupActiveMode) as [string, ...string[]]);
 
 export const groupTable = pgTable("groups", {
   id_group: serial("id_group").primaryKey(),
@@ -11,6 +14,8 @@ export const groupTable = pgTable("groups", {
   description: text("description"),
   start_date: timestamp({withTimezone: true}),
   end_date: timestamp({withTimezone: true}),
+  // Manual override of the active state; 'auto' derives it from the date window.
+  active_mode: groupActiveMode("active_mode").notNull().default(GroupActiveMode.AUTO),
   fundae_id: text(),
   moodle_synced_at: timestamp({withTimezone: true}),
   ...TIMESTAMPS,

@@ -16,7 +16,10 @@ export const courseTable = pgTable('courses', {
   modality: courseModality().notNull(),
   hours: integer(), 
   price_per_hour: decimal({ precision: 10, scale: 2 }).$type<number>(),
-  active: boolean().notNull(),
+  // Legacy column. The authoritative "active" state is now derived from the
+  // course's groups (see utils/group-active.util.ts). Kept for backward
+  // compatibility; defaults to false and is no longer forced by Moodle import.
+  active: boolean().notNull().default(false),
   fundae_id: text(),
   contents: text(), // HTML largo
   moodle_synced_at: timestamp({withTimezone: true}),

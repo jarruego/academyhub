@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table, Select, Checkbox, Modal, App, Tabs, Row, Col } from "antd";
+import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Tabs, Row, Col } from "antd";
 import HtmlEditor from '../../components/courses/HtmlEditor';
 import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
@@ -20,6 +20,7 @@ import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { Group } from "../../shared/types/group/group";
+import { isGroupActive } from "../../utils/group-active.util";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -31,7 +32,6 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
   hours: z.coerce.number().min(0, "Las horas deben ser un número positivo").optional().nullish(),
   price_per_hour: z.coerce.number().min(0, "El precio/hora debe ser un número positivo").optional().nullish(),
   fundae_id: z.string().optional().nullish(),
-  active: z.boolean().optional().nullish(),
   moodle_id: z.number().optional().nullish(),
   category: z.string().optional().nullish(),
   contents: z.string().optional().nullish(),
@@ -41,12 +41,6 @@ export default function CourseDetailRoute() {
   const { message } = App.useApp();
   const role = useRole();
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
-  const preventReadOnlyClick = (e: React.MouseEvent<HTMLElement>) => {
-    if (!canEdit) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  };
   const navigate = useNavigate();
   const { id_course } = useParams();
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
@@ -65,6 +59,8 @@ export default function CourseDetailRoute() {
       return (a.group_name ?? '').localeCompare(b.group_name ?? '');
     });
   }, [groupsData]);
+  // A course is active if it has at least one active group (derived state).
+  const courseActive = useMemo(() => (groupsData ?? []).some((g) => isGroupActive(g)), [groupsData]);
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const { refetch: refetchUsersByGroup } = useUsersByGroupQuery(selectedGroupId);
@@ -87,7 +83,6 @@ export default function CourseDetailRoute() {
       hours: null,
       price_per_hour: null,
       fundae_id: '',
-      active: false,
       moodle_id: null,
       category: '',
       contents: '',
@@ -96,8 +91,10 @@ export default function CourseDetailRoute() {
 
   useEffect(() => {
     if (courseData) {
+      // `active` is derived (not edited here); exclude it from the form values.
+      const { active: _active, ...courseRest } = courseData;
       reset({
-        ...courseData,
+        ...courseRest,
         start_date: courseData.start_date ? (dayjs.isDayjs(courseData.start_date) ? courseData.start_date.toDate() : courseData.start_date) : null,
         end_date: courseData.end_date ? (dayjs.isDayjs(courseData.end_date) ? courseData.end_date.toDate() : courseData.end_date) : null,
         contents: courseData.contents ?? '',
@@ -354,28 +351,10 @@ export default function CourseDetailRoute() {
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12} md={2}>
-                <Form.Item
-                  label="Activo"
-                  name="active"
-                  valuePropName="checked"
-                  help={errors.active?.message}
-                  validateStatus={errors.active ? "error" : undefined}
-                >
-                  <Controller
-                    name="active"
-                    control={control}
-                    render={({ field }) => (
-                      <Checkbox
-                        {...field}
-                        id="active"
-                        checked={!!field.value}
-                        onChange={canEdit ? field.onChange : undefined}
-                        onClick={preventReadOnlyClick}
-                      >
-                        {""}
-                      </Checkbox>
-                    )}
-                  />
+                <Form.Item label="Estado">
+                  <Tag color={courseActive ? 'green' : 'red'} title="Derivado: el curso está activo si tiene algún grupo activo">
+                    {courseActive ? 'Activo' : 'Inactivo'}
+                  </Tag>
                 </Form.Item>
               </Col>
             </Row>

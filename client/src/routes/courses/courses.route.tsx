@@ -1,4 +1,4 @@
-import { Button, Table, Input } from "antd";
+import { Button, Table, Input, Tag } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
@@ -7,6 +7,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Course } from "../../shared/types/course/course";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { isGroupActive } from "../../utils/group-active.util";
 
 export default function CoursesRoute() {
   
@@ -56,15 +57,27 @@ export default function CoursesRoute() {
     return map;
   }, [allGroups]);
 
+  // Map course id -> active (a course is active if it has at least one active group)
+  const activeByCourse = useMemo(() => {
+    const map: Record<number, boolean> = {};
+    if (!allGroups) return map;
+    for (const g of allGroups) {
+      const courseId = g.id_course as number;
+      if (!map[courseId]) map[courseId] = isGroupActive(g);
+    }
+    return map;
+  }, [allGroups]);
+
   // Build dataSource enriched with latest_group_end_date for sorting and display
-  type CourseRow = Course & { latest_group_end_date?: number | null };
+  type CourseRow = Course & { latest_group_end_date?: number | null; is_active?: boolean };
 
   const dataSource = useMemo(() => {
     return (filteredCourses || []).map(c => ({
       ...c,
       latest_group_end_date: latestGroupEndByCourse[c.id_course] ?? null,
+      is_active: activeByCourse[c.id_course] ?? false,
     })) as CourseRow[];
-  }, [filteredCourses, latestGroupEndByCourse]);
+  }, [filteredCourses, latestGroupEndByCourse, activeByCourse]);
 
   return <div>
     <Input.Search 
@@ -109,7 +122,14 @@ export default function CoursesRoute() {
           sorter: (a: CourseRow, b: CourseRow) => ( (b.latest_group_end_date ?? 0) - (a.latest_group_end_date ?? 0) ),
           defaultSortOrder: 'ascend',
         },
-      ]} 
+        {
+          title: 'Estado',
+          dataIndex: 'is_active',
+          key: 'active',
+          render: (active: boolean) => <Tag color={active ? 'green' : 'red'}>{active ? 'Activo' : 'Inactivo'}</Tag>,
+          sorter: (a: CourseRow, b: CourseRow) => Number(a.is_active) - Number(b.is_active),
+        },
+      ]}
       dataSource={dataSource} 
       loading={isCoursesLoading || isAllGroupsLoading}
       onRow={(record) => ({

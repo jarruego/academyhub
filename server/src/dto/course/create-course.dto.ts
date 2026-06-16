@@ -53,10 +53,12 @@ export class CreateCourseDTO {
   @Type(() => Number)
   price_per_hour: number;
 
-  @ApiProperty()
-  @IsNotEmpty()
+  // Legacy field. The course active state is derived from its groups; kept
+  // optional for backward compatibility (defaults to false in the DB).
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsBoolean()
-  active: boolean;
+  active?: boolean;
 
   @ApiPropertyOptional()
   @IsOptional()

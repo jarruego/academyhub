@@ -2,8 +2,10 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { UserCourseInsertModel, userCourseTable, UserCourseUpdateModel, UserCourseSelectModel } from "src/database/schema/tables/user_course.table";
 import { courseTable, CourseSelectModel } from "src/database/schema/tables/course.table";
+import { groupTable } from "src/database/schema/tables/group.table";
 import { and, eq, sql, desc } from "drizzle-orm";
 import type { InsertResult } from 'src/database/types/insert-result';
+import { groupActiveCondition } from "src/utils/group-active.util";
 
 // Tipo para el resultado del JOIN usando los tipos base de Drizzle
 export type UserCourseWithCourse = UserCourseSelectModel & {
@@ -91,7 +93,8 @@ export class UserCourseRepository extends Repository {
                     modality: courseTable.modality,
                     hours: courseTable.hours,
                     price_per_hour: courseTable.price_per_hour,
-                    active: sql<boolean>`CASE WHEN ${courseTable.end_date} > NOW() THEN true ELSE false END`,
+                    // Derived: a course is active if it has at least one active group.
+                    active: sql<boolean>`EXISTS (SELECT 1 FROM ${groupTable} WHERE ${groupTable.id_course} = ${courseTable.id_course} AND ${groupActiveCondition()})`,
                     fundae_id: courseTable.fundae_id,
                     contents: courseTable.contents,
                     createdAt: courseTable.createdAt,
@@ -128,7 +131,8 @@ export class UserCourseRepository extends Repository {
                     modality: courseTable.modality,
                     hours: courseTable.hours,
                     price_per_hour: courseTable.price_per_hour,
-                    active: sql<boolean>`CASE WHEN ${courseTable.end_date} > NOW() THEN true ELSE false END`,
+                    // Derived: a course is active if it has at least one active group.
+                    active: sql<boolean>`EXISTS (SELECT 1 FROM ${groupTable} WHERE ${groupTable.id_course} = ${courseTable.id_course} AND ${groupActiveCondition()})`,
                     fundae_id: courseTable.fundae_id,
                     contents: courseTable.contents,
                     createdAt: courseTable.createdAt,

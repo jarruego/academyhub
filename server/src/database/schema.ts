@@ -21,6 +21,7 @@ import { emailLogTable } from "./schema/tables/email_log.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality } from "./schema/tables/course.table";
+import { groupActiveMode } from "./schema/tables/group.table";
 
 export const auth_users = authUserTable;
 export const companies = companyTable;
@@ -48,6 +49,7 @@ export const email_log = emailLogTable;
 export const courseModailitySchema = courseModality;
 export const genderSchema = gender;
 export const document_type = documentType;
+export const group_active_mode = groupActiveMode;
 // export const enrollment_status = enrollmentStatus;
 
 // Re-export types for convenience

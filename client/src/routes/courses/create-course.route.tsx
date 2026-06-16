@@ -1,5 +1,5 @@
 import { useCreateCourseMutation } from "../../hooks/api/courses/use-create-course.mutation";
-import { Button, DatePicker, Form, Input, Select, message, Checkbox } from "antd";
+import { Button, DatePicker, Form, Input, Select, message } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { useNavigate } from "react-router-dom";
@@ -20,7 +20,6 @@ const CREATE_COURSE_FORM = z.object({
   hours: z.coerce.number().optional(),
   price_per_hour: z.coerce.number().optional(),
   fundae_id: z.string().optional(),
-  active: z.boolean().optional(),
   moodle_id: z.coerce.number().optional(),
   category: z.string().optional(),
 });
@@ -29,9 +28,6 @@ export default function CreateCourseRoute() {
   const { mutateAsync: createCourse } = useCreateCourseMutation();
   const { handleSubmit, control, formState: { errors } } = useForm<z.infer<typeof CREATE_COURSE_FORM>>({
     resolver: zodResolver(CREATE_COURSE_FORM),
-    defaultValues: {
-      active: false,
-    },
   });
   const navigate = useNavigate();
 
@@ -184,27 +180,6 @@ export default function CreateCourseRoute() {
               name="fundae_id"
               control={control}
               render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} />}
-            />
-          </Form.Item>
-          <Form.Item
-            label="Activo"
-            name="active"
-            valuePropName="checked"
-            help={errors.active?.message}
-            validateStatus={errors.active ? "error" : undefined}
-          >
-            <Controller
-              name="active"
-              control={control}
-              render={({ field }) => (
-                <Checkbox
-                  {...field}
-                  id="active"
-                  checked={!!field.value}
-                >
-                  {""}
-                </Checkbox>
-              )}
             />
           </Form.Item>
         </div>
