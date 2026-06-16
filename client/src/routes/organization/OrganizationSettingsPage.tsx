@@ -65,6 +65,15 @@ export default function OrganizationSettingsPage() {
       responsable_dni: "12345678A",
     },
     moodle: { url: "https://moodle.example.com" },
+    // Conexión para la importación automática SAGE por FTP/SFTP (la lee el importador)
+    file_transfer: {
+      type: "ftp",
+      host: "",
+      port: 21,
+      user: "",
+      password: "",
+      path: "/datos.7z",
+    },
     // Plugin flags: set installed Moodle plugins to false by default
     plugins: {
       // iTopTraining (gestión de grupos, fundae, scorms...)
@@ -261,13 +270,40 @@ export default function OrganizationSettingsPage() {
         </Form>
       </Modal>
       <Card style={{ margin: 16 }}>
-        <Typography.Title level={5}>Instrucciones</Typography.Title>
+        <Typography.Title level={5}>Guía de los ajustes (JSON)</Typography.Title>
         <Typography.Paragraph>
-          Si no existen ajustes en la base de datos se muestra un JSON de ejemplo para que puedas editarlo. Rellena los campos y pulsa "Guardar ajustes".
-          Para configurar el token de Moodle abre "Configurar token de Moodle"; el token se enviará al servidor y se guardará cifrado.
+          Edita el JSON y pulsa <Typography.Text strong>"Guardar ajustes"</Typography.Text>. Si aún no hay ajustes, se muestra un ejemplo para que lo completes. Cada sección controla una parte de la plataforma:
+        </Typography.Paragraph>
+        <ul style={{ paddingLeft: 20 }}>
+          <li>
+            <Typography.Text code>site_name</Typography.Text> — Nombre del centro; aparece en informes y cabeceras.
+          </li>
+          <li>
+            <Typography.Text code>contact</Typography.Text> — Datos de contacto: <Typography.Text code>name</Typography.Text>, <Typography.Text code>email</Typography.Text>, <Typography.Text code>phone</Typography.Text>.
+          </li>
+          <li>
+            <Typography.Text code>company</Typography.Text> — Datos fiscales del centro, usados en los informes SEPE/FUNDAE: <Typography.Text code>cif</Typography.Text>, <Typography.Text code>razon_social</Typography.Text>, <Typography.Text code>direccion</Typography.Text>, <Typography.Text code>ciudad</Typography.Text>, <Typography.Text code>responsable_nombre</Typography.Text>, <Typography.Text code>responsable_dni</Typography.Text>.{' '}
+            <Typography.Text type="warning">Obligatorios para poder guardar: cif, razon_social, direccion, responsable_nombre y responsable_dni</Typography.Text> (ciudad es opcional).
+          </li>
+          <li>
+            <Typography.Text code>moodle</Typography.Text> — <Typography.Text code>url</Typography.Text> de tu Moodle. El <Typography.Text strong>token NO se pone aquí</Typography.Text>: usa el botón <Typography.Text strong>"Configurar token de Moodle"</Typography.Text> (se guarda cifrado, no se muestra).
+          </li>
+          <li>
+            <Typography.Text code>file_transfer</Typography.Text> — Conexión para la <Typography.Text strong>importación automática SAGE</Typography.Text> por FTP/SFTP. Campos: <Typography.Text code>type</Typography.Text> (<Typography.Text code>"ftp"</Typography.Text> o <Typography.Text code>"sftp"</Typography.Text>), <Typography.Text code>host</Typography.Text>, <Typography.Text code>port</Typography.Text>, <Typography.Text code>user</Typography.Text>, <Typography.Text code>password</Typography.Text>, <Typography.Text code>path</Typography.Text> (ruta del fichero en el servidor, p. ej. <Typography.Text code>/datos.7z</Typography.Text>). El fichero puede ser un CSV o un comprimido <Typography.Text code>.zip</Typography.Text>/<Typography.Text code>.7z</Typography.Text> que contenga el CSV.
+          </li>
+          <li>
+            <Typography.Text code>plugins</Typography.Text> — Indica qué plugins tienes instalados en tu Moodle:
+            <ul style={{ paddingLeft: 20 }}>
+              <li><Typography.Text code>itop_training</Typography.Text>: si es <Typography.Text code>true</Typography.Text>, se sincroniza el <Typography.Text strong>tiempo dedicado</Typography.Text> de los alumnos y se usan los endpoints del plugin al crear usuarios en Moodle.</li>
+              <li><Typography.Text code>configurable_reports</Typography.Text>, <Typography.Text code>certificates</Typography.Text>, <Typography.Text code>progress_bar</Typography.Text>: informativos por ahora (de momento no cambian el comportamiento de la app).</li>
+            </ul>
+          </li>
+        </ul>
+        <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>
+          🔒 <Typography.Text strong>Seguridad:</Typography.Text> las contraseñas (p. ej. la de <Typography.Text code>file_transfer</Typography.Text>) <Typography.Text strong>nunca se muestran</Typography.Text>: el servidor las devuelve vacías. Si dejas <Typography.Text code>password</Typography.Text> en blanco al guardar, se <Typography.Text strong>conserva</Typography.Text> la que ya había; escribe una nueva solo si quieres cambiarla.
         </Typography.Paragraph>
         <Typography.Paragraph>
-          Logo y firma: sube las imágenes en las secciones correspondientes; después de la subida la vista se actualizará automáticamente.
+          <Typography.Text strong>Logo y firma:</Typography.Text> súbelos en sus secciones; la vista se actualiza automáticamente tras la subida.
         </Typography.Paragraph>
       </Card>
     </div>

@@ -33,9 +33,10 @@ export class OrganizationService {
       responsable_dni: '',
     },
     moodle: { url: '' },
-    sftp: {
+    file_transfer: {
+      type: 'ftp',
       host: '',
-      port: 22,
+      port: 21,
       user: '',
       password: '',
       path: '',
