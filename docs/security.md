@@ -35,7 +35,7 @@ Configured in `server/src/main.ts` with an explicit origin allowlist: `localhost
 - `APP_MASTER_KEY` (base64 AES-256, required at boot) is the key for all of the above.
 
 ## Audit log (HTTP-level)
-`AuditInterceptor` (global `APP_INTERCEPTOR`, `src/interceptors/audit.interceptor.ts`) records mutating requests (POST/PUT/PATCH/DELETE) to the `audit_log` table (migration `0044`) — actor (`request.user`), method, path, route params, status, IP. Best-effort (never breaks/blocks the request) and **does not store request bodies** (avoids logging passwords/tokens). GETs and per-row import DB writes are not audited (only the originating HTTP call).
+`AuditInterceptor` (global `APP_INTERCEPTOR`, `src/interceptors/audit.interceptor.ts`) records mutating requests (POST/PUT/PATCH/DELETE) to the `audit_log` table (migration `0044`) — actor (`request.user`), method, path, route params, status, IP. Best-effort (never breaks/blocks the request) and **does not store request bodies** (avoids logging passwords/tokens). GETs and per-row import DB writes are not audited (only the originating HTTP call). It also skips `/mail/send` and `/mail/send-from-template` (`AUDIT_SKIP_PATHS`) to avoid duplicating the richer `email_log` entry; `/mail/connection` is still audited.
 - Read-only query API: `GET /audit-log` (ADMIN, `api/audit/`) paginated + filterable (method/actor/date); UI at Administración → Herramientas → "Registro de auditoría" (`/tools/audit-log`).
 - Email sends have their own richer log — see `email_log` in `docs/mail-moodle.md`.
 

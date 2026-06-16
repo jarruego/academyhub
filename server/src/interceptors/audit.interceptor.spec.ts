@@ -58,6 +58,19 @@ describe('AuditInterceptor', () => {
     expect(JSON.stringify(recorded)).not.toContain('no-debe-registrarse');
   });
 
+  it('NO audita los envíos de correo (ya registrados en email_log)', async () => {
+    const next = { handle: () => of({ ok: true }) } as any;
+    await firstValueFrom(interceptor.intercept(makeCtx({ method: 'POST', originalUrl: '/mail/send', params: {} }), next));
+    await firstValueFrom(interceptor.intercept(makeCtx({ method: 'POST', originalUrl: '/mail/send-from-template', params: {} }), next));
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it('SÍ audita la prueba de conexión SMTP (/mail/connection)', async () => {
+    const next = { handle: () => of({ ok: true }) } as any;
+    await firstValueFrom(interceptor.intercept(makeCtx({ method: 'POST', originalUrl: '/mail/connection', params: {} }), next));
+    expect(insertMock).toHaveBeenCalledTimes(1);
+  });
+
   it('registra actor null cuando no hay usuario autenticado', async () => {
     const next = { handle: () => of({ ok: true }) } as any;
     await firstValueFrom(interceptor.intercept(makeCtx({ method: 'POST', originalUrl: '/auth/login', params: {} }), next));

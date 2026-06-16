@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, text, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Registro de envíos de correo: quién, cuándo, a quién, con qué plantilla/asunto
@@ -20,7 +20,8 @@ export const emailLogTable = pgTable('email_log', {
     via_moodle: boolean('via_moodle').default(false),
     status: varchar('status', { length: 16 }).notNull(),    // sent | failed
     error_message: text('error_message'),
-    notes: text('notes'),                                   // anotaciones futuras
+    notes: text('notes'),                                   // anotaciones libres futuras
+    metadata: jsonb('metadata'),                            // info estructurada extra futura (sin migración)
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => {
     return {

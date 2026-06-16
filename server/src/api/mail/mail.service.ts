@@ -85,6 +85,8 @@ export class MailService {
     viaMoodle?: boolean;
     status: 'sent' | 'failed';
     error?: string | null;
+    notes?: string | null;
+    metadata?: Record<string, unknown> | null;
   }): Promise<void> {
     try {
       await this.databaseService.db.insert(email_log).values({
@@ -101,7 +103,8 @@ export class MailService {
         via_moodle: !!entry.viaMoodle,
         status: entry.status,
         error_message: entry.error ? String(entry.error).slice(0, 1000) : null,
-        notes: null,
+        notes: entry.notes ?? null,
+        metadata: entry.metadata ?? null,
       });
     } catch (err) {
       this.logger.warn(

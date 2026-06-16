@@ -16,6 +16,11 @@ import { audit_log } from 'src/database/schema';
 // volumen) se ignoran.
 const AUDITED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
+// Rutas que NO se auditan aquí porque ya tienen su propio registro más rico:
+// los envíos de correo se registran en `email_log` (ver MailService). Se evita
+// así la fila genérica duplicada. `/mail/connection` (prueba de SMTP) sí se audita.
+const AUDIT_SKIP_PATHS = new Set(['/mail/send', '/mail/send-from-template']);
+
 /**
  * Registra en `audit_log` quién realiza cada operación mutante (método, ruta,
  * actor, código de estado, IP). Diseñado para NO afectar nunca a la petición:
@@ -37,6 +42,10 @@ export class AuditInterceptor implements NestInterceptor {
     const req = context.switchToHttp().getRequest();
     const method: string | undefined = req?.method;
     if (!method || !AUDITED_METHODS.has(method)) return next.handle();
+
+    // Saltar rutas con registro propio más rico (p. ej. envíos de correo → email_log)
+    const path = String(req?.originalUrl ?? req?.url ?? '').split('?')[0];
+    if (AUDIT_SKIP_PATHS.has(path)) return next.handle();
 
     return next.handle().pipe(
       tap({

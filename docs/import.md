@@ -26,5 +26,8 @@ Saved to `failed_user_imports` (schema-defined + versioned in migration `0043`; 
 ### Performance notes (the loop)
 `processCSVBackground` processes rows sequentially in batches; it yields the event loop via the awaited DB calls (progress/cancel/writes) — the old artificial `setTimeout` pauses were removed. There are **no per-row transactions** (a row creating user+user_center is not atomic); a deliberate decision, since partial state = a user without a center link (recoverable next import) and `failed_user_imports` preserves the data. Do not add per-row transactions naively: the write-through caches (`companiesCache`/`centersCache`/`usersCache`/`userCenterCache`) are updated mid-row, so a rollback would desync them.
 
+### Testing
+Unit tests cover the pure matching logic: `buildUserUpdates` and `findSimilarUsers` (`import.service.spec.ts`, seeding `usersByIdCache` to avoid DB), plus `education-level.util.spec.ts`. **PENDING (deferred):** a full E2E (login → upload CSV → poll job → resolve a decision). It needs a real test Postgres with `unaccent`+`pg_trgm` (e.g. Docker/Testcontainers) and is brittle; deferred until there is a staging/test environment, since the core matching is already unit-covered. Don't add it without that infra.
+
 ## Velneo (`api/import-velneo/`) — legacy
 One-time migration tool used during initial data load. Processes a full Velneo ERP CSV dump in phases (users → companies → associate → courses → groups). Not actively maintained. The upload endpoint requires `ADMIN` role (`@UseGuards(RoleGuard([Role.ADMIN]))`).
