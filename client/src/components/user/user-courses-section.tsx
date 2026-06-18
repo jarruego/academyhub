@@ -105,6 +105,14 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
       },
     },
     {
+      title: 'Finalizado',
+      key: 'finalized',
+      render: (_value, record: UserCourseWithCourse) => {
+        const finalized = (record.groups ?? []).some((g) => g.finalized);
+        return <Tag color={finalized ? 'green' : 'default'}>{finalized ? 'Finalizado' : 'No'}</Tag>;
+      },
+    },
+    {
       title: 'Estado',
       dataIndex: ['course', 'active'],
       key: 'active',

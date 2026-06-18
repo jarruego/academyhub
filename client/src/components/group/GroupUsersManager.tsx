@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Table, Button, message, Modal, notification, Dropdown } from 'antd';
+import { Table, Button, message, Modal, notification, Dropdown, Tag } from 'antd';
 import type { MenuProps } from 'antd';
 import { Tooltip } from 'antd';
 import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined, DownOutlined } from '@ant-design/icons';
@@ -422,7 +422,19 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
   const columns = useMemo(() => {
     if (isPresentialCourse) {
-      return USERS_TABLE_COLUMNS.filter((column) => column.title !== 'Rol' && column.title !== 'Tiempo usado');
+      // En presencial el porcentaje no aplica: se sustituye por el estado de finalización.
+      const finalizedColumn = {
+        title: 'Finalizado',
+        dataIndex: ['finalized'],
+        key: 'finalized',
+        sorter: { compare: (a: User, b: User) => Number(a.finalized ?? false) - Number(b.finalized ?? false) },
+        render: (_: unknown, user: User) => (
+          <Tag color={user.finalized ? 'green' : 'red'}>{user.finalized ? 'Finalizado' : 'No finalizado'}</Tag>
+        ),
+      };
+      return USERS_TABLE_COLUMNS
+        .filter((column) => column.title !== 'Tiempo usado')
+        .map((column) => (column.title === 'Porcentaje' ? finalizedColumn : column));
     }
 
     const groupSyncedColumn = {

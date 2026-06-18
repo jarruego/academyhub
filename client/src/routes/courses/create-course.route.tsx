@@ -2,6 +2,7 @@ import { useCreateCourseMutation } from "../../hooks/api/courses/use-create-cour
 import { Button, DatePicker, Form, Input, Select, message } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
+import { CourseOrigin } from "../../shared/types/course/course-origin.enum";
 import { useNavigate } from "react-router-dom";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
@@ -20,6 +21,8 @@ const CREATE_COURSE_FORM = z.object({
   hours: z.coerce.number().optional(),
   price_per_hour: z.coerce.number().optional(),
   fundae_id: z.string().optional(),
+  file_number: z.string().optional(),
+  origin: z.nativeEnum(CourseOrigin).optional(),
   moodle_id: z.coerce.number().optional(),
   category: z.string().optional(),
 });
@@ -48,9 +51,14 @@ export default function CreateCourseRoute() {
         end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
       });
       navigate('/courses');
-    } catch {
-      message.error('No se pudo guardar el formulario. Inténtalo de nuevo.');
-      message.warning('Revisa los campos del formulario. Puede que falte algún dato obligatorio o el formato no sea correcto.');
+    } catch (error) {
+      const apiMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      if (apiMessage) {
+        message.error(apiMessage);
+      } else {
+        message.error('No se pudo guardar el formulario. Inténtalo de nuevo.');
+        message.warning('Revisa los campos del formulario. Puede que falte algún dato obligatorio o el formato no sea correcto.');
+      }
     }
   }
 
@@ -180,6 +188,26 @@ export default function CreateCourseRoute() {
               name="fundae_id"
               control={control}
               render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} />}
+            />
+          </Form.Item>
+          <Form.Item label="Nº Expediente (INAEM)" name="file_number">
+            <Controller
+              name="file_number"
+              control={control}
+              render={({ field }) => <Input {...field} id="file_number" autoComplete="off" placeholder="25/0202.001" style={{ width: 140 }} />}
+            />
+          </Form.Item>
+          <Form.Item label="Origen" name="origin">
+            <Controller
+              name="origin"
+              control={control}
+              render={({ field }) => (
+                <Select {...field} id="origin" allowClear placeholder="Sin clasificar" style={{ width: 130 }}>
+                  {Object.values(CourseOrigin).map((origin) => (
+                    <Select.Option key={origin} value={origin}>{origin}</Select.Option>
+                  ))}
+                </Select>
+              )}
             />
           </Form.Item>
         </div>

@@ -23,6 +23,8 @@ export type UserWithEnrollmentInfo = UserSelectModel & {
     time_spent?: number | null;
     // Fecha/hora local en la que este usuario fue añadido al grupo en Moodle (nullable)
     moodle_synced_at?: Date | null;
+    // Si el usuario ha finalizado el curso/grupo (de user_group.finalized)
+    finalized?: boolean;
 };
 
 @Injectable()
@@ -81,6 +83,7 @@ export class UserGroupRepository extends Repository {
             enrollment_company_cif: r.company?.cif,
             id_moodle_user: r.user_course?.id_moodle_user ?? null,
             moodle_synced_at: r.user_group?.moodle_synced_at ?? null,
+            finalized: r.user_group?.finalized ?? false,
         }));
     }
 
@@ -109,7 +112,7 @@ export class UserGroupRepository extends Repository {
 
     async findGroupsByUserAndCourse(id_user: number, id_course: number, options?: QueryOptions) {
         const rows = await this.query(options)
-            .select({ id_group: groupTable.id_group, group_name: groupTable.group_name })
+            .select({ id_group: groupTable.id_group, group_name: groupTable.group_name, finalized: userGroupTable.finalized })
             .from(userGroupTable)
             .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
             .where(and(eq(userGroupTable.id_user, id_user), eq(groupTable.id_course, id_course)));

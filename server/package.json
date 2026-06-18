@@ -41,6 +41,7 @@
     "dayjs": "^1.11.20",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.44.2",
+    "exceljs": "^4.4.0",
     "fastest-levenshtein": "^1.0.16",
     "iconv-lite": "^0.7.0",
     "multer": "^2.0.2",

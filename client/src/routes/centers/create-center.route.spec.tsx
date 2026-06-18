@@ -16,6 +16,11 @@ vi.mock("../../hooks/api/centers/use-create-center.mutation", () => ({
     }),
 }));
 
+// El contexto de auth (useRole/AuthzHide/useAuthenticatedAxios) no está envuelto en el test.
+vi.mock("../../providers/auth/auth.context", () => ({
+    useAuthInfo: () => ({ authInfo: { token: "test", user: { role: "admin" } }, setAuth: vi.fn(), logout: vi.fn() }),
+}));
+
 vi.mock("antd", async () => {
   const antd = (await vi.importActual("antd")) as typeof import("antd");
   return {

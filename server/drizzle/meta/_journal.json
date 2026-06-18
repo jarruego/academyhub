@@ -344,6 +344,20 @@
       "when": 1781604176071,
       "tag": "0048_salty_vanisher",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1781692536410,
+      "tag": "0049_striped_war_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1781695533595,
+      "tag": "0050_aspiring_meteorite",
+      "breakpoints": true
     }
   ]
 }

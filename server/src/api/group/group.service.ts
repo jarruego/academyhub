@@ -66,21 +66,11 @@ export class GroupService {
 
   async addUserToGroup({ id_group, id_user, id_center, id_role, allowWithoutCenter }: AddUserToGroupOptions, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      // Si no se proporciona id_role (adición manual), buscar y asignar el rol 'student' por defecto
+      // Salvo que se indique un rol explícito, el rol por defecto es 'student'
+      // (se crea en user_roles si no existiera, para garantizar el default).
       let roleIdToUse = id_role;
       if (!roleIdToUse) {
-        try {
-          const studentRole = await transaction
-            .select()
-            .from(userRolesTable)
-            .where(eq(userRolesTable.role_shortname, 'student'))
-            .limit(1);
-          if (studentRole[0]) {
-            roleIdToUse = studentRole[0].id_role;
-          }
-        } catch (err) {
-          // Si no encuentra el rol student, continuar sin rol
-        }
+        roleIdToUse = await this.userGroupRepository.findOrCreateRoleByShortname('student', { transaction });
       }
 
       // Obtener el nombre del rol si tenemos el ID
@@ -182,20 +172,8 @@ export class GroupService {
       const group = await this.groupRepository.findById(id_group, { transaction });
       const id_course = group.id_course;
 
-      // Pre-fetch student role if needed (for manual user addition)
-      let studentRoleId: number | undefined;
-      try {
-        const studentRole = await transaction
-          .select()
-          .from(userRolesTable)
-          .where(eq(userRolesTable.role_shortname, 'student'))
-          .limit(1);
-        if (studentRole[0]) {
-          studentRoleId = studentRole[0].id_role;
-        }
-      } catch (err) {
-        // Si no encuentra el rol student, continuará sin rol
-      }
+      // Rol por defecto 'student' para altas manuales (se crea si no existe).
+      const studentRoleId: number | undefined = await this.userGroupRepository.findOrCreateRoleByShortname('student', { transaction });
 
       for (const id_user of userIds) {
         try {

@@ -73,7 +73,8 @@ export enum ImportType {
     CSV = 'csv',
     SAGE = 'sage',
     EXCEL = 'excel',
-    MOODLE = 'moodle'
+    MOODLE = 'moodle',
+    INAEM = 'inaem'
 }
 
 // Acciones de decisión

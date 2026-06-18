@@ -2,6 +2,8 @@
 
 **Read before touching anything under `api/import-sage/` or `api/import-velneo/`.**
 
+> The INAEM import (`api/import-inaem/`) is a separate flow documented in `docs/import-inaem.md`.
+
 ## SAGE (`api/import-sage/`) — active import path
 Semicolon-delimited CSV (uploaded manually or via FTP/SFTP); **may arrive unordered**. Each run creates an `import_job`; rows processed sequentially. The job is created **before** the FTP download/extraction (`startImportJobFromFtp` → `createSageJob`), so pre-processing failures (FTP down, missing/corrupt file, archive without CSV) are recorded as `FAILED` jobs (with `error_message`) in the history instead of being lost as a bare 500. Key CSV fields: `[1]` center code, `[2]` center name, `[3]` employee code, `[4]` DNI, `[5]` name, `[6]` surnames, `[7]` start_date, `[8]` end_date, `[10]` email, `[14]` NSS, `[17]` company name, `[18]` company CIF.
 

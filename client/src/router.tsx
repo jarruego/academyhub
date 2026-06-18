@@ -23,6 +23,7 @@ import ToolsRoute from './routes/tools/tools.route';
 import DataCrossReferenceRoute from './routes/tools/data-cross-reference.route';
 import MoodleImportRoute from './routes/tools/moodle-import.route';
 import SageImportRoute from './routes/tools/import-sage.route';
+import InaemImportRoute from './routes/tools/import-inaem.route';
 import ImportVelneoRoute from './routes/tools/import-velneo.route';
 import AuditLogRoute from './routes/tools/audit-log.route';
 import EmailLogRoute from './routes/tools/email-log.route';
@@ -162,6 +163,7 @@ export default function AppRouter() {
               <Route path="/tools/user-management" element={<UserManagementRoute />} />
               <Route path="/tools/moodle-import" element={<MoodleImportRoute />} />
               <Route path="/tools/import-sage" element={<SageImportRoute />} />
+              <Route path="/tools/import-inaem" element={<InaemImportRoute />} />
               <Route path="/tools/import-velneo" element={ImportVelneoRoute.element} />
               <Route path="/tools/audit-log" element={<AuditLogRoute />} />
               <Route path="/tools/email-log" element={<EmailLogRoute />} />

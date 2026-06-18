@@ -4,6 +4,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import { act } from "react-dom/test-utils";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const updateCourse = { mutateAsync: vi.fn().mockResolvedValue({}), mutate: vi.fn().mockResolvedValue({}) };
 const courseData = {
@@ -42,6 +43,10 @@ vi.mock("../../hooks/api/groups/use-create-bonification-file.mutation", () => ({
 vi.mock("../../hooks/api/centers/use-update-user-main-center.mutation", () => ({
   useUpdateUserMainCenterMutation: () => ({ isPending: false, mutate: vi.fn() }),
 }));
+// El contexto de auth (useRole/AuthzHide/useAuthenticatedAxios) no está envuelto en el test.
+vi.mock("../../providers/auth/auth.context", () => ({
+  useAuthInfo: () => ({ authInfo: { token: "test", user: { role: "admin" } }, setAuth: vi.fn(), logout: vi.fn() }),
+}));
 
 // Mock robusto de useNavigate
 const navigateMock = vi.fn();
@@ -59,11 +64,13 @@ describe("<CourseDetailRoute />", () => {
     cleanup();
     updateCourse.mutateAsync.mockReset();
     render(
-      <MemoryRouter initialEntries={["/courses/1"]}>
-        <Routes>
-          <Route path="/courses/:id_course" element={<CourseDetailRoute />} />
-        </Routes>
-      </MemoryRouter>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={["/courses/1"]}>
+          <Routes>
+            <Route path="/courses/:id_course" element={<CourseDetailRoute />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
     );
   });
 

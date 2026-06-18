@@ -1,4 +1,4 @@
-import { Button, Table, Input, message } from "antd";
+import { Button, Table, Input, message, Checkbox } from "antd";
 import { useState, useEffect, useMemo, useRef } from "react";
 import useTableScroll from "../../hooks/use-table-scroll";
 import { Select } from "antd";
@@ -28,6 +28,7 @@ export default function UsersRoute() {
 
   const [selectedCompany, setSelectedCompany] = useState<string | undefined>(undefined);
   const [selectedCenter, setSelectedCenter] = useState<string | undefined>(undefined);
+  const [preinscribedOnly, setPreinscribedOnly] = useState(false);
 
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery(selectedCompany);
@@ -38,6 +39,7 @@ export default function UsersRoute() {
     search: normalizedSearchText,
     id_company: selectedCompany,
     id_center: selectedCenter,
+    preinscribed: preinscribedOnly || undefined,
   };
 
   const { data: usersResponse, isLoading: isUsersLoading, error } = useUsersQuery(queryParams);
@@ -123,9 +125,18 @@ export default function UsersRoute() {
         }}
         options={(centers || []).slice().sort((a, b) => (a.center_name ?? '').localeCompare(b.center_name ?? '')).map(c => ({ label: c.center_name, value: String(c.id_center) }))}
       />
+      <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+        <Checkbox
+          checked={preinscribedOnly}
+          onChange={(e) => { setPreinscribedOnly(e.target.checked); setCurrentPage(1); }}
+          style={{ marginBottom: 16 }}
+        >
+          Solo preinscritos
+        </Checkbox>
+      </AuthzHide>
       <AuthzHide roles={[Role.ADMIN]}>
-        <Button 
-          onClick={() => navigate('/users/create')} 
+        <Button
+          onClick={() => navigate('/users/create')}
           type="primary" 
           icon={<PlusOutlined />}
           style={{ marginBottom: 16 }}

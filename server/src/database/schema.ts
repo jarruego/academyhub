@@ -10,6 +10,7 @@ import { moodleUserAuthUserTable } from "./schema/tables/moodle_user_auth_user.t
 import { userRolesTable } from "./schema/tables/user_roles.table";
 import { userCenterTable } from "./schema/tables/user_center.table";
 import { userCourseTable } from "./schema/tables/user_course.table";
+import { userPreinscriptionTable, preinscriptionStatus } from "./schema/tables/user_preinscription.table";
 import { importJobTable, importDecisionsTable } from "./schema/tables/import.table";
 import { organizationSettingsTable } from "./schema/tables/organization_settings.table";
 import { smtpSettingsTable } from "./schema/tables/smtp_settings.table";
@@ -20,7 +21,7 @@ import { auditLogTable } from "./schema/tables/audit_log.table";
 import { emailLogTable } from "./schema/tables/email_log.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
-import { courseModality } from "./schema/tables/course.table";
+import { courseModality, courseOrigin } from "./schema/tables/course.table";
 import { groupActiveMode } from "./schema/tables/group.table";
 
 export const auth_users = authUserTable;
@@ -35,6 +36,7 @@ export const moodle_user_auth_user = moodleUserAuthUserTable;
 export const user_roles = userRolesTable;
 export const user_center = userCenterTable;
 export const user_course = userCourseTable;
+export const user_preinscription = userPreinscriptionTable;
 export const import_jobs = importJobTable;
 export const import_decisions = importDecisionsTable;
 export const organization_settings = organizationSettingsTable;
@@ -47,9 +49,11 @@ export const email_log = emailLogTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
+export const courseOriginSchema = courseOrigin;
 export const genderSchema = gender;
 export const document_type = documentType;
 export const group_active_mode = groupActiveMode;
+export const preinscription_status = preinscriptionStatus;
 // export const enrollment_status = enrollmentStatus;
 
 // Re-export types for convenience

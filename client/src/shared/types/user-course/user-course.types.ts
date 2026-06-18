@@ -29,6 +29,7 @@ export interface CourseSelectModel {
 export interface CourseGroupSummary {
   id_group: number;
   group_name: string;
+  finalized?: boolean;
 }
 
 // Tipo compuesto para el resultado del JOIN

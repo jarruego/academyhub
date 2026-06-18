@@ -1,9 +1,11 @@
-import { pgTable, serial, integer, text, date, boolean, decimal, pgEnum, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, date, boolean, decimal, pgEnum, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { CourseModality } from "../../../types/course/course-modality.enum";
+import { CourseOrigin } from "../../../types/course/course-origin.enum";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 export const courseModality = pgEnum('course_modality', Object.values(CourseModality) as [string, ...string[]]);
+export const courseOrigin = pgEnum('course_origin', Object.values(CourseOrigin) as [string, ...string[]]);
 
 export const courseTable = pgTable('courses', {
   id_course: serial().primaryKey(),
@@ -21,9 +23,25 @@ export const courseTable = pgTable('courses', {
   // compatibility; defaults to false and is no longer forced by Moodle import.
   active: boolean().notNull().default(false),
   fundae_id: text(),
+  // Nº de expediente del INAEM (p.ej. "25/0202.001"). Clave de matching en la
+  // importación INAEM y campo manual para etiquetar cursos ya existentes y
+  // evitar duplicados. Null en cursos no INAEM.
+  file_number: text(),
+  // Origen/financiación del curso (CLIENTE/INAEM/PRIVADO/OTRO). Null hasta clasificar.
+  origin: courseOrigin(),
+  // Curso provisional autocreado durante la importación INAEM cuando llegó un
+  // alumno/preinscrito de un expediente sin curso. Se completa al importar Acciones.
+  is_provisional: boolean().notNull().default(false),
   contents: text(), // HTML largo
   moodle_synced_at: timestamp({withTimezone: true}),
   ...TIMESTAMPS,
+}, (table) => {
+  return {
+    // file_number: único (no dos cursos con el mismo nº de expediente) y clave de
+    // matching en la importación INAEM. Los NULL no colisionan entre sí en Postgres,
+    // así que los cursos sin expediente conviven sin problema.
+    fileNumberIdx: uniqueIndex("idx_courses_file_number").on(table.file_number),
+  };
 });
 
 export type CourseSelectModel = InferSelectModel<typeof courseTable>;

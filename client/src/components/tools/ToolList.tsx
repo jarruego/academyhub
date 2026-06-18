@@ -33,6 +33,15 @@ const tools = [
     linkTo: "/tools/import-sage",
   },
   {
+    key: "import-inaem",
+    label: "Importación INAEM",
+    description: "Importa acciones, alumnos y preinscripciones del INAEM (3 ficheros opcionales).",
+    icon: <FileTextOutlined style={{ fontSize: 20 }} />,
+    adminOnly: true,
+    type: "link" as const,
+    linkTo: "/tools/import-inaem",
+  },
+  {
     key: "import-velneo",
     label: "Importación Velneo",
     description: "Importa usuarios, cursos y grupos desde CSV Velneo.",

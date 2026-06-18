@@ -9,6 +9,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect, useMemo } from "react";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
+import { CourseOrigin } from "../../shared/types/course/course-origin.enum";
 import { useDeleteCourseMutation } from "../../hooks/api/courses/use-delete-course.mutation";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -32,6 +33,8 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
   hours: z.coerce.number().min(0, "Las horas deben ser un número positivo").optional().nullish(),
   price_per_hour: z.coerce.number().min(0, "El precio/hora debe ser un número positivo").optional().nullish(),
   fundae_id: z.string().optional().nullish(),
+  file_number: z.string().optional().nullish(),
+  origin: z.nativeEnum(CourseOrigin).optional().nullish(),
   moodle_id: z.number().optional().nullish(),
   category: z.string().optional().nullish(),
   contents: z.string().optional().nullish(),
@@ -83,6 +86,8 @@ export default function CourseDetailRoute() {
       hours: null,
       price_per_hour: null,
       fundae_id: '',
+      file_number: '',
+      origin: null,
       moodle_id: null,
       category: '',
       contents: '',
@@ -91,8 +96,9 @@ export default function CourseDetailRoute() {
 
   useEffect(() => {
     if (courseData) {
-      // `active` is derived (not edited here); exclude it from the form values.
-      const { active: _active, ...courseRest } = courseData;
+      // `active` is derived and `is_provisional` is managed by the importer;
+      // exclude both from the editable form values.
+      const { active: _active, is_provisional: _isProvisional, ...courseRest } = courseData;
       reset({
         ...courseRest,
         start_date: courseData.start_date ? (dayjs.isDayjs(courseData.start_date) ? courseData.start_date.toDate() : courseData.start_date) : null,
@@ -131,12 +137,17 @@ export default function CourseDetailRoute() {
       price_per_hour: info.price_per_hour !== undefined && info.price_per_hour !== null ? Number(info.price_per_hour) : 0,
       contents: info.contents ?? '',
     };
-    await updateCourse({
-      ...data,
-      start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
-      end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
-    });
-    setShowSuccessModal(true);
+    try {
+      await updateCourse({
+        ...data,
+        start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
+        end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
+      });
+      setShowSuccessModal(true);
+    } catch (error) {
+      const apiMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      message.error(apiMessage || 'No se pudo guardar el curso. Inténtalo de nuevo.');
+    }
   };
 
   const handleDelete = async () => {
@@ -357,6 +368,62 @@ export default function CourseDetailRoute() {
                   </Tag>
                 </Form.Item>
               </Col>
+            </Row>
+
+            {/* INAEM: nº de expediente y origen (etiquetado para evitar duplicados en la importación) */}
+            <Row gutter={[16, 0]}>
+              <Col xs={24} sm={12} md={6}>
+                <Form.Item
+                  label="Nº Expediente (INAEM)"
+                  name="file_number"
+                  help={errors.file_number?.message}
+                  validateStatus={errors.file_number ? "error" : undefined}
+                >
+                  <Controller
+                    name="file_number"
+                    control={control}
+                    render={({ field }) => <Input {...field} id="file_number" autoComplete="off" placeholder="p.ej. 25/0202.001" value={field.value ?? ''} readOnly={!canEdit} />}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Form.Item
+                  label="Origen"
+                  name="origin"
+                  help={errors.origin?.message}
+                  validateStatus={errors.origin ? "error" : undefined}
+                >
+                  <Controller
+                    name="origin"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        {...field}
+                        id="origin"
+                        style={{ width: '100%' }}
+                        placeholder="Sin clasificar"
+                        value={field.value ?? undefined}
+                        onChange={(value) => { if (!canEdit) return; field.onChange(value ?? null); }}
+                        open={canEdit ? undefined : false}
+                        allowClear={canEdit}
+                      >
+                        {Object.values(CourseOrigin).map((origin) => (
+                          <Select.Option key={origin} value={origin}>{origin}</Select.Option>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </Form.Item>
+              </Col>
+              {courseData?.is_provisional && (
+                <Col xs={24} sm={24} md={12}>
+                  <Form.Item label="Aviso">
+                    <Tag color="orange" title="Curso autocreado por la importación INAEM a partir del nº de expediente. Importa el fichero de Acciones para completar nombre, fechas y horas.">
+                      Provisional — pendiente de completar (importa Acciones)
+                    </Tag>
+                  </Form.Item>
+                </Col>
+              )}
             </Row>
 
             {/* Grupos del curso y gestión de usuarios — stacked en mobile, side-by-side en lg+ */}

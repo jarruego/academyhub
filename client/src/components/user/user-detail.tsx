@@ -20,6 +20,8 @@ import { DocumentType } from "../../shared/types/user/document-type.enum";
 import { AddUserToCenterSection } from "../../routes/users/user-center-detail-section";
 import { MoodleUsersSection } from "./moodle-users-section";
 import { UserCoursesSection } from "./user-courses-section";
+import { UserPreinscriptionsSection } from "./user-preinscriptions-section";
+import { useUserPreinscriptionsQuery } from "../../hooks/api/import-inaem/useInaemData";
 import SendMailModal from "../mail/SendMailModal";
 import usePreviewAddUserToMoodle from "../../hooks/api/moodle/use-preview-add-user-to-moodle.api";
 import { useAddUserToMoodleMutation } from "../../hooks/api/moodle/use-add-user-to-moodle.mutation";
@@ -135,9 +137,12 @@ const navigate = useNavigate();
   const { 
     data: moodleUsers
   } = useMoodleUsersByUserIdQuery(userId);
-  const { 
+  const {
     data: userCourses
   } = useUserCoursesQuery(userId);
+  // Preinscripciones INAEM: endpoint sólo accesible a admin/manager, así que
+  // sólo se consulta (y se muestra la pestaña) cuando el usuario puede gestionarlas.
+  const { data: userPreinscriptions } = useUserPreinscriptionsQuery(userId, canEdit);
   const { handleSubmit, control, reset, setValue, watch, formState: { errors } } = useForm({
     resolver: zodResolver(USER_FORM_SCHEMA)
   });
@@ -774,6 +779,17 @@ const navigate = useNavigate();
       label: "Cursos",
       children: (
         <UserCoursesSection userId={userId} />
+      ),
+    });
+  }
+
+  // Pestaña de Preinscripciones (INAEM) si las hay (sólo admin/manager).
+  if (canEdit && userPreinscriptions && userPreinscriptions.length > 0) {
+    items.push({
+      key: "5",
+      label: "Preinscripciones",
+      children: (
+        <UserPreinscriptionsSection userId={userId} />
       ),
     });
   }

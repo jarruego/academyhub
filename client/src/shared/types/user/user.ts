@@ -49,4 +49,6 @@ export type User = {
     id_moodle_user?: number | null;
     // Moodle sync timestamp
     moodle_synced_at?: string | Date | null;
+    // Si el usuario ha finalizado el curso/grupo (de user_group.finalized)
+    finalized?: boolean | null;
 }

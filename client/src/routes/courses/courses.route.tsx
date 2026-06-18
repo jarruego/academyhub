@@ -5,6 +5,7 @@ import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
 import { useAllGroupsQuery } from "../../hooks/api/groups/use-all-groups.query";
 import { useEffect, useState, useMemo } from "react";
 import { Course } from "../../shared/types/course/course";
+import { CourseOrigin } from "../../shared/types/course/course-origin.enum";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { isGroupActive } from "../../utils/group-active.util";
@@ -32,6 +33,7 @@ export default function CoursesRoute() {
   const filteredCourses = coursesData?.filter(course =>
     normalize(course.course_name ?? '').includes(normalizedSearch) ||
     normalize(course.short_name ?? '').includes(normalizedSearch) ||
+    normalize(course.file_number ?? '').includes(normalizedSearch) ||
     normalize(course.moodle_id ? String(course.moodle_id) : '').includes(normalizedSearch)
   )?.slice().sort((a, b) => {
     const aDate = a.end_date ? new Date(a.end_date).getTime() : 0;
@@ -113,6 +115,33 @@ export default function CoursesRoute() {
           title: 'Nombre Corto',
           dataIndex: 'short_name',
           sorter: (a: CourseRow, b: CourseRow) => (a.short_name ?? '').localeCompare(b.short_name ?? ''),
+        },
+        {
+          title: 'Nº Exp.',
+          dataIndex: 'file_number',
+          render: (v: string | null, record: CourseRow) => (
+            <span>
+              {v || '-'}
+              {record.is_provisional ? <Tag color="orange" style={{ marginLeft: 6 }}>Provisional</Tag> : null}
+            </span>
+          ),
+          sorter: (a: CourseRow, b: CourseRow) => (a.file_number ?? '').localeCompare(b.file_number ?? ''),
+        },
+        {
+          title: 'Origen',
+          dataIndex: 'origin',
+          key: 'origin',
+          filters: [
+            ...Object.values(CourseOrigin).map((o) => ({ text: o, value: o })),
+            { text: 'Sin clasificar', value: '__none__' },
+          ],
+          onFilter: (value, record: CourseRow) =>
+            value === '__none__' ? !record.origin : record.origin === value,
+          render: (origin: string | null) => {
+            if (!origin) return '-';
+            const color = origin === 'INAEM' ? 'geekblue' : origin === 'CLIENTE' ? 'green' : origin === 'PRIVADO' ? 'purple' : 'default';
+            return <Tag color={color}>{origin}</Tag>;
+          },
         },
         {
           title: 'Fecha Fin Grupo',

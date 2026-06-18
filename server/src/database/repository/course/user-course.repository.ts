@@ -96,6 +96,9 @@ export class UserCourseRepository extends Repository {
                     // Derived: a course is active if it has at least one active group.
                     active: sql<boolean>`EXISTS (SELECT 1 FROM ${groupTable} WHERE ${groupTable.id_course} = ${courseTable.id_course} AND ${groupActiveCondition()})`,
                     fundae_id: courseTable.fundae_id,
+                    file_number: courseTable.file_number,
+                    origin: courseTable.origin,
+                    is_provisional: courseTable.is_provisional,
                     contents: courseTable.contents,
                     createdAt: courseTable.createdAt,
                     updatedAt: courseTable.updatedAt,
@@ -134,6 +137,9 @@ export class UserCourseRepository extends Repository {
                     // Derived: a course is active if it has at least one active group.
                     active: sql<boolean>`EXISTS (SELECT 1 FROM ${groupTable} WHERE ${groupTable.id_course} = ${courseTable.id_course} AND ${groupActiveCondition()})`,
                     fundae_id: courseTable.fundae_id,
+                    file_number: courseTable.file_number,
+                    origin: courseTable.origin,
+                    is_provisional: courseTable.is_provisional,
                     contents: courseTable.contents,
                     createdAt: courseTable.createdAt,
                     updatedAt: courseTable.updatedAt,

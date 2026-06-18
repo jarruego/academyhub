@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, ConflictException } from "@nestjs/common";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 import { UserCourseRepository } from "src/database/repository/course/user-course.repository";
 import { MoodleService } from "../moodle/moodle.service";
@@ -36,27 +36,57 @@ export class CourseService {
     });
   }
 
+  // Normaliza el nº de expediente: recorta y convierte el vacío en null
+  // (evita que dos cursos sin expediente colisionen con la restricción única).
+  private normalizeFileNumber<T extends { file_number?: string | null }>(model: T): T {
+    if (model.file_number !== undefined) {
+      const trimmed = (model.file_number ?? "").trim();
+      model.file_number = trimmed.length ? trimmed : null;
+    }
+    return model;
+  }
+
+  // Postgres lanza 23505 al violar la restricción única de file_number.
+  private isFileNumberConflict(error: unknown): boolean {
+    const e = error as { code?: string; constraint?: string };
+    return e?.code === "23505" && String(e?.constraint ?? "").includes("file_number");
+  }
+
   async create(courseInsertModel: CourseInsertModel, options?: QueryOptions) {
-    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      // Asegura que el campo contents esté presente aunque sea undefined
-      const data: CourseInsertModel = {
-        ...courseInsertModel,
-        contents: courseInsertModel.contents ?? null,
-      };
-      return await this.courseRepository.create(data, { transaction });
-    });
+    try {
+      return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+        // Asegura que el campo contents esté presente aunque sea undefined
+        const data: CourseInsertModel = this.normalizeFileNumber({
+          ...courseInsertModel,
+          contents: courseInsertModel.contents ?? null,
+        });
+        return await this.courseRepository.create(data, { transaction });
+      });
+    } catch (error) {
+      if (this.isFileNumberConflict(error)) {
+        throw new ConflictException(`Ya existe un curso con el nº de expediente "${courseInsertModel.file_number}".`);
+      }
+      throw error;
+    }
   }
 
   async update(id: number, courseUpdateModel: CourseUpdateModel, options?: QueryOptions) {
-    return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      // Asegura que el campo contents esté presente aunque sea undefined
-      const data: CourseUpdateModel = {
-        ...courseUpdateModel,
-        contents: courseUpdateModel.contents ?? null,
-      };
-      await this.courseRepository.update(id, data, { transaction });
-      return await this.courseRepository.findById(id, { transaction });
-    });
+    try {
+      return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+        // Asegura que el campo contents esté presente aunque sea undefined
+        const data: CourseUpdateModel = this.normalizeFileNumber({
+          ...courseUpdateModel,
+          contents: courseUpdateModel.contents ?? null,
+        });
+        await this.courseRepository.update(id, data, { transaction });
+        return await this.courseRepository.findById(id, { transaction });
+      });
+    } catch (error) {
+      if (this.isFileNumberConflict(error)) {
+        throw new ConflictException(`Ya existe un curso con el nº de expediente "${courseUpdateModel.file_number}".`);
+      }
+      throw error;
+    }
   }
 
   async findAll(filter: Partial<CourseSelectModel>, options?: QueryOptions) {

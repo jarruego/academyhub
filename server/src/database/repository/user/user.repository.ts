@@ -9,6 +9,7 @@ import { DbCondition } from "src/database/types/db-expression";
 import { InsertResult } from 'src/database/types/insert-result';
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
 import { centers } from "src/database/schema";
+import { userPreinscriptionTable } from "src/database/schema/tables/user_preinscription.table";
 
 @Injectable()
 export class UserRepository extends Repository {
@@ -128,6 +129,11 @@ export class UserRepository extends Repository {
 
     if (filter.id_company) {
       conditions.push(sql`EXISTS (SELECT 1 FROM ${userCenterTable} uc JOIN ${centers} c ON uc.id_center = c.id_center WHERE uc.id_user = ${users.id_user} AND c.id_company = ${filter.id_company})`);
+    }
+
+    // Sólo usuarios con al menos una preinscripción (INAEM)
+    if (filter.preinscribed) {
+      conditions.push(sql`EXISTS (SELECT 1 FROM ${userPreinscriptionTable} up WHERE up.id_user = ${users.id_user})`);
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;

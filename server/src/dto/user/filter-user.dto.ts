@@ -1,4 +1,4 @@
-import { Type } from "class-transformer";
+import { Type, Transform } from "class-transformer";
 import { IsOptional, IsString, IsInt, IsEmail, IsBoolean, IsIn, IsDateString, IsNotEmpty, IsDate } from "class-validator";
 import { DocumentType } from "src/types/user/document-type.enum";
 import { Gender } from "src/types/user/gender.enum";
@@ -139,4 +139,10 @@ export class FilterUserDTO {
   @Type(() => Number)
   @IsInt()
   id_center?: number;
+
+  // Sólo usuarios con al menos una preinscripción INAEM.
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  preinscribed?: boolean;
 }

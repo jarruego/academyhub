@@ -13,6 +13,9 @@ export const userGroupTable = pgTable("user_group", {
   is_tutor: boolean("is_tutor").default(false),
   id_center: integer("id_center").references(() => centerTable.id_center),
   join_date: date({ mode: 'date' }).defaultNow(),
+  // Indica si el usuario ha finalizado el curso/grupo (independiente del progreso).
+  // Se rellena desde el campo FINALIZADO (SI/NO) del fichero de Alumnos del INAEM.
+  finalized: boolean("finalized").notNull().default(false),
   completion_percentage: decimal({ precision: 5, scale: 2 }),
   time_spent: integer("time_spent"),
   last_access: timestamp("last_access"),

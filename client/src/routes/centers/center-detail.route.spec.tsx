@@ -21,6 +21,7 @@ import { describe, it, beforeEach, expect, vi } from "vitest";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import EditCenterRoute from "./center-detail.route";
 
 const updateCenter = { mutateAsync: vi.fn().mockResolvedValue({}) };
@@ -52,6 +53,10 @@ vi.mock("../../hooks/api/centers/use-delete-center.mutation", () => ({
 vi.mock("../../hooks/api/companies/use-company.query", () => ({
   useCompanyQuery: () => ({ data: companyData, isLoading: false }),
 }));
+// El contexto de auth (useRole/AuthzHide/useAuthenticatedAxios) no está envuelto en el test.
+vi.mock("../../providers/auth/auth.context", () => ({
+  useAuthInfo: () => ({ authInfo: { token: "test", user: { role: "admin" } }, setAuth: vi.fn(), logout: vi.fn() }),
+}));
 
 const navigateMock = vi.fn();
 vi.mock("react-router-dom", async () => {
@@ -68,11 +73,13 @@ describe("<EditCenterRoute />", () => {
     cleanup();
     updateCenter.mutateAsync.mockReset();
     render(
-      <MemoryRouter initialEntries={["/centers/1"]}>
-        <Routes>
-          <Route path="/centers/:id_center" element={<EditCenterRoute />} />
-        </Routes>
-      </MemoryRouter>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={["/centers/1"]}>
+          <Routes>
+            <Route path="/centers/:id_center" element={<EditCenterRoute />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
     );
   });
 
