@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { CourseOrigin } from "../../shared/types/course/course-origin.enum";
+import { CourseFunding } from "../../shared/types/course/course-funding.enum";
 import { useDeleteCourseMutation } from "../../hooks/api/courses/use-delete-course.mutation";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -35,6 +36,7 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
   fundae_id: z.string().optional().nullish(),
   file_number: z.string().optional().nullish(),
   origin: z.nativeEnum(CourseOrigin).optional().nullish(),
+  funding: z.nativeEnum(CourseFunding).optional().nullish(),
   moodle_id: z.number().optional().nullish(),
   category: z.string().optional().nullish(),
   contents: z.string().optional().nullish(),
@@ -88,6 +90,7 @@ export default function CourseDetailRoute() {
       fundae_id: '',
       file_number: '',
       origin: null,
+      funding: null,
       moodle_id: null,
       category: '',
       contents: '',
@@ -183,6 +186,13 @@ export default function CourseDetailRoute() {
 
   const contentsValue = watch('contents');
   const hasMoodleId = Boolean(courseData?.moodle_id);
+  // Visibilidad condicional de los campos de clasificación. Se muestran cuando el
+  // eje correspondiente lo justifica O cuando ya hay dato (para no ocultar valores
+  // existentes de cursos aún sin clasificar del todo).
+  const originValue = watch('origin');
+  const fundingValue = watch('funding');
+  const showFundaeId = fundingValue === CourseFunding.FUNDAE || Boolean(courseData?.fundae_id);
+  const showFileNumber = originValue === CourseOrigin.INAEM || Boolean(courseData?.file_number);
 
   return (
     <div>
@@ -348,20 +358,6 @@ export default function CourseDetailRoute() {
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12} md={3}>
-                <Form.Item
-                  label="FUNDAE ID"
-                  name="fundae_id"
-                  help={errors.fundae_id?.message}
-                  validateStatus={errors.fundae_id ? "error" : undefined}
-                >
-                  <Controller
-                    name="fundae_id"
-                    control={control}
-                    render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" value={field.value ?? ''} readOnly={!canEdit} />}
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={24} sm={12} md={2}>
                 <Form.Item label="Estado">
                   <Tag color={courseActive ? 'green' : 'red'} title="Derivado: el curso está activo si tiene algún grupo activo">
                     {courseActive ? 'Activo' : 'Inactivo'}
@@ -370,23 +366,10 @@ export default function CourseDetailRoute() {
               </Col>
             </Row>
 
-            {/* INAEM: nº de expediente y origen (etiquetado para evitar duplicados en la importación) */}
+            {/* Clasificación: origen (¿quién lo encarga?) + financiación (¿cómo se paga?).
+                Nº Expediente solo aplica a INAEM; FUNDAE ID solo a financiación FUNDAE. */}
             <Row gutter={[16, 0]}>
-              <Col xs={24} sm={12} md={6}>
-                <Form.Item
-                  label="Nº Expediente (INAEM)"
-                  name="file_number"
-                  help={errors.file_number?.message}
-                  validateStatus={errors.file_number ? "error" : undefined}
-                >
-                  <Controller
-                    name="file_number"
-                    control={control}
-                    render={({ field }) => <Input {...field} id="file_number" autoComplete="off" placeholder="p.ej. 25/0202.001" value={field.value ?? ''} readOnly={!canEdit} />}
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={24} sm={12} md={6}>
+              <Col xs={24} sm={12} md={5}>
                 <Form.Item
                   label="Origen"
                   name="origin"
@@ -415,8 +398,69 @@ export default function CourseDetailRoute() {
                   />
                 </Form.Item>
               </Col>
+              <Col xs={24} sm={12} md={5}>
+                <Form.Item
+                  label="Financiación"
+                  name="funding"
+                  help={errors.funding?.message}
+                  validateStatus={errors.funding ? "error" : undefined}
+                >
+                  <Controller
+                    name="funding"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        {...field}
+                        id="funding"
+                        style={{ width: '100%' }}
+                        placeholder="Sin clasificar"
+                        value={field.value ?? undefined}
+                        onChange={(value) => { if (!canEdit) return; field.onChange(value ?? null); }}
+                        open={canEdit ? undefined : false}
+                        allowClear={canEdit}
+                      >
+                        {Object.values(CourseFunding).map((funding) => (
+                          <Select.Option key={funding} value={funding}>{funding}</Select.Option>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </Form.Item>
+              </Col>
+              {showFileNumber && (
+                <Col xs={24} sm={12} md={5}>
+                  <Form.Item
+                    label="Nº Expediente (INAEM)"
+                    name="file_number"
+                    help={errors.file_number?.message}
+                    validateStatus={errors.file_number ? "error" : undefined}
+                  >
+                    <Controller
+                      name="file_number"
+                      control={control}
+                      render={({ field }) => <Input {...field} id="file_number" autoComplete="off" placeholder="p.ej. 25/0202.001" value={field.value ?? ''} readOnly={!canEdit} />}
+                    />
+                  </Form.Item>
+                </Col>
+              )}
+              {showFundaeId && (
+                <Col xs={24} sm={12} md={4}>
+                  <Form.Item
+                    label="FUNDAE ID"
+                    name="fundae_id"
+                    help={errors.fundae_id?.message}
+                    validateStatus={errors.fundae_id ? "error" : undefined}
+                  >
+                    <Controller
+                      name="fundae_id"
+                      control={control}
+                      render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" value={field.value ?? ''} readOnly={!canEdit} />}
+                    />
+                  </Form.Item>
+                </Col>
+              )}
               {courseData?.is_provisional && (
-                <Col xs={24} sm={24} md={12}>
+                <Col xs={24} sm={24} md={5}>
                   <Form.Item label="Aviso">
                     <Tag color="orange" title="Curso autocreado por la importación INAEM a partir del nº de expediente. Importa el fichero de Acciones para completar nombre, fechas y horas.">
                       Provisional — pendiente de completar (importa Acciones)

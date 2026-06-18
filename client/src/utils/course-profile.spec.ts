@@ -41,10 +41,12 @@ describe("getCourseProfile", () => {
     expect(privada.showPreinscripciones).toBe(false);
   });
 
-  it("financiación FUNDAE habilita el botón de bonificación; PRIVADA/PUBLICA no", () => {
+  it("bonificación: oculta solo en financiación explícita no-FUNDAE; FUNDAE y sin clasificar la muestran", () => {
     expect(getCourseProfile({ funding: CourseFunding.FUNDAE }).showBonificationButton).toBe(true);
     expect(getCourseProfile({ funding: CourseFunding.PRIVADA }).showBonificationButton).toBe(false);
     expect(getCourseProfile({ funding: CourseFunding.PUBLICA }).showBonificationButton).toBe(false);
+    // Sin clasificar -> se muestra (la guarda de servidor valida fundae_id).
+    expect(getCourseProfile({ funding: null }).showBonificationButton).toBe(true);
   });
 
   it("normaliza mayúsculas/minúsculas y tolera strings sueltos", () => {
@@ -63,7 +65,8 @@ describe("getCourseProfile", () => {
     // (mismo comportamiento que hoy, donde solo 'presencial' se trataba aparte).
     expect(p.showMoodleSync).toBe(true);
     expect(p.showFinalizedColumn).toBe(false);
-    expect(p.showBonificationButton).toBe(false);
+    // Sin clasificar el botón de bonificación se muestra (permisivo).
+    expect(p.showBonificationButton).toBe(true);
     expect(p.showExpediente).toBe(false);
   });
 });

@@ -657,9 +657,11 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
                 Selección <DownOutlined />
               </Button>
             </Dropdown>
-            <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
-              Bonificar
-            </Button>
+            {profile.showBonificationButton && (
+              <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
+                Bonificar
+              </Button>
+            )}
           </div>
         </AuthzHide>
       </div>

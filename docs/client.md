@@ -26,6 +26,18 @@ Each domain under `client/src/hooks/api/` has separate `.query.ts` and `.mutatio
 
 **Table navigation:** main list tables (`users`, `groups`, `courses`, `companies`, `centers`) use `onClick` on `onRow` for single-click navigation. Tables inside detail pages keep `onDoubleClick` to avoid conflicts with row selection.
 
+## Course typology (modality / origin / funding)
+Three **orthogonal** axes on a course, each its own enum (mirrored server↔client):
+- **Modality** (`course-modality.enum`): `Online` / `Presencial` / `Mixta` — how it's delivered.
+- **Origin** (`course-origin.enum`): `PRIVADA` / `INAEM` — who commissions it. Empresa-vs-particular is derived from whether the student has a `company`, not stored here.
+- **Funding** (`course-funding.enum`): `PRIVADA` / `FUNDAE` / `PUBLICA` — how it's paid. INAEM courses are always `PUBLICA`.
+
+`utils/course-profile.ts` (`getCourseProfile({ modality, origin, funding })`) is the **single source of truth** for type-driven UI: it returns capability flags (`showMoodleSync`, `showProgressColumn`, `showFinalizedColumn`, `showBonificationButton`, `showExpediente`, `showPreinscripciones`). Consume it instead of scattering `modality === 'presencial'` checks. `showBonificationButton` is permissive (hidden only for explicit non-FUNDAE funding, matching the server bonification guard). `GroupUsersManager` consumes it (Moodle/progress/finalized columns, Moodle + Bonificar buttons).
+
+**Courses list** (`courses.route.tsx`): a `Segmented` control gives tabs **Todos / FUNDAE / INAEM / Privada / Sin clasificar** (predicates over the already-loaded list; filtering is client-side, consistent with the search and active-state computation — the server-side `FilterCourseDTO` filters exist for API use). Active tab persists in the URL (`?tab=`). Columns adapt per tab (Origen/Financiación/Nº Exp. hidden where redundant).
+
+**Course form** (create + detail): fields grouped by axis; Origen + Financiación selects; **Nº Expediente** shown only for INAEM origin, **FUNDAE ID** only for FUNDAE funding (detail also shows them when a value already exists, so unclassified courses don't hide data).
+
 ## Type sharing
 Shared types between components and hooks live in `client/src/shared/types/`. Component-level types stay in `client/src/types/`. Zod schemas for form validation are in `client/src/schemas/` (currently only Spanish DNI and CIF validators; form schemas are co-located with their route components).
 

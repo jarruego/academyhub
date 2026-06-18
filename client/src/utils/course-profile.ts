@@ -32,7 +32,12 @@ export interface CourseProfile {
   showProgressColumn: boolean;
   /** Columna de finalización (presencial: el porcentaje no aplica). */
   showFinalizedColumn: boolean;
-  /** Botón de bonificación FUNDAE. */
+  /**
+   * Botón de bonificación FUNDAE. Permisivo: se oculta solo cuando la financiación
+   * está clasificada explícitamente como NO bonificable (PRIVADA/PUBLICA). Si es
+   * FUNDAE o aún no está clasificada (null) se muestra, coherente con la guarda de
+   * servidor que solo rechaza clasificaciones explícitas.
+   */
   showBonificationButton: boolean;
   /** Nº de expediente INAEM. */
   showExpediente: boolean;
@@ -52,6 +57,9 @@ export function getCourseProfile(input: CourseProfileInput): CourseProfile {
   const isMixed = modality === norm(CourseModality.MIXED);
   const isInaem = origin === norm(CourseOrigin.INAEM);
   const isFundae = funding === norm(CourseFunding.FUNDAE);
+  // Financiación clasificada explícitamente como NO bonificable.
+  const isNonBonifiable =
+    funding === norm(CourseFunding.PRIVADA) || funding === norm(CourseFunding.PUBLICA);
 
   return {
     isPresential,
@@ -63,7 +71,7 @@ export function getCourseProfile(input: CourseProfileInput): CourseProfile {
     showMoodleSync: !isPresential,
     showProgressColumn: !isPresential,
     showFinalizedColumn: isPresential,
-    showBonificationButton: isFundae,
+    showBonificationButton: !isNonBonifiable,
     showExpediente: isInaem,
     showPreinscripciones: isInaem,
   };

@@ -3,6 +3,7 @@ import { Button, DatePicker, Form, Input, Select, message } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { CourseOrigin } from "../../shared/types/course/course-origin.enum";
+import { CourseFunding } from "../../shared/types/course/course-funding.enum";
 import { useNavigate } from "react-router-dom";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
@@ -23,16 +24,23 @@ const CREATE_COURSE_FORM = z.object({
   fundae_id: z.string().optional(),
   file_number: z.string().optional(),
   origin: z.nativeEnum(CourseOrigin).optional(),
+  funding: z.nativeEnum(CourseFunding).optional(),
   moodle_id: z.coerce.number().optional(),
   category: z.string().optional(),
 });
 
 export default function CreateCourseRoute() {
   const { mutateAsync: createCourse } = useCreateCourseMutation();
-  const { handleSubmit, control, formState: { errors } } = useForm<z.infer<typeof CREATE_COURSE_FORM>>({
+  const { handleSubmit, control, watch, formState: { errors } } = useForm<z.infer<typeof CREATE_COURSE_FORM>>({
     resolver: zodResolver(CREATE_COURSE_FORM),
   });
   const navigate = useNavigate();
+  // Visibilidad condicional: Nº Expediente solo para INAEM; FUNDAE ID solo para
+  // financiación FUNDAE.
+  const originValue = watch('origin');
+  const fundingValue = watch('funding');
+  const showFileNumber = originValue === CourseOrigin.INAEM;
+  const showFundaeId = fundingValue === CourseFunding.FUNDAE;
 
   useEffect(() => {
     document.title = "Crear Curso";
@@ -178,25 +186,6 @@ export default function CreateCourseRoute() {
               render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" style={{ width: 100 }} />}
             />
           </Form.Item>
-          <Form.Item
-            label="FUNDAE ID"
-            name="fundae_id"
-            help={errors.fundae_id?.message}
-            validateStatus={errors.fundae_id ? "error" : undefined}
-          >
-            <Controller
-              name="fundae_id"
-              control={control}
-              render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} />}
-            />
-          </Form.Item>
-          <Form.Item label="Nº Expediente (INAEM)" name="file_number">
-            <Controller
-              name="file_number"
-              control={control}
-              render={({ field }) => <Input {...field} id="file_number" autoComplete="off" placeholder="25/0202.001" style={{ width: 140 }} />}
-            />
-          </Form.Item>
           <Form.Item label="Origen" name="origin">
             <Controller
               name="origin"
@@ -210,6 +199,42 @@ export default function CreateCourseRoute() {
               )}
             />
           </Form.Item>
+          <Form.Item label="Financiación" name="funding">
+            <Controller
+              name="funding"
+              control={control}
+              render={({ field }) => (
+                <Select {...field} id="funding" allowClear placeholder="Sin clasificar" style={{ width: 140 }}>
+                  {Object.values(CourseFunding).map((funding) => (
+                    <Select.Option key={funding} value={funding}>{funding}</Select.Option>
+                  ))}
+                </Select>
+              )}
+            />
+          </Form.Item>
+          {showFileNumber && (
+            <Form.Item label="Nº Expediente (INAEM)" name="file_number">
+              <Controller
+                name="file_number"
+                control={control}
+                render={({ field }) => <Input {...field} id="file_number" autoComplete="off" placeholder="25/0202.001" style={{ width: 140 }} />}
+              />
+            </Form.Item>
+          )}
+          {showFundaeId && (
+            <Form.Item
+              label="FUNDAE ID"
+              name="fundae_id"
+              help={errors.fundae_id?.message}
+              validateStatus={errors.fundae_id ? "error" : undefined}
+            >
+              <Controller
+                name="fundae_id"
+                control={control}
+                render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" style={{ width: 120 }} />}
+              />
+            </Form.Item>
+          )}
         </div>
         <Form.Item>
           <AuthzHide roles={[Role.ADMIN]}>
