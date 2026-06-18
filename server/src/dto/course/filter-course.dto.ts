@@ -1,6 +1,8 @@
 import { Type } from "class-transformer";
 import { IsOptional, IsString, IsInt, IsBoolean, IsDateString, IsIn, IsNumber, isNumberString, IsNumberString, IsDate } from "class-validator";
 import { CourseModality } from "src/types/course/course-modality.enum";
+import { CourseOrigin } from "src/types/course/course-origin.enum";
+import { CourseFunding } from "src/types/course/course-funding.enum";
 
 export class FilterCourseDTO {
   @IsOptional()
@@ -50,4 +52,19 @@ export class FilterCourseDTO {
   @IsOptional()
   @IsString()
   fundae_id?: string;
+
+  // Origen: ¿quién lo encarga? (PRIVADA/INAEM).
+  @IsOptional()
+  @IsIn(Object.values(CourseOrigin))
+  origin?: CourseOrigin;
+
+  // Financiación: ¿cómo se paga? (PRIVADA/FUNDAE/PUBLICA).
+  @IsOptional()
+  @IsIn(Object.values(CourseFunding))
+  funding?: CourseFunding;
+
+  // Búsqueda libre: casa course_name / short_name / file_number.
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
-import { eq, ilike, and } from "drizzle-orm";
+import { eq, ilike, and, or } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
 import { InsertResult } from 'src/database/types/insert-result';
 // user_course_moodle_role removed: roles are now managed via user_roles + user_group.id_role
@@ -30,7 +30,7 @@ export class CourseRepository extends Repository {
     return result;
   }
 
-  async findAll(filter: Partial<CourseSelectModel>, options?: QueryOptions) {
+  async findAll(filter: Partial<CourseSelectModel> & { search?: string }, options?: QueryOptions) {
   const where: DbCondition[] = [];
 
         if (filter.course_name) where.push(ilike(courseTable.course_name, `%${filter.course_name}%`));
@@ -41,6 +41,19 @@ export class CourseRepository extends Repository {
         // if (filter.price_per_hour) where.push(eq(courseTable.price_per_hour, filter.price_per_hour));
         if (filter.modality) where.push(eq(courseTable.modality, filter.modality));
         if (filter.active) where.push(eq(courseTable.active, filter.active));
+        // Ejes de tipología (Fase 2): origen y financiación.
+        if (filter.origin) where.push(eq(courseTable.origin, filter.origin));
+        if (filter.funding) where.push(eq(courseTable.funding, filter.funding));
+        // Búsqueda libre sobre nombre / nombre corto / nº de expediente.
+        if (filter.search) {
+          const term = `%${filter.search}%`;
+          const searchCond = or(
+            ilike(courseTable.course_name, term),
+            ilike(courseTable.short_name, term),
+            ilike(courseTable.file_number, term),
+          );
+          if (searchCond) where.push(searchCond);
+        }
 
         return await this.query(options).select().from(courseTable).where(and(...where));
   }

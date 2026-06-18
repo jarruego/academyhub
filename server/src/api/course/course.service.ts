@@ -89,7 +89,7 @@ export class CourseService {
     }
   }
 
-  async findAll(filter: Partial<CourseSelectModel>, options?: QueryOptions) {
+  async findAll(filter: Partial<CourseSelectModel> & { search?: string }, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       return await this.courseRepository.findAll(filter, { transaction });
     });

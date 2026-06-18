@@ -7,6 +7,7 @@ import { UserGroupRepository } from "src/database/repository/group/user-group.re
 import { CourseSelectModel } from "src/database/schema/tables/course.table";
 import { GroupSelectModel } from "src/database/schema/tables/group.table";
 import type { UserWithEnrollmentInfo } from "src/database/repository/group/user-group.repository";
+import { CourseFunding } from "src/types/course/course-funding.enum";
 import { create } from 'xmlbuilder2';
 // repository method will handle user_center/center/company joins
 import type { FundaeCost, FundaeParticipant, FundaeGroup, FundaeRoot } from '../../types/fundae/fundae.types';
@@ -35,6 +36,12 @@ export class GroupBonificableService {
             // Get course fundae id
             const course = await this.courseRepository.findById(group.id_course, { transaction });
             if (!course) throw new NotFoundException("Course not found");
+            // Guarda de financiación: si el curso está clasificado como NO bonificable
+            // (PRIVADA/PUBLICA), rechaza pronto con un mensaje claro. Si aún no está
+            // clasificado (funding null) se mantiene la validación por fundae_id de abajo.
+            if (course.funding && course.funding !== CourseFunding.FUNDAE) {
+                throw new BadRequestException(`El curso no es bonificable FUNDAE (financiación: ${course.funding}).`);
+            }
             if (!course.fundae_id || isNaN(Number(course.fundae_id))) {
                 throw new BadRequestException("Course FUNDAE ID is missing or invalid");
             }
