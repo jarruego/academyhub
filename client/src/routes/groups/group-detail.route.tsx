@@ -166,6 +166,8 @@ export default function EditGroupRoute() {
             groupId={id_group ? parseInt(id_group, 10) : null}
             courseName={courseData?.course_name}
             courseModality={courseData?.modality}
+            courseOrigin={courseData?.origin}
+            courseFunding={courseData?.funding}
             groupStart={groupData?.start_date}
             groupEnd={groupData?.end_date}
           />

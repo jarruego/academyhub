@@ -20,11 +20,14 @@ import useMoodleGroupMembersApi from '../../hooks/api/moodle/use-moodle-group-me
 import useExportUsersToMailCsv from '../../hooks/api/groups/use-export-users-mail-csv';
 import useExportUsersToSmsCsv from '../../hooks/api/groups/use-export-users-sms-csv';
 import SendMailToGroupModal from '../mail/SendMailToGroupModal';
+import { getCourseProfile } from '../../utils/course-profile';
 
 interface Props {
   groupId: number | null | undefined;
   courseName?: string;
   courseModality?: string | null;
+  courseOrigin?: string | null;
+  courseFunding?: string | null;
   groupStart?: string | Date | null;
   groupEnd?: string | Date | null;
 }
@@ -61,7 +64,7 @@ const isStudentUser = (user: User): boolean => {
   return typeof role === 'string' ? role.toLowerCase() === 'student' : false;
 };
 
-const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, groupStart, groupEnd }) => {
+const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseOrigin, courseFunding, groupStart, groupEnd }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [modal, modalContextHolder] = Modal.useModal();
   const [notificationApi, notificationContextHolder] = notification.useNotification();
@@ -95,7 +98,11 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const { previewUsersToCreate, addUsers } = useMoodleGroupMembersApi();
   const exportUsersToMailCsv = useExportUsersToMailCsv();
   const exportUsersToSmsCsv = useExportUsersToSmsCsv();
-  const isPresentialCourse = String(courseModality ?? '').toLowerCase() === 'presencial';
+  // Capacidades de UI derivadas de la tipología del curso (fuente única de verdad).
+  const profile = useMemo(
+    () => getCourseProfile({ modality: courseModality, origin: courseOrigin, funding: courseFunding }),
+    [courseModality, courseOrigin, courseFunding],
+  );
 
   const handleMarkBelow75 = () => {
     if (!usersData) return;
@@ -421,7 +428,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   };
 
   const columns = useMemo(() => {
-    if (isPresentialCourse) {
+    if (profile.showFinalizedColumn) {
       // En presencial el porcentaje no aplica: se sustituye por el estado de finalización.
       const finalizedColumn = {
         title: 'Finalizado',
@@ -453,7 +460,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
     const baseColumns = filterUsersTimeSpentColumn(USERS_TABLE_COLUMNS, itopTrainingEnabled);
     return [groupSyncedColumn, ...baseColumns];
-  }, [isPresentialCourse, itopTrainingEnabled]);
+  }, [profile, itopTrainingEnabled]);
 
   const { totalStudents, studentsAtOrAbove75 } = useMemo(() => {
     let total = 0;
@@ -604,7 +611,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
               </Button>
             </Dropdown>
 
-            {!isPresentialCourse && (
+            {profile.showMoodleSync && (
               <Dropdown
                 menu={{ items: moodleMenuItems, onClick: handleMoodleMenuClick }}
                 disabled={syncMoodleGroupMembersPending}
