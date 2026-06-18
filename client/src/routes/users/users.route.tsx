@@ -2,7 +2,7 @@ import { Button, Table, Input, message, Checkbox } from "antd";
 import { useState, useEffect, useMemo, useRef } from "react";
 import useTableScroll from "../../hooks/use-table-scroll";
 import { Select } from "antd";
-import { useUsersQuery, UsersQueryParams } from "../../hooks/api/users/use-users.query";
+import { useUsersQuery, UsersQueryParams, FormationType } from "../../hooks/api/users/use-users.query";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { useNavigate } from 'react-router-dom';
@@ -29,6 +29,7 @@ export default function UsersRoute() {
   const [selectedCompany, setSelectedCompany] = useState<string | undefined>(undefined);
   const [selectedCenter, setSelectedCenter] = useState<string | undefined>(undefined);
   const [preinscribedOnly, setPreinscribedOnly] = useState(false);
+  const [formationType, setFormationType] = useState<FormationType | undefined>(undefined);
 
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery(selectedCompany);
@@ -40,6 +41,7 @@ export default function UsersRoute() {
     id_company: selectedCompany,
     id_center: selectedCenter,
     preinscribed: preinscribedOnly || undefined,
+    formation_type: formationType,
   };
 
   const { data: usersResponse, isLoading: isUsersLoading, error } = useUsersQuery(queryParams);
@@ -124,6 +126,18 @@ export default function UsersRoute() {
           return label.toLowerCase().includes(String(input).toLowerCase());
         }}
         options={(centers || []).slice().sort((a, b) => (a.center_name ?? '').localeCompare(b.center_name ?? '')).map(c => ({ label: c.center_name, value: String(c.id_center) }))}
+      />
+      <Select
+        allowClear
+        placeholder="Tipo de formación"
+        style={{ width: 180 }}
+        value={formationType}
+        onChange={(val: FormationType | undefined) => { setFormationType(val); setCurrentPage(1); }}
+        options={[
+          { label: 'FUNDAE', value: 'fundae' },
+          { label: 'INAEM', value: 'inaem' },
+          { label: 'Privada', value: 'privada' },
+        ]}
       />
       <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
         <Checkbox

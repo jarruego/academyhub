@@ -145,4 +145,10 @@ export class FilterUserDTO {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   preinscribed?: boolean;
+
+  // Tipo de formación del alumno (derivado de sus matrículas): casa con las
+  // pestañas de la lista de cursos. `privada` = origen PRIVADA no bonificado.
+  @IsOptional()
+  @IsIn(['fundae', 'inaem', 'privada'])
+  formation_type?: 'fundae' | 'inaem' | 'privada';
 }

@@ -38,6 +38,8 @@ Three **orthogonal** axes on a course, each its own enum (mirrored server↔clie
 
 **Course form** (create + detail): fields grouped by axis; Origen + Financiación selects; **Nº Expediente** shown only for INAEM origin, **FUNDAE ID** only for FUNDAE funding (detail also shows them when a value already exists, so unclassified courses don't hide data).
 
+**Users list** (`users.route.tsx`): a **Tipo de formación** select (`fundae` / `inaem` / `privada`) filters students by the type of course they're enrolled in. It's a *derived* filter (no type column on `user`): server-side `FilterUserDTO.formation_type` resolves it with an `EXISTS` over `user_group → groups → courses` (same pattern as `preinscribed`). `privada` = enrolled in a PRIVADA-origin, non-FUNDAE course.
+
 ## Type sharing
 Shared types between components and hooks live in `client/src/shared/types/`. Component-level types stay in `client/src/types/`. Zod schemas for form validation are in `client/src/schemas/` (currently only Spanish DNI and CIF validators; form schemas are co-located with their route components).
 

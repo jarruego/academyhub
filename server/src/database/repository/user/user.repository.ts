@@ -10,6 +10,9 @@ import { InsertResult } from 'src/database/types/insert-result';
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
 import { centers } from "src/database/schema";
 import { userPreinscriptionTable } from "src/database/schema/tables/user_preinscription.table";
+import { userGroupTable } from "src/database/schema/tables/user_group.table";
+import { groupTable } from "src/database/schema/tables/group.table";
+import { courseTable } from "src/database/schema/tables/course.table";
 
 @Injectable()
 export class UserRepository extends Repository {
@@ -134,6 +137,25 @@ export class UserRepository extends Repository {
     // Sólo usuarios con al menos una preinscripción (INAEM)
     if (filter.preinscribed) {
       conditions.push(sql`EXISTS (SELECT 1 FROM ${userPreinscriptionTable} up WHERE up.id_user = ${users.id_user})`);
+    }
+
+    // Tipo de formación: usuarios matriculados en algún grupo de un curso del tipo
+    // indicado (derivado vía user_group → groups → courses). Las cláusulas casan
+    // con las pestañas de la lista de cursos. Los valores son literales controlados
+    // (validados por IsIn en el DTO), no entrada libre.
+    if (filter.formation_type) {
+      const typeCond =
+        filter.formation_type === "fundae"
+          ? sql`c.funding::text = 'FUNDAE'`
+          : filter.formation_type === "inaem"
+          ? sql`c.origin::text = 'INAEM'`
+          : sql`c.origin::text = 'PRIVADA' AND c.funding::text IS DISTINCT FROM 'FUNDAE'`;
+      conditions.push(sql`EXISTS (
+        SELECT 1 FROM ${userGroupTable} ug
+        JOIN ${groupTable} g ON ug.id_group = g.id_group
+        JOIN ${courseTable} c ON g.id_course = c.id_course
+        WHERE ug.id_user = ${users.id_user} AND ${typeCond}
+      )`);
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;

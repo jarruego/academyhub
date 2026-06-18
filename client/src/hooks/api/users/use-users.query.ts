@@ -7,14 +7,16 @@ import { PaginationParams, PaginationResult } from "../../../shared/types/pagina
 // Tipo específico para la respuesta de usuarios paginados
 type PaginatedUsersResult = PaginationResult<User>;
 
-export type UsersQueryParams = PaginationParams & { id_company?: string; id_center?: string; preinscribed?: boolean };
+export type FormationType = 'fundae' | 'inaem' | 'privada';
+
+export type UsersQueryParams = PaginationParams & { id_company?: string; id_center?: string; preinscribed?: boolean; formation_type?: FormationType };
 
 export const useUsersQuery = (params: UsersQueryParams = {}) => {
-    const { page = 1, limit = 100, search = "", id_company, id_center, preinscribed } = params;
+    const { page = 1, limit = 100, search = "", id_company, id_center, preinscribed, formation_type } = params;
     const request = useAuthenticatedAxios<PaginatedUsersResult>();
 
     return useQuery({
-        queryKey: ['users', 'paginated', page, limit, search, id_company || null, id_center || null, preinscribed || false],
+        queryKey: ['users', 'paginated', page, limit, search, id_company || null, id_center || null, preinscribed || false, formation_type || null],
         queryFn: async () => {
             const queryParams = new URLSearchParams({
                 page: page.toString(),
@@ -23,6 +25,7 @@ export const useUsersQuery = (params: UsersQueryParams = {}) => {
                 ...(id_company && { id_company }),
                 ...(id_center && { id_center }),
                 ...(preinscribed && { preinscribed: 'true' }),
+                ...(formation_type && { formation_type }),
             });
 
             return (await request({
