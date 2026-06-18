@@ -23,6 +23,12 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // Respeta el convenio `_`-prefix para descartes intencionados y la omisión
+      // de hermanos al desestructurar con rest (p.ej. `const { a: _a, ...rest } = x`).
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
     },
   },
 )
