@@ -17,6 +17,14 @@ Read before adding modules, tables, repositories, or scheduler tasks.
 ## `user_roles` table
 A lookup catalog of role definitions (`role_shortname`, `role_description`) used during Velneo imports to label roles within groups/courses. Not the same as `auth_user.role`.
 
+## Course typology
+A course is labelled by three **orthogonal** axes (enums mirrored client↔server). Tagged at course level, never on the student:
+- `modality` (`course_modality`: `Online`/`Presencial`/`Mixta`) — how it's delivered.
+- `origin` (`course_origin`: `PRIVADA`/`INAEM`) — who commissions it. Empresa-vs-particular is derived from the student's `company`, not stored.
+- `funding` (`course_funding`: `PRIVADA`/`FUNDAE`/`PUBLICA`) — how it's paid; orthogonal to origin. INAEM ⇒ `PUBLICA`; FUNDAE applies to PRIVADA-origin bonified courses (`fundae_id` itself lives per **group**). `origin`/`funding` nullable = "sin clasificar".
+
+Migration `0051` recreated `course_origin` (old `CLIENTE`/`PRIVADO`/`OTRO` → `PRIVADA`) and added `funding` (backfill: INAEM→PUBLICA, has `fundae_id`→FUNDAE, else PRIVADA). Bonification (`group-bonification.service`) rejects explicit non-FUNDAE funding. UI (tabs, `getCourseProfile` capability helper, derived user filter) → `docs/client.md`.
+
 ## Database access pattern
 All DB access goes through repositories in `server/src/database/repository/`. Each repository receives the `DATABASE_PROVIDER` injection token and calls `db.select(...)`, `db.insert(...)`, etc. using Drizzle ORM. Schema is defined in `server/src/database/schema/tables/*.table.ts` and re-exported from `server/src/database/schema.ts`.
 

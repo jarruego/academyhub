@@ -14,7 +14,7 @@ Relationship: Alumnos ⊆ Preinscripciones (an enrolled student is an admitted a
 
 ## Data model
 All people live in `users` (no parallel person table). Schema added (migrations `0049`, `0050`):
-- `courses.file_number` — nº de expediente, **UNIQUE** (NULLs don't collide; matching key + manual tagging). `courses.origin` enum `course_origin` (`PRIVADA`/`INAEM`) — ¿quién lo encarga? `courses.funding` enum `course_funding` (`PRIVADA`/`FUNDAE`/`PUBLICA`) — ¿cómo se paga? (eje ortogonal; INAEM ⇒ `PUBLICA`). `courses.is_provisional` (autocreated stub, completed later). Migration `0051` recreated `course_origin` (CLIENTE/PRIVADO/OTRO → PRIVADA) and added `funding`.
+- `courses.file_number` — nº de expediente, **UNIQUE** (NULLs don't collide; matching key + manual tagging). `courses.is_provisional` (autocreated stub, completed later). INAEM courses are tagged `origin=INAEM` + `funding=PUBLICA` (typology model → `docs/architecture.md`).
 - `user_group.finalized` (bool) ← `FINALIZADO`.
 - `user_preinscription` (junction like `user_course`, PK `id_user`+`id_course`): `status` enum `preinscription_status` (`PREINSCRITO`/`MATRICULADO`/`DESCARTADO`/`BAJA`), `prioritaria`, `preinscription_date`. Repo: `database/repository/preinscription/user-preinscription.repository.ts`.
 
