@@ -139,7 +139,7 @@ export default function CoursesRoute() {
             value === '__none__' ? !record.origin : record.origin === value,
           render: (origin: string | null) => {
             if (!origin) return '-';
-            const color = origin === 'INAEM' ? 'geekblue' : origin === 'CLIENTE' ? 'green' : origin === 'PRIVADO' ? 'purple' : 'default';
+            const color = origin === 'INAEM' ? 'geekblue' : origin === 'PRIVADA' ? 'green' : 'default';
             return <Tag color={color}>{origin}</Tag>;
           },
         },

@@ -3,6 +3,7 @@ import { Type } from "class-transformer";
 import { IsString, IsInt, IsBoolean, IsOptional, IsIn, IsDateString, IsNumberString, IsDate, IsNotEmpty, IsNumber } from "class-validator";
 import { CourseModality } from "src/types/course/course-modality.enum";
 import { CourseOrigin } from "src/types/course/course-origin.enum";
+import { CourseFunding } from "src/types/course/course-funding.enum";
 
 export class UpdateCourseDTO {
   @ApiPropertyOptional()
@@ -69,11 +70,17 @@ export class UpdateCourseDTO {
   @IsString()
   file_number?: string;
 
-  // Origen/financiación del curso (CLIENTE/INAEM/PRIVADO/OTRO).
+  // Origen del curso: ¿quién lo encarga? (PRIVADA/INAEM).
   @ApiPropertyOptional({ enum: CourseOrigin })
   @IsOptional()
   @IsIn(Object.values(CourseOrigin))
   origin?: CourseOrigin;
+
+  // Financiación del curso: ¿cómo se paga? (PRIVADA/FUNDAE/PUBLICA).
+  @ApiPropertyOptional({ enum: CourseFunding })
+  @IsOptional()
+  @IsIn(Object.values(CourseFunding))
+  funding?: CourseFunding;
 
   @ApiPropertyOptional({ description: 'Contenidos del curso en HTML', type: String })
   @IsOptional()

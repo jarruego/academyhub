@@ -1,8 +1,6 @@
-// Origen/financiación de un curso. Debe coincidir con el enum del servidor
+// Origen de un curso: ¿quién lo encarga? Debe coincidir con el enum del servidor
 // (server/src/types/course/course-origin.enum.ts).
 export enum CourseOrigin {
-    CLIENTE = 'CLIENTE',
+    PRIVADA = 'PRIVADA',
     INAEM = 'INAEM',
-    PRIVADO = 'PRIVADO',
-    OTRO = 'OTRO',
 }

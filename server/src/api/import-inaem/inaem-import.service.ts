@@ -18,6 +18,7 @@ import { UserPreinscriptionRepository } from "src/database/repository/preinscrip
 import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
 import { CourseModality } from "src/types/course/course-modality.enum";
 import { CourseOrigin } from "src/types/course/course-origin.enum";
+import { CourseFunding } from "src/types/course/course-funding.enum";
 import { PreinscriptionStatus } from "src/types/preinscription/preinscription-status.enum";
 import { parseInaemFile } from "./inaem-file.parser";
 import { ParsedTable } from "./inaem-html-table.parser";
@@ -187,6 +188,8 @@ export class InaemImportService {
             update.is_provisional = false;
           }
           if (!existing.origin) update.origin = CourseOrigin.INAEM;
+          // Los cursos INAEM son subvención pública (fill-gaps: no pisa un valor manual).
+          if (!existing.funding) update.funding = CourseFunding.PUBLICA;
           if (!existing.start_date && start) update.start_date = start;
           if (!existing.end_date && end) update.end_date = end;
           if (!existing.hours && hours !== undefined) update.hours = hours;
@@ -218,6 +221,7 @@ export class InaemImportService {
               short_name: fileNumber,
               file_number: fileNumber,
               origin: CourseOrigin.INAEM,
+              funding: CourseFunding.PUBLICA,
               modality: CourseModality.PRESENTIAL,
               is_provisional: false,
               start_date: start ?? null,
@@ -350,14 +354,18 @@ export class InaemImportService {
     if (!fileNumber) return null;
     const existing = ctx.coursesByFile.get(fileNumber);
     if (existing) {
-      // fill-gaps de origen: si el curso casado no tiene origen, márcalo INAEM
-      // (nunca sobreescribe un origen elegido a mano). Consistente con importAcciones.
-      if (!existing.origin) {
+      // fill-gaps de origen/financiación: si el curso casado no los tiene, márcalos
+      // INAEM/PUBLICA (nunca sobreescribe valores elegidos a mano). Consistente con
+      // importAcciones.
+      const patch: Record<string, unknown> = {};
+      if (!existing.origin) patch.origin = CourseOrigin.INAEM;
+      if (!existing.funding) patch.funding = CourseFunding.PUBLICA;
+      if (Object.keys(patch).length) {
         await this.db
           .update(courses)
-          .set({ origin: CourseOrigin.INAEM })
+          .set(patch)
           .where(eq(courses.id_course, existing.id_course));
-        const updated = { ...existing, origin: CourseOrigin.INAEM } as CourseRow;
+        const updated = { ...existing, ...(patch as any) } as CourseRow;
         ctx.coursesByFile.set(fileNumber, updated);
         return updated;
       }
@@ -371,6 +379,7 @@ export class InaemImportService {
         short_name: fileNumber,
         file_number: fileNumber,
         origin: CourseOrigin.INAEM,
+        funding: CourseFunding.PUBLICA,
         modality: CourseModality.PRESENTIAL,
         is_provisional: true,
       })

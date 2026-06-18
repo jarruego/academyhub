@@ -2,10 +2,12 @@ import { pgTable, serial, integer, text, date, boolean, decimal, pgEnum, timesta
 import { TIMESTAMPS } from "./timestamps";
 import { CourseModality } from "../../../types/course/course-modality.enum";
 import { CourseOrigin } from "../../../types/course/course-origin.enum";
+import { CourseFunding } from "../../../types/course/course-funding.enum";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 export const courseModality = pgEnum('course_modality', Object.values(CourseModality) as [string, ...string[]]);
 export const courseOrigin = pgEnum('course_origin', Object.values(CourseOrigin) as [string, ...string[]]);
+export const courseFunding = pgEnum('course_funding', Object.values(CourseFunding) as [string, ...string[]]);
 
 export const courseTable = pgTable('courses', {
   id_course: serial().primaryKey(),
@@ -27,8 +29,11 @@ export const courseTable = pgTable('courses', {
   // importación INAEM y campo manual para etiquetar cursos ya existentes y
   // evitar duplicados. Null en cursos no INAEM.
   file_number: text(),
-  // Origen/financiación del curso (CLIENTE/INAEM/PRIVADO/OTRO). Null hasta clasificar.
+  // Origen del curso: ¿quién lo encarga? (PRIVADA/INAEM). Null hasta clasificar.
   origin: courseOrigin(),
+  // Financiación del curso: ¿cómo se paga? (PRIVADA/FUNDAE/PUBLICA). Eje ortogonal
+  // al origen. Null hasta clasificar; los cursos INAEM son siempre PUBLICA.
+  funding: courseFunding(),
   // Curso provisional autocreado durante la importación INAEM cuando llegó un
   // alumno/preinscrito de un expediente sin curso. Se completa al importar Acciones.
   is_provisional: boolean().notNull().default(false),
