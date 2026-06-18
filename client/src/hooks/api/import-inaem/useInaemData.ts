@@ -75,3 +75,36 @@ export const useResolveInaemConflictMutation = () => {
     },
   });
 };
+
+export const useDeleteInaemConflictMutation = () => {
+  const request = useAuthenticatedAxios();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      await request({
+        method: "DELETE",
+        url: `${getApiHost()}/api/import-inaem/conflicts/${id}`,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inaem-conflicts"] });
+    },
+  });
+};
+
+export const useDeleteAllInaemConflictsMutation = () => {
+  const request = useAuthenticatedAxios();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<{ deleted: number }> => {
+      const res = await request({
+        method: "DELETE",
+        url: `${getApiHost()}/api/import-inaem/conflicts`,
+      });
+      return res.data as { deleted: number };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inaem-conflicts"] });
+    },
+  });
+};

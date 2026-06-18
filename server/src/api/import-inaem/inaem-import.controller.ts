@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Put,
+  Delete,
   Param,
   Body,
   Query,
@@ -131,5 +132,21 @@ export class InaemImportController {
     if (Number.isNaN(num)) throw new HttpException("ID inválido", HttpStatus.BAD_REQUEST);
     await this.inaemImportService.resolveConflict(num, body.action);
     return { message: "Conflicto resuelto", id: num, action: body.action };
+  }
+
+  @Delete("conflicts")
+  @ApiOperation({ summary: "Borrar todos los conflictos INAEM pendientes" })
+  async deleteAllConflicts() {
+    const deleted = await this.inaemImportService.deleteAllPendingConflicts();
+    return { message: "Conflictos borrados", deleted };
+  }
+
+  @Delete("conflicts/:id")
+  @ApiOperation({ summary: "Borrar (descartar) un conflicto INAEM pendiente sin tocar el usuario" })
+  async deleteConflict(@Param("id") id: string) {
+    const num = parseInt(id, 10);
+    if (Number.isNaN(num)) throw new HttpException("ID inválido", HttpStatus.BAD_REQUEST);
+    await this.inaemImportService.deleteConflict(num);
+    return { message: "Conflicto borrado", id: num };
   }
 }

@@ -44,12 +44,13 @@ Background job (reuses SAGE `JobService` exported by `ImportModule`; `import_typ
 - `GET /job-status/:jobId`.
 - `GET /preinscriptions/by-user/:id`, `GET /preinscriptions/by-course/:id`.
 - `GET /conflicts`, `PUT /conflicts/:id/resolve` (`{ action: 'overwrite' | 'keep' }`).
+- `DELETE /conflicts/:id` (descarta un conflicto pendiente sin tocar el usuario), `DELETE /conflicts` (borra todos los pendientes `inaem-*`, devuelve `{ deleted }`). Borrar solo afecta a filas `processed=false`; un conflicto borrado puede reaparecer si se reimporta el mismo dato divergente (el importador no consulta decisiones pasadas).
 
 ## Client surfaces
 - Course form (create + detail, `routes/courses/`): **Nº Expediente** + **Origen** fields; "Provisional" badge; server returns a friendly `ConflictException` on duplicate `file_number` (shown in the form).
 - Courses list: **Origen** column with table filter (+ "Sin clasificar"), **Nº Exp.** column, search matches `file_number`.
 - Group members table (`GroupUsersManager`): en cursos **presenciales** se sustituye la columna **Porcentaje** por **Finalizado** (tag verde/rojo desde `user_group.finalized`; `findUsersInGroup` ahora devuelve `finalized`).
-- Tool **Importación INAEM** (`/tools/import-inaem`, admin): 3-file upload + `createMissingCourses` + progress/summary; **Conflictos** tab (resolve overwrite/keep). Hooks in `hooks/api/import-inaem/`.
+- Tool **Importación INAEM** (`/tools/import-inaem`, admin): 3-file upload + `createMissingCourses` + progress/summary; **Conflictos** tab (resolve overwrite/keep, **borrar** por fila o **Borrar todos** con `Popconfirm`). Hooks in `hooks/api/import-inaem/`.
 - User detail: **Preinscripciones** tab (admin/manager only; `user-preinscriptions-section.tsx`). Junto al estado `MATRICULADO` muestra un tag **Finalizado** (verde) / **No finalizado** (rojo) según `finalized` de la matrícula; si no hay datos (`finalized` null) no muestra tag. El backend (`findByUser`) calcula `finalized` con `bool_or(user_group.finalized)` por curso (null si no hay matrícula).
 
 ## Gotchas / conventions

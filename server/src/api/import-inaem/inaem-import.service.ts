@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, like } from "drizzle-orm";
 import { DatabaseService } from "src/database/database.service";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import {
@@ -568,5 +568,47 @@ export class InaemImportService {
       .update(import_decisions)
       .set({ processed: true, decision_action: action === "overwrite" ? "update_and_link" : "skip", updated_at: new Date() })
       .where(eq(import_decisions.id, decisionId));
+  }
+
+  /**
+   * Borra un conflicto INAEM pendiente (lo descarta sin tocar el usuario). Solo
+   * actúa sobre filas no procesadas de origen `inaem-*` para no eliminar decisiones
+   * ya resueltas ni de otros importadores.
+   */
+  async deleteConflict(decisionId: number) {
+    await this.db
+      .delete(import_decisions)
+      .where(
+        and(
+          eq(import_decisions.id, decisionId),
+          eq(import_decisions.processed, false),
+          like(import_decisions.import_source, "inaem-%"),
+        ),
+      );
+  }
+
+  /**
+   * Borra todos los conflictos INAEM pendientes de golpe. Devuelve cuántos se
+   * eliminaron. No afecta a decisiones ya resueltas ni a otros importadores.
+   */
+  async deleteAllPendingConflicts(): Promise<number> {
+    const rows = await this.db
+      .select({ id: import_decisions.id })
+      .from(import_decisions)
+      .where(
+        and(
+          eq(import_decisions.processed, false),
+          isNotNull(import_decisions.selected_user_id),
+          like(import_decisions.import_source, "inaem-%"),
+        ),
+      );
+    if (!rows.length) return 0;
+    await this.db.delete(import_decisions).where(
+      inArray(
+        import_decisions.id,
+        rows.map((r) => r.id),
+      ),
+    );
+    return rows.length;
   }
 }
