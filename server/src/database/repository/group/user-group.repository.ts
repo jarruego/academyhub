@@ -6,6 +6,7 @@ import { userRolesTable } from "src/database/schema/tables/user_roles.table";
 import { userTable, UserSelectModel } from "src/database/schema/tables/user.table";
 import { groupTable } from "src/database/schema/tables/group.table";
 import { userCourseTable } from "src/database/schema/tables/user_course.table";
+import { moodleUserTable } from "src/database/schema/tables/moodle_user.table";
 import { centers } from "src/database/schema";
 import { InsertResult } from 'src/database/types/insert-result';
 import { companyTable } from "src/database/schema/tables/company.table";
@@ -108,6 +109,30 @@ export class UserGroupRepository extends Repository {
             id_moodle_user: null,
             moodle_synced_at: r.user_group?.moodle_synced_at ?? null,
         }));
+    }
+
+    /**
+     * Objetivos de refresco de progreso para el cron (metrics-only): para los
+     * grupos indicados de un curso, devuelve (id_user, id_group, moodle_id) de
+     * cada miembro ya enlazado a Moodle. Permite mapear contra los mapas bulk
+     * (completion/time) sin volver a llamar a Moodle por usuario.
+     */
+    async findCourseProgressTargets(courseId: number, groupIds: number[], options?: QueryOptions): Promise<Array<{ id_user: number; id_group: number; moodle_id: number }>> {
+        if (groupIds.length === 0) return [];
+        return await this.query(options)
+            .select({
+                id_user: userGroupTable.id_user,
+                id_group: userGroupTable.id_group,
+                moodle_id: moodleUserTable.moodle_id,
+            })
+            .from(userGroupTable)
+            .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
+            .innerJoin(userCourseTable, and(
+                eq(userCourseTable.id_user, userGroupTable.id_user),
+                eq(userCourseTable.id_course, groupTable.id_course),
+            ))
+            .innerJoin(moodleUserTable, eq(moodleUserTable.id_moodle_user, userCourseTable.id_moodle_user))
+            .where(and(eq(groupTable.id_course, courseId), inArray(userGroupTable.id_group, groupIds)));
     }
 
     async findGroupsByUserAndCourse(id_user: number, id_course: number, options?: QueryOptions) {

@@ -20,10 +20,10 @@ import { UserGroupRepository } from 'src/database/repository/group/user-group.re
 import { MoodleUserService } from '../moodle-user/moodle-user.service';
 import { GroupService } from '../group/group.service';
 import { CourseModality } from 'src/types/course/course-modality.enum';
-import { UserCourseInsertModel } from 'src/database/schema/tables/user_course.table';
+import { UserCourseInsertModel, UserCourseUpdateModel } from 'src/database/schema/tables/user_course.table';
 import { UserInsertModel, UserUpdateModel, UserSelectModel } from 'src/database/schema/tables/user.table';
 import { MoodleUserInsertModel, MoodleUserSelectModel } from 'src/database/schema/tables/moodle_user.table';
-import { UserGroupSelectModel } from 'src/database/schema/tables/user_group.table';
+import { UserGroupSelectModel, UserGroupUpdateModel } from 'src/database/schema/tables/user_group.table';
 import { generatePassword } from 'src/utils/generate-password';
 import dayjs from '../../common/utils/dayjs-tz';
 import { userCenterTable } from 'src/database/schema/tables/user_center.table';
@@ -61,6 +61,13 @@ type MoodleUserCreatePayload = {
     customfields?: MoodleUserCustomField[];
 };
 
+// Datos a nivel de curso precargados UNA vez y reutilizados al procesar todos
+// sus grupos (evita re-descargar matriculados/finalización/tiempo por grupo).
+type CourseSyncContext = {
+    enrolledRolesMap: Map<number, MoodleUser['roles']>;
+    dedicationByUser: Map<number, number> | null;
+};
+
 @Injectable()
 export class MoodleService {
     private readonly MOODLE_URL = process.env.MOODLE_URL;
@@ -70,6 +77,33 @@ export class MoodleService {
     // ===== OPTIMIZACIÓN EGRESS: Cache para Moodle sync =====
     private progressCache: Map<string, number | null> = new Map();
     private readonly logger = new Logger(MoodleService.name);
+
+    // Cache de resolución de token/URL para evitar un SELECT a organization_settings
+    // en CADA llamada HTTP a Moodle (un import dispara miles de llamadas). TTL corto:
+    // el token no cambia durante una ejecución, y se refresca al minuto.
+    private readonly resolveCacheTtlMs = 60_000;
+    private tokenResolveCache: Map<string, { value: string | undefined; expires: number }> = new Map();
+    private urlResolveCache: Map<string, { value: string | undefined; expires: number }> = new Map();
+
+    // Instrumentación: contador de llamadas HTTP a la API de Moodle (todas pasan
+    // por `request()`). Sirve para medir el ahorro de las optimizaciones.
+    private moodleApiCallCount = 0;
+    private moodleApiCallByFn: Map<string, number> = new Map();
+
+    private trackMoodleCall(fn: string): void {
+        this.moodleApiCallCount += 1;
+        this.moodleApiCallByFn.set(fn, (this.moodleApiCallByFn.get(fn) ?? 0) + 1);
+    }
+
+    /** Total acumulado de llamadas a Moodle desde el arranque (todas las funciones). */
+    get moodleCallCount(): number {
+        return this.moodleApiCallCount;
+    }
+
+    /** Desglose acumulado por función de Moodle. */
+    getMoodleCallStats(): { total: number; byFn: Record<string, number> } {
+        return { total: this.moodleApiCallCount, byFn: Object.fromEntries(this.moodleApiCallByFn) };
+    }
 
     constructor(
         @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
@@ -96,6 +130,7 @@ export class MoodleService {
      * @throws {InternalServerErrorException} - Throws an internal server error exception if the request fails or Moodle returns an error.
      */
     private async request<R = unknown, D extends MoodleParams = MoodleParams>(fn: string, { params: paramsData, method = 'get' }: RequestOptions<D> = {}): Promise<R> {
+        this.trackMoodleCall(fn);
         // Resolve token and URL with DB (priority) -> env fallback
         const resolvedToken = await this.resolveMoodleToken();
         const resolvedUrl = await this.resolveMoodleUrl();
@@ -198,6 +233,15 @@ export class MoodleService {
      * For single-center deployments we pick the first organization_settings row if no centerId is provided.
      */
     async resolveMoodleToken(centerId?: number): Promise<string | undefined> {
+        const cacheKey = String(centerId ?? '_default');
+        const cached = this.tokenResolveCache.get(cacheKey);
+        if (cached && cached.expires > Date.now()) return cached.value;
+        const value = await this.resolveMoodleTokenUncached(centerId);
+        this.tokenResolveCache.set(cacheKey, { value, expires: Date.now() + this.resolveCacheTtlMs });
+        return value;
+    }
+
+    private async resolveMoodleTokenUncached(centerId?: number): Promise<string | undefined> {
         try {
             // Try to find a token configured in the DB
             let rows: OrganizationSettingsSelectModel[] = [];
@@ -273,6 +317,15 @@ export class MoodleService {
      * Accepts encrypted URL objects (same shape as for tokens) and will attempt to decrypt them.
      */
     private async resolveMoodleUrl(centerId?: number): Promise<string | undefined> {
+        const cacheKey = String(centerId ?? '_default');
+        const cached = this.urlResolveCache.get(cacheKey);
+        if (cached && cached.expires > Date.now()) return cached.value;
+        const value = await this.resolveMoodleUrlUncached(centerId);
+        this.urlResolveCache.set(cacheKey, { value, expires: Date.now() + this.resolveCacheTtlMs });
+        return value;
+    }
+
+    private async resolveMoodleUrlUncached(centerId?: number): Promise<string | undefined> {
         try {
             let rows: OrganizationSettingsSelectModel[] = [];
             if (typeof centerId === 'number') {
@@ -387,15 +440,16 @@ export class MoodleService {
 
     /**
      * ===== OPTIMIZACIÓN EGRESS =====
-     * Precarga el progreso de todos los usuarios para un curso en bulk
-     * en lugar de hacer queries individuales (evita N+1 queries)
+     * Precarga en caché la finalización (% por actividades) de los usuarios de un
+     * curso vía `core_completion` (1 llamada por usuario). Se hace UNA vez por
+     * curso, y la caché se reutiliza al procesar todos sus grupos (evita repetir
+     * la consulta por grupo). Es la única fuente fiable del % por actividades.
      */
     private async preloadCourseProgress(courseId: number, userIds: number[]): Promise<void> {
         if (userIds.length === 0 || !courseId) return;
-        
-        const startTime = Date.now();
-        this.logger.log(`🚀 Precargando progreso para ${userIds.length} usuarios en curso ${courseId}...`);
 
+        const startTime = Date.now();
+        this.logger.log(`🚀 Precargando progreso (por-usuario) para ${userIds.length} usuarios en curso ${courseId}...`);
         try {
             // Fetch progress para cada usuario y cachear
             let processed = 0;
@@ -412,7 +466,7 @@ export class MoodleService {
                     this.progressCache.set(cacheKey, null);
                 }
             }
-            
+
             const elapsed = Date.now() - startTime;
             this.logger.log(`✅ Precarga de progreso completada: ${processed}/${userIds.length} en ${elapsed}ms`);
         } catch (error) {
@@ -461,106 +515,108 @@ export class MoodleService {
     }
 
     /**
-     * Fetch user stats from the custom block_advanced_reports API.
-     * Returns a map keyed by moodle user id with numeric values.
+     * Extrae las filas {userid, value} de una respuesta del plugin block_advanced_reports.
+     * La forma documentada de `get_userstats` es `{ values: [ { userid, value } ] }`,
+     * pero toleramos variantes históricas (array suelto, data/users/results/stats, o anidados).
+     */
+    private extractAdvancedReportsRows(raw: unknown): Array<Record<string, unknown>> {
+        const candidates: unknown[] = [];
+        if (Array.isArray(raw)) candidates.push(...raw);
+        if (raw && typeof raw === 'object') {
+            const r = raw as Record<string, unknown>;
+            if (Array.isArray(r.values)) candidates.push(...r.values); // forma documentada
+            if (Array.isArray(r.data)) candidates.push(...r.data);
+            if (Array.isArray(r.users)) candidates.push(...r.users);
+            if (Array.isArray(r.results)) candidates.push(...r.results);
+            if (Array.isArray(r.stats)) candidates.push(...r.stats);
+
+            // Solo escanear en profundidad si no encontramos nada en las claves conocidas
+            if (candidates.length === 0) {
+                const scanArrays = (obj: Record<string, unknown>, depth: number) => {
+                    if (depth <= 0) return;
+                    for (const val of Object.values(obj)) {
+                        if (Array.isArray(val)) {
+                            candidates.push(...val);
+                        } else if (val && typeof val === 'object') {
+                            scanArrays(val as Record<string, unknown>, depth - 1);
+                        }
+                    }
+                };
+                scanArrays(r, 2);
+            }
+        }
+        return candidates.filter((c): c is Record<string, unknown> => !!c && typeof c === 'object');
+    }
+
+    /**
+     * Construye un mapa moodleUserId -> número a partir de filas del plugin,
+     * usando `parseValue` para interpretar el campo `value` (tiempo vs porcentaje).
+     * Incluye fallback para respuestas map-like (userid -> value).
+     */
+    private buildUserValueMap(
+        raw: unknown,
+        parseValue: (value: unknown) => number | null,
+    ): Map<number, number> {
+        const map = new Map<number, number>();
+        const rows = this.extractAdvancedReportsRows(raw);
+        for (const row of rows) {
+            const userIdRaw = row.userid ?? row.user_id ?? row.id ?? row.moodleid ?? row.moodle_user_id;
+            const valueRaw = row.value ?? row.statvalue ?? row.time_spent ?? row.completion;
+            const userId = Number(userIdRaw);
+            const value = parseValue(valueRaw);
+            if (Number.isFinite(userId) && value !== null && Number.isFinite(value)) {
+                map.set(userId, value);
+            }
+        }
+
+        // Fallback: respuesta map-like (userid -> value)
+        if (map.size === 0 && raw && typeof raw === 'object' && !Array.isArray(raw)) {
+            for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+                const userId = Number(k);
+                const value = parseValue(v);
+                if (Number.isFinite(userId) && value !== null && Number.isFinite(value)) {
+                    map.set(userId, value);
+                }
+            }
+        }
+
+        return map;
+    }
+
+    /** Interpreta un valor de tiempo: número de segundos o cadena "06h 14m 24s". */
+    private parseTimeValue(input: unknown): number | null {
+        const asNumber = Number(input);
+        if (Number.isFinite(asNumber) && typeof input !== 'object') return asNumber;
+        if (typeof input !== 'string') return null;
+        const str = input.trim();
+        if (!str) return null;
+        const match = /(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?/i.exec(str);
+        if (!match) return null;
+        const h = match[1] ? Number(match[1]) : 0;
+        const m = match[2] ? Number(match[2]) : 0;
+        const s = match[3] ? Number(match[3]) : 0;
+        if (![h, m, s].every(n => Number.isFinite(n))) return null;
+        return (h * 3600) + (m * 60) + s;
+    }
+
+    /**
+     * Fetch user stats (e.g. `platformdedicationtime`) from the custom
+     * block_advanced_reports API. Returns a map keyed by moodle user id.
      */
     private async getAdvancedReportsUserStats(courseId: number, stat: string, groupId?: number): Promise<Map<number, number>> {
         const params: MoodleParams = { courseid: courseId, stat };
         if (groupId) params['groupid'] = groupId;
 
         const raw = await this.request<unknown>('block_advanced_reports_get_userstats', { params, method: 'post' });
+        const map = this.buildUserValueMap(raw, (v) => this.parseTimeValue(v));
 
-        const debugEnabled = String(process.env.DEBUG_MOODLE_STATS ?? '').toLowerCase() === 'true';
-        if (debugEnabled) {
-            const rawKeys = (raw && typeof raw === 'object') ? Object.keys(raw as Record<string, unknown>) : undefined;
-            this.logger.log({ courseId, stat, groupId, rawType: typeof raw, rawKeys }, 'MoodleService:getAdvancedReportsUserStats - raw response meta');
-        }
-
-        const candidates: unknown[] = [];
-        if (Array.isArray(raw)) candidates.push(...raw);
-        if (raw && typeof raw === 'object') {
-            const r = raw as Record<string, unknown>;
-            if (Array.isArray(r.data)) candidates.push(...r.data);
-            if (Array.isArray(r.users)) candidates.push(...r.users);
-            if (Array.isArray(r.results)) candidates.push(...r.results);
-            if (Array.isArray(r.stats)) candidates.push(...r.stats);
-
-            // Shallow recursive scan for array values in nested objects
-            const scanArrays = (obj: Record<string, unknown>, depth: number) => {
-                if (depth <= 0) return;
-                for (const val of Object.values(obj)) {
-                    if (Array.isArray(val)) {
-                        candidates.push(...val);
-                    } else if (val && typeof val === 'object') {
-                        scanArrays(val as Record<string, unknown>, depth - 1);
-                    }
-                }
-            };
-            scanArrays(r, 2);
-        }
-
-        const map = new Map<number, number>();
-        const parseTimeStringToSeconds = (input: unknown): number | null => {
-            if (typeof input !== 'string') return null;
-            const str = input.trim();
-            if (!str) return null;
-            // Accept formats like "06h 14m 24s" or "6h" or "14m" or "24s"
-            const match = /(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+)s)?/i.exec(str);
-            if (!match) return null;
-            const h = match[1] ? Number(match[1]) : 0;
-            const m = match[2] ? Number(match[2]) : 0;
-            const s = match[3] ? Number(match[3]) : 0;
-            if (![h, m, s].every(n => Number.isFinite(n))) return null;
-            return (h * 3600) + (m * 60) + s;
-        };
-        let parsed = 0;
-        let invalid = 0;
-        for (const item of candidates) {
-            if (!item || typeof item !== 'object') continue;
-            const row = item as Record<string, unknown>;
-            const userIdRaw = row.userid ?? row.user_id ?? row.id ?? row.moodleid ?? row.moodle_user_id;
-            const valueRaw = row.value ?? row.statvalue ?? row.time_spent ?? row[stat];
-            const userId = Number(userIdRaw);
-            const parsedValue = Number(valueRaw);
-            const value = Number.isFinite(parsedValue) ? parsedValue : (parseTimeStringToSeconds(valueRaw) ?? NaN);
-            if (Number.isFinite(userId) && Number.isFinite(value)) {
-                map.set(userId, value);
-                parsed += 1;
-            } else {
-                invalid += 1;
-                if (debugEnabled && invalid <= 5) {
-                    this.logger.warn({ sample: row, userIdRaw, valueRaw }, 'MoodleService:getAdvancedReportsUserStats - unparsed row');
-                }
-            }
-        }
-
-        // Fallback: handle map-like objects (userid -> value)
-        if (map.size === 0 && raw && typeof raw === 'object') {
-            const entries = Object.entries(raw as Record<string, unknown>);
-            let mapped = 0;
-            for (const [k, v] of entries) {
-                const userId = Number(k);
-                const value = Number(v);
-                if (Number.isFinite(userId) && Number.isFinite(value)) {
-                    map.set(userId, value);
-                    mapped += 1;
-                }
-            }
-            if (debugEnabled && mapped > 0) {
-                this.logger.log({ courseId, stat, groupId, mapped }, 'MoodleService:getAdvancedReportsUserStats - parsed map-like response');
-            }
-        }
-
-        if (debugEnabled) {
-            this.logger.log({ courseId, stat, groupId, candidates: candidates.length, parsed, invalid, mapSize: map.size }, 'MoodleService:getAdvancedReportsUserStats - parsed summary');
-            if (candidates.length === 0) {
+        if (String(process.env.DEBUG_MOODLE_STATS ?? '').toLowerCase() === 'true') {
+            this.logger.log({ courseId, stat, groupId, mapSize: map.size }, 'MoodleService:getAdvancedReportsUserStats - parsed summary');
+            if (map.size === 0) {
                 try {
                     const rawJson = JSON.stringify(raw);
-                    const sample = rawJson.length > 2000 ? `${rawJson.slice(0, 2000)}...` : rawJson;
-                    this.logger.warn({ courseId, stat, groupId, rawSample: sample }, 'MoodleService:getAdvancedReportsUserStats - raw payload sample (no candidates)');
-                } catch (e) {
-                    this.logger.warn({ courseId, stat, groupId }, 'MoodleService:getAdvancedReportsUserStats - raw payload not serializable');
-                }
+                    this.logger.warn({ courseId, stat, groupId, rawSample: rawJson.slice(0, 2000) }, 'MoodleService:getAdvancedReportsUserStats - empty map, raw sample');
+                } catch { /* no serializable */ }
             }
         }
 
@@ -584,6 +640,8 @@ export class MoodleService {
     private async preloadGroupSyncData(moodleCourseId: number, moodleGroupId: number, moodleUsers: MoodleUser[], context: string): Promise<Map<number, number> | null> {
         const userIds = moodleUsers.map(u => u.id);
         this.progressCache.clear();
+
+        // Finalización (% por actividades) por core_completion, cacheada.
         await this.preloadCourseProgress(moodleCourseId, userIds);
 
         const itopEnabled = await this.isItopTrainingEnabled();
@@ -599,6 +657,41 @@ export class MoodleService {
             this.logger.warn({ err: errForLog, courseId: moodleCourseId, groupId: moodleGroupId }, `${context} - could not fetch platformdedicationtime`);
             return null;
         }
+    }
+
+    /**
+     * Precarga, UNA sola vez por curso, los datos compartidos por todos sus grupos:
+     * - mapa de roles (a partir de la lista de matriculados ya obtenida),
+     * - caché de finalización por curso (core_completion, vía getProgressOptimized,
+     *   cacheada y reutilizada entre grupos: se consulta 1 vez por alumno, no por grupo),
+     * - mapa de tiempo de dedicación (1 llamada bulk si itop).
+     * Evita repetir getEnrolledUsers / completion / time por cada grupo.
+     */
+    private async loadCourseSyncContext(
+        moodleCourseId: number,
+        enrolledUsers: MoodleUser[],
+        context: string,
+    ): Promise<CourseSyncContext> {
+        const enrolledRolesMap = new Map<number, MoodleUser['roles']>();
+        for (const u of enrolledUsers) enrolledRolesMap.set(u.id, u.roles ?? []);
+
+        // Reinicia la caché de progreso para este curso. La finalización se
+        // resuelve lazy por-usuario (core_completion) vía getProgressOptimized y
+        // queda cacheada, así cada alumno se consulta 1 vez aunque esté en varios grupos.
+        this.progressCache.clear();
+
+        const itopEnabled = await this.isItopTrainingEnabled();
+        let dedicationByUser: Map<number, number> | null = null;
+        if (itopEnabled) {
+            try {
+                dedicationByUser = await this.getAdvancedReportsUserStats(moodleCourseId, 'platformdedicationtime');
+            } catch (err: unknown) {
+                const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
+                this.logger.warn({ err: errForLog, moodleCourseId }, `${context} - could not fetch platformdedicationtime`);
+            }
+        }
+
+        return { enrolledRolesMap, dedicationByUser };
     }
 
     private enrichMoodleUserRolesFromMap(moodleUser: MoodleUser, rolesMap: Map<number, MoodleUser['roles']>): MoodleUser {
@@ -728,22 +821,27 @@ export class MoodleService {
         moodleUsers: MoodleUser[],
         parentCourse: { id_course?: number; moodle_id?: number } | null,
         context: string,
-        options?: QueryOptions
+        options?: QueryOptions,
+        courseContext?: CourseSyncContext,
     ): Promise<{ updated: number; errors: Array<{ userId?: number; username?: string; error: string }> }> {
         const errors: Array<{ userId?: number; username?: string; error: string }> = [];
         let updated = 0;
 
-        // Fetch enrolled roles for the parent course (once, in bulk)
-        let enrolledRolesMap: Map<number, MoodleUser['roles']> = new Map();
-        let dedicationByUser: Map<number, number> | null = null;
-        try {
-            if (parentCourse && parentCourse.moodle_id) {
-                enrolledRolesMap = await this.buildEnrolledRolesMapForCourse(parentCourse.moodle_id, context);
-                dedicationByUser = await this.preloadGroupSyncData(parentCourse.moodle_id, moodleGroupId, moodleUsers, context);
+        // Datos a nivel de curso: usar el contexto precargado por el caller (import
+        // completo, una vez por curso) o, si no lo hay (sync de un solo grupo),
+        // obtenerlos ahora para este grupo.
+        let enrolledRolesMap: Map<number, MoodleUser['roles']> = courseContext?.enrolledRolesMap ?? new Map();
+        let dedicationByUser: Map<number, number> | null = courseContext?.dedicationByUser ?? null;
+        if (!courseContext) {
+            try {
+                if (parentCourse && parentCourse.moodle_id) {
+                    enrolledRolesMap = await this.buildEnrolledRolesMapForCourse(parentCourse.moodle_id, context);
+                    dedicationByUser = await this.preloadGroupSyncData(parentCourse.moodle_id, moodleGroupId, moodleUsers, context);
+                }
+            } catch (err) {
+                Logger.warn({ err, moodleGroupId }, `${context} - could not fetch enrolled users for role mapping`);
+                // proceed without enrolled roles map
             }
-        } catch (err) {
-            Logger.warn({ err, moodleGroupId }, `${context} - could not fetch enrolled users for role mapping`);
-            // proceed without enrolled roles map
         }
 
         const run = async (transaction: Transaction) => {
@@ -970,6 +1068,97 @@ export class MoodleService {
         return Array.from(courseMap.values());
     }
 
+    /**
+     * Cron diario (metrics-only): refresca SOLO completion/time de los alumnos
+     * YA existentes en los grupos activos de un curso. No da de alta usuarios ni
+     * hace llamadas de matriculación/membresía a Moodle. Coste por curso:
+     * finalización por core_completion (1 llamada por alumno distinto) + 1 llamada
+     * de tiempo en bloque (si itop). La pertenencia y el mapeo moodle_id<->usuario
+     * se resuelven desde la BD local.
+     */
+    async refreshActiveCourseProgress(course: {
+        id_course: number;
+        moodle_id: number | null;
+        groups: Array<{ id_group: number; moodle_id: number | null }>;
+    }): Promise<{ updated: number }> {
+        if (!course.moodle_id) return { updated: 0 };
+
+        const groupIds = course.groups.map(g => g.id_group);
+        if (groupIds.length === 0) return { updated: 0 };
+
+        // Tiempo de dedicación en bloque (1 llamada, solo si el plugin itop está activo)
+        let timeMap: Map<number, number> | null = null;
+        if (await this.isItopTrainingEnabled()) {
+            try {
+                timeMap = await this.getAdvancedReportsUserStats(course.moodle_id, 'platformdedicationtime');
+            } catch (err) {
+                this.logger.warn({ err: err instanceof Error ? err.message : String(err), courseId: course.id_course }, 'refreshActiveCourseProgress - time bulk failed');
+            }
+        }
+
+        const targets = await this.userGroupRepository.findCourseProgressTargets(course.id_course, groupIds);
+        if (targets.length === 0) return { updated: 0 };
+
+        // Finalización (% por actividades) por core_completion. Una llamada por
+        // moodle_id distinto del curso (no por fila user_group).
+        const perUserCompletion = new Map<number, number | null>();
+        for (const moodleId of Array.from(new Set(targets.map(t => t.moodle_id)))) {
+            try {
+                const p = await this.getUserProgressInCourse({ id: moodleId } as MoodleUser, course.moodle_id);
+                perUserCompletion.set(moodleId, p.completion_percentage ?? null);
+            } catch {
+                perUserCompletion.set(moodleId, null);
+            }
+        }
+
+        const syncedAt = new Date();
+        let updated = 0;
+
+        await this.databaseService.db.transaction(async transaction => {
+            for (const t of targets) {
+                const pct = perUserCompletion.get(t.moodle_id) ?? undefined;
+                const time = timeMap?.get(t.moodle_id);
+
+                const courseData: UserCourseUpdateModel = {};
+                const groupData: UserGroupUpdateModel = { moodle_synced_at: syncedAt };
+
+                if (pct !== undefined) {
+                    const pctStr = String(Math.round(pct));
+                    courseData.completion_percentage = pctStr;
+                    groupData.completion_percentage = pctStr;
+                }
+                if (time !== undefined && time !== null) {
+                    const ts = Math.max(0, Math.round(time));
+                    if (Number.isFinite(ts)) {
+                        courseData.time_spent = ts;
+                        groupData.time_spent = ts;
+                    }
+                }
+
+                try {
+                    if (Object.keys(courseData).length > 0) {
+                        await this.userCourseRepository.updateById(t.id_user, course.id_course, courseData, { transaction });
+                    }
+                    await this.userGroupRepository.updateById(t.id_user, t.id_group, groupData, { transaction });
+                    updated++;
+                } catch (err) {
+                    this.logger.warn({ err: err instanceof Error ? err.message : String(err), userId: t.id_user, groupId: t.id_group }, 'refreshActiveCourseProgress - update failed');
+                }
+            }
+        });
+
+        for (const g of course.groups) {
+            await this.markGroupSyncedAt(g.id_group, 'refreshActiveCourseProgress');
+        }
+        try {
+            await this.courseRepository.update(course.id_course, { moodle_synced_at: syncedAt });
+        } catch (err) {
+            this.logger.warn({ err: err instanceof Error ? err.message : String(err), courseId: course.id_course }, 'refreshActiveCourseProgress - could not update course.moodle_synced_at');
+        }
+
+        return { updated };
+    }
+
     async getAllUsers(): Promise<MoodleUser[]> {
         // Primero obtener usuarios básicos para obtener los IDs
         const basicData = await this.request<{ users: Array<{ id: number }> }>('core_user_get_users', {
@@ -1035,6 +1224,33 @@ export class MoodleService {
     async getAllCourses(): Promise<MoodleCourse[]> {
         const data = await this.request<Array<MoodleCourse>>('core_course_get_courses');
         return data;
+    }
+
+    /**
+     * Obtiene UN curso por su moodle_id con una llamada dirigida
+     * (`core_course_get_courses` con `options[ids]`), evitando descargar el
+     * catálogo completo solo para encontrar uno.
+     */
+    async getCourseByMoodleId(moodleId: number): Promise<MoodleCourse | null> {
+        const data = await this.request<Array<MoodleCourse>>('core_course_get_courses', {
+            params: { options: { ids: [moodleId] } },
+            method: 'post',
+        });
+        return Array.isArray(data) && data.length > 0 ? data[0] : null;
+    }
+
+    /**
+     * Obtiene grupos por sus ids (`core_group_get_groups`). Cada grupo incluye
+     * su `courseid`, lo que permite resolver el curso padre sin barrer todos los
+     * cursos del sistema.
+     */
+    async getGroupsByIds(groupIds: number[]): Promise<MoodleGroup[]> {
+        if (groupIds.length === 0) return [];
+        const data = await this.request<Array<MoodleGroup>>('core_group_get_groups', {
+            params: { groupids: groupIds },
+            method: 'post',
+        });
+        return Array.isArray(data) ? data : [];
     }
 
     async getCourseGroups(courseId: number): Promise<MoodleGroup[]> {
@@ -1504,10 +1720,10 @@ export class MoodleService {
      */
     async importSpecificMoodleCourse(moodleCourseId: number): Promise<ImportResult> {
         return await this.databaseService.db.transaction(async transaction => {
+            const callsBefore = this.moodleApiCallCount;
             try {
-                // Obtener datos del curso desde Moodle
-                const moodleCourses = await this.getAllCourses();
-                const moodleCourse = moodleCourses.find(course => course.id === moodleCourseId);
+                // Obtener datos del curso desde Moodle (llamada dirigida)
+                const moodleCourse = await this.getCourseByMoodleId(moodleCourseId);
 
                 if (!moodleCourse) {
                     throw new Error(`Curso con ID ${moodleCourseId} no encontrado en Moodle`);
@@ -1521,14 +1737,22 @@ export class MoodleService {
                 const enrolledUsers = await this.getEnrolledUsers(moodleCourse.id);
                 let usersImported = 0;
 
+                // Precargar UNA vez los datos a nivel de curso (roles + finalización
+                // bulk + tiempo bulk). El bucle de matriculados y todos los grupos
+                // reutilizan la caché, evitando el N+1 de finalización por usuario.
+                const courseContext = await this.loadCourseSyncContext(
+                    moodleCourse.id,
+                    enrolledUsers,
+                    'MoodleService:importSpecificMoodleCourse',
+                );
+
                 for (const enrolledUser of enrolledUsers) {
                     if (enrolledUser.username === 'guest') {
                         await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
                     } else {
                         try {
-                            const progress = await this.getUserProgressInCourse(enrolledUser, moodleCourse.id);
-                            let completionPercentage = progress.completion_percentage;
-                            if (completionPercentage === undefined) completionPercentage = null;
+                            // Lee de la caché precargada (bulk) o, sin itop, fetch lazy cacheado
+                            const completionPercentage = await this.getProgressOptimized(enrolledUser.id, moodleCourse.id);
                             await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, completionPercentage);
                         } catch (e) {
                             await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
@@ -1545,7 +1769,8 @@ export class MoodleService {
                     const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, { transaction });
                     const moodleUsers = await this.getGroupUsers(moodleGroup.id);
 
-                    // Usar el motor común de procesamiento (misma lógica que grupo/cron)
+                    // Usar el motor común de procesamiento (misma lógica que grupo/cron),
+                    // reutilizando el contexto de curso ya precargado.
                     const { updated, errors } = await this.processGroupMembers(
                         newGroup.id_group,
                         course.id_course,
@@ -1554,7 +1779,8 @@ export class MoodleService {
                         moodleUsers,
                         localCourse,
                         'MoodleService:importSpecificMoodleCourse',
-                        { transaction }
+                        { transaction },
+                        courseContext,
                     );
 
                     await this.markGroupSyncedAt(newGroup.id_group, 'MoodleService:importSpecificMoodleCourse', { transaction });
@@ -1567,6 +1793,7 @@ export class MoodleService {
                 // Marcar curso sincronizado si TODOS sus grupos están sincronizados
                 await this.markCourseSyncedAtByGroups(course.id_course, 'MoodleService:importSpecificMoodleCourse', { transaction });
 
+                this.logger.log(`Curso ${moodleCourseId} importado. Llamadas a Moodle: ${this.moodleApiCallCount - callsBefore}`);
                 return {
                     success: groupErrors.length === 0,
                     message: `Curso "${moodleCourse.fullname}" importado correctamente`,
@@ -1596,26 +1823,16 @@ export class MoodleService {
     async importSpecificMoodleGroup(moodleGroupId: number): Promise<ImportResult> {
         return await this.databaseService.db.transaction(async transaction => {
             try {
-                // Obtain group info from Moodle
-                const moodleCourses = await this.getAllCourses();
-                let moodleGroup = null;
-                let parentCourse = null;
-
-                for (const course of moodleCourses) {
-                    if (course.id === 1) continue; // Skip system course
-
-                    const courseGroups = await this.getCourseGroups(course.id);
-                    const foundGroup = courseGroups.find(group => group.id === moodleGroupId);
-
-                    if (foundGroup) {
-                        moodleGroup = foundGroup;
-                        parentCourse = course;
-                        break;
-                    }
+                // Obtain group info from Moodle (llamada dirigida: el grupo trae su courseid)
+                const foundGroups = await this.getGroupsByIds([moodleGroupId]);
+                const moodleGroup = foundGroups[0] ?? null;
+                if (!moodleGroup) {
+                    throw new Error(`Grupo con ID ${moodleGroupId} no encontrado en Moodle`);
                 }
 
-                if (!moodleGroup || !parentCourse) {
-                    throw new Error(`Grupo con ID ${moodleGroupId} no encontrado en Moodle`);
+                const parentCourse = await this.getCourseByMoodleId(moodleGroup.courseid);
+                if (!parentCourse) {
+                    throw new Error(`Curso padre (${moodleGroup.courseid}) del grupo ${moodleGroupId} no encontrado en Moodle`);
                 }
 
                 // Ensure parent course is imported
@@ -2605,67 +2822,93 @@ export class MoodleService {
      * Es como hacer una "foto" completa del estado actual de Moodle
      */
     async importMoodleCourses(skipUsers = false) {
-        return await this.databaseService.db.transaction(async transaction => {
-            // PASO 1: Obtener TODOS los cursos que existen en Moodle
-            const moodleCourses = await this.getAllCourses();
-            console.log(`\n[MOODLE IMPORT] Iniciando importación de ${moodleCourses.length} cursos...`);
-            
-            // PASO 2: Procesar cada curso uno por uno
-            for (const moodleCourse of moodleCourses) {
-                if (moodleCourse.id === 1) continue;
-                console.log(`[MOODLE IMPORT] Importando curso: ${moodleCourse.fullname} (ID: ${moodleCourse.id})`);
-                
-                const course = await this.upsertMoodleCourse(moodleCourse, { transaction });
-                const localCourse = await this.courseRepository.findById(course.id_course, { transaction });
+        const callsBefore = this.moodleApiCallCount;
+        // PASO 1: Obtener TODOS los cursos que existen en Moodle (fuera de transacción)
+        const moodleCourses = await this.getAllCourses();
+        console.log(`\n[MOODLE IMPORT] Iniciando importación de ${moodleCourses.length} cursos...`);
 
-                if (!skipUsers) {
-                    // Importar usuarios matriculados en el curso
-                    const enrolledUsers = await this.getEnrolledUsers(moodleCourse.id);
-                    console.log(`  [MOODLE IMPORT]   Usuarios matriculados: ${enrolledUsers.length}`);
-                    
-                    for (const enrolledUser of enrolledUsers) {
-                        if (enrolledUser.username === 'guest') {
-                            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
-                            continue;
-                        }
-                        try {
-                            const progress = await this.getUserProgressInCourse(enrolledUser, moodleCourse.id);
-                            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, progress.completion_percentage);
-                        } catch (e) {
-                            await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
-                        }
-                    }
+        let okCourses = 0;
+        let failedCourses = 0;
 
-                    // Importar grupos del curso usando el motor común
-                    const moodleGroups = await this.getCourseGroups(moodleCourse.id);
-                    console.log(`  [MOODLE IMPORT]   Grupos encontrados: ${moodleGroups.length}`);
-                    
-                    for (const moodleGroup of moodleGroups) {
-                        console.log(`    [MOODLE IMPORT]     Importando grupo: ${moodleGroup.name} (ID: ${moodleGroup.id})`);
-                        const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, { transaction });
-                        const moodleUsers = await this.getGroupUsers(moodleGroup.id);
-
-                        // Reutilizar el motor común de procesamiento (misma lógica que grupo/curso individual/cron)
-                        await this.processGroupMembers(
-                            newGroup.id_group,
-                            course.id_course,
-                            moodleGroup.id,
-                            moodleCourse.id,
-                            moodleUsers,
-                            localCourse,
-                            'MoodleService:importMoodleCourses',
-                            { transaction }
-                        );
-
-                        await this.markGroupSyncedAt(newGroup.id_group, 'MoodleService:importMoodleCourses', { transaction });
-                    }
-                    
-                    // Marcar curso sincronizado si TODOS sus grupos están sincronizados
-                    await this.markCourseSyncedAtByGroups(course.id_course, 'MoodleService:importMoodleCourses', { transaction });
-                }
+        // PASO 2: cada curso en SU PROPIA transacción. Resiliente: un curso que
+        // falle se omite sin revertir ni bloquear a los demás, y la transacción no
+        // se mantiene abierta durante toda la importación (antes era 1 tx gigante).
+        for (const moodleCourse of moodleCourses) {
+            if (moodleCourse.id === 1) continue;
+            console.log(`[MOODLE IMPORT] Importando curso: ${moodleCourse.fullname} (ID: ${moodleCourse.id})`);
+            try {
+                await this.importSingleMoodleCourseTx(moodleCourse, skipUsers);
+                okCourses++;
+            } catch (err) {
+                failedCourses++;
+                this.logger.error(`[MOODLE IMPORT] Curso ${moodleCourse.id} (${moodleCourse.fullname}) falló y se omite: ${err instanceof Error ? err.message : String(err)}`);
             }
-            console.log(`[MOODLE IMPORT] Importación finalizada.`);
-            return { message: skipUsers ? 'Cursos y grupos importados correctamente (sin usuarios)' : 'Cursos, grupos y usuarios importados y actualizados correctamente' };
+        }
+
+        console.log(`[MOODLE IMPORT] Importación finalizada. Cursos OK: ${okCourses}, fallidos: ${failedCourses}. Llamadas a Moodle: ${this.moodleApiCallCount - callsBefore}`);
+        return { message: skipUsers ? 'Cursos y grupos importados correctamente (sin usuarios)' : 'Cursos, grupos y usuarios importados y actualizados correctamente' };
+    }
+
+    /** Importa un único curso de Moodle dentro de su propia transacción. */
+    private async importSingleMoodleCourseTx(moodleCourse: MoodleCourse, skipUsers: boolean) {
+        return await this.databaseService.db.transaction(async transaction => {
+            const course = await this.upsertMoodleCourse(moodleCourse, { transaction });
+            const localCourse = await this.courseRepository.findById(course.id_course, { transaction });
+
+            if (!skipUsers) {
+                // Importar usuarios matriculados en el curso
+                const enrolledUsers = await this.getEnrolledUsers(moodleCourse.id);
+                console.log(`  [MOODLE IMPORT]   Usuarios matriculados: ${enrolledUsers.length}`);
+
+                // Precargar UNA vez los datos a nivel de curso (roles + finalización
+                // bulk + tiempo bulk), reutilizados por matriculados y todos los grupos.
+                const courseContext = await this.loadCourseSyncContext(
+                    moodleCourse.id,
+                    enrolledUsers,
+                    'MoodleService:importMoodleCourses',
+                );
+
+                for (const enrolledUser of enrolledUsers) {
+                    if (enrolledUser.username === 'guest') {
+                        await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
+                        continue;
+                    }
+                    try {
+                        const completionPercentage = await this.getProgressOptimized(enrolledUser.id, moodleCourse.id);
+                        await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, completionPercentage);
+                    } catch (e) {
+                        await this.upsertMoodleUserAndEnrollToCourse(enrolledUser, course.id_course, { transaction }, null);
+                    }
+                }
+
+                // Importar grupos del curso usando el motor común
+                const moodleGroups = await this.getCourseGroups(moodleCourse.id);
+                console.log(`  [MOODLE IMPORT]   Grupos encontrados: ${moodleGroups.length}`);
+
+                for (const moodleGroup of moodleGroups) {
+                    console.log(`    [MOODLE IMPORT]     Importando grupo: ${moodleGroup.name} (ID: ${moodleGroup.id})`);
+                    const newGroup = await this.groupRepository.upsertMoodleGroup(moodleGroup, course.id_course, { transaction });
+                    const moodleUsers = await this.getGroupUsers(moodleGroup.id);
+
+                    // Reutilizar el motor común de procesamiento + el contexto de curso precargado
+                    await this.processGroupMembers(
+                        newGroup.id_group,
+                        course.id_course,
+                        moodleGroup.id,
+                        moodleCourse.id,
+                        moodleUsers,
+                        localCourse,
+                        'MoodleService:importMoodleCourses',
+                        { transaction },
+                        courseContext,
+                    );
+
+                    await this.markGroupSyncedAt(newGroup.id_group, 'MoodleService:importMoodleCourses', { transaction });
+                }
+
+                // Marcar curso sincronizado si TODOS sus grupos están sincronizados
+                await this.markCourseSyncedAtByGroups(course.id_course, 'MoodleService:importMoodleCourses', { transaction });
+            }
         });
     }
 

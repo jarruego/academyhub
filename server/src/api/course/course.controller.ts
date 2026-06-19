@@ -80,9 +80,4 @@ export class CourseController {
     return this.courseService.deleteUserFromCourse(numericCourseId, numericUserId);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
-  @Post('import-moodle-courses')
-  async importMoodleCourses() {
-    return await this.courseService.importMoodleCourses();
-  }
 }
