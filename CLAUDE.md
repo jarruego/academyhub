@@ -86,7 +86,7 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 
 | Doc | Read it before… |
 |---|---|
-| `docs/architecture.md` | adding modules/tables/repositories, migrations, or scheduler tasks. Covers module wiring, the 3 user concepts (`auth_user`/`user`/`moodle_user`), `user_roles`, the course typology axes (`modality`/`origin`/`funding`), DB access pattern, Drizzle migration workflow, common utils. |
+| `docs/architecture.md` | adding modules/tables/repositories, migrations, or scheduler tasks. Covers module wiring, the 3 user concepts (`auth_user`/`user`/`moodle_user`), `user_roles`, the course typology axes (`modality`/`origin`/`funding`), the active-state model (group `active_mode`/dates → derived course active), DB access pattern, Drizzle migration workflow, common utils. |
 | `docs/security.md` | **adding any controller/endpoint**, or touching auth, guards, secrets, or org settings. Covers guards & the `@Public`/`RoleGuard` rule, CORS, JWT lifecycle, password hashing, secrets-at-rest, audit log, known items. |
 | `docs/import.md` | **touching `api/import-sage/` or `api/import-velneo/`**. Covers SAGE matching/decisions, `buildUserUpdates`, `education_level`, `user_center`, `findSimilarUsers`, `file_transfer` config, `failed_user_imports`, the processing loop (no per-row tx — why). |
 | `docs/import-inaem.md` | **touching `api/import-inaem/`** (INAEM import: acciones/alumnos/preinscripciones). Covers the 3 source files (HTML-table `.xls` + `.xlsx`), `course.file_number`/`origin`/`is_provisional`, `user_group.finalized`, the `user_preinscription` table, parsers, fill-gaps + conflict decisions, education-level mapping, endpoints, and client surfaces. |

@@ -25,6 +25,18 @@ A course is labelled by three **orthogonal** axes (enums mirrored client↔serve
 
 Migration `0051` recreated `course_origin` (old `CLIENTE`/`PRIVADO`/`OTRO` → `PRIVADA`) and added `funding` (backfill: INAEM→PUBLICA, has `fundae_id`→FUNDAE, else PRIVADA). Bonification (`group-bonification.service`) rejects explicit non-FUNDAE funding. UI (tabs, `getCourseProfile` capability helper, derived user filter) → `docs/client.md`.
 
+## Active state (groups & courses)
+The authoritative "active" state lives at the **group** level, resolved by `groupActiveCondition()` (`server/src/utils/group-active.util.ts`, SQL) with a client mirror `isGroupActive()` (`client/src/utils/group-active.util.ts`, TS) — **keep both in sync**. Resolution order:
+1. `groups.active_mode = 'active'` → active (manual override).
+2. `groups.active_mode = 'inactive'` → inactive (manual override).
+3. `groups.active_mode = 'auto'` (default) → active only if `start_date` **and** `end_date` are set and `NOW()` ∈ `[start_date, end_date + ACTIVE_GROUP_GRACE_DAYS]`. Missing either date ⇒ inactive.
+
+`ACTIVE_GROUP_GRACE_DAYS = 2` is a code constant (no env var); the client constant mirrors it. **Group dates are local metadata, not provided by Moodle** (`upsertMoodleGroup` only syncs name/description) — maintain them via the group form or SAGE, otherwise an `auto` group is never active.
+
+- **Course active = derived**: a course is active iff it has ≥1 active group. The legacy `courses.active` boolean is no longer the source of truth — the Moodle import no longer forces it to `true`, the course form shows a read-only derived tag, and `user-course.repository` computes `course.active` via an EXISTS-active-group subquery. Client course/group lists compute the tag from `isGroupActive`.
+- Override is editable per group via `active_mode` (`CreateGroupDTO`/`UpdateGroupDTO`).
+- The daily Moodle progress sync acts **only on active groups** → `docs/mail-moodle.md`.
+
 ## Database access pattern
 All DB access goes through repositories in `server/src/database/repository/`. Each repository receives the `DATABASE_PROVIDER` injection token and calls `db.select(...)`, `db.insert(...)`, etc. using Drizzle ORM. Schema is defined in `server/src/database/schema/tables/*.table.ts` and re-exported from `server/src/database/schema.ts`.
 
