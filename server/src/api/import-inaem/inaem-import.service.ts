@@ -213,6 +213,9 @@ export class InaemImportService {
               .set({ end_date: update.end_date as Date })
               .where(and(eq(groups.id_course, existing.id_course), isNull(groups.end_date)));
           }
+          // Garantiza que el curso tenga grupo aunque ya existiera (p.ej. si se borró
+          // a mano). Idempotente: ensureGroup devuelve el grupo existente si lo hay.
+          await this.ensureGroup(ctx, ctx.coursesByFile.get(fileNumber) ?? existing);
         } else {
           const inserted = await this.db
             .insert(courses)
