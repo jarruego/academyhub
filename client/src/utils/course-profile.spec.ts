@@ -41,6 +41,16 @@ describe("getCourseProfile", () => {
     expect(privada.showPreinscripciones).toBe(false);
   });
 
+  it("INAEM online: muestra finalización aunque no sea presencial", () => {
+    const p = getCourseProfile({ modality: CourseModality.ONLINE, origin: CourseOrigin.INAEM });
+    expect(p.isOnline).toBe(true);
+    expect(p.isInaem).toBe(true);
+    expect(p.showFinalizedColumn).toBe(true);
+    // Sigue siendo online a efectos de Moodle/progreso.
+    expect(p.showMoodleSync).toBe(true);
+    expect(p.showProgressColumn).toBe(true);
+  });
+
   it("bonificación: oculta solo en financiación explícita no-FUNDAE; FUNDAE y sin clasificar la muestran", () => {
     expect(getCourseProfile({ funding: CourseFunding.FUNDAE }).showBonificationButton).toBe(true);
     expect(getCourseProfile({ funding: CourseFunding.PRIVADA }).showBonificationButton).toBe(false);

@@ -47,9 +47,9 @@ Background job (reuses SAGE `JobService` exported by `ImportModule`; `import_typ
 - `DELETE /conflicts/:id` (descarta un conflicto pendiente sin tocar el usuario), `DELETE /conflicts` (borra todos los pendientes `inaem-*`, devuelve `{ deleted }`). Borrar solo afecta a filas `processed=false`; un conflicto borrado puede reaparecer si se reimporta el mismo dato divergente (el importador no consulta decisiones pasadas).
 
 ## Client surfaces
-- Course form (create + detail, `routes/courses/`): **Nº Expediente** + **Origen** fields; "Provisional" badge; server returns a friendly `ConflictException` on duplicate `file_number` (shown in the form).
-- Courses list: **Origen** column with table filter (+ "Sin clasificar"), **Nº Exp.** column, search matches `file_number`.
-- Group members table (`GroupUsersManager`): en cursos **presenciales** se sustituye la columna **Porcentaje** por **Finalizado** (tag verde/rojo desde `user_group.finalized`; `findUsersInGroup` ahora devuelve `finalized`).
+The typology UI (Origen/Financiación fields, courses-list tabs/columns, and the type-driven group-table columns including **Finalizado**) is **general** and documented in `docs/client.md` (Course typology / `getCourseProfile`). INAEM-specific bits only:
+- Course form (create + detail, `routes/courses/`): **Nº Expediente** field + "Provisional" badge; server returns a friendly `ConflictException` on duplicate `file_number` (shown in the form). Courses list shows the **Nº Exp.** column and search matches `file_number`.
+- The **Finalizado** data shown in the group table and the user's Preinscripciones tab comes from `user_group.finalized`, populated by this import (`findUsersInGroup` returns it). Display rules → `docs/client.md`.
 - Tool **Importación INAEM** (`/tools/import-inaem`, admin): 3-file upload + `createMissingCourses` + progress/summary; **Conflictos** tab (resolve overwrite/keep, **borrar** por fila o **Borrar todos** con `Popconfirm`). Hooks in `hooks/api/import-inaem/`.
 - User detail: **Preinscripciones** tab (admin/manager only; `user-preinscriptions-section.tsx`). Junto al estado `MATRICULADO` muestra un tag **Finalizado** (verde) / **No finalizado** (rojo) según `finalized` de la matrícula; si no hay datos (`finalized` null) no muestra tag. El backend (`findByUser`) calcula `finalized` con `bool_or(user_group.finalized)` por curso (null si no hay matrícula).
 

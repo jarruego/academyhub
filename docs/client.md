@@ -29,7 +29,11 @@ Each domain under `client/src/hooks/api/` has separate `.query.ts` and `.mutatio
 ## Course typology (UI)
 Data model / enums → `docs/architecture.md`. UI consumption of the three axes (modality/origin/funding):
 
-`utils/course-profile.ts` (`getCourseProfile({ modality, origin, funding })`) is the **single source of truth** for type-driven UI — returns capability flags (`showMoodleSync`, `showProgressColumn`, `showFinalizedColumn`, `showBonificationButton`, `showExpediente`, `showPreinscripciones`). Use it instead of scattering `modality === 'presencial'` checks. `showBonificationButton` is permissive (hidden only for explicit non-FUNDAE funding, matching the server guard). Consumed by `GroupUsersManager`.
+`utils/course-profile.ts` (`getCourseProfile({ modality, origin, funding })`) is the **single source of truth** for type-driven UI — returns capability flags (`showMoodleSync`, `showProgressColumn`, `showFinalizedColumn`, `showBonificationButton`, `showExpediente`, `showPreinscripciones`). Use it instead of scattering `modality === 'presencial'` checks. `showBonificationButton` is permissive (hidden only for explicit non-FUNDAE funding, matching the server guard).
+
+- **Group members table** (`GroupUsersManager`, the main `getCourseProfile` consumer): columns adapt to the course type.
+  - `showFinalizedColumn` = presencial **or** INAEM (any modality). Presencial: the **Finalizado** column (tag green/red from `user_group.finalized`) *replaces* **Porcentaje** and drops Moodle/Tiempo (no Moodle progress). INAEM online/mixta: **Finalizado** is *appended* while keeping the online columns (Moodle sync + progreso).
+  - **Porcentaje, Tiempo usado y Finalizado** only render a value for students (`isStudentUser`); other roles (tutores, etc.) show an empty cell. Applies to every course type.
 
 - **Courses list** (`courses.route.tsx`): `Segmented` tabs **Todos / FUNDAE / INAEM / Privada / Sin clasificar** — client-side predicates over the loaded list (consistent with search/active-state; server-side `FilterCourseDTO` exists for API use). Active tab in URL (`?tab=`); columns adapt per tab.
 - **Course form** (create + detail): fields grouped by axis; **Nº Expediente** only for INAEM origin, **FUNDAE ID** only for FUNDAE funding (detail keeps them visible if a value already exists).

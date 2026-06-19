@@ -30,7 +30,11 @@ export interface CourseProfile {
   showMoodleSync: boolean;
   /** Columna de porcentaje de progreso (+ tiempo usado). */
   showProgressColumn: boolean;
-  /** Columna de finalización (presencial: el porcentaje no aplica). */
+  /**
+   * Columna de finalización. Presencial: el porcentaje no aplica. INAEM:
+   * `user_group.finalized` (SI/NO del INAEM) es relevante en cualquier
+   * modalidad, también online.
+   */
   showFinalizedColumn: boolean;
   /**
    * Botón de bonificación FUNDAE. Permisivo: se oculta solo cuando la financiación
@@ -70,7 +74,7 @@ export function getCourseProfile(input: CourseProfileInput): CourseProfile {
     // Un presencial no se sincroniza con Moodle ni tiene progreso; el resto sí.
     showMoodleSync: !isPresential,
     showProgressColumn: !isPresential,
-    showFinalizedColumn: isPresential,
+    showFinalizedColumn: isPresential || isInaem,
     showBonificationButton: !isNonBonifiable,
     showExpediente: isInaem,
     showPreinscripciones: isInaem,

@@ -428,17 +428,34 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   };
 
   const columns = useMemo(() => {
-    if (profile.showFinalizedColumn) {
-      // En presencial el porcentaje no aplica: se sustituye por el estado de finalización.
-      const finalizedColumn = {
-        title: 'Finalizado',
-        dataIndex: ['finalized'],
-        key: 'finalized',
-        sorter: { compare: (a: User, b: User) => Number(a.finalized ?? false) - Number(b.finalized ?? false) },
-        render: (_: unknown, user: User) => (
-          <Tag color={user.finalized ? 'green' : 'red'}>{user.finalized ? 'Finalizado' : 'No finalizado'}</Tag>
-        ),
-      };
+    // Porcentaje, tiempo y finalizado solo aplican a alumnos (no a tutores/otros
+    // roles); para el resto la celda queda vacía. Vale para cualquier tipo de curso.
+    const studentOnly = (column: (typeof USERS_TABLE_COLUMNS)[number]) => ({
+      ...column,
+      render: (value: unknown, user: User, index: number) =>
+        isStudentUser(user)
+          ? (column.render ? column.render(value, user, index) : (value as React.ReactNode))
+          : '-',
+    });
+
+    const finalizedColumn = studentOnly({
+      title: 'Finalizado',
+      dataIndex: ['finalized'],
+      key: 'finalized',
+      sorter: { compare: (a: User, b: User) => Number(a.finalized ?? false) - Number(b.finalized ?? false) },
+      render: (_: unknown, user: User) => (
+        <Tag color={user.finalized ? 'green' : 'red'}>{user.finalized ? 'Finalizado' : 'No finalizado'}</Tag>
+      ),
+    });
+
+    const gateStudentColumns = (cols: (typeof USERS_TABLE_COLUMNS)[number][]) =>
+      cols.map((column) =>
+        column.title === 'Porcentaje' || column.title === 'Tiempo usado' ? studentOnly(column) : column,
+      );
+
+    if (profile.isPresential) {
+      // En presencial el porcentaje/tiempo no aplican (no hay Moodle): se sustituye
+      // la columna Porcentaje por el estado de finalización.
       return USERS_TABLE_COLUMNS
         .filter((column) => column.title !== 'Tiempo usado')
         .map((column) => (column.title === 'Porcentaje' ? finalizedColumn : column));
@@ -458,8 +475,14 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       }
     } as const;
 
-    const baseColumns = filterUsersTimeSpentColumn(USERS_TABLE_COLUMNS, itopTrainingEnabled);
-    return [groupSyncedColumn, ...baseColumns];
+    const baseColumns = gateStudentColumns(filterUsersTimeSpentColumn(USERS_TABLE_COLUMNS, itopTrainingEnabled));
+    const cols = [groupSyncedColumn, ...baseColumns];
+    // INAEM online/mixta: se conservan las columnas online (Moodle/progreso) y se
+    // añade la finalización (el INAEM informa FINALIZADO sea cual sea la modalidad).
+    if (profile.showFinalizedColumn) {
+      cols.push(finalizedColumn);
+    }
+    return cols;
   }, [profile, itopTrainingEnabled]);
 
   const { totalStudents, studentsAtOrAbove75 } = useMemo(() => {
