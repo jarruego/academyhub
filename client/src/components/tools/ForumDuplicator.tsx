@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Alert, Button, Card, Divider, Select, Space, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { AxiosError } from 'axios';
@@ -26,7 +27,16 @@ const errMsg = (e: unknown): string => {
 };
 
 export default function ForumDuplicator() {
-  const [courseId, setCourseId] = useState<number | undefined>();
+  // Si se llega desde la ficha de curso (?courseId=N), el curso viene fijado y
+  // el selector queda deshabilitado.
+  const [searchParams] = useSearchParams();
+  const lockedCourseId = useMemo(() => {
+    const raw = searchParams.get('courseId');
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) ? n : undefined;
+  }, [searchParams]);
+
+  const [courseId, setCourseId] = useState<number | undefined>(lockedCourseId);
   const [forumIds, setForumIds] = useState<number[]>([]);
   const [groupIds, setGroupIds] = useState<number[]>([]);
   const [modelByForum, setModelByForum] = useState<Record<number, number>>({});
@@ -52,6 +62,15 @@ export default function ForumDuplicator() {
     setForumIds([]); setGroupIds([]); setModelByForum({}); setTutorByGroup({});
     setPreview(null); setResults(null);
   };
+
+  // Sincroniza el curso fijado por URL (al entrar o al cambiar de curso).
+  useEffect(() => {
+    if (lockedCourseId != null) {
+      setCourseId(lockedCourseId);
+      resetDownstream();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockedCourseId]);
 
   const buildRequest = (): DuplicateForumRequest => ({
     courseId: courseId!,
@@ -188,10 +207,16 @@ export default function ForumDuplicator() {
         placeholder="Selecciona un curso (sólo cursos enlazados con Moodle)"
         loading={coursesQuery.isLoading}
         value={courseId}
+        disabled={lockedCourseId != null}
         optionFilterProp="label"
         options={courseOptions}
         onChange={(v) => { setCourseId(v); resetDownstream(); }}
       />
+      {lockedCourseId != null && (
+        <Text type="secondary" style={{ display: 'block', marginTop: 6 }}>
+          Curso fijado desde su ficha.
+        </Text>
+      )}
 
       {courseId != null && (
         <>

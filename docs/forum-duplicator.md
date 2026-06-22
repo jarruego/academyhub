@@ -127,6 +127,12 @@ Hooks en `client/src/hooks/api/forum/`; tipos espejo en
 `client/src/shared/types/forum/forum.ts`. Las rutas del cliente usan el prefijo
 `/api/forum/...` (proxy Vite).
 
+**Punto de entrada desde la ficha de curso**: botón "Foros" (icono `CommentOutlined`,
+`AuthzHide [ADMIN, MANAGER]`) junto a "Añadir Grupo al Curso" en
+`course-detail.route.tsx`; navega a `/tools/forum-duplicator?courseId=<id>`.
+`ForumDuplicator` lee `courseId` con `useSearchParams`: lo fija, deshabilita el
+`Select` de curso y muestra "Curso fijado desde su ficha".
+
 ## Plan por fases
 1. (Operación en Moodle) Habilitar funciones WS + flags de ficheros; tutores con token. ✅
 2. **Backend lectura** (este doc): foros, temas, grupos+tutores. ✅

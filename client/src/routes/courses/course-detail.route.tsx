@@ -2,9 +2,9 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Tabs, Row, Col } from "antd";
+import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Tabs, Row, Col, Space } from "antd";
 import HtmlEditor from '../../components/courses/HtmlEditor';
-import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
+import { DeleteOutlined, SaveOutlined, TeamOutlined, CommentOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
@@ -510,11 +510,22 @@ export default function CourseDetailRoute() {
               <Col xs={24} lg={8}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <h3 style={{ margin: 0 }}>Grupos del Curso</h3>
-                  <AuthzHide roles={[Role.ADMIN]}>
-                    <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>
-                      Añadir Grupo al Curso
-                    </Button>
-                  </AuthzHide>
+                  <Space size={8} wrap>
+                    <AuthzHide roles={[Role.ADMIN]}>
+                      <Button type="default" icon={<TeamOutlined />} onClick={handleAddGroup}>
+                        Añadir Grupo al Curso
+                      </Button>
+                    </AuthzHide>
+                    <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+                      <Button
+                        type="default"
+                        icon={<CommentOutlined />}
+                        onClick={() => window.open(`/tools/forum-duplicator?courseId=${id_course}`, '_blank', 'noopener')}
+                      >
+                        Foros
+                      </Button>
+                    </AuthzHide>
+                  </Space>
                 </div>
                 <Table<Group>
                   rowKey="id_group"
