@@ -26,6 +26,10 @@ Each domain under `client/src/hooks/api/` has separate `.query.ts` and `.mutatio
 
 **Table navigation:** main list tables (`users`, `groups`, `courses`, `companies`, `centers`) use `onClick` on `onRow` for single-click navigation. Tables inside detail pages keep `onDoubleClick` to avoid conflicts with row selection.
 
+**Cross-page preselection via URL params:** double-clicking a course row in the user detail "Cursos" tab (`user-courses-section.tsx`) opens `/courses/:id?groupId=&userId=` in a new tab (`window.open`, no shared React Query cache between tabs). `course-detail.route.tsx` reads `groupId`/`userId` via `useSearchParams` once on mount to preselect the group (falls back to the default first group if not found) and highlight the user (`GroupUsersManager`'s `highlightUserId` prop, applied as a selected checkbox + scroll-into-view, not a CSS highlight).
+
+**Gotcha — refs inside `setState` updaters:** never mutate a `ref` inside a functional `setState` updater (`setX((prev) => { ref.current = ...; return ...; })`). React 18 `<StrictMode>` invokes updater functions twice to detect impurities; the second call sees the ref already mutated and silently produces the wrong result. Consume/mutate the ref in the effect body instead, guarded by a dedicated "applied" boolean ref (refs are safe across StrictMode's double-invocation since they persist between calls).
+
 ## Course typology (UI)
 Data model / enums → `docs/architecture.md`. UI consumption of the three axes (modality/origin/funding):
 

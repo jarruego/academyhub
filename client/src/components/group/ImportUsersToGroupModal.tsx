@@ -156,6 +156,8 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
         }
 
         messageApi.success('Usuarios importados correctamente');
+        setUsers([]);
+        setSelectedUserIds([]);
         onSuccess ? onSuccess() : onClose();
       };
 
