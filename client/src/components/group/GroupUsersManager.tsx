@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Table, Button, message, Modal, notification, Dropdown, Tag } from 'antd';
 import type { MenuProps } from 'antd';
 import { Tooltip } from 'antd';
@@ -30,6 +30,7 @@ interface Props {
   courseFunding?: string | null;
   groupStart?: string | Date | null;
   groupEnd?: string | Date | null;
+  highlightUserId?: number | null;
 }
 
 interface SyncDetail {
@@ -64,7 +65,7 @@ const isStudentUser = (user: User): boolean => {
   return typeof role === 'string' ? role.toLowerCase() === 'student' : false;
 };
 
-const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseOrigin, courseFunding, groupStart, groupEnd }) => {
+const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseOrigin, courseFunding, groupStart, groupEnd, highlightUserId }) => {
   const [messageApi, contextHolder] = message.useMessage();
   const [modal, modalContextHolder] = Modal.useModal();
   const [notificationApi, notificationContextHolder] = notification.useNotification();
@@ -76,6 +77,15 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
     return idx !== -1 ? text.slice(0, idx) : text;
   };
   const { data: usersData, isLoading, refetch } = useUsersByGroupQuery(groupId ? Number(groupId) : null);
+  const sortedUsers = useMemo(() => {
+    const list = usersData ?? [];
+    return [...list].sort((a, b) => {
+      const byName = (a.name ?? '').localeCompare(b.name ?? '');
+      if (byName !== 0) return byName;
+      return (a.first_surname ?? '').localeCompare(b.first_surname ?? '');
+    });
+  }, [usersData]);
+
   const { data: orgSettings } = useOrganizationSettingsQuery();
   const itopTrainingEnabled = useMemo(() => {
     const settings = orgSettings?.settings ?? {};
@@ -84,6 +94,20 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   }, [orgSettings]);
 
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+
+  const appliedHighlightUserRef = useRef(false);
+  useEffect(() => {
+    if (appliedHighlightUserRef.current) return;
+    if (highlightUserId == null || sortedUsers.length === 0) return;
+    appliedHighlightUserRef.current = true;
+    setSelectedUserIds((prev) => (prev.includes(highlightUserId) ? prev : [...prev, highlightUserId]));
+    const timeoutId = window.setTimeout(() => {
+      const row = document.querySelector(`tr[data-row-key="${highlightUserId}"]`);
+      row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [highlightUserId, sortedUsers]);
+
   const [selectedCenters, setSelectedCenters] = useState<Record<number, number>>({});
   const [isBonificationModalOpen, setIsBonificationModalOpen] = useState(false);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
@@ -691,7 +715,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
       <Table<User>
         rowKey="id_user"
-        dataSource={usersData}
+        dataSource={sortedUsers}
         columns={columns}
         loading={isLoading}
         pagination={false}

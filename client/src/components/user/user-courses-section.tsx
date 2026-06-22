@@ -243,10 +243,23 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
       onRow={(record: UserCourseWithCourse) => ({
         onDoubleClick: () => {
           const courseId = record.course?.id_course;
-          if (courseId) {
-            const url = `${window.location.origin}/courses/${courseId}`;
-            window.open(url, '_blank', 'noopener,noreferrer');
-          }
+          if (!courseId) return;
+          const groups = record.groups ?? [];
+          const toMillis = (d?: string | Date | null) => {
+            if (!d) return Number.NEGATIVE_INFINITY;
+            const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
+            return Number.isFinite(t) ? t : Number.NEGATIVE_INFINITY;
+          };
+          const mostRecentGroup = [...groups].sort((a, b) => {
+            const aMillis = Math.max(toMillis(a.end_date), toMillis(a.start_date));
+            const bMillis = Math.max(toMillis(b.end_date), toMillis(b.start_date));
+            return bMillis - aMillis;
+          })[0];
+          const params = new URLSearchParams();
+          if (mostRecentGroup) params.set('groupId', String(mostRecentGroup.id_group));
+          params.set('userId', String(record.id_user));
+          const url = `${window.location.origin}/courses/${courseId}?${params.toString()}`;
+          window.open(url, '_blank', 'noopener,noreferrer');
         },
       })}
     />

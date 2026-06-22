@@ -137,7 +137,13 @@ export class UserGroupRepository extends Repository {
 
     async findGroupsByUserAndCourse(id_user: number, id_course: number, options?: QueryOptions) {
         const rows = await this.query(options)
-            .select({ id_group: groupTable.id_group, group_name: groupTable.group_name, finalized: userGroupTable.finalized })
+            .select({
+                id_group: groupTable.id_group,
+                group_name: groupTable.group_name,
+                finalized: userGroupTable.finalized,
+                start_date: groupTable.start_date,
+                end_date: groupTable.end_date,
+            })
             .from(userGroupTable)
             .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
             .where(and(eq(userGroupTable.id_user, id_user), eq(groupTable.id_course, id_course)));

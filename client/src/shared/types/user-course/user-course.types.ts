@@ -30,6 +30,8 @@ export interface CourseGroupSummary {
   id_group: number;
   group_name: string;
   finalized?: boolean;
+  start_date?: string | Date | null;
+  end_date?: string | Date | null;
 }
 
 // Tipo compuesto para el resultado del JOIN

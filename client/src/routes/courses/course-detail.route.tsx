@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
@@ -6,7 +6,7 @@ import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Tabs, 
 import HtmlEditor from '../../components/courses/HtmlEditor';
 import { DeleteOutlined, SaveOutlined, TeamOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { CourseOrigin } from "../../shared/types/course/course-origin.enum";
@@ -48,6 +48,14 @@ export default function CourseDetailRoute() {
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
   const navigate = useNavigate();
   const { id_course } = useParams();
+  const [searchParams] = useSearchParams();
+  // Llegada desde la ficha de usuario: preseleccionar el grupo/usuario indicados en la URL,
+  // pero solo en la carga inicial (no debe pisar selecciones manuales posteriores).
+  const initialGroupIdRef = useRef<number | null>(
+    searchParams.get('groupId') ? Number(searchParams.get('groupId')) : null
+  );
+  const appliedInitialGroupRef = useRef(false);
+  const highlightUserId = searchParams.get('userId') ? Number(searchParams.get('userId')) : null;
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
   const { data: groupsData, isLoading: isGroupsLoading } = useGroupsQuery(id_course || "");
   const sortedGroups = useMemo(() => {
@@ -58,10 +66,10 @@ export default function CourseDetailRoute() {
         const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
         return Number.isFinite(t) ? t : Number.NEGATIVE_INFINITY;
       };
-      const aStart = toMillis(a.start_date);
-      const bStart = toMillis(b.start_date);
-      if (aStart !== bStart) return bStart - aStart;
-      return (a.group_name ?? '').localeCompare(b.group_name ?? '');
+      const aEnd = toMillis(a.end_date);
+      const bEnd = toMillis(b.end_date);
+      if (aEnd !== bEnd) return bEnd - aEnd;
+      return (b.group_name ?? '').localeCompare(a.group_name ?? '');
     });
   }, [groupsData]);
   // A course is active if it has at least one active group (derived state).
@@ -112,11 +120,38 @@ export default function CourseDetailRoute() {
   }, [courseData, reset]);
 
   useEffect(() => {
-    if (sortedGroups && sortedGroups.length > 0) {
-      setSelectedGroupId(sortedGroups[0].id_group);
-      setSelectedRowKeys([sortedGroups[0].id_group]);
+    if (!sortedGroups || sortedGroups.length === 0) return;
+    // Consumir el groupId de la URL fuera del updater de setState: mutar un ref dentro
+    // de un updater funcional es inseguro (StrictMode invoca esos updaters dos veces
+    // para detectar impurezas, y la segunda invocación vería el ref ya a null).
+    if (!appliedInitialGroupRef.current && initialGroupIdRef.current != null) {
+      appliedInitialGroupRef.current = true;
+      const requestedId = initialGroupIdRef.current;
+      if (sortedGroups.some((g) => g.id_group === requestedId)) {
+        setSelectedGroupId(requestedId);
+        return;
+      }
     }
+    setSelectedGroupId((prev) => {
+      const stillExists = prev != null && sortedGroups.some((g) => g.id_group === prev);
+      return stillExists ? prev : sortedGroups[0].id_group;
+    });
   }, [sortedGroups]);
+
+  useEffect(() => {
+    if (selectedGroupId != null) {
+      setSelectedRowKeys([selectedGroupId]);
+    }
+  }, [selectedGroupId]);
+
+  useEffect(() => {
+    if (selectedGroupId == null) return;
+    const timeoutId = window.setTimeout(() => {
+      const row = document.querySelector(`#groups-table tr[data-row-key="${selectedGroupId}"]`);
+      row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [selectedGroupId]);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -503,7 +538,6 @@ export default function CourseDetailRoute() {
                         return toMillis(b.start_date) - toMillis(a.start_date);
                       },
                       sortDirections: ['ascend', 'descend'],
-                      defaultSortOrder: 'descend',
                     },
                     {
                       title: 'Fecha Fin',
@@ -550,6 +584,7 @@ export default function CourseDetailRoute() {
                   courseFunding={courseData?.funding}
                   groupStart={sortedGroups.find(g => g.id_group === selectedGroupId)?.start_date}
                   groupEnd={sortedGroups.find(g => g.id_group === selectedGroupId)?.end_date}
+                  highlightUserId={highlightUserId}
                 />
               </Col>
             </Row>
