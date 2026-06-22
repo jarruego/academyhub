@@ -5,6 +5,7 @@ import { CourseModule } from "src/api/course/course.module";
 import { GroupModule } from "src/api/group/group.module";
 import { UserModule } from "src/api/user/user.module";
 import { MoodleModule } from './moodle/moodle.module';
+import { ForumModule } from './forum/forum.module';
 import { MoodleUserModule } from './moodle-user/moodle-user.module';
 import { ImportModule } from './import-sage/import.module';
 import { ImportInaemModule } from './import-inaem/import-inaem.module';
@@ -16,6 +17,6 @@ import { FilesModule } from './files/files.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
-  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, MoodleUserModule, ImportModule, ImportInaemModule, ImportVelneoModule, ReportsModule, OrganizationModule, FilesModule, MailModule, AuditModule],
+  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, ForumModule, MoodleUserModule, ImportModule, ImportInaemModule, ImportVelneoModule, ReportsModule, OrganizationModule, FilesModule, MailModule, AuditModule],
 })
 export class ApiModule {}

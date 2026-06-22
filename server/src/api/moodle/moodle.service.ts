@@ -3,6 +3,7 @@ import axios, { AxiosResponse } from 'axios';
 import { decryptSecret, tryEncryptSecret } from '../../utils/crypto/secrets.util';
 import { MoodleCourse } from 'src/types/moodle/course';
 import { MoodleGroup, CreatedGroupResponseItem } from 'src/types/moodle/group';
+import { MoodleForum, MoodleDiscussion, MoodleForumPost } from 'src/types/moodle/forum';
 import { MoodleUser, ExtendedMoodleUser } from 'src/types/moodle/user';
 import { MoodleCourseWithImportStatus, MoodleGroupWithImportStatus, ImportResult } from 'src/dto/moodle/import.dto';
 import { DatabaseService } from 'src/database/database.service';
@@ -33,6 +34,12 @@ import { companyTable } from 'src/database/schema/tables/company.table';
 type RequestOptions<D extends MoodleParams = MoodleParams> = {
     params?: D;
     method?: 'get' | 'post';
+    /**
+     * Token WS explícito a usar en lugar del token de la organización. Lo usa la
+     * herramienta de Duplicado de Foros para publicar en nombre del tutor de cada
+     * grupo (cada `add_discussion` se firma con el token del tutor).
+     */
+    token?: string;
 }
 
 // Typing for Moodle webservice request params. Moodle expects form-encoded
@@ -129,10 +136,11 @@ export class MoodleService {
      * @returns {Promise<R>} - A promise that resolves to the response data of type R.
      * @throws {InternalServerErrorException} - Throws an internal server error exception if the request fails or Moodle returns an error.
      */
-    private async request<R = unknown, D extends MoodleParams = MoodleParams>(fn: string, { params: paramsData, method = 'get' }: RequestOptions<D> = {}): Promise<R> {
+    private async request<R = unknown, D extends MoodleParams = MoodleParams>(fn: string, { params: paramsData, method = 'get', token }: RequestOptions<D> = {}): Promise<R> {
         this.trackMoodleCall(fn);
-        // Resolve token and URL with DB (priority) -> env fallback
-        const resolvedToken = await this.resolveMoodleToken();
+        // Resolve token and URL with DB (priority) -> env fallback.
+        // An explicit `token` (e.g. a tutor's token) overrides the org token.
+        const resolvedToken = token ?? await this.resolveMoodleToken();
         const resolvedUrl = await this.resolveMoodleUrl();
         if (!resolvedUrl) throw new InternalServerErrorException('Moodle URL not configured');
         const params: MoodleParams = {
@@ -1364,6 +1372,136 @@ export class MoodleService {
             completion_percentage,
             time_spent: null // Moodle estándar no lo proporciona, hace falta un plugin como block_dedication
         };
+    }
+
+    /**
+     * Lista los foros de un curso (`mod_forum_get_forums_by_courses`). El `id` de
+     * cada foro es el `forumid` que necesita `mod_forum_add_discussion`.
+     * Usado por la herramienta de Duplicado de Foros (api/forum).
+     */
+    async getCourseForums(moodleCourseId: number): Promise<MoodleForum[]> {
+        const data = await this.request<Array<MoodleForum>>('mod_forum_get_forums_by_courses', {
+            params: { courseids: [moodleCourseId] },
+            method: 'post',
+        });
+        return Array.isArray(data) ? data : [];
+    }
+
+    /**
+     * Lista los temas (discussions) de un foro (`mod_forum_get_forum_discussions`).
+     * Devuelve cada tema con su `groupid`, lo que permite (a) elegir un tema modelo
+     * a duplicar y (b) detectar qué grupos ya tienen un tema con un asunto dado
+     * (idempotencia). Usado por la herramienta de Duplicado de Foros.
+     */
+    async getForumDiscussions(forumId: number): Promise<MoodleDiscussion[]> {
+        const data = await this.request<{ discussions?: MoodleDiscussion[] }>('mod_forum_get_forum_discussions', {
+            params: { forumid: forumId },
+            method: 'post',
+        });
+        return Array.isArray(data?.discussions) ? data.discussions : [];
+    }
+
+    /**
+     * Posts de un tema (`mod_forum_get_discussion_posts`). El post inicial (sin
+     * padre) contiene el asunto, el `message` HTML y los ficheros embebidos
+     * (`messageinlinefiles`) / adjuntos. Usado para leer el tema modelo a duplicar.
+     */
+    async getDiscussionPosts(discussionId: number): Promise<MoodleForumPost[]> {
+        const data = await this.request<{ posts?: MoodleForumPost[] }>('mod_forum_get_discussion_posts', {
+            params: { discussionid: discussionId },
+            method: 'post',
+        });
+        return Array.isArray(data?.posts) ? data.posts : [];
+    }
+
+    /**
+     * Crea un tema (discussion) en un foro (`mod_forum_add_discussion`) dirigido a
+     * un grupo concreto (`groupId`; -1 = todos los participantes). Se firma con un
+     * `token` explícito (el del tutor del grupo) para que el autor sea el tutor.
+     * `options` permite pasar `inlineattachmentsid`/`attachmentsid` (Fase 4) o
+     * banderas como `discussionsubscribe`.
+     */
+    async addForumDiscussion(
+        forumId: number,
+        subject: string,
+        message: string,
+        groupId: number,
+        token: string,
+        options?: Array<{ name: string; value: string | number | boolean }>,
+    ): Promise<{ discussionid?: number }> {
+        const params: MoodleParams = {
+            forumid: forumId,
+            subject,
+            message,
+            groupid: groupId,
+        };
+        if (options && options.length > 0) params.options = options;
+        return await this.request<{ discussionid?: number }>('mod_forum_add_discussion', {
+            params,
+            method: 'post',
+            token,
+        });
+    }
+
+    /**
+     * Descarga un fichero de Moodle por su `fileurl` de `webservice/pluginfile.php`
+     * añadiendo el token (requiere "Can download files" en el servicio). Detecta y
+     * propaga errores que Moodle devuelve como JSON en lugar del binario.
+     */
+    async downloadFile(fileUrl: string, token?: string): Promise<Buffer> {
+        this.trackMoodleCall('pluginfile.php');
+        const useToken = token ?? await this.resolveMoodleToken();
+        const sep = fileUrl.includes('?') ? '&' : '?';
+        const url = `${fileUrl}${sep}token=${encodeURIComponent(useToken ?? '')}`;
+        const resp = await axios.get<ArrayBuffer>(url, { responseType: 'arraybuffer' });
+        const contentType = String(resp.headers['content-type'] ?? '');
+        const buffer = Buffer.from(resp.data);
+        if (contentType.includes('application/json')) {
+            // Moodle devuelve { error: ... } o { exception: ... } cuando falla.
+            try {
+                const parsed = JSON.parse(buffer.toString('utf8')) as Record<string, unknown>;
+                if (parsed && (parsed.error || parsed.exception)) {
+                    throw new InternalServerErrorException(String(parsed.error ?? parsed.exception));
+                }
+            } catch (e) {
+                if (e instanceof InternalServerErrorException) throw e;
+                // No era JSON parseable; seguimos devolviendo el buffer.
+            }
+        }
+        return buffer;
+    }
+
+    /**
+     * Sube un fichero al área de borrador (draft) del usuario dueño del `token` vía
+     * `webservice/upload.php` (requiere "Can upload files" en el servicio). Si se
+     * pasa `itemId`, agrupa el fichero en ese mismo draft (para subir varios al
+     * mismo área). Devuelve el `itemid` del draft y el `filename` con el que quedó
+     * almacenado (Moodle puede renombrarlo si colisiona).
+     */
+    async uploadToDraftArea(file: Buffer, filename: string, token: string, itemId?: number): Promise<{ itemid: number; filename: string }> {
+        this.trackMoodleCall('upload.php');
+        const baseUrl = await this.resolveMoodleUrl();
+        if (!baseUrl) throw new InternalServerErrorException('Moodle URL not configured');
+        const uploadUrl = `${new URL(baseUrl).origin}/webservice/upload.php`;
+
+        const form = new FormData();
+        form.append('token', token);
+        if (itemId != null) form.append('itemid', String(itemId));
+        form.append('file_1', new Blob([new Uint8Array(file)]), filename);
+
+        const resp = await axios.post<unknown>(uploadUrl, form);
+        const data = resp.data;
+        if (data && !Array.isArray(data) && typeof data === 'object') {
+            const obj = data as Record<string, unknown>;
+            if (obj.error || obj.exception) {
+                throw new InternalServerErrorException(String(obj.error ?? obj.exception));
+            }
+        }
+        const first = Array.isArray(data) ? (data[0] as Record<string, unknown> | undefined) : undefined;
+        if (!first || typeof first.itemid === 'undefined') {
+            throw new InternalServerErrorException('upload.php no devolvió un itemid de draft');
+        }
+        return { itemid: Number(first.itemid), filename: String(first.filename ?? filename) };
     }
 
     async getCourseUserProfiles(courseId: number, userId: number): Promise<MoodleUser[]> {

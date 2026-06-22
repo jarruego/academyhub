@@ -7,6 +7,7 @@ import { userTable, UserSelectModel } from "src/database/schema/tables/user.tabl
 import { groupTable } from "src/database/schema/tables/group.table";
 import { userCourseTable } from "src/database/schema/tables/user_course.table";
 import { moodleUserTable } from "src/database/schema/tables/moodle_user.table";
+import { moodleUserAuthUserTable } from "src/database/schema/tables/moodle_user_auth_user.table";
 import { centers } from "src/database/schema";
 import { InsertResult } from 'src/database/types/insert-result';
 import { companyTable } from "src/database/schema/tables/company.table";
@@ -133,6 +134,54 @@ export class UserGroupRepository extends Repository {
             ))
             .innerJoin(moodleUserTable, eq(moodleUserTable.id_moodle_user, userCourseTable.id_moodle_user))
             .where(and(eq(groupTable.id_course, courseId), inArray(userGroupTable.id_group, groupIds)));
+    }
+
+    /**
+     * Tutores de un grupo (user_group.is_tutor = true) con su cuenta Moodle y si
+     * tienen token WS asignado. Usado por la herramienta de Duplicado de Foros
+     * para resolver el autor de cada tema (un tema por grupo se publica con el
+     * token de su tutor). Un usuario puede tener varias cuentas Moodle/tokens;
+     * se agrega por id_user prefiriendo la cuenta principal (is_main_user) para
+     * el moodle_id del autor, y has_token = existe algún token.
+     */
+    async findGroupTutors(groupId: number, options?: QueryOptions): Promise<Array<{
+        id_user: number;
+        full_name: string;
+        moodle_id: number | null;
+        has_token: boolean;
+    }>> {
+        const rows = await this.query(options)
+            .select({
+                id_user: userTable.id_user,
+                name: userTable.name,
+                first_surname: userTable.first_surname,
+                second_surname: userTable.second_surname,
+                moodle_id: moodleUserTable.moodle_id,
+                is_main_user: moodleUserTable.is_main_user,
+                token: moodleUserAuthUserTable.moodle_token,
+            })
+            .from(userGroupTable)
+            .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
+            .leftJoin(moodleUserTable, eq(moodleUserTable.id_user, userTable.id_user))
+            .leftJoin(moodleUserAuthUserTable, eq(moodleUserAuthUserTable.id_moodle_user, moodleUserTable.id_moodle_user))
+            .where(and(eq(userGroupTable.id_group, groupId), eq(userGroupTable.is_tutor, true)));
+
+        // Agregar por usuario: varias filas si tiene varias cuentas Moodle/tokens.
+        const byUser = new Map<number, { id_user: number; full_name: string; moodle_id: number | null; has_token: boolean }>();
+        for (const r of rows) {
+            const full_name = [r.name, r.first_surname, r.second_surname].filter(Boolean).join(' ').trim();
+            const existing = byUser.get(r.id_user);
+            const hasToken = !!r.token;
+            if (!existing) {
+                byUser.set(r.id_user, { id_user: r.id_user, full_name, moodle_id: r.moodle_id ?? null, has_token: hasToken });
+            } else {
+                if (hasToken) existing.has_token = true;
+                // Prefiere la cuenta principal para el moodle_id del autor
+                if (r.is_main_user && r.moodle_id != null) existing.moodle_id = r.moodle_id;
+                else if (existing.moodle_id == null && r.moodle_id != null) existing.moodle_id = r.moodle_id;
+            }
+        }
+        return Array.from(byUser.values());
     }
 
     async findGroupsByUserAndCourse(id_user: number, id_course: number, options?: QueryOptions) {

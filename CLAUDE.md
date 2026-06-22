@@ -91,6 +91,7 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 | `docs/import.md` | **touching `api/import-sage/` or `api/import-velneo/`**. Covers SAGE matching/decisions, `buildUserUpdates`, `education_level`, `user_center`, `findSimilarUsers`, `file_transfer` config, `failed_user_imports`, the processing loop (no per-row tx — why). |
 | `docs/import-inaem.md` | **touching `api/import-inaem/`** (INAEM import: acciones/alumnos/preinscripciones). Covers the 3 source files (HTML-table `.xls` + `.xlsx`), `course.file_number`/`origin`/`is_provisional`, `user_group.finalized`, the `user_preinscription` table, parsers, fill-gaps + conflict decisions, education-level mapping, endpoints, and client surfaces. |
 | `docs/mail-moodle.md` | touching `api/moodle/` or `api/mail/`, or notification/token logic. Covers Moodle integration, the token/URL resolution chain, `plugins.itop_training`, Mail system, and the `email_log`. |
+| `docs/forum-duplicator.md` | **touching `api/forum/`** or the forum WS methods in `MoodleService`. Covers the "Duplicado de Foros" tool: replicate a model forum discussion to all groups (one per group), authorship = each group's tutor (per-group WS token via `findGroupTutors`), copy text+inline media, idempotent by subject, required Moodle WS functions, and the phased plan. |
 | `docs/reports.md` | touching `api/reports/` (PDF templating, report rows). |
 | `docs/client.md` | frontend work under `client/` (API hooks, auth flow, routing, responsive conventions, type sharing, tests). |
 

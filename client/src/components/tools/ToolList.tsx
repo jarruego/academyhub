@@ -1,5 +1,5 @@
 import { Button, Card, List } from "antd";
-import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined, SafetyCertificateOutlined, MailOutlined } from "@ant-design/icons";
+import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined, SafetyCertificateOutlined, MailOutlined, CommentOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
@@ -76,6 +76,15 @@ const tools = [
     adminOnly: true,
     type: "link" as const,
     linkTo: "/tools/email-log",
+  },
+  {
+    key: "forum-duplicator",
+    label: "Duplicado de Foros",
+    description: "Replica el tema de los foros de Moodle a todos los grupos (un tema por grupo), en nombre del tutor.",
+    icon: <CommentOutlined style={{ fontSize: 20 }} />,
+    adminOnly: true,
+    type: "link" as const,
+    linkTo: "/tools/forum-duplicator",
   },
   // Aquí se pueden añadir más herramientas en el futuro
 ];
