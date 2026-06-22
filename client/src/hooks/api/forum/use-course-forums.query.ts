@@ -10,6 +10,11 @@ export const useCourseForumsQuery = (courseId: number | undefined) => {
   return useQuery({
     queryKey: ['forum', 'course-forums', courseId],
     enabled: courseId != null,
+    // Cargar una vez y cachear: nada de refetch automático (cada llamada va a
+    // Moodle). El refresco es manual desde el botón "Refrescar".
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: async () =>
       (await request({ method: 'GET', url: `${getApiHost()}/api/forum/courses/${courseId}/forums` })).data,
   });

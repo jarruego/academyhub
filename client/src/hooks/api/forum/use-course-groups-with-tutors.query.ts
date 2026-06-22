@@ -10,6 +10,10 @@ export const useCourseGroupsWithTutorsQuery = (courseId: number | undefined) => 
   return useQuery({
     queryKey: ['forum', 'course-groups-with-tutors', courseId],
     enabled: courseId != null,
+    // Cargar una vez y cachear; refresco manual desde el botón "Refrescar".
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: async () =>
       (await request({ method: 'GET', url: `${getApiHost()}/api/forum/courses/${courseId}/groups-with-tutors` })).data,
   });

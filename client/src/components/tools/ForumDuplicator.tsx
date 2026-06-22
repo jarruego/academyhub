@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Alert, Button, Card, Divider, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { AxiosError } from 'axios';
 import { useCoursesQuery } from '../../hooks/api/courses/use-courses.query';
@@ -224,13 +225,24 @@ export default function ForumDuplicator() {
           <Divider />
           <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
             <Title level={5} style={{ margin: 0 }}>2. Foros a duplicar</Title>
-            <Button
-              size="small"
-              onClick={() => setForumIds((forumsQuery.data ?? []).filter((f) => f.type === 'qanda').map((f) => f.id))}
-              disabled={!forumsQuery.data?.length}
-            >
-              Seleccionar sólo pregunta-respuesta
-            </Button>
+            <Space size={8} wrap>
+              <Button
+                size="small"
+                onClick={() => setForumIds((forumsQuery.data ?? []).filter((f) => f.type === 'qanda').map((f) => f.id))}
+                disabled={!forumsQuery.data?.length}
+              >
+                Seleccionar sólo pregunta-respuesta
+              </Button>
+              <Button
+                size="small"
+                icon={<ReloadOutlined />}
+                loading={forumsQuery.isFetching || groupsQuery.isFetching}
+                onClick={() => { forumsQuery.refetch(); groupsQuery.refetch(); }}
+                title="Vuelve a traer foros y grupos de Moodle"
+              >
+                Refrescar
+              </Button>
+            </Space>
           </Space>
           <Table<ForumSummary>
             rowKey="id"
