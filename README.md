@@ -21,7 +21,6 @@ This project originated as a Final Degree Project (Trabajo de Fin de Grado) and 
 - **Data cross-reference tool** — matches local users against Moodle accounts (by DNI, email and name similarity) to detect and reconcile discrepancies.
 - **Bulk import pipelines:**
   - **SAGE** — automated CSV import from an SFTP server (manual upload or scheduled cron), with fill-gaps matching and conflict decisions.
-  - **Velneo** — CSV import of the legacy business system data.
   - **INAEM** — import of acciones / alumnos / preinscripciones from official INAEM files, with auto-creation of provisional public-funded courses.
 - **Forum duplicator** — replicates a model forum discussion to every group at once, authored by each group's tutor, preserving inline images/embeds and idempotent by subject.
 - **Mail system** — SMTP sending with reusable HTML templates (images hosted on Supabase Storage), variable substitution (e.g. Moodle credentials), and a rich `email_log`.

@@ -1,6 +1,6 @@
 # Import flows
 
-**Read before touching anything under `api/import-sage/` or `api/import-velneo/`.**
+**Read before touching anything under `api/import-sage/`.**
 
 > The INAEM import (`api/import-inaem/`) is a separate flow documented in `docs/import-inaem.md`.
 
@@ -30,6 +30,3 @@ Saved to `failed_user_imports` (schema-defined + versioned in migration `0043`; 
 
 ### Testing
 Unit tests cover the pure matching logic: `buildUserUpdates` and `findSimilarUsers` (`import.service.spec.ts`, seeding `usersByIdCache` to avoid DB), plus `education-level.util.spec.ts`. **PENDING (deferred):** a full E2E (login → upload CSV → poll job → resolve a decision). It needs a real test Postgres with `unaccent`+`pg_trgm` (e.g. Docker/Testcontainers) and is brittle; deferred until there is a staging/test environment, since the core matching is already unit-covered. Don't add it without that infra.
-
-## Velneo (`api/import-velneo/`) — legacy
-One-time migration tool used during initial data load. Processes a full Velneo ERP CSV dump in phases (users → companies → associate → courses → groups). Not actively maintained. The upload endpoint requires `ADMIN` role (`@UseGuards(RoleGuard([Role.ADMIN]))`).

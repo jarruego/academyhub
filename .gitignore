@@ -1,7 +1,5 @@
 # Ignore server import artefact logs
 /server/import-debug.log
-/server/import-velneo-debug.log
-/server/import-bad-rows.csv
 /server/*.log
 
 # Node artifacts

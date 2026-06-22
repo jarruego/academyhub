@@ -51,13 +51,6 @@ export const toolCategories: ToolCategory[] = [
         icon: <FileTextOutlined style={{ fontSize: 20 }} />,
         linkTo: "/tools/import-inaem",
       },
-      {
-        key: "import-velneo",
-        label: "Importación Velneo",
-        description: "Importa usuarios, cursos y grupos desde CSV Velneo.",
-        icon: <FileTextOutlined style={{ fontSize: 20 }} />,
-        linkTo: "/tools/import-velneo",
-      },
     ],
   },
   {
