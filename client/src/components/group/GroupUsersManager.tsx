@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Table, Button, message, Modal, notification, Dropdown, Tag } from 'antd';
+import { Table, Button, message, Modal, notification, Dropdown, Tag, Spin, Typography } from 'antd';
 import type { MenuProps } from 'antd';
 import { Tooltip } from 'antd';
 import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined, DownOutlined } from '@ant-design/icons';
@@ -804,6 +804,22 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         onRemoveUser={(id) => setSelectedUserIds(prev => prev.filter(x => x !== id))}
         contextHolder={contextHolder}
       />
+
+      <Modal
+        title="Sincronizando con Moodle..."
+        open={syncMoodleGroupMembersPending}
+        closable={false}
+        footer={null}
+        width={400}
+        maskClosable={false}
+      >
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+          <Spin size="large" />
+          <div style={{ marginTop: 16 }}>
+            <Typography.Text>Trayendo usuarios desde Moodle, espera un momento...</Typography.Text>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
