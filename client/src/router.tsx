@@ -20,6 +20,7 @@ import { Layout, Menu, Button, Drawer, Grid } from 'antd';
 import type { MenuProps } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 import ToolsRoute from './routes/tools/tools.route';
+import ToolList from './components/tools/ToolList';
 import DataCrossReferenceRoute from './routes/tools/data-cross-reference.route';
 import MoodleImportRoute from './routes/tools/moodle-import.route';
 import SageImportRoute from './routes/tools/import-sage.route';
@@ -46,6 +47,8 @@ import {
   TeamOutlined,
   MailOutlined,
   MenuOutlined,
+  FileTextOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content, Header } = Layout;
@@ -81,8 +84,10 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
   if (role?.toLowerCase() === Role.ADMIN) {
     const adminChildren: MenuItem[] = [
       { key: '/organization', icon: <SettingOutlined />, label: <Link to="/organization" onClick={onClose}>Organización</Link> },
-      { key: '/organization/smtp', icon: <MailOutlined />, label: <Link to="/organization/smtp" onClick={onClose}>SMTP</Link> },
-      { key: '/tools', icon: <ToolOutlined />, label: <Link to="/tools" onClick={onClose}>Herramientas</Link> },
+      { key: '/tools/importaciones', icon: <FileTextOutlined />, label: <Link to="/tools/importaciones" onClick={onClose}>Importaciones</Link> },
+      { key: '/tools/gestion-acceso', icon: <SafetyCertificateOutlined />, label: <Link to="/tools/gestion-acceso" onClick={onClose}>Gestión y acceso</Link> },
+      { key: '/tools/correo', icon: <MailOutlined />, label: <Link to="/tools/correo" onClick={onClose}>Correo</Link> },
+      { key: '/tools/herramientas', icon: <ToolOutlined />, label: <Link to="/tools/herramientas" onClick={onClose}>Herramientas</Link> },
     ];
     menuItems.push({ key: 'administracion', icon: <SettingOutlined />, label: <span>Administración</span>, children: adminChildren });
   }
@@ -160,6 +165,10 @@ export default function AppRouter() {
               <Route path="/centers" element={<CentersRoute />} />
               <Route path="/reports" element={<ReportsRoute />} />
               <Route path="/tools" element={<ToolsRoute />} />
+              <Route path="/tools/importaciones" element={<ToolList categoryKey="importaciones" />} />
+              <Route path="/tools/gestion-acceso" element={<ToolList categoryKey="gestion-acceso" />} />
+              <Route path="/tools/correo" element={<ToolList categoryKey="correo" />} />
+              <Route path="/tools/herramientas" element={<ToolList categoryKey="herramientas" />} />
               <Route path="/tools/data-cross-reference" element={<DataCrossReferenceRoute />} />
               <Route path="/tools/user-management" element={<UserManagementRoute />} />
               <Route path="/tools/moodle-import" element={<MoodleImportRoute />} />
