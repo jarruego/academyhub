@@ -5,6 +5,7 @@ export { usePendingDecisions, useProcessDecision, usePendingDecision } from './u
 export { useProcessedDecisions, useRevertDecision } from './useProcessedDecisions';
 export { useRecentJobs, useActiveJobs } from './useImportJobs';
 export { useFailedUsers, useFailedUsersStats } from './useFailedUsers';
+export { useDeleteFailedUsers } from './useDeleteFailedUsers';
 export { useSftpConnection } from './useSftpConnection';
 export { useSftpFileDownload } from './useSftpFileDownload';
 export { useCancelImport } from './useCancelImport';

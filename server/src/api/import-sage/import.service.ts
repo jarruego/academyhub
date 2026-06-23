@@ -3038,20 +3038,24 @@ export class ImportService {
                 )
             `);
 
-            // Obtener usuarios fallidos con paginación
+            // Obtener usuarios fallidos con paginación.
+            // Excluye los fallidos de INAEM (import_source 'inaem'): esta pantalla
+            // gestiona SOLO la importación SAGE (importaciones separadas).
             const results = await this.databaseService.db.execute(sql`
-                SELECT 
-                    id, dni, name, first_surname, second_surname, email, 
-                    import_id, nss, company_name, center_name, 
+                SELECT
+                    id, dni, name, first_surname, second_surname, email,
+                    import_id, nss, company_name, center_name,
                     failure_reason, import_source, created_at
-                FROM failed_user_imports 
-                ORDER BY created_at DESC 
+                FROM failed_user_imports
+                WHERE import_source IS DISTINCT FROM 'inaem'
+                ORDER BY created_at DESC
                 LIMIT ${limit} OFFSET ${offset}
             `);
 
             // Obtener el total de registros
             const countResult = await this.databaseService.db.execute(sql`
                 SELECT COUNT(*) as total FROM failed_user_imports
+                WHERE import_source IS DISTINCT FROM 'inaem'
             `);
 
             const total = (countResult as any).rows?.[0]?.total || 0;
@@ -3102,20 +3106,23 @@ export class ImportService {
                 )
             `);
 
+            // Solo estadísticas SAGE: excluye los fallidos de INAEM.
             const stats = await this.databaseService.db.execute(sql`
-                SELECT 
+                SELECT
                     COUNT(*) as total,
                     COUNT(DISTINCT company_name) as companies,
                     COUNT(DISTINCT center_name) as centers,
                     COUNT(DISTINCT failure_reason) as unique_errors
                 FROM failed_user_imports
+                WHERE import_source IS DISTINCT FROM 'inaem'
             `);
 
             const reasonStats = await this.databaseService.db.execute(sql`
-                SELECT 
+                SELECT
                     failure_reason,
                     COUNT(*) as count
                 FROM failed_user_imports
+                WHERE import_source IS DISTINCT FROM 'inaem'
                 GROUP BY failure_reason
                 ORDER BY count DESC
                 LIMIT ${breakdownLimit}
@@ -3147,6 +3154,46 @@ export class ImportService {
     }
 
     /**
+     * Elimina todos los registros de usuarios fallidos.
+     */
+    async deleteAllFailedUsers(): Promise<{ deleted: number }> {
+        await this.databaseService.db.execute(sql`
+            CREATE TABLE IF NOT EXISTS failed_user_imports (
+                id SERIAL PRIMARY KEY,
+                dni VARCHAR(20),
+                name VARCHAR(100),
+                first_surname VARCHAR(100),
+                second_surname VARCHAR(100),
+                email VARCHAR(255),
+                import_id VARCHAR(50),
+                nss VARCHAR(20),
+                company_name VARCHAR(255),
+                center_name VARCHAR(255),
+                csv_row_data JSONB NOT NULL,
+                failure_reason TEXT,
+                import_source VARCHAR(50) DEFAULT 'sage',
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Solo borra los fallidos SAGE; los de INAEM (import_source 'inaem')
+        // se gestionan aparte. Por eso no se usa TRUNCATE (afectaría a todo).
+        const countResult = await this.databaseService.db.execute(sql`
+            SELECT COUNT(*) as total FROM failed_user_imports
+            WHERE import_source IS DISTINCT FROM 'inaem'
+        `);
+        const deleted = parseInt((countResult as any).rows?.[0]?.total || '0', 10);
+
+        await this.databaseService.db.execute(sql`
+            DELETE FROM failed_user_imports
+            WHERE import_source IS DISTINCT FROM 'inaem'
+        `);
+
+        this.logger.warn(`🗑️ Eliminados ${deleted} usuarios fallidos de failed_user_imports`);
+        return { deleted };
+    }
+
+    /**
      * Obtiene las decisiones procesadas (completadas)
      */
     async getProcessedDecisions(filters?: {
@@ -3156,7 +3203,12 @@ export class ImportService {
         search?: string;
     }) {
         try {
-            const conditions = [eq(import_decisions.processed, true)];
+            // Esta pantalla gestiona SOLO decisiones SAGE. Las decisiones INAEM
+            // (import_source 'inaem-*') se resuelven en su pestaña "Conflictos".
+            const conditions = [
+                eq(import_decisions.processed, true),
+                sql`${import_decisions.import_source} NOT LIKE 'inaem%'`,
+            ];
 
             if (filters?.action) {
                 conditions.push(eq(import_decisions.decision_action, filters.action));

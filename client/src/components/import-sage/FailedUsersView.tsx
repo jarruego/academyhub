@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { Table, Card, Pagination, Tag, Typography, Alert, Descriptions, Modal, Tooltip, Space, Statistic, Row, Col } from 'antd'
-import { ExclamationCircleOutlined, EyeOutlined, InfoCircleOutlined } from '@ant-design/icons'
-import { useFailedUsers, useFailedUsersStats } from '../../hooks/api/import-sage'
+import { Table, Card, Pagination, Tag, Typography, Alert, Descriptions, Modal, Tooltip, Space, Statistic, Row, Col, Button, Popconfirm, message } from 'antd'
+import { ExclamationCircleOutlined, EyeOutlined, InfoCircleOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useFailedUsers, useFailedUsersStats, useDeleteFailedUsers } from '../../hooks/api/import-sage'
 
 const { Title, Text } = Typography
 
@@ -29,6 +29,19 @@ export const FailedUsersView: React.FC = () => {
 
   const { data: failedUsers, isLoading: usersLoading, error: usersError } = useFailedUsers(currentPage, pageSize)
   const { data: stats, isLoading: statsLoading } = useFailedUsersStats()
+  const { mutate: deleteFailedUsers, isPending: isDeleting } = useDeleteFailedUsers()
+
+  const handleDeleteAll = () => {
+    deleteFailedUsers(undefined, {
+      onSuccess: (data) => {
+        message.success(`${data.deleted} usuarios fallidos eliminados`)
+        setCurrentPage(1)
+      },
+      onError: (error) => {
+        message.error(`Error al eliminar: ${(error as Error).message}`)
+      },
+    })
+  }
 
   const columns = [
     {
@@ -185,7 +198,29 @@ export const FailedUsersView: React.FC = () => {
       )}
 
       {/* Tabla de usuarios fallidos */}
-      <Card>
+      <Card
+        title={`Usuarios fallidos (${failedUsers?.pagination.total ?? 0})`}
+        extra={
+          <Popconfirm
+            title="Eliminar todos los usuarios fallidos"
+            description="Se borrarán todos los registros de usuarios fallidos. Esta acción no se puede deshacer."
+            okText="Eliminar todos"
+            okButtonProps={{ danger: true, loading: isDeleting }}
+            cancelText="Cancelar"
+            onConfirm={handleDeleteAll}
+            disabled={!failedUsers?.pagination.total}
+          >
+            <Button
+              danger
+              icon={<DeleteOutlined />}
+              loading={isDeleting}
+              disabled={!failedUsers?.pagination.total}
+            >
+              Borrar todos
+            </Button>
+          </Popconfirm>
+        }
+      >
         <Table
           columns={columns}
           dataSource={failedUsers?.users || []}

@@ -636,6 +636,22 @@ export class ImportController {
         return await this.importService.getFailedUsersStats();
     }
 
+    @Delete('failed-users')
+    @UseGuards(RoleGuard([Role.ADMIN]))
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'Eliminar todos los usuarios fallidos en importación' })
+    @ApiResponse({
+        status: 200,
+        description: 'Usuarios fallidos eliminados exitosamente'
+    })
+    async deleteAllFailedUsers() {
+        const { deleted } = await this.importService.deleteAllFailedUsers();
+        return {
+            message: 'Usuarios fallidos eliminados exitosamente',
+            deleted
+        };
+    }
+
     /**
      * Verificar conexión SFTP
      */
