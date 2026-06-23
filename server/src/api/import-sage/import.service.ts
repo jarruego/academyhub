@@ -51,9 +51,11 @@ import { UserInsertModel } from "src/database/schema/tables/user.table";
 import { CompanyInsertModel } from "src/database/schema/tables/company.table";
 import { CenterInsertModel } from "src/database/schema/tables/center.table";
 import { UserCenterInsertModel } from "src/database/schema/tables/user_center.table";
+import { DbCondition } from "src/database/types/db-expression";
 import { DocumentType } from "src/types/user/document-type.enum";
 import { Gender } from "src/types/user/gender.enum";
 import { mapSageEducationLevel, FUNDAE_DEFAULT_EDUCATION_LEVEL } from "./education-level.util";
+import { canonicalNss } from "src/utils/nss.util";
 
 @Injectable()
 export class ImportService {
@@ -2133,7 +2135,7 @@ export class ImportService {
         }
 
         if (!existingUser.nss && data.nss) {
-            updates.nss = data.nss;
+            updates.nss = canonicalNss(data.nss);
         }
 
         if (!existingUser.email && data.email) {
@@ -2178,7 +2180,7 @@ export class ImportService {
             birth_date: data.birth_date || null,
             job_position: data.job_position || null,
             salary_group: data.salary_group || null,
-            nss: data.nss || null,
+            nss: canonicalNss(data.nss) || null,
             registration_date: new Date(),
             phone: data.phone || null,
             document_type: document_type,
@@ -2558,7 +2560,16 @@ export class ImportService {
                 )
             );
         } else {
-            return await query.where(eq(import_decisions.processed, false));
+            // Sin filtro de fuente, esta pantalla gestiona SOLO decisiones SAGE.
+            // Las decisiones INAEM (import_source 'inaem-*') son conflictos de campo
+            // que se resuelven en su propia pestaña "Conflictos" (overwrite/keep) y
+            // NO admiten el flujo link/create_new de SAGE (no tienen empresa/centro).
+            return await query.where(
+                and(
+                    eq(import_decisions.processed, false),
+                    sql`${import_decisions.import_source} NOT LIKE 'inaem%'`
+                )
+            );
         }
     }
 
@@ -2582,6 +2593,13 @@ export class ImportService {
         if (!decision) {
             this.logger.error(`❌ Decision with ID ${decisionId} not found`);
             throw new Error(`Decision with ID ${decisionId} not found`);
+        }
+
+        // Las decisiones INAEM son conflictos de campo (sin empresa/centro) y se
+        // resuelven en la pestaña "Conflictos" del tool INAEM (overwrite/keep), no
+        // por el flujo link/create_new de SAGE. Rechazar aquí con un mensaje claro.
+        if (typeof decision.import_source === 'string' && decision.import_source.startsWith('inaem')) {
+            throw new Error('Esta decisión proviene de la importación INAEM. Resuélvela en la pestaña "Conflictos" del tool de Importación INAEM (sobrescribir/mantener).');
         }
 
         // Ejecutar la acción correspondiente
@@ -2676,6 +2694,40 @@ export class ImportService {
 
             if (!existingUser) {
                 throw new Error(`Usuario con ID ${userId} no encontrado`);
+            }
+
+            // 1.bis Detectar colisión de unicidad ANTES de actualizar: dni y nss son
+            // UNIQUE. Si el dni/nss del CSV ya pertenecen a OTRO usuario (caso típico
+            // de ficha duplicada NIE↔DNI de la misma persona), el UPDATE fallaría con
+            // un opaco error 23505. Avisamos con un mensaje accionable.
+            const targetNss = csvData.nss || existingUser.nss;
+            const collisionConds: DbCondition[] = [];
+            if (csvData.dni) collisionConds.push(eq(users.dni, csvData.dni));
+            if (targetNss) collisionConds.push(eq(users.nss, targetNss));
+            if (collisionConds.length > 0) {
+                const collisions = await this.databaseService.db
+                    .select({
+                        id_user: users.id_user,
+                        dni: users.dni,
+                        nss: users.nss,
+                        name: users.name,
+                        first_surname: users.first_surname,
+                        second_surname: users.second_surname,
+                    })
+                    .from(users)
+                    .where(and(or(...collisionConds), sql`${users.id_user} <> ${userId}`));
+
+                if (collisions.length > 0) {
+                    const owner = collisions[0];
+                    const fields: string[] = [];
+                    if (csvData.dni && collisions.some(c => c.dni === csvData.dni)) fields.push(`DNI ${csvData.dni}`);
+                    if (targetNss && collisions.some(c => c.nss === targetNss)) fields.push(`NSS ${targetNss}`);
+                    const ownerName = [owner.name, owner.first_surname, owner.second_surname].filter(Boolean).join(' ').trim();
+                    throw new Error(
+                        `No se puede actualizar el usuario ${userId}: ${fields.join(' y ')} ya pertenece(n) al usuario ${owner.id_user} (${ownerName}). ` +
+                        `Probablemente son fichas duplicadas de la misma persona: fusiónalas o vincula la decisión al usuario correcto antes de procesarla.`
+                    );
+                }
             }
 
             // 2. Preparar metadatos de cambio para reversión

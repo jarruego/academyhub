@@ -14,6 +14,8 @@ import { UserCourseRepository } from "src/database/repository/course/user-course
 import { eq, sql, and } from "drizzle-orm";
 import { DbCondition } from 'src/database/types/db-expression';
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
+import { importDecisionsTable } from "src/database/schema/tables/import.table";
+import { canonicalNss } from "src/utils/nss.util";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 import { users } from "src/database/schema";
 import { FilterUserDTO } from "src/dto/user/filter-user.dto";
@@ -54,6 +56,11 @@ export class UserService {
 
     if (typeof sanitized.email === 'string') {
       sanitized.email = this.sanitizeEmail(sanitized.email) as T['email'];
+    }
+
+    // NSS: guardar siempre en forma canónica (12 dígitos, ceros a la izquierda).
+    if (typeof sanitized.nss === 'string' && sanitized.nss.trim() !== '') {
+      sanitized.nss = canonicalNss(sanitized.nss) as T['nss'];
     }
 
     return sanitized;
@@ -212,6 +219,15 @@ export class UserService {
         // Log & continue - do not block deletion if we can't remove moodle mappings
         // (but prefer failing loudly in future if desired)
       }
+
+      // Decisiones de importación (SAGE/INAEM) pueden enlazar a este usuario vía
+      // selected_user_id (FK nullable). Esa fila no se ve en la ficha pero bloquea
+      // el delete. Desvinculamos (NULL) en lugar de borrar para conservar el
+      // historial de la decisión de matching.
+      await transaction
+        .update(importDecisionsTable)
+        .set({ selected_user_id: null })
+        .where(eq(importDecisionsTable.selected_user_id, id));
 
       return await this.userRepository.delete(id, { transaction });
     });

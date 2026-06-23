@@ -1,5 +1,5 @@
 import { Button, Card, List, Typography } from "antd";
-import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined, SafetyCertificateOutlined, MailOutlined, CommentOutlined, SettingOutlined } from "@ant-design/icons";
+import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined, SafetyCertificateOutlined, MailOutlined, CommentOutlined, SettingOutlined, MergeCellsOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
@@ -103,6 +103,13 @@ export const toolCategories: ToolCategory[] = [
         description: "Replica el tema de los foros de Moodle a todos los grupos (un tema por grupo), en nombre del tutor.",
         icon: <CommentOutlined style={{ fontSize: 20 }} />,
         linkTo: "/tools/forum-duplicator",
+      },
+      {
+        key: "merge-duplicates",
+        label: "Fusión de duplicados",
+        description: "Detecta usuarios duplicados por NSS (caso NIE↔DNI) y fúsionalos en una sola ficha.",
+        icon: <MergeCellsOutlined style={{ fontSize: 20 }} />,
+        linkTo: "/tools/merge-duplicates",
       },
     ],
   },

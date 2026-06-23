@@ -38,6 +38,7 @@ Configured in `server/src/main.ts` with an explicit origin allowlist: `localhost
 `AuditInterceptor` (global `APP_INTERCEPTOR`, `src/interceptors/audit.interceptor.ts`) records mutating requests (POST/PUT/PATCH/DELETE) to the `audit_log` table (migration `0044`) — actor (`request.user`), method, path, route params, status, IP. Best-effort (never breaks/blocks the request) and **does not store request bodies** (avoids logging passwords/tokens). GETs and per-row import DB writes are not audited (only the originating HTTP call). It also skips `/mail/send` and `/mail/send-from-template` (`AUDIT_SKIP_PATHS`) to avoid duplicating the richer `email_log` entry; `/mail/connection` is still audited.
 - Read-only query API: `GET /audit-log` (ADMIN, `api/audit/`) paginated + filterable (method/actor/date); UI at Administración → Herramientas → "Registro de auditoría" (`/tools/audit-log`).
 - Email sends have their own richer log — see `email_log` in `docs/mail-moodle.md`.
+- **User merge** (`api/user-merge/`, ADMIN, destructive) has no dedicated log: it relies on this `audit_log`, passing `winnerId`/`loserId` in the route so they land in `target`/`path`. The operation is irreversible (loser hard-deleted, no snapshot). See `docs/user-merge.md`.
 
 ## Known open security items
 - **Contraseñas sin complejidad**: only `MinLength(8)` enforced; no uppercase/number/special char requirement.

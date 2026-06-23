@@ -23,7 +23,8 @@ describe('ImportService.buildUserUpdates (fill-gaps + overwrite)', () => {
     const updates = build({}, data);
     expect(updates).toEqual({
       salary_group: 5, gender: Gender.FEMALE, job_position: 'Dev',
-      birth_date: data.birth_date, nss: '123', email: 'a@b.c',
+      // el NSS se guarda en forma canónica (12 dígitos, ceros a la izquierda)
+      birth_date: data.birth_date, nss: '000000000123', email: 'a@b.c',
       education_level: '4', phone: '600',
     });
   });
