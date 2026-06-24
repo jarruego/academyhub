@@ -13,7 +13,9 @@ import {
     Select,
     Input,
     DatePicker,
-    Tooltip
+    Tooltip,
+    Popconfirm,
+    message
 } from 'antd';
 import {
     HistoryOutlined,
@@ -24,11 +26,13 @@ import {
     CloseCircleOutlined,
     ClockCircleOutlined,
     ExclamationCircleOutlined,
-    LoadingOutlined
+    LoadingOutlined,
+    DeleteOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import { useRecentJobs } from '../../hooks/api/import-sage/useImportJobs';
+import { useDeleteImportJob } from '../../hooks/api/import-sage';
 import { JobInfo } from '../../types/import.types';
 
 dayjs.extend(isBetween);
@@ -150,11 +154,21 @@ export const ImportJobsHistoryComponent: React.FC = () => {
     const [limit, setLimit] = useState(50);
 
     const { data: jobs, isLoading, error, refetch } = useRecentJobs(limit);
+    const { mutate: deleteJob, isPending: isDeleting } = useDeleteImportJob();
 
     const handleViewJob = (job: JobInfo) => {
         setSelectedJob(job);
         setModalOpen(true);
     };
+
+    const handleDeleteJob = (jobId: string) => {
+        deleteJob(jobId, {
+            onSuccess: () => message.success('Trabajo eliminado'),
+            onError: (err) => message.error(`Error al eliminar: ${(err as Error).message}`),
+        });
+    };
+
+    const isActiveStatus = (status: string) => status === 'processing' || status === 'pending';
 
     const handleFilterChange = (key: string, value: any) => {
         setFilters(prev => ({ ...prev, [key]: value }));
@@ -289,16 +303,34 @@ export const ImportJobsHistoryComponent: React.FC = () => {
         {
             title: 'Acciones',
             key: 'actions',
-            width: 100,
+            width: 140,
             render: (_: any, record: JobInfo) => (
-                <Button
-                    type="link"
-                    size="small"
-                    onClick={() => handleViewJob(record)}
-                    icon={<EyeOutlined />}
-                >
-                    Ver
-                </Button>
+                <Space size={0}>
+                    <Button
+                        type="link"
+                        size="small"
+                        onClick={() => handleViewJob(record)}
+                        icon={<EyeOutlined />}
+                    >
+                        Ver
+                    </Button>
+                    {isActiveStatus(record.status) ? (
+                        <Tooltip title="No se puede eliminar un trabajo en progreso. Cancélalo primero.">
+                            <Button type="link" size="small" danger disabled icon={<DeleteOutlined />} />
+                        </Tooltip>
+                    ) : (
+                        <Popconfirm
+                            title="Eliminar trabajo"
+                            description="¿Eliminar este trabajo del historial?"
+                            okText="Eliminar"
+                            okButtonProps={{ danger: true, loading: isDeleting }}
+                            cancelText="Cancelar"
+                            onConfirm={() => handleDeleteJob(record.jobId)}
+                        >
+                            <Button type="link" size="small" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                    )}
+                </Space>
             ),
         },
     ];

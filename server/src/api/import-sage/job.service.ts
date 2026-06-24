@@ -39,25 +39,30 @@ export class JobService {
             .insert(import_jobs)
             .values(jobData);
 
-        // Retención: conservar solo los 100 jobs más recientes
-        await this.keepOnlyLatestJobs(100);
+        // Retención: como máximo 1000 trabajos y como máximo 3 meses de antigüedad
+        await this.applyRetention(1000, 3);
 
         this.logger.log(`Trabajo creado: ${jobId} (${type})`);
         return jobId;
     }
 
     /**
-     * Elimina jobs antiguos para conservar solo los N más recientes.
+     * Aplica la política de retención del historial: elimina los trabajos que
+     * superen los N más recientes O que tengan más de `maxAgeMonths` meses.
      */
-    private async keepOnlyLatestJobs(maxJobs: number): Promise<void> {
+    private async applyRetention(maxJobs: number, maxAgeMonths: number): Promise<void> {
+        const cutoffDate = new Date();
+        cutoffDate.setMonth(cutoffDate.getMonth() - maxAgeMonths);
+
         await this.databaseService.db.execute(sql`
             DELETE FROM import_jobs
-            WHERE id IN (
-                SELECT id
-                FROM import_jobs
-                ORDER BY created_at DESC, id DESC
-                OFFSET ${maxJobs}
-            )
+            WHERE created_at < ${cutoffDate}
+               OR id IN (
+                    SELECT id
+                    FROM import_jobs
+                    ORDER BY created_at DESC, id DESC
+                    OFFSET ${maxJobs}
+               )
         `);
     }
 
@@ -230,6 +235,31 @@ export class JobService {
 
         this.logger.log(`Limpieza de trabajos antiguos: ${result.length} trabajos eliminados`);
         return result.length;
+    }
+
+    /**
+     * Elimina un trabajo individual por su job_id.
+     * No permite borrar trabajos activos (PENDING/PROCESSING) para no dejar
+     * una importación en curso sin su registro: primero hay que cancelarlos.
+     * Devuelve 'not_found' | 'active' | 'deleted'.
+     */
+    async deleteJob(jobId: string): Promise<'not_found' | 'active' | 'deleted'> {
+        const job = await this.getJobStatus(jobId);
+
+        if (!job) {
+            return 'not_found';
+        }
+
+        if (this.isJobActive(job.status as ImportJobStatus)) {
+            return 'active';
+        }
+
+        await this.databaseService.db
+            .delete(import_jobs)
+            .where(eq(import_jobs.job_id, jobId));
+
+        this.logger.log(`Trabajo eliminado: ${jobId}`);
+        return 'deleted';
     }
 
     /**

@@ -573,6 +573,34 @@ export class ImportController {
     }
 
     /**
+     * Eliminar un trabajo individual del historial
+     */
+    @Delete('jobs/:jobId')
+    @ApiOperation({ summary: 'Eliminar un trabajo de importación del historial' })
+    @ApiResponse({ status: 200, description: 'Trabajo eliminado exitosamente' })
+    @ApiResponse({ status: 400, description: 'No se puede eliminar un trabajo activo' })
+    @ApiResponse({ status: 404, description: 'Trabajo no encontrado' })
+    async deleteJob(@Param('jobId') jobId: string) {
+        const result = await this.jobService.deleteJob(jobId);
+
+        if (result === 'not_found') {
+            throw new HttpException('Trabajo no encontrado', HttpStatus.NOT_FOUND);
+        }
+
+        if (result === 'active') {
+            throw new HttpException(
+                'No se puede eliminar un trabajo en progreso. Cancélalo primero.',
+                HttpStatus.BAD_REQUEST
+            );
+        }
+
+        return {
+            message: 'Trabajo eliminado exitosamente',
+            jobId
+        };
+    }
+
+    /**
      * Limpiar trabajos antiguos
      */
     @Post('cleanup')

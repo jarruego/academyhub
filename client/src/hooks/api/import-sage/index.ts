@@ -4,6 +4,7 @@ export { useJobStatus } from './useJobStatus';
 export { usePendingDecisions, useProcessDecision, usePendingDecision } from './usePendingDecisions';
 export { useProcessedDecisions, useRevertDecision } from './useProcessedDecisions';
 export { useRecentJobs, useActiveJobs } from './useImportJobs';
+export { useDeleteImportJob } from './useDeleteImportJob';
 export { useFailedUsers, useFailedUsersStats } from './useFailedUsers';
 export { useDeleteFailedUsers } from './useDeleteFailedUsers';
 export { useSftpConnection } from './useSftpConnection';
