@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Button, Select, message, Table, Modal, Popconfirm } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
@@ -71,9 +72,48 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
         pagination={false}
         columns={[
           { title: "ID", dataIndex: "id_center", key: "id_center" },
-          { title: "Nombre", dataIndex: "center_name", key: "center_name" },
-          { title: "Nº Patronal", dataIndex: "employer_number", key: "employer_number" },
-          { title: "Empresa", dataIndex: "company_name", key: "company_name" },
+          {
+            title: "Nombre",
+            dataIndex: "center_name",
+            key: "center_name",
+            render: (name: string | null, record: UserCenter) => (
+              <Link
+                to={`/centers/${record.id_center}/edit`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {name}
+              </Link>
+            ),
+          },
+          {
+            title: "Nº Patronal",
+            dataIndex: "employer_number",
+            key: "employer_number",
+            render: (employerNumber: string | null, record: UserCenter) => (
+              <Link
+                to={`/centers/${record.id_center}/edit`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {employerNumber}
+              </Link>
+            ),
+          },
+          {
+            title: "Empresa",
+            dataIndex: "company_name",
+            key: "company_name",
+            render: (companyName: string | null, record: UserCenter) => (
+              <Link
+                to={`/companies/${record.id_company}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {companyName}
+              </Link>
+            ),
+          },
           { 
             title: "Fecha de alta", 
             dataIndex: "start_date", 
