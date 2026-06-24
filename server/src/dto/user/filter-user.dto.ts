@@ -151,4 +151,18 @@ export class FilterUserDTO {
   @IsOptional()
   @IsIn(['fundae', 'inaem', 'privada'])
   formation_type?: 'fundae' | 'inaem' | 'privada';
+
+  // Mostrar/ocultar usuarios dados de baja (con fecha de baja en su centro
+  // principal). Por defecto se muestran todos; con `false` se excluyen los de baja.
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  include_inactive?: boolean;
+
+  // Junto con `id_center`, restringe a los usuarios cuyo centro principal
+  // (is_main_center) es ese centro. Sin `id_center` no tiene efecto.
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  main_center_only?: boolean;
 }

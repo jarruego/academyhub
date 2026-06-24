@@ -2,10 +2,11 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useCompanyQuery } from "../../hooks/api/companies/use-company.query";
 import { useUpdateCompanyMutation } from "../../hooks/api/companies/use-update-company.mutation";
 import { useDeleteCompanyMutation } from "../../hooks/api/companies/use-delete-company.mutation";
-import { Button, Form, Input, Table, Tabs, Modal } from "antd";
+import { Button, Form, Input, Tabs, Modal } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
+import { CentersTable } from "../../components/centers/centers-table";
 import { PlusOutlined, DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -138,30 +139,19 @@ export default function CompanyDetailRoute() {
       key: "2",
       label: "Centros",
       children: (
-        <>
-          <Table
-            rowKey="id_center"
-            columns={[
-              { title: 'ID', dataIndex: 'id_center' },
-              { title: 'Nombre del centro', dataIndex: 'center_name' },
-              { title: 'Número de patronal', dataIndex: 'employer_number' },
-              { title: 'Persona de contacto', dataIndex: 'contact_person' },
-              { title: 'Teléfono de contacto', dataIndex: 'contact_phone' },
-              { title: 'Email de contacto', dataIndex: 'contact_email' },
-            ]}
-            dataSource={centersData}
-            loading={isCentersLoading}
-            onRow={(record) => ({
-              onDoubleClick: () => navigate(`/centers/${record.id_center}/edit`),
-              style: { cursor: 'pointer' }
-            })}
-          />
-          <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter}>
-            Añadir Centro
-          </Button>
-          </AuthzHide>
-        </>
+        <CentersTable
+          centers={centersData}
+          loading={isCentersLoading}
+          scopedToCompany
+          rowTrigger="doubleClick"
+          toolbarExtra={
+            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter}>
+                Añadir Centro
+              </Button>
+            </AuthzHide>
+          }
+        />
       ),
     },
   ];

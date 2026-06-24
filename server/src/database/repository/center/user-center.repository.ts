@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { UserCenterInsertModel, userCenterTable, UserCenterUpdateModel } from "src/database/schema/tables/user_center.table";
 import { InsertResult } from 'src/database/types/insert-result';
 
@@ -17,6 +17,23 @@ export class UserCenterRepository extends Repository {
 
     async updateByUserId(userId: number, data: UserCenterUpdateModel, options?: QueryOptions) {
         return await this.query(options).update(userCenterTable).set(data).where(eq(userCenterTable.id_user, userId));
+    }
+
+    /** Conteo de usuarios por centro: total asociados y total que lo tienen como centro principal. */
+    async countByCenter(options?: QueryOptions): Promise<Array<{ id_center: number; user_count: number; main_user_count: number }>> {
+        const rows = await this.query(options)
+            .select({
+                id_center: userCenterTable.id_center,
+                user_count: count(),
+                main_user_count: sql<number>`count(*) filter (where ${userCenterTable.is_main_center})`,
+            })
+            .from(userCenterTable)
+            .groupBy(userCenterTable.id_center);
+        return rows.map((r) => ({
+            id_center: r.id_center,
+            user_count: Number(r.user_count),
+            main_user_count: Number(r.main_user_count),
+        }));
     }
 
     async findUsersInCenter(centerId: number, options?: QueryOptions) {

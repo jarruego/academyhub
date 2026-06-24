@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { App, Button, Form, Input, Modal, Tabs, Table } from "antd";
+import { App, Button, Checkbox, Form, Input, Modal, Tabs, Table } from "antd";
 import { useCenterQuery } from "../../hooks/api/centers/use-center.query";
 import { useUpdateCenterMutation } from "../../hooks/api/centers/use-update-center.mutation";
 import { useDeleteCenterMutation } from "../../hooks/api/centers/use-delete-center.mutation";
@@ -14,6 +14,7 @@ import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { User } from "../../shared/types/user/user";
+import { BajaTag } from "../../components/users/baja-tag";
 import { TablePaginationConfig } from "antd/es/table";
 import { useDebounce } from "../../hooks/use-debounce";
 import { normalizeSearch } from "../../utils/normalize-search";
@@ -57,6 +58,8 @@ export default function EditCenterRoute() {
   const [searchText, setSearchText] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(100);
+  const [showInactive, setShowInactive] = useState(true);
+  const [onlyMainCenter, setOnlyMainCenter] = useState(true);
   const debouncedSearchText = useDebounce(searchText, 500);
   const normalizedSearchText = useMemo(() => normalizeSearch(debouncedSearchText), [debouncedSearchText]);
 
@@ -71,6 +74,8 @@ export default function EditCenterRoute() {
     limit: pageSize,
     search: normalizedSearchText,
     id_center: id_center,
+    includeInactive: showInactive,
+    mainCenterOnly: onlyMainCenter,
   });
 
   useEffect(() => {
@@ -229,15 +234,27 @@ export default function EditCenterRoute() {
   // Contenido de la pestaña "Usuarios"
   const usersTab = (
     <div ref={wrapperRef}>
-      <div ref={controlsRef} style={{ marginBottom: 16 }}>
-        <Input.Search 
-          placeholder="Buscar usuarios (nombre, apellido, email, DNI)" 
-          style={{ maxWidth: 400 }} 
+      <div ref={controlsRef} style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <Input.Search
+          placeholder="Buscar usuarios (nombre, apellido, email, DNI)"
+          style={{ maxWidth: 400 }}
           value={searchText}
           onChange={handleSearch}
           loading={isUsersLoading}
           allowClear
         />
+        <Checkbox
+          checked={onlyMainCenter}
+          onChange={(e) => { setOnlyMainCenter(e.target.checked); setCurrentPage(1); }}
+        >
+          Solo centro principal
+        </Checkbox>
+        <Checkbox
+          checked={showInactive}
+          onChange={(e) => { setShowInactive(e.target.checked); setCurrentPage(1); }}
+        >
+          Mostrar dados de baja
+        </Checkbox>
       </div>
       <Table 
         rowKey="id_user" 
@@ -259,6 +276,7 @@ export default function EditCenterRoute() {
             dataIndex: 'name',
             sorter: (a: User, b: User) => (a.name ?? '').localeCompare(b.name ?? ''),
             width: 150,
+            render: (_, user: User) => <>{user.name}<BajaTag user={user} /></>,
           },
           {
             title: 'Apellidos',

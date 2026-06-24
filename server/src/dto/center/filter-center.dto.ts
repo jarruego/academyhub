@@ -1,7 +1,9 @@
 import { IsNumber, IsOptional, IsPositive, IsString, MaxLength } from "class-validator";
+import { Type } from "class-transformer";
 import { CenterSelectModel } from "src/database/schema/tables/center.table";
 
 export class FilterCenterDTO implements Partial<CenterSelectModel> {
+    @Type(() => Number)
     @IsNumber()
     @IsPositive()
     @IsOptional()
@@ -17,6 +19,7 @@ export class FilterCenterDTO implements Partial<CenterSelectModel> {
     @MaxLength(128)
     employer_number: string;
 
+    @Type(() => Number)
     @IsNumber()
     @IsPositive()
     @IsOptional()

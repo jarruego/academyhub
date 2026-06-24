@@ -12,6 +12,7 @@ import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useDebounce } from "../../hooks/use-debounce";
 import { normalizeSearch } from "../../utils/normalize-search";
 import { User } from "../../shared/types/user/user";
+import { BajaTag } from "../../components/users/baja-tag";
 import { TablePaginationConfig } from "antd/es/table";
 
 export default function UsersRoute() {
@@ -28,8 +29,8 @@ export default function UsersRoute() {
 
   const [selectedCompany, setSelectedCompany] = useState<string | undefined>(undefined);
   const [selectedCenter, setSelectedCenter] = useState<string | undefined>(undefined);
-  const [preinscribedOnly, setPreinscribedOnly] = useState(false);
   const [formationType, setFormationType] = useState<FormationType | undefined>(undefined);
+  const [showInactive, setShowInactive] = useState(true);
 
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery(selectedCompany);
@@ -40,8 +41,8 @@ export default function UsersRoute() {
     search: normalizedSearchText,
     id_company: selectedCompany,
     id_center: selectedCenter,
-    preinscribed: preinscribedOnly || undefined,
     formation_type: formationType,
+    includeInactive: showInactive,
   };
 
   const { data: usersResponse, isLoading: isUsersLoading, error } = useUsersQuery(queryParams);
@@ -139,15 +140,13 @@ export default function UsersRoute() {
           { label: 'Privada', value: 'privada' },
         ]}
       />
-      <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-        <Checkbox
-          checked={preinscribedOnly}
-          onChange={(e) => { setPreinscribedOnly(e.target.checked); setCurrentPage(1); }}
-          style={{ marginBottom: 16 }}
-        >
-          Solo preinscritos
-        </Checkbox>
-      </AuthzHide>
+      <Checkbox
+        checked={showInactive}
+        onChange={(e) => { setShowInactive(e.target.checked); setCurrentPage(1); }}
+        style={{ marginBottom: 16 }}
+      >
+        Mostrar dados de baja
+      </Checkbox>
       <AuthzHide roles={[Role.ADMIN]}>
         <Button
           onClick={() => navigate('/users/create')}
@@ -179,6 +178,7 @@ export default function UsersRoute() {
           dataIndex: 'name',
           sorter: (a: User, b: User) => (a.name ?? '').localeCompare(b.name ?? ''),
           width: 150,
+          render: (_, user: User) => <>{user.name}<BajaTag user={user} /></>,
         },
         {
           title: 'Apellidos',

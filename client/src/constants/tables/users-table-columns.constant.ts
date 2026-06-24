@@ -3,6 +3,7 @@ import { User } from "../../shared/types/user/user";
 import { UserCenter } from "../../shared/types/center/user-center";
 import React from "react";
 import { Progress } from "antd";
+import { BajaTag } from "../../components/users/baja-tag";
 // Use the existing `UserCenter` type (includes is_main_center) and add the
 // optional `is_enrollment_center` flag that the backend may include.
 type Center = UserCenter & { is_enrollment_center?: boolean };
@@ -27,7 +28,7 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
     { title: 'Nombre', dataIndex: ['name'], sorter: {
         compare: (a,b) => a.name.localeCompare(b.name),
         multiple: 2
-    } },
+    }, render: (_: unknown, user: User) => React.createElement(React.Fragment, null, user.name, React.createElement(BajaTag, { user })) },
     { title: 'Apellidos', dataIndex: ['first_surname'], sorter: {
         compare: (a, b) => (a.first_surname || '').localeCompare(b.first_surname || ''),
     } },

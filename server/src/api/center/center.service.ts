@@ -7,6 +7,7 @@ import { CompanyRepository } from "src/database/repository/company/company.repos
 import { QueryOptions } from "src/database/repository/repository";
 import { CenterInsertModel, CenterSelectModel, CenterUpdateModel } from "src/database/schema/tables/center.table";
 import { UserCenterInsertModel, UserCenterUpdateModel, userCenterTable } from "src/database/schema/tables/user_center.table";
+import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { UpdateUsersMainCenterDTO } from "src/dto/center/update-users-main-center.dto";
 import { eq } from "drizzle-orm";
 import { UserService } from "../user/user.service"; 
@@ -30,9 +31,14 @@ export class CenterService {
   async findAll(filter: CenterSelectModel, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       const centers = await this.centerRepository.findAll(filter, { transaction }) as Array<CenterSelectModel>;
+      const counts = await this.userCenterRepository.countByCenter({ transaction });
+      const countsByCenter = new Map(counts.map((c) => [c.id_center, c]));
       for (const center of centers) {
         const company = await this.companyRepository.findOne(center.id_company, { transaction });
         center.company_name = company?.company_name;
+        const c = countsByCenter.get(center.id_center);
+        center.user_count = c?.user_count ?? 0;
+        center.main_user_count = c?.main_user_count ?? 0;
       }
       return centers;
     });
@@ -65,6 +71,11 @@ export class CenterService {
       if (!center) {
         throw new NotFoundException(`Center with ID ${id} not found`);
       }
+      // Desvincular referencias que bloquean el borrado por FK:
+      // - user_group.id_center es un puntero nullable (centro de matrícula): se pone a NULL.
+      // - user_center son las pertenencias del usuario al centro: se eliminan.
+      await transaction.update(userGroupTable).set({ id_center: null }).where(eq(userGroupTable.id_center, id));
+      await transaction.delete(userCenterTable).where(eq(userCenterTable.id_center, id));
       return await this.centerRepository.deleteById(id, { transaction });
     });
   }

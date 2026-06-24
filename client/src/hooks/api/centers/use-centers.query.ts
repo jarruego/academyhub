@@ -10,7 +10,7 @@ export const useCentersQuery = (id_company?: string) => {
         queryKey: id_company ? ['centers', id_company] : ['centers', 'all'],
         queryFn: async () => (await request({
             method: 'GET',
-            url: id_company ? `${getApiHost()}/company/${id_company}/centers` : `${getApiHost()}/center`
+            url: id_company ? `${getApiHost()}/center?id_company=${id_company}` : `${getApiHost()}/center`
         })).data,
     });
 };

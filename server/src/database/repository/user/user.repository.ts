@@ -127,7 +127,8 @@ export class UserRepository extends Repository {
     if (filter.email) conditions.push(sql`unaccent(lower(${users.email})) LIKE unaccent(lower(${`%${filter.email}%`}))`);
 
     if (filter.id_center) {
-      conditions.push(sql`EXISTS (SELECT 1 FROM ${userCenterTable} uc WHERE uc.id_user = ${users.id_user} AND uc.id_center = ${filter.id_center})`);
+      const mainOnly = filter.main_center_only ? sql` AND uc.is_main_center = true` : sql``;
+      conditions.push(sql`EXISTS (SELECT 1 FROM ${userCenterTable} uc WHERE uc.id_user = ${users.id_user} AND uc.id_center = ${filter.id_center}${mainOnly})`);
     }
 
     if (filter.id_company) {
@@ -156,6 +157,12 @@ export class UserRepository extends Repository {
         JOIN ${courseTable} c ON g.id_course = c.id_course
         WHERE ug.id_user = ${users.id_user} AND ${typeCond}
       )`);
+    }
+
+    // Ocultar usuarios dados de baja: los que tienen su centro principal con fecha
+    // de baja (coincide con lo que marca la etiqueta "B" del cliente).
+    if (filter.include_inactive === false) {
+      conditions.push(sql`NOT EXISTS (SELECT 1 FROM ${userCenterTable} uc WHERE uc.id_user = ${users.id_user} AND uc.is_main_center = true AND uc.end_date IS NOT NULL)`);
     }
 
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;

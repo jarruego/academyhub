@@ -40,6 +40,9 @@ export type User = {
         start_date?: string | Date | null;
         end_date?: string | Date | null;
     }>;
+    // Fecha de baja en el centro principal (centro activo). La incluyen los listados
+    // de grupo, que no devuelven el array completo `centers`. Ver `BajaTag`.
+    main_center_end_date?: string | Date | null;
     // Role information (populated when listing users in a group)
     id_role?: number | null;
     is_tutor?: boolean | null;

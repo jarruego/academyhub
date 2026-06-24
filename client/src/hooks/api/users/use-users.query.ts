@@ -9,14 +9,14 @@ type PaginatedUsersResult = PaginationResult<User>;
 
 export type FormationType = 'fundae' | 'inaem' | 'privada';
 
-export type UsersQueryParams = PaginationParams & { id_company?: string; id_center?: string; preinscribed?: boolean; formation_type?: FormationType };
+export type UsersQueryParams = PaginationParams & { id_company?: string; id_center?: string; preinscribed?: boolean; formation_type?: FormationType; includeInactive?: boolean; mainCenterOnly?: boolean };
 
 export const useUsersQuery = (params: UsersQueryParams = {}) => {
-    const { page = 1, limit = 100, search = "", id_company, id_center, preinscribed, formation_type } = params;
+    const { page = 1, limit = 100, search = "", id_company, id_center, preinscribed, formation_type, includeInactive = true, mainCenterOnly = false } = params;
     const request = useAuthenticatedAxios<PaginatedUsersResult>();
 
     return useQuery({
-        queryKey: ['users', 'paginated', page, limit, search, id_company || null, id_center || null, preinscribed || false, formation_type || null],
+        queryKey: ['users', 'paginated', page, limit, search, id_company || null, id_center || null, preinscribed || false, formation_type || null, includeInactive, mainCenterOnly],
         queryFn: async () => {
             const queryParams = new URLSearchParams({
                 page: page.toString(),
@@ -26,6 +26,10 @@ export const useUsersQuery = (params: UsersQueryParams = {}) => {
                 ...(id_center && { id_center }),
                 ...(preinscribed && { preinscribed: 'true' }),
                 ...(formation_type && { formation_type }),
+                // Sólo se envía para ocultar las bajas; por defecto se muestran todos.
+                ...(includeInactive === false && { include_inactive: 'false' }),
+                // Junto con id_center, restringe a quienes lo tienen como centro principal.
+                ...(mainCenterOnly && id_center && { main_center_only: 'true' }),
             });
 
             return (await request({

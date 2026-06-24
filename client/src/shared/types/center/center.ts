@@ -7,6 +7,8 @@ export type Center = {
     contact_person?: string | null;
     contact_phone?: string | null;
     contact_email?: string | null;
+    user_count?: number;
+    main_user_count?: number;
     created_at?: Date;
     updated_at?: Date;
 };
