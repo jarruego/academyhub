@@ -9,6 +9,8 @@ export type Center = {
     contact_email?: string | null;
     user_count?: number;
     main_user_count?: number;
+    inactive_count?: number;
+    active_count?: number;
     created_at?: Date;
     updated_at?: Date;
 };

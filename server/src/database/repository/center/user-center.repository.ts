@@ -19,13 +19,22 @@ export class UserCenterRepository extends Repository {
         return await this.query(options).update(userCenterTable).set(data).where(eq(userCenterTable.id_user, userId));
     }
 
-    /** Conteo de usuarios por centro: total asociados y total que lo tienen como centro principal. */
-    async countByCenter(options?: QueryOptions): Promise<Array<{ id_center: number; user_count: number; main_user_count: number }>> {
+    /**
+     * Conteo de usuarios por centro. La "baja" se deriva de end_date (Fecha de Baja del import):
+     * activo = end_date IS NULL; baja = end_date IS NOT NULL (mismo criterio que user-merge).
+     * - user_count: total de usuarios asociados.
+     * - main_user_count: usuarios que lo tienen como centro principal.
+     * - inactive_count: usuarios dados de baja.
+     * - active_count: usuarios activos (asociados sin fecha de baja, aunque no sea su centro principal).
+     */
+    async countByCenter(options?: QueryOptions): Promise<Array<{ id_center: number; user_count: number; main_user_count: number; inactive_count: number; active_count: number }>> {
         const rows = await this.query(options)
             .select({
                 id_center: userCenterTable.id_center,
                 user_count: count(),
                 main_user_count: sql<number>`count(*) filter (where ${userCenterTable.is_main_center})`,
+                inactive_count: sql<number>`count(*) filter (where ${userCenterTable.end_date} is not null)`,
+                active_count: sql<number>`count(*) filter (where ${userCenterTable.end_date} is null)`,
             })
             .from(userCenterTable)
             .groupBy(userCenterTable.id_center);
@@ -33,6 +42,8 @@ export class UserCenterRepository extends Repository {
             id_center: r.id_center,
             user_count: Number(r.user_count),
             main_user_count: Number(r.main_user_count),
+            inactive_count: Number(r.inactive_count),
+            active_count: Number(r.active_count),
         }));
     }
 

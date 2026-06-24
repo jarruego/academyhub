@@ -120,6 +120,8 @@ export function CentersTable({
           ...(scopedToCompany ? [] : [{ title: 'Empresa', dataIndex: 'company_name', sorter: (a: Center, b: Center) => (a.company_name ?? '').localeCompare(b.company_name ?? '') }]),
           { title: 'Usuarios asociados', dataIndex: 'user_count', align: 'right' as const, sorter: (a, b) => (a.user_count ?? 0) - (b.user_count ?? 0), render: (value) => value ?? 0 },
           { title: 'Usuarios (principal)', dataIndex: 'main_user_count', align: 'right' as const, sorter: (a, b) => (a.main_user_count ?? 0) - (b.main_user_count ?? 0), render: (value) => value ?? 0 },
+          { title: 'Activos', dataIndex: 'active_count', align: 'right' as const, sorter: (a, b) => (a.active_count ?? 0) - (b.active_count ?? 0), render: (value) => value ?? 0 },
+          { title: 'Bajas', dataIndex: 'inactive_count', align: 'right' as const, sorter: (a, b) => (a.inactive_count ?? 0) - (b.inactive_count ?? 0), render: (value) => value ?? 0 },
         ]}
         dataSource={filteredCenters}
         loading={loading}

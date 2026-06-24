@@ -22,6 +22,6 @@ export const centerTable = pgTable('centers', {
     };
 });
 
-export type CenterSelectModel = InferSelectModel<typeof centerTable> & {company_name?: string; user_count?: number; main_user_count?: number};
+export type CenterSelectModel = InferSelectModel<typeof centerTable> & {company_name?: string; user_count?: number; main_user_count?: number; inactive_count?: number; active_count?: number};
 export type CenterInsertModel = InferInsertModel<typeof centerTable>;
 export type CenterUpdateModel = Partial<CenterInsertModel>;

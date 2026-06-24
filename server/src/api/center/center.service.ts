@@ -39,6 +39,8 @@ export class CenterService {
         const c = countsByCenter.get(center.id_center);
         center.user_count = c?.user_count ?? 0;
         center.main_user_count = c?.main_user_count ?? 0;
+        center.inactive_count = c?.inactive_count ?? 0;
+        center.active_count = c?.active_count ?? 0;
       }
       return centers;
     });
