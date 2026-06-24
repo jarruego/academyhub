@@ -18,7 +18,7 @@ import {
 import { Response } from "express";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags, ApiOperation, ApiConsumes, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
-import { IsBoolean, IsEnum, IsOptional, IsNumber, IsString } from "class-validator";
+import { IsBoolean, IsEnum, IsOptional, IsNumber, IsString, IsObject } from "class-validator";
 import { Transform } from "class-transformer";
 import { RoleGuard } from "src/guards/role.guard";
 import { Role } from "src/guards/role.enum";
@@ -119,11 +119,19 @@ class PendingDecisionDto {
 class ProcessDecisionDto {
     @IsEnum(DecisionAction, { message: 'Action must be one of: link, create_new, skip, update_and_link' })
     action: DecisionAction;
-    
+
     @IsOptional()
     @IsNumber({}, { message: 'Selected user ID must be a number' })
     selectedUserId?: number;
-    
+
+    // Mapa de selección por campo para link/update_and_link: { dni: 'csv'|'db', nss, name,
+    // first_surname, second_surname, email, phone }. Determina, campo a campo, si el valor
+    // final es el del CSV o el de la BD. Opcional: si no se envía, se mantiene el
+    // comportamiento clásico (update_and_link = todo CSV).
+    @IsOptional()
+    @IsObject()
+    fieldSelections?: Record<string, 'csv' | 'db'>;
+
     @IsOptional()
     notes?: string;
 }
@@ -440,6 +448,8 @@ export class ImportController {
             dniDb: decision.dni_db || undefined,
             emailDb: decision.email_db || undefined,
             nssDb: decision.nss_db || undefined,
+            phoneCsv: (decision.csv_row_data as any)?.['Movilidad geografica'] || undefined,
+            phoneDb: decision.phone_db || undefined,
             similarityScore: parseFloat(decision.similarity_score?.toString() || '0'),
             csvRowData: decision.csv_row_data,
             changeMetadata: decision.change_metadata,
@@ -467,7 +477,8 @@ export class ImportController {
             await this.importService.processDecision(
                 id,
                 processDecisionDto.action,
-                processDecisionDto.selectedUserId
+                processDecisionDto.selectedUserId,
+                processDecisionDto.fieldSelections
             );
 
             return {

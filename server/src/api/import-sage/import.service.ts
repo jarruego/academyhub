@@ -2579,10 +2579,24 @@ export class ImportService {
             .from(import_decisions)
             .where(eq(import_decisions.id, id))
             .limit(1);
-        return decision ?? null;
+        if (!decision) return null;
+
+        // Teléfono de BD: no se guarda en import_decisions; se lee del usuario
+        // coincidente (selected_user_id) para poder compararlo/seleccionarlo en la modal.
+        let phone_db: string | null = null;
+        if (decision.selected_user_id) {
+            const [matchedUser] = await this.databaseService.db
+                .select({ phone: users.phone })
+                .from(users)
+                .where(eq(users.id_user, decision.selected_user_id))
+                .limit(1);
+            phone_db = matchedUser?.phone ?? null;
+        }
+
+        return { ...decision, phone_db };
     }
 
-    async processDecision(decisionId: number, action: DecisionAction, selectedUserId?: number): Promise<void> {
+    async processDecision(decisionId: number, action: DecisionAction, selectedUserId?: number, fieldSelections?: Record<string, 'csv' | 'db'>): Promise<void> {
         // Primero obtener los datos de la decisión
         const [decision] = await this.databaseService.db
             .select()
@@ -2602,16 +2616,26 @@ export class ImportService {
             throw new Error('Esta decisión proviene de la importación INAEM. Resuélvela en la pestaña "Conflictos" del tool de Importación INAEM (sobrescribir/mantener).');
         }
 
+        // ¿La selección por campo introduce algún valor del CSV? Si es así, aunque la
+        // acción elegida sea 'link', hay que actualizar esos campos (y registrar la
+        // decisión como update_and_link para que la reversión restaure los valores).
+        const fieldMapTouchesCsv = !!fieldSelections && Object.values(fieldSelections).some(v => v === 'csv');
+
         // Ejecutar la acción correspondiente
         switch (action) {
             case 'create_new':
                 await this.executeCreateNewUser(decision);
                 break;
             case 'link':
+                if (fieldMapTouchesCsv) {
+                    // Vincular pero con campos del CSV seleccionados -> merge por campo
+                    await this.executeUpdateAndLink(decision, selectedUserId, fieldSelections);
+                    return;
+                }
                 await this.executeLinkUser(decision, selectedUserId);
                 break;
             case 'update_and_link':
-                await this.executeUpdateAndLink(decision, selectedUserId);
+                await this.executeUpdateAndLink(decision, selectedUserId, fieldSelections);
                 // NOTA: executeUpdateAndLink ya actualiza el estado de la decisión
                 return; // Salir temprano para evitar doble actualización
             case 'skip':
@@ -2674,17 +2698,17 @@ export class ImportService {
     /**
      * Ejecuta update_and_link: actualiza datos del usuario BD y procesa empresa/centro del CSV
      */
-    private async executeUpdateAndLink(decision: any, selectedUserId?: number): Promise<void> {
+    private async executeUpdateAndLink(decision: any, selectedUserId?: number, fieldSelections?: Record<string, 'csv' | 'db'>): Promise<void> {
         try {
             const userId = selectedUserId || decision.selected_user_id;
-            
+
             if (!userId) {
                 throw new Error('No se proporcionó ID de usuario para update_and_link');
             }
-            
+
             // Recrear ProcessedUserData del CSV
             const csvData: ProcessedUserData = this.normalizeCSVRow(decision.csv_row_data, decision.id);
-            
+
             // 1. Obtener datos actuales del usuario en BD
             const [existingUser] = await this.databaseService.db
                 .select()
@@ -2696,13 +2720,37 @@ export class ImportService {
                 throw new Error(`Usuario con ID ${userId} no encontrado`);
             }
 
+            // Valores finales por campo. Con fieldSelections el operador eligió, campo a
+            // campo, CSV o BD; sin él se mantiene el comportamiento clásico (todo CSV,
+            // con NSS/email/phone cayendo a BD si el CSV viene vacío). En ambos casos,
+            // un valor elegido vacío NUNCA machaca un valor existente del otro lado.
+            const isEmpty = (v: any) => v === undefined || v === null || String(v).trim() === '';
+            const pick = (field: string, csvVal: any, dbVal: any, classicDefault: any) => {
+                if (!fieldSelections) return classicDefault;
+                const sel = fieldSelections[field] ?? 'csv';
+                const chosen = sel === 'db' ? dbVal : csvVal;
+                if (!isEmpty(chosen)) return chosen;
+                // El lado elegido está vacío: usar el otro (no borrar datos).
+                const other = sel === 'db' ? csvVal : dbVal;
+                return isEmpty(other) ? chosen : other;
+            };
+
+            const finalDni = pick('dni', csvData.dni, existingUser.dni, csvData.dni);
+            const finalNss = pick('nss', csvData.nss, existingUser.nss, csvData.nss || existingUser.nss);
+            const finalName = pick('name', csvData.name, existingUser.name, csvData.name);
+            const finalFirstSurname = pick('first_surname', csvData.first_surname, existingUser.first_surname, csvData.first_surname);
+            const finalSecondSurname = pick('second_surname', csvData.second_surname, existingUser.second_surname, csvData.second_surname);
+            const finalEmail = pick('email', csvData.email, existingUser.email, csvData.email || existingUser.email);
+            const finalPhone = pick('phone', csvData.phone, existingUser.phone, csvData.phone || existingUser.phone);
+
             // 1.bis Detectar colisión de unicidad ANTES de actualizar: dni y nss son
-            // UNIQUE. Si el dni/nss del CSV ya pertenecen a OTRO usuario (caso típico
+            // UNIQUE. Si el dni/nss FINAL ya pertenece a OTRO usuario (caso típico
             // de ficha duplicada NIE↔DNI de la misma persona), el UPDATE fallaría con
-            // un opaco error 23505. Avisamos con un mensaje accionable.
-            const targetNss = csvData.nss || existingUser.nss;
+            // un opaco error 23505. Avisamos con un mensaje accionable. Se comprueba
+            // sobre los valores finales (tras la selección por campo).
+            const targetNss = finalNss;
             const collisionConds: DbCondition[] = [];
-            if (csvData.dni) collisionConds.push(eq(users.dni, csvData.dni));
+            if (finalDni) collisionConds.push(eq(users.dni, finalDni));
             if (targetNss) collisionConds.push(eq(users.nss, targetNss));
             if (collisionConds.length > 0) {
                 const collisions = await this.databaseService.db
@@ -2720,7 +2768,7 @@ export class ImportService {
                 if (collisions.length > 0) {
                     const owner = collisions[0];
                     const fields: string[] = [];
-                    if (csvData.dni && collisions.some(c => c.dni === csvData.dni)) fields.push(`DNI ${csvData.dni}`);
+                    if (finalDni && collisions.some(c => c.dni === finalDni)) fields.push(`DNI ${finalDni}`);
                     if (targetNss && collisions.some(c => c.nss === targetNss)) fields.push(`NSS ${targetNss}`);
                     const ownerName = [owner.name, owner.first_surname, owner.second_surname].filter(Boolean).join(' ').trim();
                     throw new Error(
@@ -2757,34 +2805,33 @@ export class ImportService {
                     phone: existingUser.phone
                 },
                 
-                // Datos BD después del cambio
+                // Datos BD después del cambio (valores finales tras la selección por campo)
                 updated_bd: {
-                    dni: csvData.dni,
-                    nss: csvData.nss || existingUser.nss,
-                    name: csvData.name,
-                    first_surname: csvData.first_surname,
-                    second_surname: csvData.second_surname,
-                    email: csvData.email || existingUser.email,
-                    phone: csvData.phone || existingUser.phone
+                    dni: finalDni,
+                    nss: finalNss,
+                    name: finalName,
+                    first_surname: finalFirstSurname,
+                    second_surname: finalSecondSurname,
+                    email: finalEmail,
+                    phone: finalPhone
                 },
-                
+
                 // Incluir 'nss' porque en la acción manual actualizamos NSS desde el CSV
                 updated_fields: ["dni", "nss", "name", "first_surname", "second_surname", "email", "phone"],
                 can_revert: true
             };
 
-            // 3. Actualizar usuario en BD con datos del CSV
+            // 3. Actualizar usuario en BD con los valores finales por campo
             await this.databaseService.db
                 .update(users)
                 .set({
-                    dni: csvData.dni,
-                    // Sobrescribir NSS con el valor del CSV si existe, en caso contrario mantener el existente
-                    nss: csvData.nss || existingUser.nss,
-                    name: csvData.name,
-                    first_surname: csvData.first_surname,
-                    second_surname: csvData.second_surname,
-                    email: csvData.email || existingUser.email, // Usar email CSV o mantener BD
-                    phone: csvData.phone || existingUser.phone,
+                    dni: finalDni,
+                    nss: finalNss,
+                    name: finalName,
+                    first_surname: finalFirstSurname,
+                    second_surname: finalSecondSurname,
+                    email: finalEmail,
+                    phone: finalPhone,
                     updatedAt: new Date()
                 })
                 .where(eq(users.id_user, userId));

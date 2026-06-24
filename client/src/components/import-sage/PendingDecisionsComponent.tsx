@@ -14,7 +14,8 @@ import {
     Empty,
     Badge,
     App,
-    Input
+    Input,
+    Collapse
 } from 'antd';
 import {
     CheckOutlined,
@@ -24,13 +25,57 @@ import {
     ExclamationCircleOutlined,
     InfoCircleOutlined,
     SyncOutlined,
-    SearchOutlined
+    SearchOutlined,
+    CheckCircleOutlined
 } from '@ant-design/icons';
 import { usePendingDecisions, useProcessDecision, usePendingDecision, useDeleteDecision } from '../../hooks/api/import-sage/usePendingDecisions';
-import { PendingDecision, ProcessDecisionRequest } from '../../types/import.types';
+import { PendingDecision, ProcessDecisionRequest, ProcessedDecision, SelectableField, FieldSource } from '../../types/import.types';
 import { detectDocumentType, validateNSS } from '../../utils/detect-document-type';
 
 const { Title, Text } = Typography;
+
+// ---- Selección de campos (CSV vs BD) en la modal de comparación ----
+interface FieldDef {
+    key: SelectableField;
+    label: string;
+    csv?: string;
+    db?: string;
+}
+
+const isEmptyVal = (v: unknown): boolean => v === undefined || v === null || String(v).trim() === '';
+
+// Construye la lista de campos comparables con sus valores CSV y BD.
+const buildFieldDefs = (decision: PendingDecision, detail?: ProcessedDecision): FieldDef[] => {
+    const csvNss = detail?.csvRowData?.['Personas ProvNumSoe'];
+    const csvEmail = detail?.csvRowData?.['email'] || detail?.csvRowData?.['Email'] || detail?.csvRowData?.['mail'];
+    const csvPhone = detail?.csvRowData?.['Movilidad geografica'] ?? detail?.phoneCsv;
+    return [
+        { key: 'dni', label: 'DNI', csv: decision.dniCsv, db: decision.dniDb },
+        { key: 'nss', label: 'NSS', csv: csvNss, db: decision.nssDb },
+        { key: 'name', label: 'Nombre', csv: decision.nameCSV, db: decision.nameDb },
+        { key: 'first_surname', label: 'Primer Apellido', csv: decision.firstSurnameCSV, db: decision.firstSurnameDb },
+        { key: 'second_surname', label: 'Segundo Apellido', csv: decision.secondSurnameCSV, db: decision.secondSurnameDb },
+        { key: 'email', label: 'Email', csv: csvEmail, db: decision.emailDb },
+        { key: 'phone', label: 'Teléfono', csv: csvPhone, db: detail?.phoneDb },
+    ];
+};
+
+// Defaults de selección según la acción: 'link' por defecto BD, el resto CSV.
+// Un lado vacío nunca es seleccionable: se fuerza al lado con valor.
+const computeDefaultSelections = (
+    defs: FieldDef[],
+    action: string
+): Partial<Record<SelectableField, FieldSource>> => {
+    const preferred: FieldSource = action === 'link' ? 'db' : 'csv';
+    const out: Partial<Record<SelectableField, FieldSource>> = {};
+    for (const f of defs) {
+        const csvEmpty = isEmptyVal(f.csv);
+        const dbEmpty = isEmptyVal(f.db);
+        if (csvEmpty && dbEmpty) continue; // sin valor en ningún lado: no seleccionable
+        out[f.key] = csvEmpty ? 'db' : dbEmpty ? 'csv' : preferred;
+    }
+    return out;
+};
 
 interface DecisionModalProps {
     decision: PendingDecision | null;
@@ -48,6 +93,7 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
     loading
 }) => {
     const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip' | 'update_and_link'>('update_and_link');
+    const [fieldSelections, setFieldSelections] = useState<Partial<Record<SelectableField, FieldSource>>>({});
     const { modal, message } = App.useApp();
     const deleteDecisionMutation = useDeleteDecision();
 
@@ -62,7 +108,22 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
         open && decision ? decision.id : null
     );
 
+    // Recalcular los defaults de selección por campo cuando cambia la acción o llegan
+    // los datos del detalle (NSS/email/teléfono viven en csvRowData/phoneDb).
+    useEffect(() => {
+        if (!open || !decision) return;
+        const defs = buildFieldDefs(decision, detailData);
+        setFieldSelections(computeDefaultSelections(defs, selectedAction));
+    }, [open, decision, detailData, selectedAction]);
+
     if (!decision) return null;
+
+    const fieldDefs = buildFieldDefs(decision, detailData);
+    const selectionEnabled = selectedAction === 'link' || selectedAction === 'update_and_link';
+
+    const selectField = (key: SelectableField, source: FieldSource) => {
+        setFieldSelections(prev => ({ ...prev, [key]: source }));
+    };
 
     const handleProcess = () => {
         modal.confirm({
@@ -70,7 +131,11 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
             icon: <ExclamationCircleOutlined />,
             content: getConfirmationMessage(selectedAction),
             onOk: () => {
-                onProcess(decision.id, { action: selectedAction });
+                const data: ProcessDecisionRequest = { action: selectedAction };
+                if (selectionEnabled) {
+                    data.fieldSelections = fieldSelections;
+                }
+                onProcess(decision.id, data);
                 onClose();
                 setSelectedAction('update_and_link');
             },
@@ -148,15 +213,9 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
         };
     };
 
-    // Obtener valores para comparación
-    const csvNss = detailData?.csvRowData?.['Personas ProvNumSoe'];
-    // Legacy desactivado:
-    // const csvNss = detailData?.csvRowData?.['Personas.ProvNumSoe'] || detailData?.csvRowData?.['NSS'];
-    const csvEmail = detailData?.csvRowData?.['email'] || detailData?.csvRowData?.['Email'] || detailData?.csvRowData?.['mail'];
-
     return (
         <Modal
-            title={`Decisión Manual - Similitud ${(decision.similarityScore * 100).toFixed(1)}%`}
+            title={`Decisión · ${(decision.similarityScore * 100).toFixed(1)}% similitud`}
             open={open}
             onCancel={onClose}
             width={800}
@@ -186,102 +245,69 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                 </div>
             }
         >
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <Alert
-                    message="Posible Coincidencia Detectada"
-                    description={`Se encontró un usuario similar en la base de datos con ${(decision.similarityScore * 100).toFixed(1)}% de similitud. Decide cómo proceder.`}
-                    type="warning"
-                    showIcon
-                />
-
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                 <div>
-                    <Title level={5}>Comparación de Datos</Title>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                        <Card size="small" title="Datos del CSV" extra={<Tag color="blue">Nuevo</Tag>}>
-                            <Descriptions size="small" column={1}>
-                                <Descriptions.Item label="DNI">
-                                    <span style={compareFields(decision.dniCsv, decision.dniDb).style}>
-                                        {decision.dniCsv}
-                                        {detectDocumentType(decision.dniCsv) === undefined && (
-                                            <Tag color="red" style={{ marginLeft: 6 }}>DNI/NIE inválido</Tag>
-                                        )}
-                                    </span>
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Nombre">
-                                    <span style={compareFields(decision.nameCSV, decision.nameDb).style}>
-                                        {decision.nameCSV}
-                                    </span>
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Primer Apellido">
-                                    <span style={compareFields(decision.firstSurnameCSV, decision.firstSurnameDb).style}>
-                                        {decision.firstSurnameCSV}
-                                    </span>
-                                </Descriptions.Item>
-                                {decision.secondSurnameCSV && (
-                                    <Descriptions.Item label="Segundo Apellido">
-                                        <span style={compareFields(decision.secondSurnameCSV, decision.secondSurnameDb).style}>
-                                            {decision.secondSurnameCSV}
-                                        </span>
-                                    </Descriptions.Item>
-                                )}
-                                <Descriptions.Item label="NSS">
-                                    <span style={compareFields(csvNss, decision.nssDb).style}>
-                                        {csvNss || 'Vacío'}
-                                        {csvNss && !validateNSS(csvNss) && (
-                                            <Tag color="red" style={{ marginLeft: 6 }}>NSS inválido</Tag>
-                                        )}
-                                    </span>
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Email">
-                                    <span style={compareFields(csvEmail, decision.emailDb).style}>
-                                        {csvEmail || 'Vacío'}
-                                    </span>
-                                </Descriptions.Item>
-                            </Descriptions>
-                        </Card>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                        {selectionEnabled
+                            ? 'Clic en el valor (CSV/BD) a conservar en cada campo. La acción fija el origen por defecto.'
+                            : selectedAction === 'create_new'
+                                ? 'Se creará un usuario nuevo con los datos del CSV.'
+                                : 'El registro se omitirá.'}
+                        {detailLoading && <> · <Spin size="small" /> Cargando…</>}
+                    </Text>
 
-                        <Card size="small" title="Usuario en BD" extra={<Tag color="green">Existente</Tag>}>
-                            <Descriptions size="small" column={1}>
-                                <Descriptions.Item label="DNI">
-                                    <span style={compareFields(decision.dniCsv, decision.dniDb).style}>
-                                        {decision.dniDb || 'Vacío'}
-                                        {decision.dniDb && detectDocumentType(decision.dniDb) === undefined && (
-                                            <Tag color="red" style={{ marginLeft: 6 }}>DNI/NIE inválido</Tag>
-                                        )}
-                                    </span>
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Nombre">
-                                    <span style={compareFields(decision.nameCSV, decision.nameDb).style}>
-                                        {decision.nameDb}
-                                    </span>
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Primer Apellido">
-                                    <span style={compareFields(decision.firstSurnameCSV, decision.firstSurnameDb).style}>
-                                        {decision.firstSurnameDb}
-                                    </span>
-                                </Descriptions.Item>
-                                {decision.secondSurnameDb && (
-                                    <Descriptions.Item label="Segundo Apellido">
-                                        <span style={compareFields(decision.secondSurnameCSV, decision.secondSurnameDb).style}>
-                                            {decision.secondSurnameDb}
+                    <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr 1fr', gap: 8, alignItems: 'center', marginTop: 12 }}>
+                        <div />
+                        <div><Tag color="blue">CSV (Nuevo)</Tag></div>
+                        <div><Tag color="green">BD (Existente)</Tag></div>
+
+                        {fieldDefs.map((f) => {
+                            const diff = compareFields(f.csv, f.db).isDifferent;
+
+                            const renderCell = (source: FieldSource) => {
+                                const value = source === 'csv' ? f.csv : f.db;
+                                const empty = isEmptyVal(value);
+                                const selected = selectionEnabled && fieldSelections[f.key] === source;
+                                const selectable = selectionEnabled && !empty;
+                                const invalidDni = f.key === 'dni' && !empty && detectDocumentType(String(value)) === undefined;
+                                const invalidNss = f.key === 'nss' && !empty && !validateNSS(String(value));
+                                return (
+                                    <div
+                                        onClick={() => selectable && selectField(f.key, source)}
+                                        style={{
+                                            cursor: selectable ? 'pointer' : 'default',
+                                            border: selected ? '1px solid #52c41a' : '1px solid #f0f0f0',
+                                            background: selected ? '#f6ffed' : '#fff',
+                                            borderRadius: 6,
+                                            padding: '4px 8px',
+                                            minHeight: 30,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            opacity: empty ? 0.5 : 1,
+                                        }}
+                                    >
+                                        {selected && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                                        <span style={{ color: diff && !empty ? '#d4380d' : undefined }}>
+                                            {empty ? <Text type="secondary">Vacío</Text> : String(value)}
                                         </span>
-                                    </Descriptions.Item>
-                                )}
-                                <Descriptions.Item label="NSS">
-                                    <span style={compareFields(csvNss, decision.nssDb).style}>
-                                        {decision.nssDb || 'Vacío'}
-                                        {decision.nssDb && !validateNSS(decision.nssDb) && (
-                                            <Tag color="red" style={{ marginLeft: 6 }}>NSS inválido</Tag>
-                                        )}
-                                    </span>
-                                </Descriptions.Item>
-                                <Descriptions.Item label="Email">
-                                    <span style={compareFields(csvEmail, decision.emailDb).style}>
-                                        {decision.emailDb || 'Vacío'}
-                                    </span>
-                                </Descriptions.Item>
-                            </Descriptions>
-                        </Card>
+                                        {invalidDni && <Tag color="red" style={{ marginLeft: 'auto' }}>DNI/NIE inválido</Tag>}
+                                        {invalidNss && <Tag color="red" style={{ marginLeft: 'auto' }}>NSS inválido</Tag>}
+                                    </div>
+                                );
+                            };
+
+                            return (
+                                <React.Fragment key={f.key}>
+                                    <div>
+                                        <Text strong>{f.label}</Text>
+                                        {diff && <Tag color="orange" style={{ marginLeft: 6 }}>≠</Tag>}
+                                    </div>
+                                    {renderCell('csv')}
+                                    {renderCell('db')}
+                                </React.Fragment>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -321,12 +347,16 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                     </Radio.Group>
                 </div>
 
-                <div>
-                    <Title level={5}>Datos Completos del CSV</Title>
-                    <Card size="small">
-                        {renderCSVData()}
-                    </Card>
-                </div>
+                <Collapse
+                    items={[
+                        {
+                            key: 'csv-full',
+                            label: 'Datos Completos del CSV',
+                            children: renderCSVData(),
+                        },
+                    ]}
+                />
+                {/* Acordeón cerrado por defecto (sin defaultActiveKey) */}
             </Space>
         </Modal>
     );

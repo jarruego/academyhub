@@ -48,9 +48,16 @@ export interface PendingDecision {
     csvRowData?: any; // Solo disponible tras cargar el detalle (GET /pending-decisions/:id)
 }
 
+export type FieldSource = 'csv' | 'db';
+
+// Campos seleccionables individualmente en la modal de comparación
+export type SelectableField = 'dni' | 'nss' | 'name' | 'first_surname' | 'second_surname' | 'email' | 'phone';
+
 export interface ProcessDecisionRequest {
     action: 'link' | 'create_new' | 'skip' | 'update_and_link';
     selectedUserId?: number;
+    // Mapa de selección por campo (CSV vs BD) para link/update_and_link
+    fieldSelections?: Partial<Record<SelectableField, FieldSource>>;
     notes?: string;
 }
 
@@ -67,6 +74,8 @@ export interface ProcessedDecision {
     dniDb?: string;
     emailDb?: string;
     nssDb?: string;
+    phoneCsv?: string;    // Solo disponible tras cargar el detalle
+    phoneDb?: string;     // Solo disponible tras cargar el detalle
     similarityScore?: number;
     csvRowData?: any;      // Solo disponible tras cargar el detalle (GET /pending-decisions/:id)
     changeMetadata?: any; // Solo disponible tras cargar el detalle
