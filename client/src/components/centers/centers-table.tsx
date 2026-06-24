@@ -1,9 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { Table, Input, Select, Radio, Space } from "antd";
+import { Table, Input, Select, Space } from "antd";
 import { useMemo, useState } from "react";
 import { Center } from "../../shared/types/center/center";
-
-type MainCenterFilter = "all" | "main" | "not-main";
 
 interface CentersTableProps {
   centers?: Center[];
@@ -31,7 +29,6 @@ export function CentersTable({
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
   const [companyFilter, setCompanyFilter] = useState<number[]>([]);
-  const [mainCenterFilter, setMainCenterFilter] = useState<MainCenterFilter>("all");
 
   const normalizedSearch = normalize(searchText);
 
@@ -58,13 +55,7 @@ export function CentersTable({
 
     const matchesCompany = scopedToCompany || companyFilter.length === 0 || companyFilter.includes(center.id_company);
 
-    const isMain = (center.main_user_count ?? 0) > 0;
-    const matchesMain =
-      mainCenterFilter === "all" ||
-      (mainCenterFilter === "main" && isMain) ||
-      (mainCenterFilter === "not-main" && !isMain);
-
-    return matchesSearch && matchesCompany && matchesMain;
+    return matchesSearch && matchesCompany;
   })?.slice().sort((a, b) => (a.center_name ?? '').localeCompare(b.center_name ?? ''));
 
   const openCenter = (record: Center) =>
@@ -96,16 +87,6 @@ export function CentersTable({
             maxTagCount="responsive"
           />
         )}
-        <Radio.Group
-          value={mainCenterFilter}
-          onChange={(e) => setMainCenterFilter(e.target.value)}
-          optionType="button"
-          buttonStyle="solid"
-        >
-          <Radio.Button value="all">Todos</Radio.Button>
-          <Radio.Button value="main">Principales</Radio.Button>
-          <Radio.Button value="not-main">No principales</Radio.Button>
-        </Radio.Group>
         {toolbarExtra}
       </Space>
       <Table
@@ -118,8 +99,7 @@ export function CentersTable({
           { title: 'Teléfono de contacto', dataIndex: 'contact_phone', sorter: (a, b) => (a.contact_phone ?? '').localeCompare(b.contact_phone ?? '') },
           { title: 'Email de contacto', dataIndex: 'contact_email', sorter: (a, b) => (a.contact_email ?? '').localeCompare(b.contact_email ?? '') },
           ...(scopedToCompany ? [] : [{ title: 'Empresa', dataIndex: 'company_name', sorter: (a: Center, b: Center) => (a.company_name ?? '').localeCompare(b.company_name ?? '') }]),
-          { title: 'Usuarios asociados', dataIndex: 'user_count', align: 'right' as const, sorter: (a, b) => (a.user_count ?? 0) - (b.user_count ?? 0), render: (value) => value ?? 0 },
-          { title: 'Usuarios (principal)', dataIndex: 'main_user_count', align: 'right' as const, sorter: (a, b) => (a.main_user_count ?? 0) - (b.main_user_count ?? 0), render: (value) => value ?? 0 },
+          { title: 'Trabajadores', dataIndex: 'user_count', align: 'right' as const, sorter: (a, b) => (a.user_count ?? 0) - (b.user_count ?? 0), render: (value) => value ?? 0 },
           { title: 'Activos', dataIndex: 'active_count', align: 'right' as const, sorter: (a, b) => (a.active_count ?? 0) - (b.active_count ?? 0), render: (value) => value ?? 0 },
           { title: 'Bajas', dataIndex: 'inactive_count', align: 'right' as const, sorter: (a, b) => (a.inactive_count ?? 0) - (b.inactive_count ?? 0), render: (value) => value ?? 0 },
         ]}

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { and, count, eq, sql } from "drizzle-orm";
 import { UserCenterInsertModel, userCenterTable, UserCenterUpdateModel } from "src/database/schema/tables/user_center.table";
+import { centerTable } from "src/database/schema/tables/center.table";
 import { InsertResult } from 'src/database/types/insert-result';
 
 @Injectable()
@@ -40,6 +41,36 @@ export class UserCenterRepository extends Repository {
             .groupBy(userCenterTable.id_center);
         return rows.map((r) => ({
             id_center: r.id_center,
+            user_count: Number(r.user_count),
+            main_user_count: Number(r.main_user_count),
+            inactive_count: Number(r.inactive_count),
+            active_count: Number(r.active_count),
+        }));
+    }
+
+    /**
+     * Conteo de usuarios por empresa (a través de sus centros). Mismos criterios que
+     * countByCenter pero agregando por empresa y contando usuarios DISTINTOS, porque un
+     * usuario puede pertenecer a varios centros de la misma empresa y no debe contarse dos veces.
+     * - user_count: usuarios distintos asociados a algún centro de la empresa.
+     * - main_user_count: usuarios cuyo centro principal pertenece a la empresa.
+     * - inactive_count: usuarios con alguna baja (end_date IS NOT NULL) en la empresa.
+     * - active_count: usuarios con alguna asociación activa (end_date IS NULL) en la empresa.
+     */
+    async countByCompany(options?: QueryOptions): Promise<Array<{ id_company: number; user_count: number; main_user_count: number; inactive_count: number; active_count: number }>> {
+        const rows = await this.query(options)
+            .select({
+                id_company: centerTable.id_company,
+                user_count: sql<number>`count(distinct ${userCenterTable.id_user})`,
+                main_user_count: sql<number>`count(distinct ${userCenterTable.id_user}) filter (where ${userCenterTable.is_main_center})`,
+                inactive_count: sql<number>`count(distinct ${userCenterTable.id_user}) filter (where ${userCenterTable.end_date} is not null)`,
+                active_count: sql<number>`count(distinct ${userCenterTable.id_user}) filter (where ${userCenterTable.end_date} is null)`,
+            })
+            .from(userCenterTable)
+            .innerJoin(centerTable, eq(userCenterTable.id_center, centerTable.id_center))
+            .groupBy(centerTable.id_company);
+        return rows.map((r) => ({
+            id_company: r.id_company,
             user_count: Number(r.user_count),
             main_user_count: Number(r.main_user_count),
             inactive_count: Number(r.inactive_count),

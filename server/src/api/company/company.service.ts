@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { CompanyRepository } from "src/database/repository/company/company.repository";
 import { CenterRepository } from "src/database/repository/center/center.repository";
+import { UserCenterRepository } from "src/database/repository/center/user-center.repository";
 import { QueryOptions } from "src/database/repository/repository";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
@@ -11,6 +12,7 @@ export class CompanyService {
   constructor(
     private readonly companyRepository: CompanyRepository,
     private readonly centerRepository: CenterRepository,
+    private readonly userCenterRepository: UserCenterRepository,
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService
   ) { }
 
@@ -41,7 +43,20 @@ export class CompanyService {
 
   async findAll(filter: Partial<CompanySelectModel>, options?: QueryOptions) {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.companyRepository.findAll(filter, { transaction });
+      const companies = await this.companyRepository.findAll(filter, { transaction }) as Array<CompanySelectModel>;
+      const centerCounts = await this.centerRepository.countByCompany({ transaction });
+      const userCounts = await this.userCenterRepository.countByCompany({ transaction });
+      const centerCountByCompany = new Map(centerCounts.map((c) => [c.id_company, c.center_count]));
+      const userCountsByCompany = new Map(userCounts.map((c) => [c.id_company, c]));
+      for (const company of companies) {
+        company.center_count = centerCountByCompany.get(company.id_company) ?? 0;
+        const c = userCountsByCompany.get(company.id_company);
+        company.user_count = c?.user_count ?? 0;
+        company.main_user_count = c?.main_user_count ?? 0;
+        company.active_count = c?.active_count ?? 0;
+        company.inactive_count = c?.inactive_count ?? 0;
+      }
+      return companies;
     });
   }
 

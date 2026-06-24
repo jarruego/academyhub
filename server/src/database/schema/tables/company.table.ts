@@ -16,7 +16,13 @@ export const companyTable = pgTable('companies', {
     };
 });
 
-export type CompanySelectModel = InferSelectModel<typeof companyTable>;
+export type CompanySelectModel = InferSelectModel<typeof companyTable> & {
+    center_count?: number;
+    user_count?: number;
+    main_user_count?: number;
+    active_count?: number;
+    inactive_count?: number;
+};
 export type CompanyInsertModel = InferInsertModel<typeof companyTable>;
 export type CompanyUpdateModel = Partial<CompanyInsertModel>;
 

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { CenterInsertModel, CenterSelectModel, centerTable, CenterUpdateModel } from "src/database/schema/tables/center.table";
-import { eq, ilike, and } from "drizzle-orm"; 
+import { eq, ilike, and, count } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
 import { InsertResult } from 'src/database/types/insert-result';
 import { UserCenterInsertModel, userCenterTable, UserCenterUpdateModel } from "src/database/schema/tables/user_center.table";
@@ -62,5 +62,14 @@ export class CenterRepository extends Repository {
     async findByCompanyId(companyId: number, options?: QueryOptions) {
         const rows = await this.query(options).select().from(centerTable).where(eq(centerTable.id_company, companyId));
         return rows;
+    }
+
+    /** Nº de centros por empresa. */
+    async countByCompany(options?: QueryOptions): Promise<Array<{ id_company: number; center_count: number }>> {
+        const rows = await this.query(options)
+            .select({ id_company: centerTable.id_company, center_count: count() })
+            .from(centerTable)
+            .groupBy(centerTable.id_company);
+        return rows.map((r) => ({ id_company: r.id_company, center_count: Number(r.center_count) }));
     }
 }
