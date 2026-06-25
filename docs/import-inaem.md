@@ -43,12 +43,15 @@ Background job (reuses SAGE `JobService` exported by `ImportModule`; `import_typ
 - `POST /upload` — `FileFieldsInterceptor` fields `acciones`/`alumnos`/`preinscripciones` (all optional) + `createMissingCourses` → `{ jobId }`.
 - `GET /job-status/:jobId`.
 - `GET /preinscriptions/by-user/:id`, `GET /preinscriptions/by-course/:id`.
+- `GET /preinscriptions/by-course/:id/enrolled-count` → `{ count }` (matriculados en algún grupo del curso).
+- `DELETE /preinscriptions/by-course/:id` (**solo ADMIN**, guard de método extra) → `{ deleted }`; lanza `ConflictException` si el curso tiene matriculados (`countEnrolledByCourse > 0`).
 - `GET /conflicts`, `PUT /conflicts/:id/resolve` (`{ action: 'overwrite' | 'keep' }`).
 - `DELETE /conflicts/:id` (descarta un conflicto pendiente sin tocar el usuario), `DELETE /conflicts` (borra todos los pendientes `inaem-*`, devuelve `{ deleted }`). Borrar solo afecta a filas `processed=false`; un conflicto borrado puede reaparecer si se reimporta el mismo dato divergente (el importador no consulta decisiones pasadas).
 
 ## Client surfaces
 The typology UI (Cliente/Financiación fields, courses-list tabs/columns, and the type-driven group-table columns including **Finalizado**) is **general** and documented in `docs/client.md` (Course typology / `getCourseProfile`). INAEM-specific bits only:
 - Course form (create + detail, `routes/courses/`): **Nº Expediente** field + "Provisional" badge; server returns a friendly `ConflictException` on duplicate `file_number` (shown in the form). Courses list shows the **Nº Exp.** column and search matches `file_number`.
+- Course detail: **Preinscripciones** tab (`course-preinscriptions-section.tsx`), solo ADMIN/MANAGER y solo si el curso **tiene** preinscripciones (la query `useCoursePreinscriptionsQuery` decide la visibilidad; el endpoint `by-course` ya exige ese rol). Muestra alumno, DNI, estado, prioritaria y fecha; clic en fila → ficha del usuario. El título lleva el contador. Botón **Borrar todas las preinscripciones** (`Popconfirm`): solo **ADMIN** y solo si el curso no tiene a nadie matriculado (`useCourseEnrolledCountQuery` === 0); el backend revalida la condición.
 - The **Finalizado** data shown in the group table and the user's Preinscripciones tab comes from `user_group.finalized`, populated by this import (`findUsersInGroup` returns it). Display rules → `docs/client.md`.
 - Tool **Importación INAEM** (`/tools/import-inaem`, admin): 3-file upload + `createMissingCourses` + progress/summary; **Conflictos** tab (resolve overwrite/keep, **borrar** por fila o **Borrar todos** con `Popconfirm`). Hooks in `hooks/api/import-inaem/`.
 - User detail: **Preinscripciones** tab (admin/manager only; `user-preinscriptions-section.tsx`). Junto al estado `MATRICULADO` muestra un tag **Finalizado** (verde) / **No finalizado** (rojo) según `finalized` de la matrícula; si no hay datos (`finalized` null) no muestra tag. El backend (`findByUser`) calcula `finalized` con `bool_or(user_group.finalized)` por curso (null si no hay matrícula).

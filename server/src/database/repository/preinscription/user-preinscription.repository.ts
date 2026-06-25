@@ -55,6 +55,14 @@ export class UserPreinscriptionRepository extends Repository {
       .where(eq(userPreinscriptionTable.id_user, id_user));
   }
 
+  /** Borra todas las preinscripciones de un curso. Devuelve las filas borradas. */
+  async deleteByCourse(id_course: number, options?: QueryOptions) {
+    return this.query(options)
+      .delete(userPreinscriptionTable)
+      .where(eq(userPreinscriptionTable.id_course, id_course))
+      .returning({ id_user: userPreinscriptionTable.id_user });
+  }
+
   /** Inserta o actualiza una preinscripción (clave id_user+id_course). */
   async upsert(
     data: {

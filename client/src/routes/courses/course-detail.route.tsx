@@ -25,6 +25,8 @@ import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { Group } from "../../shared/types/group/group";
 import { isGroupActive } from "../../utils/group-active.util";
+import { useCoursePreinscriptionsQuery } from "../../hooks/api/import-inaem/useInaemData";
+import { CoursePreinscriptionsSection } from "../../components/course/course-preinscriptions-section";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -76,6 +78,13 @@ export default function CourseDetailRoute() {
   }, [groupsData]);
   // A course is active if it has at least one active group (derived state).
   const courseActive = useMemo(() => (groupsData ?? []).some((g) => isGroupActive(g)), [groupsData]);
+  // Preinscripciones del curso: solo ADMIN/MANAGER (el endpoint exige ese rol).
+  // La pestaña solo aparece si el curso tiene preinscripciones asociadas.
+  const { data: coursePreinscriptions } = useCoursePreinscriptionsQuery(
+    id_course ? Number(id_course) : 0,
+    canEdit,
+  );
+  const showPreinscriptionsTab = canEdit && (coursePreinscriptions?.length ?? 0) > 0;
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const { refetch: refetchUsersByGroup } = useUsersByGroupQuery(selectedGroupId);
@@ -636,7 +645,11 @@ export default function CourseDetailRoute() {
             <div dangerouslySetInnerHTML={{ __html: contentsValue || '<em>No hay contenidos</em>' }} />
           </div>
         ),
-      }]} />
+      }, ...(showPreinscriptionsTab ? [{
+        key: 'preinscripciones',
+        label: `Preinscripciones (${coursePreinscriptions?.length ?? 0})`,
+        children: <CoursePreinscriptionsSection courseId={Number(id_course)} />,
+      }] : [])]} />
       <Modal width={'80%'} destroyOnClose open={Boolean(userToLookup)} onCancel={() => {
         refetchUsersByGroup();
         setUserToLookup(null);

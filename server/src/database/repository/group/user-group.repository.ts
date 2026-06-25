@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { and, eq, not, inArray } from "drizzle-orm";
+import { and, eq, not, inArray, count } from "drizzle-orm";
 import { UserGroupInsertModel, userGroupTable, UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
 import { userRolesTable } from "src/database/schema/tables/user_roles.table";
 import { userTable, UserSelectModel } from "src/database/schema/tables/user.table";
@@ -182,6 +182,20 @@ export class UserGroupRepository extends Repository {
             }
         }
         return Array.from(byUser.values());
+    }
+
+    /**
+     * Nº de usuarios dados de alta en algún grupo del curso (cualquier rol).
+     * Usado para proteger el borrado masivo de preinscripciones: solo se permite
+     * cuando el curso aún no tiene a nadie matriculado en ningún grupo.
+     */
+    async countEnrolledByCourse(id_course: number, options?: QueryOptions): Promise<number> {
+        const rows = await this.query(options)
+            .select({ value: count() })
+            .from(userGroupTable)
+            .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
+            .where(eq(groupTable.id_course, id_course));
+        return Number(rows[0]?.value ?? 0);
     }
 
     async findGroupsByUserAndCourse(id_user: number, id_course: number, options?: QueryOptions) {

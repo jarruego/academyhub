@@ -119,6 +119,23 @@ export class InaemImportController {
     return this.inaemImportService.getCoursePreinscriptions(num);
   }
 
+  @Get("preinscriptions/by-course/:id/enrolled-count")
+  @ApiOperation({ summary: "Nº de usuarios matriculados en algún grupo del curso" })
+  async getCourseEnrolledCount(@Param("id") id: string) {
+    const num = parseInt(id, 10);
+    if (Number.isNaN(num)) throw new HttpException("ID inválido", HttpStatus.BAD_REQUEST);
+    return { count: await this.inaemImportService.getCourseEnrolledCount(num) };
+  }
+
+  @Delete("preinscriptions/by-course/:id")
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @ApiOperation({ summary: "Borra todas las preinscripciones de un curso (solo ADMIN, solo si no hay matriculados)" })
+  async deleteCoursePreinscriptions(@Param("id") id: string) {
+    const num = parseInt(id, 10);
+    if (Number.isNaN(num)) throw new HttpException("ID inválido", HttpStatus.BAD_REQUEST);
+    return this.inaemImportService.deleteCoursePreinscriptions(num);
+  }
+
   @Get("conflicts")
   @ApiOperation({ summary: "Conflictos de sobrescritura pendientes (usuario ya existente)" })
   async getConflicts() {

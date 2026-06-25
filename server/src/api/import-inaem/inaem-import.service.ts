@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { ConflictException, Inject, Injectable, Logger } from "@nestjs/common";
 import { and, eq, inArray, isNotNull, isNull, like } from "drizzle-orm";
 import { DatabaseService } from "src/database/database.service";
 import { DATABASE_PROVIDER } from "src/database/database.module";
@@ -530,6 +530,26 @@ export class InaemImportService {
   /** Preinscritos de un curso/expediente. */
   async getCoursePreinscriptions(id_course: number) {
     return this.preinscriptionRepo.findByCourse(id_course);
+  }
+
+  /** Nº de usuarios matriculados en algún grupo del curso. */
+  async getCourseEnrolledCount(id_course: number): Promise<number> {
+    return this.userGroupRepo.countEnrolledByCourse(id_course);
+  }
+
+  /**
+   * Borra TODAS las preinscripciones de un curso. Solo permitido si el curso no
+   * tiene ningún usuario matriculado en sus grupos (protección de seguridad).
+   */
+  async deleteCoursePreinscriptions(id_course: number): Promise<{ deleted: number }> {
+    const enrolled = await this.userGroupRepo.countEnrolledByCourse(id_course);
+    if (enrolled > 0) {
+      throw new ConflictException(
+        "No se pueden borrar las preinscripciones: el curso tiene usuarios matriculados en algún grupo.",
+      );
+    }
+    const deleted = await this.preinscriptionRepo.deleteByCourse(id_course);
+    return { deleted: deleted.length };
   }
 
   // ---------- Conflictos (lectura / resolución) ----------
