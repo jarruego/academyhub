@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, Space, Typography, Button, Alert, Input, Tag, Progress, Spin, Divider, Statistic, Row, Col, App } from 'antd';
+import { STATUS_COLORS } from '../../theme/semantic-colors';
 import { CloudDownloadOutlined, ReloadOutlined, StopOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, WifiOutlined } from '@ant-design/icons';
 import { useImportUploadFtp } from '../../hooks/api/import-sage/useImportUploadFtp';
 import { useJobStatus } from '../../hooks/api/import-sage/useJobStatus';
@@ -114,15 +115,15 @@ export const ImportFTPComponent: React.FC = () => {
   const statusTag = useMemo(() => {
     switch (jobStatus?.status) {
       case 'completed':
-        return <Tag color="green" icon={<CheckCircleOutlined />}>Completado</Tag>;
+        return <Tag color={STATUS_COLORS.active} icon={<CheckCircleOutlined />}>Completado</Tag>;
       case 'failed':
-        return <Tag color="red" icon={<CloseCircleOutlined />}>Fallido</Tag>;
+        return <Tag color={STATUS_COLORS.inactive} icon={<CloseCircleOutlined />}>Fallido</Tag>;
       case 'processing':
-        return <Tag color="blue" icon={<Spin size="small" />}>Procesando</Tag>;
+        return <Tag color={STATUS_COLORS.processing} icon={<Spin size="small" />}>Procesando</Tag>;
       case 'pending':
-        return <Tag color="default" icon={<ExclamationCircleOutlined />}>Pendiente</Tag>;
+        return <Tag color={STATUS_COLORS.neutral} icon={<ExclamationCircleOutlined />}>Pendiente</Tag>;
       case 'cancelled':
-        return <Tag color="orange" icon={<StopOutlined />}>Cancelado</Tag>;
+        return <Tag color={STATUS_COLORS.warning} icon={<StopOutlined />}>Cancelado</Tag>;
       default:
         return null;
     }

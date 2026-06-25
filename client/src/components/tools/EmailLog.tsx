@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Card, Table, Tag, Input, Select, Space, Typography, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { AuthzHide } from '../permissions/authz-hide';
+import { STATUS_COLORS } from '../../theme/semantic-colors';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useEmailLogQuery, type EmailLogRow } from '../../hooks/api/audit/use-email-log.query';
 
@@ -57,10 +58,10 @@ export default function EmailLog() {
         v === 'failed'
           ? (
             <Tooltip title={row.error_message ?? 'Error'}>
-              <Tag color="error">Fallido</Tag>
+              <Tag color={STATUS_COLORS.inactive}>Fallido</Tag>
             </Tooltip>
           )
-          : <Tag color="success">Enviado</Tag>,
+          : <Tag color={STATUS_COLORS.active}>Enviado</Tag>,
     },
   ];
 

@@ -1,12 +1,17 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { App, Button, Checkbox, Form, Input, Modal, Tabs, Table } from "antd";
+import { App, Button, Checkbox, Form, Input, Row, Col } from "antd";
+import { RouteTabs } from "../../components/common/RouteTabs";
+import { DataTable } from "../../components/common/DataTable";
+import { ListPageLayout } from "../../components/common/ListPageLayout";
+import { useListSearch } from "../../hooks/use-list-search";
+import { useListPagination } from "../../hooks/use-list-pagination";
 import { useCenterQuery } from "../../hooks/api/centers/use-center.query";
 import { useUpdateCenterMutation } from "../../hooks/api/centers/use-update-center.mutation";
 import { useDeleteCenterMutation } from "../../hooks/api/centers/use-delete-center.mutation";
 import { useCompanyQuery } from "../../hooks/api/companies/use-company.query";
 import { useUsersQuery } from "../../hooks/api/users/use-users.query";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState } from "react";
 import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,11 +19,7 @@ import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { User } from "../../shared/types/user/user";
-import { BajaTag } from "../../components/users/baja-tag";
-import { TablePaginationConfig } from "antd/es/table";
-import { useDebounce } from "../../hooks/use-debounce";
-import { normalizeSearch } from "../../utils/normalize-search";
-import useTableScroll from "../../hooks/use-table-scroll";
+import { BajaTag } from "../../components/common/tags";
 
 const CENTER_FORM_SCHEMA = z.object({
   id_center: z.number(),
@@ -33,8 +34,7 @@ const CENTER_FORM_SCHEMA = z.object({
 });
 
 export default function EditCenterRoute() {
-  // Envolvemos el uso de message con un valor por defecto seguro para evitar errores en test
-  const { message = { success: () => {}, error: () => {} } } = App.useApp?.() ?? {};
+  const { message, modal } = App.useApp();
   const { id_center } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,26 +47,12 @@ export default function EditCenterRoute() {
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof CENTER_FORM_SCHEMA>>({
     resolver: zodResolver(CENTER_FORM_SCHEMA),
   });
-  const [modal, contextHolder] = Modal.useModal();
-
-  // Estado para la pestaña activa
-  const searchParams = new URLSearchParams(location.search);
-  const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(tabParam || "1");
 
   // Estado para la tabla de usuarios
-  const [searchText, setSearchText] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(100);
+  const { searchText, setSearchText, normalized: normalizedSearchText } = useListSearch();
   const [showInactive, setShowInactive] = useState(true);
   const [onlyMainCenter, setOnlyMainCenter] = useState(true);
-  const debouncedSearchText = useDebounce(searchText, 500);
-  const normalizedSearchText = useMemo(() => normalizeSearch(debouncedSearchText), [debouncedSearchText]);
-
-  // Refs para el scroll de la tabla
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-  const controlsRef = useRef<HTMLDivElement | null>(null);
-  const tableScrollY = useTableScroll(wrapperRef, controlsRef);
+  const { pagination, currentPage, pageSize, resetPage, handleTableChange } = useListPagination(0, "usuarios");
 
   // Query para usuarios del centro
   const { data: usersResponse, isLoading: isUsersLoading } = useUsersQuery({
@@ -88,45 +74,17 @@ export default function EditCenterRoute() {
     }
   }, [centerData, reset]);
 
-  // Manejar cambio de pestaña y actualizar URL
-  const handleTabChange = (key: string) => {
-    setActiveTab(key);
-    const newSearchParams = new URLSearchParams(location.search);
-    newSearchParams.set("tab", key);
-    navigate(`${location.pathname}?${newSearchParams.toString()}`, { replace: true });
-  };
-
   // Manejar búsqueda en la tabla de usuarios
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
-    setCurrentPage(1);
+    resetPage();
   };
-
-  const handleTableChange = (pagination: TablePaginationConfig) => {
-    setCurrentPage(pagination.current || 1);
-    setPageSize(pagination.pageSize || 100);
-  };
-
-  const paginationConfig = useMemo(() => ({
-    current: currentPage,
-    pageSize: pageSize,
-    total: usersResponse?.total || 0,
-    showSizeChanger: true,
-    showQuickJumper: true,
-    showTotal: (total: number, range: [number, number]) => 
-      `${range[0]}-${range[1]} de ${total} usuarios`,
-    pageSizeOptions: ['50', '100', '200', '500'],
-    onChange: (page: number, size: number) => {
-      setCurrentPage(page);
-      setPageSize(size);
-    }
-  }), [currentPage, pageSize, usersResponse?.total]);
 
   const submit: SubmitHandler<z.infer<typeof CENTER_FORM_SCHEMA>> = async (data) => {
     try {
       await updateCenter(data);
       message.success('Centro actualizado exitosamente');
-      navigate(location.state?.from || `/companies/${centerData?.id_company}?tab=centers`);
+      navigate(location.state?.from || `/companies/${centerData?.id_company}?tab=centros`);
     } catch {
       message.error('No se pudo actualizar el centro');
     }
@@ -143,7 +101,7 @@ export default function EditCenterRoute() {
         try {
           await deleteCenter();
           message.success('Centro eliminado exitosamente');
-          navigate(location.state?.from || `/companies/${centerData?.id_company}?tab=centers`);
+          navigate(location.state?.from || `/companies/${centerData?.id_company}?tab=centros`);
         } catch {
           modal.error({
             title: "Error al eliminar el centro",
@@ -180,47 +138,59 @@ export default function EditCenterRoute() {
         </div>
       )}
       <Form layout="vertical" onFinish={handleSubmit(submit)} style={{ marginTop: 16 }}>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="ID centro" name="id_center"
-            help={errors.id_center?.message}
-            validateStatus={errors.id_center ? "error" : undefined}
-          >
-            <Controller name="id_center" control={control} render={({ field }) => <Input id="id_center" {...field} readOnly data-testid="center-id" />} />
-          </Form.Item>
-          <Form.Item label="Nombre del centro" name="center_name"
-            help={errors.center_name?.message}
-            validateStatus={errors.center_name ? "error" : undefined}
-          >
-            <Controller name="center_name" control={control} render={({ field }) => <Input id="center_name" autoComplete="organization" {...field} readOnly={!canEdit} data-testid="center-name" />} />
-          </Form.Item>
-          <Form.Item label="Número de patronal" name="employer_number"
-            help={errors.employer_number?.message}
-            validateStatus={errors.employer_number ? "error" : undefined}
-          >
-            <Controller name="employer_number" control={control} render={({ field }) => <Input id="employer_number" autoComplete="off" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="employer-number" />} />
-          </Form.Item>
-        </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
-          <Form.Item label="Persona de contacto" name="contact_person"
-            help={errors.contact_person?.message}
-            validateStatus={errors.contact_person ? "error" : undefined}
-          >
-            <Controller name="contact_person" control={control} render={({ field }) => <Input id="contact_person" autoComplete="name" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="contact-person" />} />
-          </Form.Item>
-          <Form.Item label="Teléfono de contacto" name="contact_phone"
-            help={errors.contact_phone?.message}
-            validateStatus={errors.contact_phone ? "error" : undefined}
-          >
-            <Controller name="contact_phone" control={control} render={({ field }) => <Input id="contact_phone" autoComplete="tel" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="contact-phone" />} />
-          </Form.Item>
-          <Form.Item label="Email de contacto" name="contact_email"
-            help={errors.contact_email?.message}
-            validateStatus={errors.contact_email ? "error" : undefined}
-          >
-            <Controller name="contact_email" control={control} render={({ field }) => <Input id="contact_email" autoComplete="email" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="contact-email" />} />
-          </Form.Item>
-        </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <Row gutter={[16, 0]}>
+          <Col xs={24} sm={6}>
+            <Form.Item label="ID centro" name="id_center"
+              help={errors.id_center?.message}
+              validateStatus={errors.id_center ? "error" : undefined}
+            >
+              <Controller name="id_center" control={control} render={({ field }) => <Input id="id_center" {...field} readOnly data-testid="center-id" />} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item label="Nombre del centro" name="center_name"
+              help={errors.center_name?.message}
+              validateStatus={errors.center_name ? "error" : undefined}
+            >
+              <Controller name="center_name" control={control} render={({ field }) => <Input id="center_name" autoComplete="organization" {...field} readOnly={!canEdit} data-testid="center-name" />} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Form.Item label="Número de patronal" name="employer_number"
+              help={errors.employer_number?.message}
+              validateStatus={errors.employer_number ? "error" : undefined}
+            >
+              <Controller name="employer_number" control={control} render={({ field }) => <Input id="employer_number" autoComplete="off" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="employer-number" />} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={[16, 0]}>
+          <Col xs={24} sm={8}>
+            <Form.Item label="Persona de contacto" name="contact_person"
+              help={errors.contact_person?.message}
+              validateStatus={errors.contact_person ? "error" : undefined}
+            >
+              <Controller name="contact_person" control={control} render={({ field }) => <Input id="contact_person" autoComplete="name" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="contact-person" />} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Form.Item label="Teléfono de contacto" name="contact_phone"
+              help={errors.contact_phone?.message}
+              validateStatus={errors.contact_phone ? "error" : undefined}
+            >
+              <Controller name="contact_phone" control={control} render={({ field }) => <Input id="contact_phone" autoComplete="tel" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="contact-phone" />} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Form.Item label="Email de contacto" name="contact_email"
+              help={errors.contact_email?.message}
+              validateStatus={errors.contact_email ? "error" : undefined}
+            >
+              <Controller name="contact_email" control={control} render={({ field }) => <Input id="contact_email" autoComplete="email" {...field} readOnly={!canEdit} value={field.value ?? undefined} data-testid="contact-email" />} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <div className="form-actions">
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
           <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-center">Guardar</Button>
@@ -232,99 +202,95 @@ export default function EditCenterRoute() {
   );
 
   // Contenido de la pestaña "Usuarios"
-  const usersTab = (
-    <div ref={wrapperRef}>
-      <div ref={controlsRef} style={{ marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Input.Search
-          placeholder="Buscar usuarios (nombre, apellido, email, DNI)"
-          style={{ maxWidth: 400 }}
-          value={searchText}
-          onChange={handleSearch}
-          loading={isUsersLoading}
-          allowClear
-        />
-        <Checkbox
-          checked={onlyMainCenter}
-          onChange={(e) => { setOnlyMainCenter(e.target.checked); setCurrentPage(1); }}
-        >
-          Solo centro principal
-        </Checkbox>
-        <Checkbox
-          checked={showInactive}
-          onChange={(e) => { setShowInactive(e.target.checked); setCurrentPage(1); }}
-        >
-          Mostrar dados de baja
-        </Checkbox>
-      </div>
-      <Table 
-        rowKey="id_user" 
-        sortDirections={['ascend', 'descend']}
+  const usersToolbar = (
+    <>
+      <Input.Search
+        placeholder="Buscar usuarios (nombre, apellido, email, DNI)"
+        style={{ minWidth: 260, maxWidth: 400 }}
+        value={searchText}
+        onChange={handleSearch}
         loading={isUsersLoading}
-        dataSource={usersResponse?.data || []}
-        pagination={paginationConfig}
-        onChange={handleTableChange}
-        scroll={{ x: 'max-content', y: tableScrollY }}
-        columns={[
-          {
-            title: 'DNI',
-            dataIndex: 'dni',
-            sorter: (a: User, b: User) => (a.dni ?? '').localeCompare(b.dni ?? ''),
-            width: 120,
-          },
-          {
-            title: 'Nombre',
-            dataIndex: 'name',
-            sorter: (a: User, b: User) => (a.name ?? '').localeCompare(b.name ?? ''),
-            width: 150,
-            render: (_, user: User) => <>{user.name}<BajaTag user={user} /></>,
-          },
-          {
-            title: 'Apellidos',
-            dataIndex: 'first_surname',
-            sorter: (a: User, b: User) => (a.first_surname ?? '').localeCompare(b.first_surname ?? ''),
-            width: 200,
-            render: (_, user: User) => `${user.first_surname ?? ''} ${user.second_surname ?? ''}`.trim(),
-          },
-          {
-            title: 'Email',
-            dataIndex: 'email',
-            sorter: (a: User, b: User) => (a.email ?? '').localeCompare(b.email ?? ''),
-            width: 200,
-          },
-          {
-            title: 'NSS',
-            dataIndex: 'nss',
-            sorter: (a: User, b: User) => (a.nss ?? '').localeCompare(b.nss ?? ''),
-            width: 160,
-          }
-        ]} 
-        onRow={(record: User) => ({
-          onDoubleClick: () => {
-              const uid = Number(record.id_user);
-              if (!Number.isFinite(uid)) return;
-              const url = `${window.location.origin}/users/${uid}`;
-              window.open(url, '_blank', 'noopener,noreferrer');
-            },
-          style: { cursor: 'pointer' }
-        })}
+        allowClear
       />
-    </div>
+      <Checkbox
+        checked={onlyMainCenter}
+        onChange={(e) => { setOnlyMainCenter(e.target.checked); resetPage(); }}
+      >
+        Solo centro principal
+      </Checkbox>
+      <Checkbox
+        checked={showInactive}
+        onChange={(e) => { setShowInactive(e.target.checked); resetPage(); }}
+      >
+        Mostrar dados de baja
+      </Checkbox>
+    </>
+  );
+
+  const usersTab = (
+    <ListPageLayout toolbar={usersToolbar}>
+      {({ scrollY }) => (
+        <DataTable<User>
+          rowKey="id_user"
+          loading={isUsersLoading}
+          dataSource={usersResponse?.data || []}
+          pagination={{ ...pagination, total: usersResponse?.total || 0 }}
+          onChange={handleTableChange}
+          scrollY={scrollY}
+          getRowUrl={(record) => {
+            const uid = Number(record.id_user);
+            return Number.isFinite(uid) ? `/users/${uid}` : undefined;
+          }}
+          columns={[
+            {
+              title: 'DNI',
+              dataIndex: 'dni',
+              sorter: (a: User, b: User) => (a.dni ?? '').localeCompare(b.dni ?? ''),
+              width: 120,
+            },
+            {
+              title: 'Nombre',
+              dataIndex: 'name',
+              sorter: (a: User, b: User) => (a.name ?? '').localeCompare(b.name ?? ''),
+              width: 150,
+              render: (_, user: User) => <>{user.name}<BajaTag user={user} /></>,
+            },
+            {
+              title: 'Apellidos',
+              dataIndex: 'first_surname',
+              sorter: (a: User, b: User) => (a.first_surname ?? '').localeCompare(b.first_surname ?? ''),
+              width: 200,
+              render: (_, user: User) => `${user.first_surname ?? ''} ${user.second_surname ?? ''}`.trim(),
+            },
+            {
+              title: 'Email',
+              dataIndex: 'email',
+              sorter: (a: User, b: User) => (a.email ?? '').localeCompare(b.email ?? ''),
+              width: 200,
+            },
+            {
+              title: 'NSS',
+              dataIndex: 'nss',
+              sorter: (a: User, b: User) => (a.nss ?? '').localeCompare(b.nss ?? ''),
+              width: 160,
+            }
+          ]}
+        />
+      )}
+    </ListPageLayout>
   );
 
   return (
     <div>
-      {contextHolder}
-      <Tabs 
-        activeKey={activeTab} 
-        onChange={handleTabChange}
+      <RouteTabs
         items={[
           {
-            key: "1",
+            key: "datos",
             label: "Datos del Centro",
             children: centerDataTab,
           },
           {
-            key: "2",
+            key: "usuarios",
             label: "Usuarios",
             children: usersTab,
           },

@@ -1,5 +1,5 @@
 
-import { Card, Typography, Button, Table, Space, Modal, message } from 'antd';
+import { App, Card, Typography, Button, Table, Space } from 'antd';
 import { FileTextOutlined, PlusOutlined } from '@ant-design/icons';
 import { useMailTemplatesQuery, MailTemplate, useDeleteMailTemplateMutation } from '../../hooks/api/mail/use-mail-templates';
 import { useState } from 'react';
@@ -14,8 +14,7 @@ export default function MailTemplatesTab() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<MailTemplate | null>(null);
   const deleteMutation = useDeleteMailTemplateMutation();
-  const [modal, modalContextHolder] = Modal.useModal();
-  const [messageApi, messageContextHolder] = message.useMessage();
+  const { message: messageApi, modal } = App.useApp();
 
   const handleEdit = (template: MailTemplate) => {
     setSelectedTemplate(template);
@@ -38,8 +37,6 @@ export default function MailTemplatesTab() {
 
   return (
     <>
-      {modalContextHolder}
-      {messageContextHolder}
       <Card
         title={<span><FileTextOutlined /> Plantillas de correo</span>}
         style={{ maxWidth: 900, margin: '0 auto' }}

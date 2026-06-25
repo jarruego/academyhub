@@ -1,9 +1,12 @@
 import React from 'react';
-import { Table, Tag, Spin, Empty, Button, message } from 'antd';
+import { App, Tag, Spin, Empty, Button } from 'antd';
+import { DataTable } from '../common/DataTable';
+import { ModalityTag, ActiveTag, FinalizedTag } from '../common/tags';
 import type { ColumnType } from 'antd/es/table';
 import { useUserCoursesQuery } from '../../hooks/api/users/use-user-courses.query';
 import { useUserQuery } from '../../hooks/api/users/use-user.query';
 import { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
+import { CourseOrigin } from '../../shared/types/course/course-origin.enum';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
 import type { SettingsMap } from '../../shared/types/organization/organization';
 import { useMoodleUsersByUserIdQuery } from '../../hooks/api/moodle-users/use-moodle-users-by-user-id.query';
@@ -15,13 +18,24 @@ interface UserCoursesSectionProps {
   userId: number;
 }
 
+// Determina si un curso está finalizado para el usuario.
+// - INAEM: depende del flag `finalized` del grupo (la finalización la marca la gestión del expediente).
+// - PRIVADA / sin clasificar: depende del progreso (>= 75%), ignorando el flag `finalized`.
+const isCourseFinalized = (record: UserCourseWithCourse): boolean => {
+  if (record.course?.origin === CourseOrigin.INAEM) {
+    return (record.groups ?? []).some((g) => g.finalized);
+  }
+  const pct = Number(record.completion_percentage ?? 0);
+  return !isNaN(pct) && pct >= 75;
+};
+
 export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }) => {
   const { data: userCourses, isLoading } = useUserCoursesQuery(userId);
   const { data: userData } = useUserQuery(userId);
   const { data: orgSettings } = useOrganizationSettingsQuery();
   const { data: moodleUsers } = useMoodleUsersByUserIdQuery(userId);
   const request = useAuthenticatedAxios<Blob>();
-  const [messageApi, messageContextHolder] = message.useMessage();
+  const { message: messageApi } = App.useApp();
   const [isCertificateLoading, setIsCertificateLoading] = React.useState(false);
   const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -87,12 +101,7 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
       title: 'Modalidad',
       dataIndex: ['course', 'modality'],
       key: 'modality',
-      render: (modality: string) => {
-        const color = modality === 'PRESENCIAL' ? 'blue' : 
-                    modality === 'ONLINE' ? 'green' : 
-                    modality === 'MIXTA' ? 'orange' : 'default';
-        return <Tag color={color}>{modality}</Tag>;
-      },
+      render: (modality: string) => <ModalityTag modality={modality} />,
     },
     {
       title: 'Progreso',
@@ -107,20 +116,15 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
     {
       title: 'Finalizado',
       key: 'finalized',
-      render: (_value, record: UserCourseWithCourse) => {
-        const finalized = (record.groups ?? []).some((g) => g.finalized);
-        return <Tag color={finalized ? 'green' : 'default'}>{finalized ? 'Finalizado' : 'No'}</Tag>;
-      },
+      render: (_value, record: UserCourseWithCourse) => (
+        <FinalizedTag finalized={isCourseFinalized(record)} />
+      ),
     },
     {
       title: 'Estado',
       dataIndex: ['course', 'active'],
       key: 'active',
-      render: (active: boolean) => (
-        <Tag color={active ? 'green' : 'red'}>
-          {active ? 'Activo' : 'Inactivo'}
-        </Tag>
-      ),
+      render: (active: boolean) => <ActiveTag active={active} />,
     },
   ];
 
@@ -208,7 +212,6 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
 
   return (
     <>
-      {messageContextHolder}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 12 }}>
         <Button type="default" onClick={handleExportExcel}>Exportar a Excel</Button>
         <Button type="default" onClick={handleExportCertificate} loading={isCertificateLoading}>Certificado Cursos</Button>
@@ -223,7 +226,7 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
         )}
       </div>
 
-      <Table
+      <DataTable<UserCourseWithCourse>
       columns={columns}
       dataSource={userCourses}
       rowKey={(record) => `${record.id_user}-${record.id_course}`}
@@ -235,33 +238,28 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
           `${range[0]}-${range[1]} de ${total} cursos`,
       }}
       scroll={{ x: 1200 }}
-      rowClassName={(record: UserCourseWithCourse) => {
-        const pct = Number(record.completion_percentage ?? 0);
-        if (isNaN(pct)) return 'user-course-row incomplete';
-        return `user-course-row ${pct >= 75 ? 'completed' : 'incomplete'}`;
+      rowClassName={(record: UserCourseWithCourse) =>
+        `user-course-row ${isCourseFinalized(record) ? 'completed' : 'incomplete'}`
+      }
+      getRowUrl={(record) => {
+        const courseId = record.course?.id_course;
+        if (!courseId) return undefined;
+        const groups = record.groups ?? [];
+        const toMillis = (d?: string | Date | null) => {
+          if (!d) return Number.NEGATIVE_INFINITY;
+          const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
+          return Number.isFinite(t) ? t : Number.NEGATIVE_INFINITY;
+        };
+        const mostRecentGroup = [...groups].sort((a, b) => {
+          const aMillis = Math.max(toMillis(a.end_date), toMillis(a.start_date));
+          const bMillis = Math.max(toMillis(b.end_date), toMillis(b.start_date));
+          return bMillis - aMillis;
+        })[0];
+        const params = new URLSearchParams();
+        if (mostRecentGroup) params.set('groupId', String(mostRecentGroup.id_group));
+        params.set('userId', String(record.id_user));
+        return `/courses/${courseId}?${params.toString()}`;
       }}
-      onRow={(record: UserCourseWithCourse) => ({
-        onDoubleClick: () => {
-          const courseId = record.course?.id_course;
-          if (!courseId) return;
-          const groups = record.groups ?? [];
-          const toMillis = (d?: string | Date | null) => {
-            if (!d) return Number.NEGATIVE_INFINITY;
-            const t = (d instanceof Date) ? d.getTime() : Date.parse(String(d));
-            return Number.isFinite(t) ? t : Number.NEGATIVE_INFINITY;
-          };
-          const mostRecentGroup = [...groups].sort((a, b) => {
-            const aMillis = Math.max(toMillis(a.end_date), toMillis(a.start_date));
-            const bMillis = Math.max(toMillis(b.end_date), toMillis(b.start_date));
-            return bMillis - aMillis;
-          })[0];
-          const params = new URLSearchParams();
-          if (mostRecentGroup) params.set('groupId', String(mostRecentGroup.id_group));
-          params.set('userId', String(record.id_user));
-          const url = `${window.location.origin}/courses/${courseId}?${params.toString()}`;
-          window.open(url, '_blank', 'noopener,noreferrer');
-        },
-      })}
     />
     </>
   );

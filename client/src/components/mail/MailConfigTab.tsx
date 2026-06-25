@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, Input, InputNumber, Switch, message, Modal } from 'antd';
+import { App, Button, Card, Input, InputNumber, Switch, Modal } from 'antd';
 import { useSmtpSettingsQuery, useSaveSmtpSettingsMutation } from '../../hooks/api/mail/use-smtp-settings';
 import { useTestSmtpConnection, useSendTestMail } from '../../hooks/api/mail/use-smtp-test';
 import { useForm, Controller } from 'react-hook-form';
@@ -20,7 +20,7 @@ const SMTP_SCHEMA: z.ZodType<SmtpSettingsForm> = z.object({
 });
 
 export default function MailConfigTab() {
-  const [messageApi, messageContextHolder] = message.useMessage();
+  const { message: messageApi } = App.useApp();
   const { data, isLoading, refetch } = useSmtpSettingsQuery();
   const saveMutation = useSaveSmtpSettingsMutation();
   const testConnection = useTestSmtpConnection();
@@ -102,17 +102,11 @@ export default function MailConfigTab() {
   });
 
   if (isLoading) {
-    return (
-      <>
-        {messageContextHolder}
-        <Card title="Configuración SMTP" style={{ maxWidth: 500, margin: '0 auto' }} loading />
-      </>
-    );
+    return <Card title="Configuración SMTP" style={{ maxWidth: 500, margin: '0 auto' }} loading />;
   }
 
   return (
     <>
-      {messageContextHolder}
       <Card title="Configuración SMTP" style={{ maxWidth: 500, margin: '0 auto' }}>
         <form onSubmit={handleSubmit(onSubmit)} autoComplete="off">
           <div style={{ marginBottom: 16 }}>

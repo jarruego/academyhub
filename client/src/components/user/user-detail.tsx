@@ -1,10 +1,11 @@
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useUserQuery } from "../../hooks/api/users/use-user.query";
 import { useUpdateUserWithMoodleMutation } from "../../hooks/api/users/use-update-user-with-moodle.mutation";
 import { useDeleteUserMutation } from "../../hooks/api/users/use-delete-user.mutation";
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
 import { useUserCoursesQuery } from "../../hooks/api/users/use-user-courses.query";
-import { Button, Form, Input, Modal, Checkbox, Select, Tabs, DatePicker } from "antd";
+import { App, Button, Form, Input, Checkbox, Select, DatePicker, Row, Col } from "antd";
+import { RouteTabs } from "../common/RouteTabs";
 import { CloudUploadOutlined, MailOutlined } from '@ant-design/icons';
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect, useState } from "react";
@@ -107,11 +108,16 @@ const getUserMoodleUsername = (user: unknown): string | undefined => {
 
 type Props = {
     userId: number;
+    /**
+     * Cuando se renderiza embebido (p. ej. el modal de course-detail), pasa
+     * `false` para que las pestañas no sincronicen con `?tab=` y no choquen con
+     * las pestañas de la página anfitriona.
+     */
+    syncTabsToUrl?: boolean;
 }
 
-export default function UserDetail({ userId }: Props) {
+export default function UserDetail({ userId, syncTabsToUrl = true }: Props) {
 const navigate = useNavigate();
-  const location = useLocation();
   const role = useRole();
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
   const preventReadOnlyClick = (e: MouseEvent<HTMLElement>) => {
@@ -121,12 +127,7 @@ const navigate = useNavigate();
     }
   };
   
-  const [modal, contextHolder] = Modal.useModal();
-
-  // Lee el parámetro 'tab' de la URL
-  const searchParams = new URLSearchParams(location.search);
-  const tabParam = searchParams.get("tab");
-  const defaultActiveKey = tabParam === "centers" ? "2" : "1";
+  const { modal } = App.useApp();
 
   const {
     data: userData,
@@ -324,182 +325,221 @@ const navigate = useNavigate();
 
   const items = [
     {
-      key: "1",
+      key: "datos",
       label: "Datos Usuario",
       children: (
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Form.Item label="ID" name="id_user" style={{ flex: 1 }}>
-              <Controller name="id_user" control={control} render={({ field }) => <Input {...field} id="id_user" autoComplete="off" readOnly data-testid="user-id" />} />
-            </Form.Item>
-            <Form.Item label="Nombre" name="name" style={{ flex: 2 }} help={errors.name?.message} validateStatus={errors.name ? "error" : undefined}>
-              <Controller name="name" control={control} render={({ field }) => <Input {...field} id="name" autoComplete="given-name" data-testid="user-name" readOnly={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="Apellido 1" name="first_surname" style={{ flex: 2 }} help={errors.first_surname?.message} validateStatus={errors.first_surname ? "error" : undefined}>
-              <Controller name="first_surname" control={control} render={({ field }) => <Input {...field} id="first_surname" autoComplete="family-name" data-testid="user-first-surname" readOnly={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="Apellido 2" name="second_surname" style={{ flex: 2 }}>
-              <Controller name="second_surname" control={control} render={({ field }) => <Input {...field} id="second_surname" autoComplete="additional-name" value={field.value ?? undefined} readOnly={!canEdit} />} />
-            </Form.Item>
-          </div>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-            <Form.Item label="Tipo Doc." name="document_type" style={{ width: '10ch' }}>
-              <Controller
-                name="document_type"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    {...field}
-                    id="document_type"
-                    value={field.value ?? undefined}
-                    disabled
-                    placeholder="Auto"
-                    allowClear
-                    style={{ width: '100%' }}
-                  >
-                    <Select.Option value={DocumentType.DNI}>DNI</Select.Option>
-                    <Select.Option value={DocumentType.NIE}>NIE</Select.Option>
-                  </Select>
-                )}
-              />
-            </Form.Item>
-            <Form.Item label="DNI" name="dni" style={{ width: '15ch' }}>
-              <Controller name="dni" control={control} render={({ field }) => <Input {...field} id="dni" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} readOnly={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="NSS (Seg.Social)" name="nss" style={{ width: '20ch' }}>
-              <Controller name="nss" control={control} render={({ field }) => <Input {...field} id="nss" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} readOnly={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="Puesto de trabajo" name="job_position" style={{ flex: 1 }}>
-              <Controller name="job_position" control={control} render={({ field }) => <Input {...field} id="job_position" autoComplete="organization-title" value={field.value ?? undefined} readOnly={!canEdit} />} />
-            </Form.Item>
-          </div>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Form.Item label="Email" name="email" style={{ flex: 1 }}>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          <Row gutter={[16, 0]}>
+            <Col xs={12} sm={6} md={3}>
+              <Form.Item label="ID" name="id_user">
+                <Controller name="id_user" control={control} render={({ field }) => <Input {...field} id="id_user" autoComplete="off" readOnly data-testid="user-id" />} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={18} md={7}>
+              <Form.Item label="Nombre" name="name" help={errors.name?.message} validateStatus={errors.name ? "error" : undefined}>
+                <Controller name="name" control={control} render={({ field }) => <Input {...field} id="name" autoComplete="given-name" data-testid="user-name" readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={7}>
+              <Form.Item label="Apellido 1" name="first_surname" help={errors.first_surname?.message} validateStatus={errors.first_surname ? "error" : undefined}>
+                <Controller name="first_surname" control={control} render={({ field }) => <Input {...field} id="first_surname" autoComplete="family-name" data-testid="user-first-surname" readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={7}>
+              <Form.Item label="Apellido 2" name="second_surname">
+                <Controller name="second_surname" control={control} render={({ field }) => <Input {...field} id="second_surname" autoComplete="additional-name" value={field.value ?? undefined} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={[16, 0]}>
+            <Col xs={12} sm={6} md={3}>
+              <Form.Item label="Tipo Doc." name="document_type">
                 <Controller
-                  name="email"
+                  name="document_type"
                   control={control}
                   render={({ field }) => (
-                    <Input {...field} id="email" autoComplete="email" data-testid="user-email" readOnly={!canEdit} style={{ flex: 1 }} />
+                    <Select
+                      {...field}
+                      id="document_type"
+                      value={field.value ?? undefined}
+                      disabled
+                      placeholder="Auto"
+                      allowClear
+                      style={{ width: '100%' }}
+                    >
+                      <Select.Option value={DocumentType.DNI}>DNI</Select.Option>
+                      <Select.Option value={DocumentType.NIE}>NIE</Select.Option>
+                    </Select>
                   )}
                 />
-                <Button
-                  icon={<MailOutlined />}
-                  onClick={() => setSendMailModalOpen(true)}
-                  title="Enviar correo"
-                  disabled={!userData?.email}
-                  style={{ marginTop: 4 }}
-                />
-              </div>
-            </Form.Item>
-            <Form.Item label="Teléfono" name="phone" style={{ flex: 1 }}>
-              <Controller name="phone" control={control} render={({ field }) => <Input {...field} id="phone" autoComplete="tel" value={field.value ?? undefined} data-testid="user-phone" readOnly={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="Fecha de Nacimiento" name="birth_date" style={{ flex: 1 }} help={errors.birth_date?.message} validateStatus={errors.birth_date ? "error" : undefined}>
-              <Controller 
-                name="birth_date" 
-                control={control} 
-                render={({ field }) => (
-                  <DatePicker
-                    {...field}
-                    id="birth_date"
-                    value={field.value ? dayjs(field.value) : null}
-                    onChange={(date) => canEdit && field.onChange(date ? date.toDate() : null)}
-                    format="DD/MM/YYYY"
-                    placeholder="Seleccionar fecha"
-                    inputReadOnly={!canEdit}
-                    open={canEdit ? undefined : false}
-                    style={{ width: '100%' }}
+              </Form.Item>
+            </Col>
+            <Col xs={12} sm={6} md={4}>
+              <Form.Item label="DNI" name="dni">
+                <Controller name="dni" control={control} render={({ field }) => <Input {...field} id="dni" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={5}>
+              <Form.Item label="NSS (Seg.Social)" name="nss">
+                <Controller name="nss" control={control} render={({ field }) => <Input {...field} id="nss" autoComplete="off" value={field.value ?? undefined} style={{ width: '100%' }} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={24} md={12}>
+              <Form.Item label="Puesto de trabajo" name="job_position">
+                <Controller name="job_position" control={control} render={({ field }) => <Input {...field} id="job_position" autoComplete="organization-title" value={field.value ?? undefined} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={[16, 0]}>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item label="Email" name="email">
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <Controller
+                    name="email"
+                    control={control}
+                    render={({ field }) => (
+                      <Input {...field} id="email" autoComplete="email" data-testid="user-email" readOnly={!canEdit} style={{ flex: 1 }} />
+                    )}
                   />
-                )}
-              />
-            </Form.Item>
-            <Form.Item label="Sexo" name="gender" style={{ flex: 1 }}>
-              <Controller
-                name="gender"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <Select
-                    {...field}
-                    id="gender"
-                    value={field.value ?? undefined}
-                    onChange={canEdit ? field.onChange : undefined}
-                    placeholder="Seleccione sexo"
-                    status={fieldState.invalid ? "error" : undefined}
-                    open={canEdit ? undefined : false}
-                    showSearch={canEdit}
-                    allowClear={canEdit}
-                  >
-                    <Select.Option value={Gender.MALE}>Masculino</Select.Option>
-                    <Select.Option value={Gender.FEMALE}>Femenino</Select.Option>
-                    <Select.Option value={Gender.OTHER}>Otro</Select.Option>
-                  </Select>
-                )}
-              />
-            </Form.Item>
-          </div>
+                  <Button
+                    icon={<MailOutlined />}
+                    onClick={() => setSendMailModalOpen(true)}
+                    title="Enviar correo"
+                    disabled={!userData?.email}
+                  />
+                </div>
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item label="Teléfono" name="phone">
+                <Controller name="phone" control={control} render={({ field }) => <Input {...field} id="phone" autoComplete="tel" value={field.value ?? undefined} data-testid="user-phone" readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item label="Fecha de Nacimiento" name="birth_date" help={errors.birth_date?.message} validateStatus={errors.birth_date ? "error" : undefined}>
+                <Controller
+                  name="birth_date"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      {...field}
+                      id="birth_date"
+                      value={field.value ? dayjs(field.value) : null}
+                      onChange={(date) => canEdit && field.onChange(date ? date.toDate() : null)}
+                      format="DD/MM/YYYY"
+                      placeholder="Seleccionar fecha"
+                      inputReadOnly={!canEdit}
+                      open={canEdit ? undefined : false}
+                      style={{ width: '100%' }}
+                    />
+                  )}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Form.Item label="Sexo" name="gender">
+                <Controller
+                  name="gender"
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <Select
+                      {...field}
+                      id="gender"
+                      value={field.value ?? undefined}
+                      onChange={canEdit ? field.onChange : undefined}
+                      placeholder="Seleccione sexo"
+                      status={fieldState.invalid ? "error" : undefined}
+                      open={canEdit ? undefined : false}
+                      showSearch={canEdit}
+                      allowClear={canEdit}
+                      style={{ width: '100%' }}
+                    >
+                      <Select.Option value={Gender.MALE}>Masculino</Select.Option>
+                      <Select.Option value={Gender.FEMALE}>Femenino</Select.Option>
+                      <Select.Option value={Gender.OTHER}>Otro</Select.Option>
+                    </Select>
+                  )}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
           {moodleUsers && moodleUsers.length > 0 && (
-            <div style={{ display: 'flex', gap: '16px', marginTop: 8, alignItems: 'center' }}>
-              <Form.Item label="Username Moodle" name="moodle_username" style={{ flex: 1 }}>
-                <Controller
-                  name="moodle_username"
-                  control={control}
-                  render={({ field }) => (
-                    <Input
-                      {...field}
-                      id="moodle_username"
-                      value={field.value ?? moodleUsername ?? ''}
-                      onChange={(e) => {
-                        if (!canEdit) return;
-                        field.onChange(e);
-                        setMoodleUsername(e.target.value);
-                      }}
-                      readOnly={!canEdit}
-                    />
-                  )}
-                />
-              </Form.Item>
-              <Form.Item label="Password Moodle" name="moodle_password" style={{ flex: 1 }}>
-                <Controller
-                  name="moodle_password"
-                  control={control}
-                  render={({ field }) => (
-                    <Input.Password
-                      {...field}
-                      id="moodle_password"
-                      value={field.value ?? moodlePassword ?? ''}
-                      onChange={(e) => {
-                        if (!canEdit) return;
-                        field.onChange(e);
-                        setMoodlePassword(e.target.value);
-                      }}
-                      readOnly={!canEdit}
-                    />
-                  )}
-                />
-              </Form.Item>
-            </div>
+            <Row gutter={[16, 0]}>
+              <Col xs={24} sm={12}>
+                <Form.Item label="Username Moodle" name="moodle_username">
+                  <Controller
+                    name="moodle_username"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        id="moodle_username"
+                        value={field.value ?? moodleUsername ?? ''}
+                        onChange={(e) => {
+                          if (!canEdit) return;
+                          field.onChange(e);
+                          setMoodleUsername(e.target.value);
+                        }}
+                        readOnly={!canEdit}
+                      />
+                    )}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={12}>
+                <Form.Item label="Password Moodle" name="moodle_password">
+                  <Controller
+                    name="moodle_password"
+                    control={control}
+                    render={({ field }) => (
+                      <Input.Password
+                        {...field}
+                        id="moodle_password"
+                        value={field.value ?? moodlePassword ?? ''}
+                        onChange={(e) => {
+                          if (!canEdit) return;
+                          field.onChange(e);
+                          setMoodlePassword(e.target.value);
+                        }}
+                        readOnly={!canEdit}
+                      />
+                    )}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
           )}
           {/* Button to upload this single user to Moodle when no mapping exists (moved to bottom actions) */}
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-            <Form.Item label="Dirección" name="address" style={{ flex: 3, minWidth: '40ch' }}>
-              <Controller name="address" control={control} render={({ field }) => <Input {...field} id="address" autoComplete="street-address" value={field.value ?? undefined} readOnly={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="Código Postal" name="postal_code" style={{ flex: 1, minWidth: '10ch' }}>
-              <Controller name="postal_code" control={control} render={({ field }) => <Input {...field} id="postal_code" autoComplete="postal-code" value={field.value ?? undefined} readOnly={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="Ciudad" name="city" style={{ flex: 1, minWidth: '10ch' }}>
-              <Controller name="city" control={control} render={({ field }) => <Input {...field} id="city" autoComplete="address-level2" value={field.value ?? undefined} readOnly={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="Provincia" name="province" style={{ flex: 1, minWidth: '10ch' }}>
-              <Controller name="province" control={control} render={({ field }) => <Input {...field} id="province" autoComplete="address-level1" value={field.value ?? undefined} readOnly={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="País" name="country" style={{ flex: 1, minWidth: '10ch' }}>
-              <Controller name="country" control={control} render={({ field }) => <Input {...field} id="country" autoComplete="country-name" value={field.value ?? undefined} readOnly={!canEdit} />} />
-            </Form.Item>
-          </div>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <Form.Item label="Grupo de Cotización" name="salary_group" style={{ flex: 1 }} extra={salaryGroupValue == null ? 'No especificado — se guardará vacío. Se mostrará un aviso al guardar.' : undefined}>
+          <Row gutter={[16, 0]}>
+            <Col xs={24} md={12}>
+              <Form.Item label="Dirección" name="address">
+                <Controller name="address" control={control} render={({ field }) => <Input {...field} id="address" autoComplete="street-address" value={field.value ?? undefined} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={12} sm={6} md={3}>
+              <Form.Item label="Código Postal" name="postal_code">
+                <Controller name="postal_code" control={control} render={({ field }) => <Input {...field} id="postal_code" autoComplete="postal-code" value={field.value ?? undefined} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={12} sm={6} md={3}>
+              <Form.Item label="Ciudad" name="city">
+                <Controller name="city" control={control} render={({ field }) => <Input {...field} id="city" autoComplete="address-level2" value={field.value ?? undefined} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={12} sm={6} md={3}>
+              <Form.Item label="Provincia" name="province">
+                <Controller name="province" control={control} render={({ field }) => <Input {...field} id="province" autoComplete="address-level1" value={field.value ?? undefined} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={12} sm={6} md={3}>
+              <Form.Item label="País" name="country">
+                <Controller name="country" control={control} render={({ field }) => <Input {...field} id="country" autoComplete="country-name" value={field.value ?? undefined} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={[16, 0]}>
+            <Col xs={24} sm={12}>
+            <Form.Item label="Grupo de Cotización" name="salary_group" extra={salaryGroupValue == null ? 'No especificado — se guardará vacío. Se mostrará un aviso al guardar.' : undefined}>
               <Controller
                 name="salary_group"
                 control={control}
@@ -521,6 +561,7 @@ const navigate = useNavigate();
                       placeholder="Selecciona grupo de cotización"
                       open={canEdit ? undefined : false}
                       showSearch={canEdit}
+                      style={{ width: '100%' }}
                     >
                       {options.map(o => (
                         <Select.Option key={o.value} value={o.value}>
@@ -532,7 +573,9 @@ const navigate = useNavigate();
                 }}
               />
             </Form.Item>
-            <Form.Item label="Nivel Educativo" name="education_level" style={{ flex: 1 }} extra={educationLevelValue == null ? 'No especificado — se guardará vacío. Se mostrará un aviso al guardar.' : undefined}>
+            </Col>
+            <Col xs={24} sm={12}>
+            <Form.Item label="Nivel Educativo" name="education_level" extra={educationLevelValue == null ? 'No especificado — se guardará vacío. Se mostrará un aviso al guardar.' : undefined}>
               <Controller
                 name="education_level"
                 control={control}
@@ -555,6 +598,7 @@ const navigate = useNavigate();
                       placeholder="Selecciona nivel educativo"
                       open={canEdit ? undefined : false}
                       showSearch={canEdit}
+                      style={{ width: '100%' }}
                     >
                       {options.map(o => (
                         <Select.Option key={o.value} value={o.value}>
@@ -566,7 +610,8 @@ const navigate = useNavigate();
                 }}
               />
             </Form.Item>
-          </div>
+            </Col>
+          </Row>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <Form.Item name="disability" valuePropName="checked" style={{ flex: 1, marginBottom: 0 }}>
               <Controller
@@ -673,7 +718,7 @@ const navigate = useNavigate();
           <Form.Item label="Observaciones" name="observations">
             <Controller name="observations" control={control} render={({ field }) => <Input.TextArea {...field} id="observations" autoComplete="off" value={field.value ?? undefined} rows={3} readOnly={!canEdit} />} />
           </Form.Item>
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start', alignItems: 'center' }}>
+          <div className="form-actions">
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
             <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
               <Button type="primary" htmlType="submit" data-testid="save-user">Guardar</Button>
@@ -753,7 +798,7 @@ const navigate = useNavigate();
       ),
     },
     {
-      key: "2",
+      key: "centros",
       label: "Empresa/Centros",
       children: (
         <AddUserToCenterSection id_user={userId} />
@@ -764,7 +809,7 @@ const navigate = useNavigate();
   // Agregar pestaña de Moodle condicionalmente si hay usuarios de Moodle
   if (moodleUsers && moodleUsers.length > 0) {
     items.push({
-      key: "3",
+      key: "moodle",
       label: "Moodle",
       children: (
         <MoodleUsersSection userId={userId} />
@@ -775,7 +820,7 @@ const navigate = useNavigate();
   // Agregar pestaña de Cursos condicionalmente si hay cursos matriculados
   if (userCourses && userCourses.length > 0) {
     items.push({
-      key: "4",
+      key: "cursos",
       label: "Cursos",
       children: (
         <UserCoursesSection userId={userId} />
@@ -786,7 +831,7 @@ const navigate = useNavigate();
   // Pestaña de Preinscripciones (INAEM) si las hay (sólo admin/manager).
   if (canEdit && userPreinscriptions && userPreinscriptions.length > 0) {
     items.push({
-      key: "5",
+      key: "preinscripciones",
       label: "Preinscripciones",
       children: (
         <UserPreinscriptionsSection userId={userId} />
@@ -796,8 +841,7 @@ const navigate = useNavigate();
 
   return (
     <>
-      {contextHolder}
-      <Tabs defaultActiveKey={defaultActiveKey} items={items} />
+      <RouteTabs defaultTabKey="datos" items={items} syncUrl={syncTabsToUrl} />
       <SendMailModal
         open={sendMailModalOpen}
         userId={userId}

@@ -1,7 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Button, Select, message, Table, Modal, Popconfirm } from "antd";
+import { App, Button, Select, Table, Popconfirm } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
+import { formatDate } from "../../utils/format";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { useAddUserToCenterMutation } from "../../hooks/api/centers/use-add-user-to-center.mutation";
 import { useUserCentersQuery } from "../../hooks/api/users/use-user-centers.query";
@@ -25,8 +26,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
   const { mutateAsync: addUserToCenter, status } = useAddUserToCenterMutation();
   const { mutateAsync: deleteUsersFromCenters, status: deleteStatus } = useDeleteUsersFromCentersMutation();
   const updateUserMainCenterMutation = useUpdateUserMainCenterMutation();
-  const [modal, contextHolder] = Modal.useModal();
-  const [messageApi, messageContextHolder] = message.useMessage();
+  const { message: messageApi, modal } = App.useApp();
 
   const handleAdd = async () => {
     if (!id_user || !selectedCenter) return;
@@ -47,8 +47,6 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
 
   return (
     <>
-  {contextHolder}
-  {messageContextHolder}
       <Table
         dataSource={((userCenters as UserCenter[] || [])
           .slice()
@@ -114,17 +112,17 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
               </Link>
             ),
           },
-          { 
-            title: "Fecha de alta", 
-            dataIndex: "start_date", 
+          {
+            title: "Fecha de alta",
+            dataIndex: "start_date",
             key: "start_date",
-            render: (date: string | Date | null) => date ? new Date(date).toLocaleDateString('es-ES') : '-'
+            render: (date: string | Date | null) => formatDate(date, '-')
           },
-          { 
-            title: "Fecha de baja", 
-            dataIndex: "end_date", 
+          {
+            title: "Fecha de baja",
+            dataIndex: "end_date",
             key: "end_date",
-            render: (date: string | Date | null) => date ? new Date(date).toLocaleDateString('es-ES') : '-'
+            render: (date: string | Date | null) => formatDate(date, '-')
           },
           {
             title: "",
@@ -181,10 +179,10 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
                         onOk: async () => {
                           try {
                             await deleteUsersFromCenters([{ id_center: record.id_center, id_user: Number(id_user) }]);
-                            message.success('Registro eliminado correctamente');
+                            messageApi.success('Registro eliminado correctamente');
                             refetchUserCenters();
                           } catch {
-                            message.error('Error al eliminar el registro');
+                            messageApi.error('Error al eliminar el registro');
                           }
                         },
                       });

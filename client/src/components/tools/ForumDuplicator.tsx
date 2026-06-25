@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Alert, Button, Card, Divider, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { App, Alert, Button, Card, Divider, Select, Space, Table, Tag, Typography } from 'antd';
+import { STATUS_COLORS } from '../../theme/semantic-colors';
 import { ReloadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { AxiosError } from 'axios';
@@ -28,6 +29,7 @@ const errMsg = (e: unknown): string => {
 };
 
 export default function ForumDuplicator() {
+  const { message } = App.useApp();
   // Si se llega desde la ficha de curso (?courseId=N), el curso viene fijado y
   // el selector queda deshabilitado.
   const [searchParams] = useSearchParams();
@@ -120,10 +122,10 @@ export default function ForumDuplicator() {
       title: 'Tutor(es)',
       key: 'tutors',
       render: (_, g) => {
-        if (g.tutors.length === 0) return <Tag color="red">Sin tutor</Tag>;
+        if (g.tutors.length === 0) return <Tag color={STATUS_COLORS.inactive}>Sin tutor</Tag>;
         if (g.tutors.length === 1) {
           const t = g.tutors[0];
-          return <Space size={4}>{t.full_name}{!t.has_token && <Tag color="red">sin token</Tag>}</Space>;
+          return <Space size={4}>{t.full_name}{!t.has_token && <Tag color={STATUS_COLORS.inactive}>sin token</Tag>}</Space>;
         }
         // Multi-tutor: permitir elegir cuál firma (sólo si el grupo está seleccionado).
         const selected = groupIds.includes(g.id_group);
@@ -140,7 +142,7 @@ export default function ForumDuplicator() {
         );
       },
     },
-    { title: 'Moodle', dataIndex: 'moodle_id', key: 'moodle_id', width: 110, render: (m: number | null) => (m == null ? <Tag color="red">no sinc.</Tag> : m) },
+    { title: 'Moodle', dataIndex: 'moodle_id', key: 'moodle_id', width: 110, render: (m: number | null) => (m == null ? <Tag color={STATUS_COLORS.inactive}>no sinc.</Tag> : m) },
   ];
 
   // ----- Selección de tema modelo (cuando un foro tiene varios temas) -----
@@ -182,7 +184,7 @@ export default function ForumDuplicator() {
     { title: 'Foro', dataIndex: 'forumName', key: 'forumName' },
     { title: 'Grupo', dataIndex: 'group_name', key: 'group_name' },
     { title: 'Tutor (autor)', dataIndex: 'tutorName', key: 'tutorName' },
-    { title: 'Estado', dataIndex: 'status', key: 'status', width: 120, render: (s: string) => <Tag color={s === 'created' ? 'green' : 'red'}>{s === 'created' ? 'Creado' : 'Error'}</Tag> },
+    { title: 'Estado', dataIndex: 'status', key: 'status', width: 120, render: (s: string) => <Tag color={s === 'created' ? STATUS_COLORS.active : STATUS_COLORS.inactive}>{s === 'created' ? 'Creado' : 'Error'}</Tag> },
     {
       title: 'Detalle', key: 'detail',
       render: (_, r) => r.status === 'created'

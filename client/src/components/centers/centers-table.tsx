@@ -1,36 +1,28 @@
-import { useNavigate } from "react-router-dom";
-import { Table, Input, Select, Space } from "antd";
+import { Input, Select } from "antd";
 import { useMemo, useState } from "react";
 import { Center } from "../../shared/types/center/center";
+import { DataTable } from "../common/DataTable";
+import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
 
 interface CentersTableProps {
   centers?: Center[];
   loading?: boolean;
   /** Si está limitado a una empresa, oculta el filtro y la columna de empresa. */
   scopedToCompany?: boolean;
-  /** Gesto de fila para navegar al detalle (click simple o doble). */
-  rowTrigger?: "click" | "doubleClick";
-  /** Estado pasado a navigate al abrir un centro (p.ej. { from: '/centers' }). */
-  navigateState?: unknown;
   /** Contenido extra para la barra de herramientas (p.ej. botón "Añadir Centro"). */
   toolbarExtra?: React.ReactNode;
 }
-
-const normalize = (str: string) => str.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export function CentersTable({
   centers,
   loading,
   scopedToCompany = false,
-  rowTrigger = "click",
-  navigateState,
   toolbarExtra,
 }: CentersTableProps) {
-  const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
   const [companyFilter, setCompanyFilter] = useState<number[]>([]);
 
-  const normalizedSearch = normalize(searchText);
+  const normalizedSearch = normalizeLoose(searchText);
 
   // Opciones de empresa para el multiselect, derivadas de los centros cargados
   const companyOptions = useMemo(() => {
@@ -46,28 +38,26 @@ export function CentersTable({
   }, [centers]);
 
   const filteredCenters = centers?.filter(center => {
-    const matchesSearch =
-      normalize(center.center_name ?? '').includes(normalizedSearch) ||
-      normalize(center.employer_number ?? '').includes(normalizedSearch) ||
-      normalize(center.contact_person ?? '').includes(normalizedSearch) ||
-      normalize(center.contact_phone ?? '').includes(normalizedSearch) ||
-      normalize(center.contact_email ?? '').includes(normalizedSearch);
+    const matchesSearch = matchesLoose(normalizedSearch, [
+      center.center_name,
+      center.employer_number,
+      center.contact_person,
+      center.contact_phone,
+      center.contact_email,
+    ]);
 
     const matchesCompany = scopedToCompany || companyFilter.length === 0 || companyFilter.includes(center.id_company);
 
     return matchesSearch && matchesCompany;
   })?.slice().sort((a, b) => (a.center_name ?? '').localeCompare(b.center_name ?? ''));
 
-  const openCenter = (record: Center) =>
-    navigate(`/centers/${record.id_center}/edit`, navigateState ? { state: navigateState } : undefined);
-
   return (
     <div>
-      <Space wrap style={{ marginBottom: 16, width: '100%' }}>
+      <div className="list-controls">
         <Input.Search
           id="centers-search"
           placeholder="Buscar centros"
-          style={{ width: 260 }}
+          style={{ minWidth: 260 }}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           aria-label="Buscar centros"
@@ -88,8 +78,8 @@ export function CentersTable({
           />
         )}
         {toolbarExtra}
-      </Space>
-      <Table
+      </div>
+      <DataTable<Center>
         rowKey="id_center"
         columns={[
           { title: 'ID', dataIndex: 'id_center', sorter: (a, b) => a.id_center - b.id_center },
@@ -105,12 +95,7 @@ export function CentersTable({
         ]}
         dataSource={filteredCenters}
         loading={loading}
-        onRow={(record) => ({
-          ...(rowTrigger === "doubleClick"
-            ? { onDoubleClick: () => openCenter(record) }
-            : { onClick: () => openCenter(record) }),
-          style: { cursor: 'pointer' }
-        })}
+        getRowUrl={(record) => `/centers/${record.id_center}/edit`}
       />
     </div>
   );

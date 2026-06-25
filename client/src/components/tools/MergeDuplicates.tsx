@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, App, Button, Card, Checkbox, Empty, Modal, Radio, Space, Spin, Table, Tag, Typography } from "antd";
+import { STATUS_COLORS } from "../../theme/semantic-colors";
 import { MergeCellsOutlined, WarningOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -95,8 +96,8 @@ const MergeModal: React.FC<{
             showIcon
             message={
               <span>
-                Ganador <Tag color="green">#{preview.winner.id_user}</Tag> {fullName(preview.winner)} ·
-                Perdedor <Tag color="red">#{preview.loser.id_user}</Tag> {fullName(preview.loser)}
+                Ganador <Tag color={STATUS_COLORS.active}>#{preview.winner.id_user}</Tag> {fullName(preview.winner)} ·
+                Perdedor <Tag color={STATUS_COLORS.inactive}>#{preview.loser.id_user}</Tag> {fullName(preview.loser)}
               </span>
             }
             description="Todas las matrículas, grupos, centros y preinscripciones del perdedor pasan al ganador. El perdedor se elimina (irreversible)."
@@ -117,7 +118,7 @@ const MergeModal: React.FC<{
             showIcon
             message={
               <span>
-                NSS que se conservará: <Tag color={preview.resolvedNss.valid ? "green" : "orange"}>{preview.resolvedNss.value ?? "(ninguno)"}</Tag>
+                NSS que se conservará: <Tag color={preview.resolvedNss.valid ? STATUS_COLORS.active : STATUS_COLORS.warning}>{preview.resolvedNss.value ?? "(ninguno)"}</Tag>
                 {preview.resolvedNss.valid ? " (dígito de control válido)" : " (ningún NSS válido; se guarda en forma de 12 dígitos)"}
               </span>
             }
@@ -206,7 +207,7 @@ const CandidateGroup: React.FC<{ group: MergeCandidateGroup }> = ({ group }) => 
       size="small"
       title={<span>NSS <Tag>{group.nss_norm}</Tag> · {group.members.length} fichas</span>}
       extra={!group.nameMatch && (
-        <Tag color="orange" icon={<WarningOutlined />}>Nombres no coinciden — revisar</Tag>
+        <Tag color={STATUS_COLORS.warning} icon={<WarningOutlined />}>Nombres no coinciden — revisar</Tag>
       )}
     >
       <Text type="secondary" style={{ fontSize: 12 }}>

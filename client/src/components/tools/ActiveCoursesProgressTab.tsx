@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Table, Button, Tag, Typography, Space, Card, Spin } from 'antd';
+import { STATUS_COLORS } from '../../theme/semantic-colors';
 import { ReloadOutlined, SyncOutlined } from '@ant-design/icons';
 import { useActiveCoursesProgressQuery } from '../../hooks/api/moodle/use-active-courses-progress.query';
 import { useSyncMoodleGroupMembersMutation } from '../../hooks/api/moodle/use-sync-moodle-group-members.mutation';
@@ -107,9 +108,9 @@ export const ActiveCoursesProgressTab: React.FC = () => {
       key: 'status',
       render: (_: unknown, record: ActiveGroupInfo) => {
         const status = groupStatus[record.id_group]?.status;
-        if (status === 'success') return <Tag color="green">✓</Tag>;
-        if (status === 'error') return <Tag color="red">✗</Tag>;
-        if (status === 'pending') return <Tag color="blue">…</Tag>;
+        if (status === 'success') return <Tag color={STATUS_COLORS.active}>✓</Tag>;
+        if (status === 'error') return <Tag color={STATUS_COLORS.inactive}>✗</Tag>;
+        if (status === 'pending') return <Tag color={STATUS_COLORS.processing}>…</Tag>;
         return <Tag>—</Tag>;
       },
     },

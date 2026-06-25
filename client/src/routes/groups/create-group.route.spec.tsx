@@ -3,6 +3,7 @@ import CreateGroupRoute from "./create-group.route";
 import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
+import { App } from "antd";
 
 const createGroup = { mutateAsync: vi.fn() };
 const courseData = { course_name: "Curso Demo" };
@@ -23,11 +24,13 @@ describe("<CreateGroupRoute />", () => {
     cleanup();
     createGroup.mutateAsync.mockReset();
     render(
-      <MemoryRouter initialEntries={["/courses/1/groups/create"]}>
-        <Routes>
-          <Route path="/courses/:id_course/groups/create" element={<CreateGroupRoute />} />
-        </Routes>
-      </MemoryRouter>
+      <App>
+        <MemoryRouter initialEntries={["/courses/1/groups/create"]}>
+          <Routes>
+            <Route path="/courses/:id_course/groups/create" element={<CreateGroupRoute />} />
+          </Routes>
+        </MemoryRouter>
+      </App>
     );
   });
 

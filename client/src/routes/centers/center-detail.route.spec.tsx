@@ -10,8 +10,8 @@ vi.mock("antd", async () => {
     App: {
       ...(actual.App || {}),
       useApp: () => ({
-        success: vi.fn(),
-        error: vi.fn(),
+        message: { success: vi.fn(), error: vi.fn() },
+        modal: { confirm: vi.fn(), error: vi.fn(), success: vi.fn(), info: vi.fn() },
       }),
     },
   };

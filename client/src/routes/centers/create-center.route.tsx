@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { App, Button, Form, Input } from "antd";
+import { App, Button, Form, Input, Row, Col } from "antd";
 import { useCreateCenterMutation } from "../../hooks/api/centers/use-create-center.mutation";
 import { SaveOutlined } from "@ant-design/icons";
 import { useEffect } from "react";
@@ -36,7 +36,7 @@ export default function CreateCenterRoute() {
     try {
       await createCenter({ ...data, id_company: Number(id_company) });
       message.success('Centro creado exitosamente');
-      navigate(`/companies/${id_company}?tab=centers`); 
+      navigate(`/companies/${id_company}?tab=centros`); 
     } catch {
       message.error('No se pudo crear el centro');
     }
@@ -45,51 +45,61 @@ export default function CreateCenterRoute() {
   return (
     <div>
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
-          <Form.Item
-            label="Número de patronal"
-            name="employer_number"
-            help={errors.employer_number?.message}
-            validateStatus={errors.employer_number ? "error" : undefined}
-          >
-            <Controller name="employer_number" control={control} render={({ field }) => <Input id="employer_number" autoComplete="off" data-testid="employer-number" {...field} />} />
-          </Form.Item>
-        </div>
-        <Form.Item
-          label="Nombre del centro"
-          name="center_name"
-          help={errors.center_name?.message}
-          validateStatus={errors.center_name ? "error" : undefined}
-        >
-          <Controller name="center_name" control={control} render={({ field }) => <Input id="center_name" autoComplete="organization" data-testid="center-name" {...field} />} />
-        </Form.Item>
-        <Form.Item
-          label="Persona de contacto"
-          name="contact_person"
-          help={errors.contact_person?.message}
-          validateStatus={errors.contact_person ? "error" : undefined}
-        >
-          <Controller name="contact_person" control={control} render={({ field }) => <Input id="contact_person" autoComplete="name" data-testid="contact-person" {...field} />} />
-        </Form.Item>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
-          <Form.Item
-            label="Teléfono de contacto"
-            name="contact_phone"
-            help={errors.contact_phone?.message}
-            validateStatus={errors.contact_phone ? "error" : undefined}
-          >
-            <Controller name="contact_phone" control={control} render={({ field }) => <Input id="contact_phone" autoComplete="tel" data-testid="contact-phone" {...field} />} />
-          </Form.Item>
-          <Form.Item
-            label="Email de contacto"
-            name="contact_email"
-            help={errors.contact_email?.message}
-            validateStatus={errors.contact_email ? "error" : undefined}
-          >
-            <Controller name="contact_email" control={control} render={({ field }) => <Input id="contact_email" autoComplete="email" data-testid="contact-email" {...field} />} />
-          </Form.Item>
-        </div>
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <Row gutter={[16, 0]}>
+          <Col xs={24} sm={8}>
+            <Form.Item
+              label="Número de patronal"
+              name="employer_number"
+              help={errors.employer_number?.message}
+              validateStatus={errors.employer_number ? "error" : undefined}
+            >
+              <Controller name="employer_number" control={control} render={({ field }) => <Input id="employer_number" autoComplete="off" data-testid="employer-number" {...field} />} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={16}>
+            <Form.Item
+              label="Nombre del centro"
+              name="center_name"
+              help={errors.center_name?.message}
+              validateStatus={errors.center_name ? "error" : undefined}
+            >
+              <Controller name="center_name" control={control} render={({ field }) => <Input id="center_name" autoComplete="organization" data-testid="center-name" {...field} />} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Row gutter={[16, 0]}>
+          <Col xs={24} sm={12}>
+            <Form.Item
+              label="Persona de contacto"
+              name="contact_person"
+              help={errors.contact_person?.message}
+              validateStatus={errors.contact_person ? "error" : undefined}
+            >
+              <Controller name="contact_person" control={control} render={({ field }) => <Input id="contact_person" autoComplete="name" data-testid="contact-person" {...field} />} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Form.Item
+              label="Teléfono de contacto"
+              name="contact_phone"
+              help={errors.contact_phone?.message}
+              validateStatus={errors.contact_phone ? "error" : undefined}
+            >
+              <Controller name="contact_phone" control={control} render={({ field }) => <Input id="contact_phone" autoComplete="tel" data-testid="contact-phone" {...field} />} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={6}>
+            <Form.Item
+              label="Email de contacto"
+              name="contact_email"
+              help={errors.contact_email?.message}
+              validateStatus={errors.contact_email ? "error" : undefined}
+            >
+              <Controller name="contact_email" control={control} render={({ field }) => <Input id="contact_email" autoComplete="email" data-testid="contact-email" {...field} />} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <div className="form-actions">
           <Button onClick={() => navigate(-1)}>
             Cancelar
           </Button>

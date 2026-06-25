@@ -8,9 +8,8 @@ import {
   Button, 
   Tag, 
   Spin, 
-  Alert, 
-  Modal, 
-  message,
+  Alert,
+  Modal,
   Tooltip,
   Progress,
   Empty,
@@ -33,6 +32,7 @@ import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.u
 import { useUserComparison, UserMatch, UserComparison, LinkedUserPair } from "../../hooks/api/users/tools/use-user-comparison.query";
 import { useLinkUsersMutation } from "../../hooks/api/users/tools/use-link-users.mutation";
 import { useUnlinkUsersMutation } from "../../hooks/api/users/tools/use-unlink-users.mutation";
+import { STATUS_COLORS } from "../../theme/semantic-colors";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 
@@ -55,10 +55,10 @@ const UserMatchTable: React.FC<UserMatchTableProps> = ({
 }) => {
   const getConfidenceColor = (confidence: string) => {
     switch (confidence) {
-      case 'high': return 'green';
-      case 'medium': return 'orange';
-      case 'low': return 'red';
-      default: return 'gray';
+      case 'high': return STATUS_COLORS.active;
+      case 'medium': return STATUS_COLORS.warning;
+      case 'low': return STATUS_COLORS.inactive;
+      default: return STATUS_COLORS.neutral;
     }
   };
 
@@ -281,7 +281,7 @@ const LinkedUsersTable: React.FC<LinkedUsersTableProps> = ({
 };
 
 const DataCrossReference = () => {
-  const { modal } = App.useApp();
+  const { message, modal } = App.useApp();
   // No ejecutar automáticamente al montar: el usuario debe pulsar "Actualizar datos"
   const { data: comparison, isLoading, isFetching, error, refetch } = useUserComparison({ enabled: false });
   const linkUsersMutation = useLinkUsersMutation();

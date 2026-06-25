@@ -1,8 +1,9 @@
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useCompanyQuery } from "../../hooks/api/companies/use-company.query";
 import { useUpdateCompanyMutation } from "../../hooks/api/companies/use-update-company.mutation";
 import { useDeleteCompanyMutation } from "../../hooks/api/companies/use-delete-company.mutation";
-import { Button, Form, Input, Tabs, Modal } from "antd";
+import { App, Button, Form, Input, Row, Col } from "antd";
+import { RouteTabs } from "../../components/common/RouteTabs";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useEffect } from "react";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
@@ -33,7 +34,6 @@ export default function CompanyDetailRoute() {
   const { mutateAsync: updateCompany } = useUpdateCompanyMutation(id_company || "");
   const { mutateAsync: deleteCompany } = useDeleteCompanyMutation(id_company || "");
   const { data: centersData, isLoading: isCentersLoading } = useCentersQuery(id_company || "");
-  const location = useLocation();
 
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof COMPANY_FORM_SCHEMA>>({
     resolver: zodResolver(COMPANY_FORM_SCHEMA)
@@ -49,7 +49,7 @@ export default function CompanyDetailRoute() {
     document.title = `Detalle de la Empresa ${id_company}`;
   }, [id_company]);
 
-  const [modal, contextHolder] = Modal.useModal();
+  const { modal } = App.useApp();
 
   if (!companyData) return <div>Empresa no encontrada</div>;
   if (isCompanyLoading) return <div>Cargando...</div>;
@@ -85,47 +85,52 @@ export default function CompanyDetailRoute() {
     navigate(`/companies/${id_company}/add-center`);
   };
 
-  // Lee el parámetro 'tab' de la URL
-  const searchParams = new URLSearchParams(location.search);
-  const tabParam = searchParams.get("tab");
-  const defaultActiveKey = tabParam === "centers" ? "2" : "1";
-
   const items = [
     {
-      key: "1",
+      key: "datos",
       label: "Datos de Empresa",
       children: (
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
-          <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-start' }}>
-            <Form.Item label="ID" name="id_company" style={{ maxWidth: '35px' }}>
-              <Controller name="id_company" control={control} render={({ field }) => <Input id="id_company" data-testid="id_company" {...field} readOnly />} />
-            </Form.Item>
-            <Form.Item
-              label="CIF"
-              name="cif"
-              help={errors.cif?.message}
-              validateStatus={errors.cif ? "error" : undefined}
-            >
-              <Controller name="cif" control={control} render={({ field }) => <Input id="cif" data-testid="cif" {...field} readOnly={!canEdit} />} />
-            </Form.Item>
-          </div>
-          <Form.Item
-            label="Nombre de la empresa"
-            name="company_name"
-            help={errors.company_name?.message}
-            validateStatus={errors.company_name ? "error" : undefined}
-          >
-            <Controller name="company_name" control={control} render={({ field }) => <Input id="company_name" autoComplete="organization" data-testid="company_name" {...field} readOnly={!canEdit} />} />
-          </Form.Item>
-          <Form.Item
-            label="Razón Social"
-            name="corporate_name"
-            help={errors.corporate_name?.message}
-            validateStatus={errors.corporate_name ? "error" : undefined}
-          >
-            <Controller name="corporate_name" control={control} render={({ field }) => <Input id="corporate_name" autoComplete="organization" data-testid="corporate_name" {...field} readOnly={!canEdit} />} />
-          </Form.Item>
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <Row gutter={[16, 0]}>
+            <Col xs={8} sm={4} md={3}>
+              <Form.Item label="ID" name="id_company">
+                <Controller name="id_company" control={control} render={({ field }) => <Input id="id_company" data-testid="id_company" {...field} readOnly />} />
+              </Form.Item>
+            </Col>
+            <Col xs={16} sm={8} md={6}>
+              <Form.Item
+                label="CIF"
+                name="cif"
+                help={errors.cif?.message}
+                validateStatus={errors.cif ? "error" : undefined}
+              >
+                <Controller name="cif" control={control} render={({ field }) => <Input id="cif" data-testid="cif" {...field} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={[16, 0]}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Nombre de la empresa"
+                name="company_name"
+                help={errors.company_name?.message}
+                validateStatus={errors.company_name ? "error" : undefined}
+              >
+                <Controller name="company_name" control={control} render={({ field }) => <Input id="company_name" autoComplete="organization" data-testid="company_name" {...field} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                label="Razón Social"
+                name="corporate_name"
+                help={errors.corporate_name?.message}
+                validateStatus={errors.corporate_name ? "error" : undefined}
+              >
+                <Controller name="corporate_name" control={control} render={({ field }) => <Input id="corporate_name" autoComplete="organization" data-testid="corporate_name" {...field} readOnly={!canEdit} />} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <div className="form-actions">
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
             <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">Guardar</Button>
@@ -136,14 +141,13 @@ export default function CompanyDetailRoute() {
       ),
     },
     {
-      key: "2",
+      key: "centros",
       label: "Centros",
       children: (
         <CentersTable
           centers={centersData}
           loading={isCentersLoading}
           scopedToCompany
-          rowTrigger="doubleClick"
           toolbarExtra={
             <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter}>
@@ -156,10 +160,5 @@ export default function CompanyDetailRoute() {
     },
   ];
 
-  return (
-    <>
-      {contextHolder}
-      <Tabs defaultActiveKey={defaultActiveKey} items={items} />
-    </>
-  );
+  return <RouteTabs items={items} />;
 }

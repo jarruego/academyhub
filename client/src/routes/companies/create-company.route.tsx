@@ -1,5 +1,5 @@
 import { useCreateCompanyMutation } from "../../hooks/api/companies/use-create-company.mutation";
-import { Button, Form, Input, message } from "antd";
+import { App, Button, Form, Input, Row, Col } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { SaveOutlined } from "@ant-design/icons";
@@ -20,6 +20,7 @@ const CREATE_COMPANY_FORM = z.object({
 });
 
 export default function CreateCompanyRoute() {
+  const { message } = App.useApp();
   const { mutateAsync: createCompany } = useCreateCompanyMutation();
 
   const { handleSubmit, control, formState: { errors } } = useForm<z.infer<typeof CREATE_COMPANY_FORM>>({
@@ -52,25 +53,31 @@ export default function CreateCompanyRoute() {
         >
           <Controller name="company_name" control={control} render={({ field }) => <Input id="company_name" autoComplete="organization" data-testid="company-name" {...field} />} />
         </Form.Item>
-        <Form.Item
-          label="Razón Social"
-          name="corporate_name"
-          required={true}
-          help={errors.corporate_name?.message}
-          validateStatus={errors.corporate_name ? "error" : undefined}
-        >
-          <Controller name="corporate_name" control={control} render={({ field }) => <Input id="corporate_name" autoComplete="organization" data-testid="corporate-name" {...field} />} />
-        </Form.Item>
-        <Form.Item
-          label="CIF"
-          name="cif"
-          required={true}
-          help={errors.cif?.message}
-          validateStatus={errors.cif ? "error" : undefined}
-        >
-          <Controller name="cif" control={control} render={({ field }) => <Input id="cif" autoComplete="off" data-testid="cif" {...field} />} />
-        </Form.Item>
-        <div style={{ display: 'flex', gap: '16px' }}>
+        <Row gutter={[16, 0]}>
+          <Col xs={24} sm={16}>
+            <Form.Item
+              label="Razón Social"
+              name="corporate_name"
+              required={true}
+              help={errors.corporate_name?.message}
+              validateStatus={errors.corporate_name ? "error" : undefined}
+            >
+              <Controller name="corporate_name" control={control} render={({ field }) => <Input id="corporate_name" autoComplete="organization" data-testid="corporate-name" {...field} />} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={8}>
+            <Form.Item
+              label="CIF"
+              name="cif"
+              required={true}
+              help={errors.cif?.message}
+              validateStatus={errors.cif ? "error" : undefined}
+            >
+              <Controller name="cif" control={control} render={({ field }) => <Input id="cif" autoComplete="off" data-testid="cif" {...field} />} />
+            </Form.Item>
+          </Col>
+        </Row>
+        <div className="form-actions">
           <Button onClick={() => navigate(-1)}>
             Cancelar
           </Button>

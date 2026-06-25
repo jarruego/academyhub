@@ -17,6 +17,7 @@ import {
     Input,
     Collapse
 } from 'antd';
+import { STATUS_COLORS } from '../../theme/semantic-colors';
 import {
     CheckOutlined,
     CloseOutlined,
@@ -291,8 +292,8 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                                         <span style={{ color: diff && !empty ? '#d4380d' : undefined }}>
                                             {empty ? <Text type="secondary">Vacío</Text> : String(value)}
                                         </span>
-                                        {invalidDni && <Tag color="red" style={{ marginLeft: 'auto' }}>DNI/NIE inválido</Tag>}
-                                        {invalidNss && <Tag color="red" style={{ marginLeft: 'auto' }}>NSS inválido</Tag>}
+                                        {invalidDni && <Tag color={STATUS_COLORS.inactive} style={{ marginLeft: 'auto' }}>DNI/NIE inválido</Tag>}
+                                        {invalidNss && <Tag color={STATUS_COLORS.inactive} style={{ marginLeft: 'auto' }}>NSS inválido</Tag>}
                                     </div>
                                 );
                             };
@@ -301,7 +302,7 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                                 <React.Fragment key={f.key}>
                                     <div>
                                         <Text strong>{f.label}</Text>
-                                        {diff && <Tag color="orange" style={{ marginLeft: 6 }}>≠</Tag>}
+                                        {diff && <Tag color={STATUS_COLORS.warning} style={{ marginLeft: 6 }}>≠</Tag>}
                                     </div>
                                     {renderCell('csv')}
                                     {renderCell('db')}
@@ -445,7 +446,7 @@ export const PendingDecisionsComponent: React.FC = () => {
             key: 'similarityScore',
             width: 100,
             render: (score: number) => (
-                <Tag color={score >= 0.95 ? 'green' : score >= 0.90 ? 'orange' : 'red'}>
+                <Tag color={score >= 0.95 ? STATUS_COLORS.active : score >= 0.90 ? STATUS_COLORS.warning : STATUS_COLORS.inactive}>
                     {(score * 100).toFixed(1)}%
                 </Tag>
             ),

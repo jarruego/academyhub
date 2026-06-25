@@ -1,4 +1,4 @@
-import { Modal, Form, Input, Select, Tabs, Table, Button, Popconfirm, message } from 'antd';
+import { App, Modal, Form, Input, Select, Tabs, Table, Button, Popconfirm } from 'antd';
 import { getApiHost } from '../../utils/api/get-api-host.util';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
@@ -27,7 +27,7 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
   // response type is AuthUser, but request data is AuthUserFormValues; keep the axios helper untyped here to avoid mismatched generic
   const authRequest = useAuthenticatedAxios<AuthUser>();
   const [loading, setLoading] = useState(false);
-  const [modal, modalContextHolder] = Modal.useModal();
+  const { message: msg, modal } = App.useApp();
 
   // sync form when user changes or when opening in create mode
   useEffect(() => {
@@ -58,12 +58,8 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
   const addMoodleLink = useAddMoodleLink(authUserId);
   const deleteMoodleLink = useDeleteMoodleLink(authUserId);
 
-  const [msg, msgCtx] = message.useMessage();
-
   return (
     <>
-      {modalContextHolder}
-      {msgCtx}
       <Modal
         title={title}
         open={open}

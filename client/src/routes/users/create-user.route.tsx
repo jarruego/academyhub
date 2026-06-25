@@ -1,4 +1,4 @@
-import { Button, Form, Input, Checkbox, Select, Modal, DatePicker, Row, Col } from "antd";
+import { App, Button, Form, Input, Checkbox, Select, DatePicker, Row, Col } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCreateUserMutation } from "../../hooks/api/users/use-create-user.mutation";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
@@ -54,7 +54,7 @@ export default function CreateUserRoute() {
   const { handleSubmit, control, setValue, watch, formState: {errors} } = useForm({
     resolver: zodResolver(CREATE_USER_FORM)
   });
-  const [modal, contextHolder] = Modal.useModal();
+  const { modal } = App.useApp();
 
   const dniValue = watch("dni");
   useEffect(() => {
@@ -88,7 +88,6 @@ export default function CreateUserRoute() {
 
   return (
     <div>
-      {contextHolder}
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
 
         {/* Identificación */}

@@ -1,4 +1,4 @@
-import { Modal, Form, Select, Radio, Button, message, Typography, Input, Divider, Collapse, Checkbox, Progress, Alert } from 'antd';
+import { App, Modal, Form, Select, Radio, Button, Typography, Input, Divider, Collapse, Checkbox, Progress, Alert } from 'antd';
 import { useMailTemplatesQuery } from '../../hooks/api/mail/use-mail-templates';
 import { useSmtpSettingsQuery } from '../../hooks/api/mail/use-smtp-settings';
 import { useSendMailMutation } from '../../hooks/api/mail/use-send-mail.mutation';
@@ -36,7 +36,7 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
   const { data: smtpSettings } = useSmtpSettingsQuery();
   const { mutateAsync: sendMail, isPending } = useSendMailMutation();
   const { mutateAsync: sendCustomMail, isPending: isCustomPending } = useSendCustomMailMutation();
-  const [messageApi, messageContextHolder] = message.useMessage();
+  const { message: messageApi } = App.useApp();
   const { authInfo } = useAuthInfo();
 
   const [sendMode, setSendMode] = useState<'template' | 'custom'>('template');
@@ -186,7 +186,6 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
 
   return (
     <>
-      {messageContextHolder}
 
       {/* Modal de progreso */}
       <Modal

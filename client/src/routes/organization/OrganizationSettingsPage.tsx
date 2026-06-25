@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Form, Input, Button, Upload, Image, Row, Col, message, Modal, Typography, Card } from 'antd';
+import { App, Form, Input, Button, Upload, Image, Row, Col, Modal, Typography, Card } from 'antd';
 import type { UploadRequestOption } from 'rc-upload/lib/interface';
 import { InboxOutlined } from '@ant-design/icons';
 import { useRole } from '../../utils/permissions/use-role';
@@ -11,8 +11,7 @@ import { useCheckMoodleConnection } from '../../hooks/api/moodle/use-check-moodl
 
 export default function OrganizationSettingsPage() {
   const role = useRole();
-  // Use message.useMessage() to avoid antd warning about static message consuming dynamic theme/context
-  const [messageApi, messageContextHolder] = message.useMessage();
+  const { message: messageApi } = App.useApp();
   const [loadingUpload, setLoadingUpload] = useState(false);
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
   const [tokenValue, setTokenValue] = useState('');
@@ -212,7 +211,6 @@ export default function OrganizationSettingsPage() {
         <Col span={12}>
           <Form form={form} layout="vertical" onFinish={handleSave}>
             <Form.Item label="Settings (JSON)">
-              {messageContextHolder}
               {jsonText ? (
                 <div style={{ border: '1px solid #eee', padding: 8, borderRadius: 4, maxHeight: 420, overflow: 'hidden' }}>
                   <Input.TextArea

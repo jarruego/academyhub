@@ -1,4 +1,4 @@
-import { Button, Table, Input, Tag } from "antd";
+import { Button, Input, Tag } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useAllGroupsQuery } from "../../hooks/api/groups/use-all-groups.query";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
@@ -9,6 +9,11 @@ import { Course } from "../../shared/types/course/course";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { isGroupActive } from "../../utils/group-active.util";
+import { DataTable } from "../../components/common/DataTable";
+import { ActiveTag } from "../../components/common/tags";
+import { formatDate } from "../../utils/format";
+import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
+import { FLAG_COLORS } from "../../theme/semantic-colors";
 
 export default function GroupsRoute() {
   const { data: groupsData, isLoading: isGroupsLoading } = useAllGroupsQuery();
@@ -20,13 +25,11 @@ export default function GroupsRoute() {
     document.title = "Grupos";
   }, []);
 
-  const normalize = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
   };
 
-  const normalizedSearch = normalize(searchText);
+  const normalizedSearch = normalizeLoose(searchText);
 
   // Build course id -> course name map for display
   const courseNameById = useMemo(() => {
@@ -35,15 +38,9 @@ export default function GroupsRoute() {
     return map;
   }, [coursesData]);
 
-  const filtered = (groupsData || []).filter(g => {
-    const courseName = courseNameById[g.id_course] ?? '';
-    return (
-      normalize(g.group_name ?? '').includes(normalizedSearch) ||
-      normalize(String(g.moodle_id ?? '')).includes(normalizedSearch) ||
-      normalize(g.fundae_id ?? '').includes(normalizedSearch) ||
-      normalize(courseName).includes(normalizedSearch)
-    );
-  }).slice().sort((a: Group, b: Group) => {
+  const filtered = (groupsData || []).filter(g =>
+    matchesLoose(normalizedSearch, [g.group_name, g.moodle_id, g.fundae_id, courseNameById[g.id_course]])
+  ).slice().sort((a: Group, b: Group) => {
     const aTs = a.end_date ? new Date(a.end_date).getTime() : 0;
     const bTs = b.end_date ? new Date(b.end_date).getTime() : 0;
     return bTs - aTs;
@@ -51,20 +48,21 @@ export default function GroupsRoute() {
 
   return (
     <div>
-      <Input.Search
-        id="groups-search"
-        placeholder="Buscar grupos"
-        style={{ marginBottom: 16 }}
-        value={searchText}
-        onChange={handleSearch}
-        aria-label="Buscar grupos"
-      />
+      <div className="list-controls">
+        <Input.Search
+          id="groups-search"
+          placeholder="Buscar grupos"
+          style={{ minWidth: 260 }}
+          value={searchText}
+          onChange={handleSearch}
+          aria-label="Buscar grupos"
+        />
+        <AuthzHide roles={[Role.ADMIN]}>
+          <Button type="primary" onClick={() => navigate('/courses')} icon={<PlusOutlined />}>Añadir Grupo</Button>
+        </AuthzHide>
+      </div>
 
-      <AuthzHide roles={[Role.ADMIN]}>
-        <Button type="primary" onClick={() => navigate('/courses')} icon={<PlusOutlined />} style={{ marginBottom: 12 }}>Añadir Grupo</Button>
-      </AuthzHide>
-
-      <Table
+      <DataTable<Group>
         rowKey="id_group"
         columns={[
           {
@@ -91,13 +89,13 @@ export default function GroupsRoute() {
           {
             title: 'Inicio',
             dataIndex: 'start_date',
-            render: (d: Date | null) => d ? new Date(d).toLocaleDateString('es-ES') : '',
+            render: (d: Date | null) => formatDate(d),
             sorter: (a: Group, b: Group) => ((b.start_date ? new Date(b.start_date).getTime() : 0) - (a.start_date ? new Date(a.start_date).getTime() : 0)),
           },
           {
             title: 'Fin',
             dataIndex: 'end_date',
-            render: (d: Date | null) => d ? new Date(d).toLocaleDateString('es-ES') : '',
+            render: (d: Date | null) => formatDate(d),
             sorter: (a: Group, b: Group) => ((b.end_date ? new Date(b.end_date).getTime() : 0) - (a.end_date ? new Date(a.end_date).getTime() : 0)),
           },
           {
@@ -113,8 +111,8 @@ export default function GroupsRoute() {
               const forced = record.active_mode && record.active_mode !== 'auto';
               return (
                 <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-                  <Tag color={active ? 'green' : 'red'}>{active ? 'Activo' : 'Inactivo'}</Tag>
-                  {forced && <Tag color="gold">Manual</Tag>}
+                  <ActiveTag active={active} />
+                  {forced && <Tag color={FLAG_COLORS.manual}>Manual</Tag>}
                 </span>
               );
             },
@@ -123,18 +121,7 @@ export default function GroupsRoute() {
         ]}
         dataSource={filtered}
         loading={isGroupsLoading || isCoursesLoading}
-        onRow={(record) => ({
-          onClick: () => {
-            try {
-              const url = `${window.location.origin}/groups/${record.id_group}/edit`;
-              window.open(url, '_blank', 'noopener,noreferrer');
-            } catch (e) {
-              // fallback: use relative path
-              window.open(`/groups/${record.id_group}/edit`, '_blank');
-            }
-          },
-          style: { cursor: 'pointer' }
-        })}
+        getRowUrl={(record) => `/groups/${record.id_group}/edit`}
       />
     </div>
   );

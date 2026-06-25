@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Table, Button, message, Modal, notification, Dropdown, Tag, Spin, Typography } from 'antd';
+import { App, Table, Button, Modal, Dropdown, Spin, Typography } from 'antd';
 import type { MenuProps } from 'antd';
 import { Tooltip } from 'antd';
 import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined, DownOutlined } from '@ant-design/icons';
@@ -12,6 +12,8 @@ import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
 import { useCreateBonificationFileMutation } from '../../hooks/api/groups/use-create-bonification-file.mutation';
 import { useUpdateUserEnrollmentCenterMutation } from '../../hooks/api/groups/use-update-user-enrollment-center.mutation';
 import { BonificationModal } from '../courses/BonificationModal';
+import { FinalizedTag } from '../common/tags';
+import { formatDateTime } from '../../utils/format';
 import { User } from '../../shared/types/user/user';
 import { USERS_TABLE_COLUMNS, filterUsersTimeSpentColumn } from '../../constants/tables/users-table-columns.constant';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
@@ -66,9 +68,7 @@ const isStudentUser = (user: User): boolean => {
 };
 
 const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseOrigin, courseFunding, groupStart, groupEnd, highlightUserId }) => {
-  const [messageApi, contextHolder] = message.useMessage();
-  const [modal, modalContextHolder] = Modal.useModal();
-  const [notificationApi, notificationContextHolder] = notification.useNotification();
+  const { message: messageApi, modal, notification: notificationApi } = App.useApp();
 
   const extractSummary = (text?: string) => {
     if (!text) return '';
@@ -468,7 +468,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       key: 'finalized',
       sorter: { compare: (a: User, b: User) => Number(a.finalized ?? false) - Number(b.finalized ?? false) },
       render: (_: unknown, user: User) => (
-        <Tag color={user.finalized ? 'green' : 'red'}>{user.finalized ? 'Finalizado' : 'No finalizado'}</Tag>
+        <FinalizedTag finalized={!!user.finalized} />
       ),
     });
 
@@ -642,10 +642,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
   return (
     <div>
-      {contextHolder}
-      {modalContextHolder}
-      {notificationContextHolder}
-
       {/* ── Botonera ────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
 
@@ -722,9 +718,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         scroll={{ x: 'max-content', y: 500 }}
         footer={() => {
           const syncedAt = groupData?.moodle_synced_at;
-          const formattedDate = syncedAt
-            ? new Date(syncedAt).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })
-            : 'Sin sincronizar';
+          const formattedDate = formatDateTime(syncedAt, 'Sin sincronizar');
           return (
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingRight: 8 }}>
               <div style={{ fontSize: '0.9em', color: '#666' }}>
@@ -802,7 +796,6 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         refetchUsersByGroup={() => refetch?.()}
         message={messageApi}
         onRemoveUser={(id) => setSelectedUserIds(prev => prev.filter(x => x !== id))}
-        contextHolder={contextHolder}
       />
 
       <Modal

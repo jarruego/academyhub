@@ -1,12 +1,12 @@
-import { Button, Table, Input, Space } from "antd";
+import { Button, Input } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { PlusOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
-
-const normalize = (str: string) => str.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+import { DataTable } from "../../components/common/DataTable";
+import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
 
 export default function CompaniesRoute() {
   const { data: companiesData, isLoading: isCompaniesLoading } = useCompaniesQuery();
@@ -17,19 +17,17 @@ export default function CompaniesRoute() {
     document.title = "Empresas";
   }, []);
 
-  const normalizedSearch = normalize(searchText);
+  const normalizedSearch = normalizeLoose(searchText);
   const filteredCompanies = companiesData?.filter((company) =>
-    normalize(company.company_name ?? '').includes(normalizedSearch) ||
-    normalize(company.corporate_name ?? '').includes(normalizedSearch) ||
-    normalize(company.cif ?? '').includes(normalizedSearch)
+    matchesLoose(normalizedSearch, [company.company_name, company.corporate_name, company.cif])
   );
 
   return <div>
-    <Space wrap style={{ marginBottom: 16, width: '100%' }}>
+    <div className="list-controls">
       <Input.Search
         id="companies-search"
         placeholder="Buscar por nombre, razón social o CIF"
-        style={{ width: 320 }}
+        style={{ minWidth: 320 }}
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
         aria-label="Buscar empresas"
@@ -37,8 +35,8 @@ export default function CompaniesRoute() {
       <AuthzHide roles={[Role.ADMIN]}>
         <Button type="primary" onClick={() => navigate('/add-company')} icon={<PlusOutlined />}>Añadir Empresa</Button>
       </AuthzHide>
-    </Space>
-    <Table
+    </div>
+    <DataTable
       rowKey="id_company"
       columns={[
         {
@@ -92,10 +90,7 @@ export default function CompaniesRoute() {
       ]}
       dataSource={filteredCompanies}
       loading={isCompaniesLoading}
-      onRow={(record) => ({
-        onClick: () => navigate(`/companies/${record.id_company}`),
-        style: { cursor: 'pointer' }
-      })}
+      getRowUrl={(record) => `/companies/${record.id_company}`}
     />
   </div>
 }

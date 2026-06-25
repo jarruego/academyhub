@@ -1,4 +1,4 @@
-import { Table, Tag, Spin, Alert, Button, Popconfirm, message, Tooltip } from "antd";
+import { App, Table, Tag, Spin, Alert, Button, Popconfirm, Tooltip } from "antd";
 import { FileProtectOutlined, CloudDownloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useMoodleUsersByUserIdQuery } from "../../hooks/api/moodle-users/use-moodle-users-by-user-id.query";
@@ -26,7 +26,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
   const setMainMutation = useSetMainMoodleUserMutation(userId);
   const unlinkMutation = useUnlinkMoodleUserMutation(userId);
   const { data: orgSettings } = useOrganizationSettingsQuery();
-  const [messageApi, messageContextHolder] = message.useMessage();
+  const { message: messageApi } = App.useApp();
   const [syncingMoodleId, setSyncingMoodleId] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const certificatesPluginEnabled = Boolean(
@@ -254,7 +254,6 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
 
   return (
     <div>
-      {messageContextHolder}
       <h3>Usuarios de Moodle Asociados</h3>
       <Table
         columns={columns}

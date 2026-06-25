@@ -25,6 +25,7 @@ import {
 } from "@ant-design/icons";
 import type { RcFile } from "antd/es/upload";
 import { App } from "antd";
+import { STATUS_COLORS } from "../../theme/semantic-colors";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useInaemImportUpload, useInaemJobStatus } from "../../hooks/api/import-inaem/useInaemImport";
@@ -102,7 +103,7 @@ const InaemImport: React.FC = () => {
   };
 
   const statusColor = (s: string) =>
-    s === "completed" ? "success" : s === "failed" ? "error" : s === "processing" ? "processing" : "default";
+    s === "completed" ? STATUS_COLORS.active : s === "failed" ? STATUS_COLORS.inactive : s === "processing" ? STATUS_COLORS.processing : STATUS_COLORS.neutral;
   const statusIcon = (s: string) =>
     s === "completed" ? <CheckCircleOutlined style={{ color: "#52c41a" }} />
       : s === "failed" ? <CloseCircleOutlined style={{ color: "#ff4d4f" }} />

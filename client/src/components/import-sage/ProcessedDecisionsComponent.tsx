@@ -7,16 +7,16 @@ import {
     Space, 
     Typography, 
     Alert, 
-    Modal, 
+    Modal,
     Descriptions,
-    message,
     Tooltip,
     Empty,
     Input,
     Spin
 } from 'antd';
-import { 
-    InfoCircleOutlined, 
+import { STATUS_COLORS } from '../../theme/semantic-colors';
+import {
+    InfoCircleOutlined,
     UndoOutlined, 
     ExclamationCircleOutlined,
     SearchOutlined,
@@ -69,9 +69,9 @@ const ProcessedDecisionModal: React.FC<ProcessedDecisionModalProps> = ({
         switch (action) {
             case 'link': return 'blue';
             case 'update_and_link': return 'purple';
-            case 'create_new': return 'green';
-            case 'skip': return 'orange';
-            default: return 'default';
+            case 'create_new': return STATUS_COLORS.active;
+            case 'skip': return STATUS_COLORS.warning;
+            default: return STATUS_COLORS.neutral;
         }
     };
 
@@ -292,7 +292,7 @@ export const ProcessedDecisionsComponent: React.FC = () => {
         search: ''
     });
 
-    const { modal } = App.useApp();
+    const { message, modal } = App.useApp();
     const { data: processedDecisions, isLoading, error, refetch } = useProcessedDecisions(filters);
     const revertDecisionMutation = useRevertDecision();
 
@@ -332,9 +332,9 @@ export const ProcessedDecisionsComponent: React.FC = () => {
         switch (action) {
             case 'link': return 'blue';
             case 'update_and_link': return 'purple';
-            case 'create_new': return 'green';
-            case 'skip': return 'orange';
-            default: return 'default';
+            case 'create_new': return STATUS_COLORS.active;
+            case 'skip': return STATUS_COLORS.warning;
+            default: return STATUS_COLORS.neutral;
         }
     };
 

@@ -1,6 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
-import { Button, Form, Input, message, Tabs, DatePicker, Modal, Tag } from "antd";
+import { App, Button, Form, Input, DatePicker, Tag, Row, Col } from "antd";
+import { RouteTabs } from "../../components/common/RouteTabs";
+import { ActiveTag } from "../../components/common/tags";
+import { STATUS_COLORS } from "../../theme/semantic-colors";
 import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
@@ -53,8 +56,7 @@ export default function EditGroupRoute() {
     end_date: watchedEndDate ?? undefined,
     active_mode: watchedActiveMode ?? undefined,
   });
-  const [modal, contextHolder] = Modal.useModal();
-  const [messageApi, messageContextHolder] = message.useMessage();
+  const { message: messageApi, modal } = App.useApp();
   const role = useRole();
   const canEdit = role === Role.ADMIN || role === Role.MANAGER;
   const pushGroupMutation = usePushGroupToMoodleMutation();
@@ -147,11 +149,10 @@ export default function EditGroupRoute() {
 
   const items = [
     {
-      key: "2",
+      key: "usuarios",
       label: "Usuarios del Grupo",
       children: (
         <>
-          {messageContextHolder}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
             <h2 style={{ margin: 0}}>Usuarios del Grupo {groupData?.group_name ? `- ${groupData.group_name}` : ''}</h2>
             {courseData?.course_name && (
@@ -175,93 +176,109 @@ export default function EditGroupRoute() {
       ),
     },
     {
-      key: "1",
+      key: "datos",
       label: "Datos del Grupo",
       children: (
         <Form layout="vertical" onFinish={handleSubmit(submit)}>
-          <div style={{ display: 'flex', gap: '16px', justifyContent: "flex-start" }}>
-            <Form.Item label="ID del grupo" name="id_group"
-              help={errors.id_group?.message}
-              validateStatus={errors.id_group ? "error" : undefined}
-            >
-              <Controller name="id_group" control={control} render={({ field }) => <Input id="id_group" {...field} disabled />} />
-            </Form.Item>
-            <Form.Item label="ID FUNDAE" name="fundae_id"
-              help={errors.fundae_id?.message}
-              validateStatus={errors.fundae_id ? "error" : undefined}
-            >
-              <Controller
-                name="fundae_id"
-                control={control}
-                render={({ field }) => <Input id="fundae_id" autoComplete="off" {...field} value={field.value ?? ""} disabled={!canEdit} />}
-              />
-            </Form.Item>
-            <Form.Item label="Nombre del grupo" name="group_name"
-              help={errors.group_name?.message}
-              validateStatus={errors.group_name ? "error" : undefined}
-            >
-              <Controller name="group_name" control={control} render={({ field }) => <Input id="group_name" autoComplete="off" {...field} data-testid="group-name" disabled={!canEdit} />} />
-            </Form.Item>
-            <Form.Item label="Fecha Inicio" name="start_date"
-              help={errors.start_date?.message}
-              validateStatus={errors.start_date ? "error" : undefined}
-            >
-              <Controller
-                name="start_date"
-                control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    {...field}
-                    value={field.value ? dayjs(field.value) : null}
-                    onChange={date => field.onChange(date ? date.toDate() : null)}
-                    id="start_date"
-                    disabled={!canEdit}
-                  />
-                )}
-              />
-            </Form.Item>
-            <Form.Item label="Fecha Fin" name="end_date"
-              help={errors.end_date?.message}
-              validateStatus={errors.end_date ? "error" : undefined}
-            >
-              <Controller
-                name="end_date"
-                control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    {...field}
-                    value={field.value ? dayjs(field.value) : null}
-                    onChange={date => field.onChange(date ? date.toDate() : null)}
-                    id="end_date"
-                    disabled={!canEdit}
-                  />
-                )}
-              />
-            </Form.Item>
-            <Form.Item label="Estado de actividad" name="active_mode"
-              help={errors.active_mode?.message}
-              validateStatus={errors.active_mode ? "error" : undefined}
-            >
-              <Controller
-                name="active_mode"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    {...field}
-                    id="active_mode"
-                    style={{ minWidth: 200 }}
-                    value={field.value ?? 'auto'}
-                    options={GROUP_ACTIVE_MODE_OPTIONS}
-                    onChange={(value) => field.onChange(value)}
-                    disabled={!canEdit}
-                  />
-                )}
-              />
-            </Form.Item>
-            <Form.Item label="Estado actual">
-              <Tag color={resolvedActive ? 'green' : 'red'}>{resolvedActive ? 'Activo' : 'Inactivo'}</Tag>
-            </Form.Item>
-          </div>
+          <Row gutter={[16, 0]}>
+            <Col xs={12} sm={6} md={3}>
+              <Form.Item label="ID del grupo" name="id_group"
+                help={errors.id_group?.message}
+                validateStatus={errors.id_group ? "error" : undefined}
+              >
+                <Controller name="id_group" control={control} render={({ field }) => <Input id="id_group" {...field} disabled />} />
+              </Form.Item>
+            </Col>
+            <Col xs={12} sm={6} md={4}>
+              <Form.Item label="ID FUNDAE" name="fundae_id"
+                help={errors.fundae_id?.message}
+                validateStatus={errors.fundae_id ? "error" : undefined}
+              >
+                <Controller
+                  name="fundae_id"
+                  control={control}
+                  render={({ field }) => <Input id="fundae_id" autoComplete="off" {...field} value={field.value ?? ""} disabled={!canEdit} />}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={12} md={5}>
+              <Form.Item label="Nombre del grupo" name="group_name"
+                help={errors.group_name?.message}
+                validateStatus={errors.group_name ? "error" : undefined}
+              >
+                <Controller name="group_name" control={control} render={({ field }) => <Input id="group_name" autoComplete="off" {...field} data-testid="group-name" disabled={!canEdit} />} />
+              </Form.Item>
+            </Col>
+            <Col xs={12} sm={8} md={3}>
+              <Form.Item label="Fecha Inicio" name="start_date"
+                help={errors.start_date?.message}
+                validateStatus={errors.start_date ? "error" : undefined}
+              >
+                <Controller
+                  name="start_date"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      {...field}
+                      value={field.value ? dayjs(field.value) : null}
+                      onChange={date => field.onChange(date ? date.toDate() : null)}
+                      id="start_date"
+                      disabled={!canEdit}
+                      style={{ width: '100%' }}
+                    />
+                  )}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={12} sm={8} md={3}>
+              <Form.Item label="Fecha Fin" name="end_date"
+                help={errors.end_date?.message}
+                validateStatus={errors.end_date ? "error" : undefined}
+              >
+                <Controller
+                  name="end_date"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      {...field}
+                      value={field.value ? dayjs(field.value) : null}
+                      onChange={date => field.onChange(date ? date.toDate() : null)}
+                      id="end_date"
+                      disabled={!canEdit}
+                      style={{ width: '100%' }}
+                    />
+                  )}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={16} sm={8} md={4}>
+              <Form.Item label="Estado de actividad" name="active_mode"
+                help={errors.active_mode?.message}
+                validateStatus={errors.active_mode ? "error" : undefined}
+              >
+                <Controller
+                  name="active_mode"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      {...field}
+                      id="active_mode"
+                      style={{ width: '100%' }}
+                      value={field.value ?? 'auto'}
+                      options={GROUP_ACTIVE_MODE_OPTIONS}
+                      onChange={(value) => field.onChange(value)}
+                      disabled={!canEdit}
+                    />
+                  )}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={8} sm={4} md={2}>
+              <Form.Item label="Estado actual">
+                <ActiveTag active={resolvedActive} />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item label="Descripción" name="description"
             help={errors.description?.message}
             validateStatus={errors.description ? "error" : undefined}
@@ -283,9 +300,9 @@ export default function EditGroupRoute() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
             {/* Moodle status */}
             {groupData?.moodle_id ? (
-              <Tag color="green">Moodle ID: {groupData.moodle_id}</Tag>
+              <Tag color={STATUS_COLORS.active}>Moodle ID: {groupData.moodle_id}</Tag>
             ) : (
-              <Tag color="orange">No subido a Moodle</Tag>
+              <Tag color={STATUS_COLORS.warning}>No subido a Moodle</Tag>
             )}
 
             {/* Upload button (visible to admins) - moved here from the actions area */}
@@ -353,7 +370,7 @@ export default function EditGroupRoute() {
               )}
             </AuthzHide>
           </div>
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <div className="form-actions">
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-group" disabled={!canEdit}>
               Guardar
             </Button>
@@ -368,9 +385,7 @@ export default function EditGroupRoute() {
 
   return (
     <div>
-      {contextHolder}
-      {messageContextHolder}
-      <Tabs defaultActiveKey="2" items={items} />
+      <RouteTabs defaultTabKey="usuarios" items={items} />
     </div>
   );
 }

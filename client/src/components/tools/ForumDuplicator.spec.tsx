@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { App } from 'antd';
 import ForumDuplicator from './ForumDuplicator';
 
 vi.mock('../../hooks/api/courses/use-courses.query', () => ({
@@ -21,9 +22,11 @@ describe('<ForumDuplicator/>', () => {
   it('muestra el paso de curso y oculta las acciones hasta elegir curso', async () => {
     cleanup();
     render(
-      <MemoryRouter>
-        <ForumDuplicator />
-      </MemoryRouter>,
+      <App>
+        <MemoryRouter>
+          <ForumDuplicator />
+        </MemoryRouter>
+      </App>,
     );
 
     expect(await screen.findByText('Duplicado de Foros')).toBeDefined();

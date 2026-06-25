@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Table, Card, Pagination, Tag, Typography, Alert, Descriptions, Modal, Tooltip, Space, Statistic, Row, Col, Button, Popconfirm, message } from 'antd'
+import { App, Table, Card, Pagination, Tag, Typography, Alert, Descriptions, Modal, Tooltip, Space, Statistic, Row, Col, Button, Popconfirm } from 'antd'
+import { STATUS_COLORS } from '../../theme/semantic-colors'
 import { ExclamationCircleOutlined, EyeOutlined, InfoCircleOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useFailedUsers, useFailedUsersStats, useDeleteFailedUsers } from '../../hooks/api/import-sage'
 
@@ -22,6 +23,7 @@ interface FailedUser {
 }
 
 export const FailedUsersView: React.FC = () => {
+  const { message } = App.useApp()
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [selectedUser, setSelectedUser] = useState<FailedUser | null>(null)
@@ -98,7 +100,7 @@ export const FailedUsersView: React.FC = () => {
       },
       render: (reason: string) => (
         <Tooltip placement="topLeft" title={reason}>
-          <Tag color="red" icon={<ExclamationCircleOutlined />}>
+          <Tag color={STATUS_COLORS.inactive} icon={<ExclamationCircleOutlined />}>
             {reason.length > 40 ? `${reason.substring(0, 40)}...` : reason}
           </Tag>
         </Tooltip>

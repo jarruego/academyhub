@@ -25,7 +25,6 @@ interface BonificationModalProps {
   refetchUsersByGroup: () => void;
   message: ReturnType<typeof App.useApp>["message"];
   onRemoveUser: (userId: number) => void;
-  contextHolder?: React.ReactNode;
 }
 
 export const BonificationModal: React.FC<BonificationModalProps> = ({
@@ -42,7 +41,6 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
   refetchUsersByGroup,
   message,
   onRemoveUser,
-  contextHolder,
 }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const role = useRole();
@@ -289,7 +287,6 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
 
   return (
     <>
-      {contextHolder}
       <Modal
         open={open}
         title="Bonificar usuarios seleccionados y crear XML FUNDAE"

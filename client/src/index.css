@@ -33,6 +33,38 @@ ul, ol {
     cursor: pointer;
 }
 
+/* Barra de controles compartida de los listados (ListPageLayout).
+   En escritorio fluyen en línea; en móvil (<768px) se apilan a ancho completo
+   para que los filtros no se amontonen. */
+.list-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 767.98px) {
+    .list-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .list-controls > * {
+        width: 100% !important;
+    }
+}
+
+/* Barra de acciones de formulario (Cancelar / Guardar / Eliminar…).
+   Homogeneiza el `<div style="display:flex;gap:16px">` que cada formulario
+   repetía; en móvil envuelve a varias líneas en lugar de desbordar. */
+.form-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
 /* Completed rows: green (>=75) */
 .ant-table-row.user-course-row.completed > td {
     background-color: lightgreen !important; /* antd green-6 / darker green */

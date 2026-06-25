@@ -1,4 +1,4 @@
-import { Card, Alert, Table, Button, Space, Empty, Typography, Modal, message } from 'antd';
+import { App, Card, Alert, Table, Button, Space, Empty, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useRole } from '../../utils/permissions/use-role';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
@@ -62,8 +62,7 @@ export default function AuthUserManagement() {
 
   const authRequest = useAuthenticatedAxios<AuthUser[]>();
   const authRequestRaw = useAuthenticatedAxios<any>();
-  const [modal, modalContextHolder] = Modal.useModal();
-  const [messageApi, messageContextHolder] = message.useMessage();
+  const { message: messageApi, modal } = App.useApp();
 
   const fetchAuthUsers = async () => {
     // use authenticated axios to include Bearer token
@@ -111,8 +110,6 @@ export default function AuthUserManagement() {
 
   return (
     <div>
-    {modalContextHolder}
-    {messageContextHolder}
       <AuthUserFormModal
         open={!!editingUser || createMode}
         user={editingUser ?? null}

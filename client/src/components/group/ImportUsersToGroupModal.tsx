@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, Upload, Table, message } from 'antd';
+import { App, Modal, Button, Upload, Table } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import { UserImportTemplate } from '../../shared/types/user/user-import-template';
@@ -27,8 +27,7 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
   const { mutateAsync: bulkCreateAndAddToGroup } = useBulkCreateAndAddToGroupMutation();
   const { mutateAsync: bulkAddUsersToGroup } = useBulkAddUsersToGroupMutation();
   const { mutateAsync: bulkUpdateUsers } = useBulkUpdateUsersMutation();
-  const [messageApi, messageContextHolder] = message.useMessage();
-  const [modal, modalContextHolder] = Modal.useModal();
+  const { message: messageApi, modal } = App.useApp();
   const { data: existingUsers } = useAllUsersLookupQuery();
   const { data: groupData } = useGroupQuery(groupId ? String(groupId) : undefined);
   const role = useRole();
@@ -271,8 +270,6 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
       footer={null}
       destroyOnClose
     >
-      {messageContextHolder}
-      {modalContextHolder}
       <Upload beforeUpload={handleUpload}>
         <Button icon={<UploadOutlined />} disabled={!canEdit}>Seleccionar Archivo</Button>
       </Upload>

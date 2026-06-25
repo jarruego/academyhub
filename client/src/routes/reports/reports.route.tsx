@@ -4,7 +4,7 @@ import { useDebounce } from '../../hooks/use-debounce';
 import { normalizeSearch } from '../../utils/normalize-search';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { Table, TablePaginationConfig, Select, Space, DatePicker, Input, Button, Modal, Checkbox } from 'antd';
+import { App, Table, TablePaginationConfig, Select, Space, DatePicker, Input, Button, Modal, Checkbox } from 'antd';
 import type { SorterResult, FilterValue, SortOrder } from 'antd/es/table/interface';
 import { useReportsQuery, ReportsQueryParams } from '../../hooks/api/reports/use-reports.query';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
@@ -156,7 +156,7 @@ export default function ReportsRoute() {
 
   const { exportPdf: doExportPdf } = useReportExport();
   const request = useAuthenticatedAxios<PaginationResult<ReportRow>>();
-  const [modal, modalContextHolder] = Modal.useModal();
+  const { modal } = App.useApp();
 
   const handleExport = async () => {
     try {
@@ -536,7 +536,6 @@ export default function ReportsRoute() {
   return (
     <div>
       <h1>Informes</h1>
-      {modalContextHolder}
       <div ref={controlsRef} style={{ marginBottom: 12 }}>
         <div style={{ marginBottom: 12 }}>
           <Input.Search

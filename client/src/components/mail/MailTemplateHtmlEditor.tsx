@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ChangeEvent } from 'react';
-import { Button, Space, message } from 'antd';
+import { App, Button, Space } from 'antd';
 import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -13,6 +13,7 @@ interface MailTemplateHtmlEditorProps {
 }
 
 export default function MailTemplateHtmlEditor({ value, onChange, onUploadImage, onReady }: MailTemplateHtmlEditorProps) {
+  const { message } = App.useApp();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const editor = useEditor({

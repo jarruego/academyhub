@@ -16,6 +16,7 @@ import {
     Tag,
     Divider
 } from 'antd';
+import { STATUS_COLORS } from '../../theme/semantic-colors';
 import {
     UploadOutlined,
     CheckCircleOutlined,
@@ -138,15 +139,15 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'completed':
-                return 'success';
+                return STATUS_COLORS.active;
             case 'failed':
-                return 'error';
+                return STATUS_COLORS.inactive;
             case 'processing':
-                return 'processing';
+                return STATUS_COLORS.processing;
             case 'pending':
-                return 'default';
+                return STATUS_COLORS.neutral;
             default:
-                return 'default';
+                return STATUS_COLORS.neutral;
         }
     };
 

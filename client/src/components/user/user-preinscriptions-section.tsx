@@ -1,7 +1,9 @@
 import React from "react";
-import { Table, Tag, Spin, Empty } from "antd";
+import { Tag, Spin, Empty } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
+import { DataTable } from "../common/DataTable";
+import { FinalizedTag } from "../common/tags";
 import { useUserPreinscriptionsQuery, UserPreinscription } from "../../hooks/api/import-inaem/useInaemData";
 
 const STATUS_COLOR: Record<UserPreinscription["status"], string> = {
@@ -40,9 +42,7 @@ export const UserPreinscriptionsSection: React.FC<Props> = ({ userId }) => {
           <Tag color={STATUS_COLOR[status]}>{status}</Tag>
           {/* Finalizado: solo si está matriculado y hay dato de finalización */}
           {status === "MATRICULADO" && record.finalized !== null && (
-            <Tag color={record.finalized ? "green" : "red"}>
-              {record.finalized ? "Finalizado" : "No finalizado"}
-            </Tag>
+            <FinalizedTag finalized={!!record.finalized} />
           )}
         </span>
       ),
@@ -74,16 +74,12 @@ export const UserPreinscriptionsSection: React.FC<Props> = ({ userId }) => {
   }
 
   return (
-    <Table
+    <DataTable<UserPreinscription>
       columns={columns}
       dataSource={data}
       rowKey={(r) => `${userId}-${r.id_course}`}
       pagination={false}
-      scroll={{ x: "max-content" }}
-      onRow={(record) => ({
-        onDoubleClick: () => window.open(`${window.location.origin}/courses/${record.id_course}`, "_blank", "noopener,noreferrer"),
-        style: { cursor: "pointer" },
-      })}
+      getRowUrl={(record) => `/courses/${record.id_course}`}
     />
   );
 };

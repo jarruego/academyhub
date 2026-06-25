@@ -15,8 +15,9 @@ import {
     DatePicker,
     Tooltip,
     Popconfirm,
-    message
+    App
 } from 'antd';
+import { STATUS_COLORS } from '../../theme/semantic-colors';
 import {
     HistoryOutlined,
     EyeOutlined,
@@ -60,12 +61,12 @@ const JobDetailsModal: React.FC<JobDetailsModalProps> = ({ job, open, onClose })
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'completed': return 'success';
-            case 'failed': return 'error';
-            case 'processing': return 'processing';
-            case 'pending': return 'warning';
-            case 'cancelled': return 'default';
-            default: return 'default';
+            case 'completed': return STATUS_COLORS.active;
+            case 'failed': return STATUS_COLORS.inactive;
+            case 'processing': return STATUS_COLORS.processing;
+            case 'pending': return STATUS_COLORS.warning;
+            case 'cancelled': return STATUS_COLORS.neutral;
+            default: return STATUS_COLORS.neutral;
         }
     };
 
@@ -143,6 +144,7 @@ const JobDetailsModal: React.FC<JobDetailsModalProps> = ({ job, open, onClose })
 };
 
 export const ImportJobsHistoryComponent: React.FC = () => {
+    const { message } = App.useApp();
     const [selectedJob, setSelectedJob] = useState<JobInfo | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [filters, setFilters] = useState({
@@ -176,12 +178,12 @@ export const ImportJobsHistoryComponent: React.FC = () => {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'completed': return 'success';
-            case 'failed': return 'error';
-            case 'processing': return 'processing';
-            case 'pending': return 'warning';
-            case 'cancelled': return 'default';
-            default: return 'default';
+            case 'completed': return STATUS_COLORS.active;
+            case 'failed': return STATUS_COLORS.inactive;
+            case 'processing': return STATUS_COLORS.processing;
+            case 'pending': return STATUS_COLORS.warning;
+            case 'cancelled': return STATUS_COLORS.neutral;
+            default: return STATUS_COLORS.neutral;
         }
     };
 

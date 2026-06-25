@@ -13,7 +13,6 @@ export default function CentersRoute() {
     <CentersTable
       centers={centersData}
       loading={isCentersLoading}
-      navigateState={{ from: '/centers' }}
     />
   );
 }

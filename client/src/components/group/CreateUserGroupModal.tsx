@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Button, Input, Table, message } from 'antd';
+import { App, Modal, Button, Input, Table } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useUsersQuery } from '../../hooks/api/users/use-users.query';
 import { useAddUserToGroupMutation } from '../../hooks/api/groups/use-add-user-to-group.mutation';
@@ -18,8 +18,7 @@ interface Props {
 }
 
 const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
-  const [messageApi, contextHolder] = message.useMessage();
-  const [modal, modalContextHolder] = Modal.useModal();
+  const { message: messageApi, modal } = App.useApp();
   const role = useRole();
   const canEdit = role === Role.ADMIN || role === Role.MANAGER;
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -238,9 +237,6 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
       styles={{ body: { minHeight: '80vh', maxHeight: '92vh', overflow: 'hidden', padding: 16 } }}
       destroyOnClose
     >
-    {contextHolder}
-    {modalContextHolder}
-
   <div style={{ display: 'flex', gap: 16, height: 'calc(80vh - 80px)' }}>
         {/* Left: All users (DB) */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>

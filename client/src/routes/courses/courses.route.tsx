@@ -1,4 +1,4 @@
-import { Button, Table, Input, Tag, Segmented } from "antd";
+import { Button, Input, Segmented } from "antd";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
@@ -10,6 +10,10 @@ import { CourseFunding } from "../../shared/types/course/course-funding.enum";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { isGroupActive } from "../../utils/group-active.util";
+import { DataTable } from "../../components/common/DataTable";
+import { OriginTag, FundingTag, ActiveTag, ProvisionalTag } from "../../components/common/tags";
+import { formatDate } from "../../utils/format";
+import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
 import type { ColumnsType } from "antd/es/table";
 
 // Pestañas de tipología. Cada una es un predicado sobre el curso ya cargado
@@ -59,21 +63,15 @@ export default function CoursesRoute() {
     document.title = "Cursos";
   }, []);
 
-  const normalize = (str: string) => str.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
   };
 
-  const normalizedSearch = normalize(searchText);
+  const normalizedSearch = normalizeLoose(searchText);
 
   const filteredCourses = coursesData?.filter(course =>
-    TAB_PREDICATE[activeTab](course) && (
-      normalize(course.course_name ?? '').includes(normalizedSearch) ||
-      normalize(course.short_name ?? '').includes(normalizedSearch) ||
-      normalize(course.file_number ?? '').includes(normalizedSearch) ||
-      normalize(course.moodle_id ? String(course.moodle_id) : '').includes(normalizedSearch)
-    )
+    TAB_PREDICATE[activeTab](course) &&
+    matchesLoose(normalizedSearch, [course.course_name, course.short_name, course.file_number, course.moodle_id])
   )?.slice().sort((a, b) => {
     const aDate = a.end_date ? new Date(a.end_date).getTime() : 0;
     const bDate = b.end_date ? new Date(b.end_date).getTime() : 0;
@@ -144,7 +142,7 @@ export default function CoursesRoute() {
       render: (v: string | null, record: CourseRow) => (
         <span>
           {v || '-'}
-          {record.is_provisional ? <Tag color="orange" style={{ marginLeft: 6 }}>Provisional</Tag> : null}
+          {record.is_provisional ? <ProvisionalTag style={{ marginLeft: 6 }} /> : null}
         </span>
       ),
       sorter: (a: CourseRow, b: CourseRow) => (a.file_number ?? '').localeCompare(b.file_number ?? ''),
@@ -154,29 +152,21 @@ export default function CoursesRoute() {
       title: 'Origen',
       dataIndex: 'origin',
       key: 'origin',
-      render: (origin: string | null) => {
-        if (!origin) return '-';
-        const color = origin === 'INAEM' ? 'geekblue' : origin === 'PRIVADA' ? 'green' : 'default';
-        return <Tag color={color}>{origin}</Tag>;
-      },
+      render: (origin: string | null) => <OriginTag origin={origin} />,
     };
 
     const fundingCol = {
       title: 'Financiación',
       dataIndex: 'funding',
       key: 'funding',
-      render: (funding: string | null) => {
-        if (!funding) return '-';
-        const color = funding === 'FUNDAE' ? 'gold' : funding === 'PUBLICA' ? 'geekblue' : 'blue';
-        return <Tag color={color}>{funding}</Tag>;
-      },
+      render: (funding: string | null) => <FundingTag funding={funding} />,
     };
 
     const groupEndCol = {
       title: 'Fecha Fin Grupo',
       dataIndex: 'latest_group_end_date',
       key: 'group_end_date',
-      render: (ts: number | null) => ts ? new Date(ts).toLocaleDateString('es-ES') : '',
+      render: (ts: number | null) => formatDate(ts),
       sorter: (a: CourseRow, b: CourseRow) => ((b.latest_group_end_date ?? 0) - (a.latest_group_end_date ?? 0)),
       defaultSortOrder: 'ascend' as const,
     };
@@ -185,7 +175,7 @@ export default function CoursesRoute() {
       title: 'Estado',
       dataIndex: 'is_active',
       key: 'active',
-      render: (active: boolean) => <Tag color={active ? 'green' : 'red'}>{active ? 'Activo' : 'Inactivo'}</Tag>,
+      render: (active: boolean) => <ActiveTag active={active} />,
       sorter: (a: CourseRow, b: CourseRow) => Number(a.is_active) - Number(b.is_active),
     };
 
@@ -204,7 +194,7 @@ export default function CoursesRoute() {
       onChange={setActiveTab}
       style={{ marginBottom: 16 }}
     />
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
+    <div className="list-controls">
       <Input.Search
         id="courses-search"
         placeholder="Buscar cursos"
@@ -217,15 +207,12 @@ export default function CoursesRoute() {
         <Button type="primary" onClick={() => navigate('/add-course')} icon={<PlusOutlined />}>Añadir Curso</Button>
       </AuthzHide>
     </div>
-    <Table
+    <DataTable<CourseRow>
       rowKey="id_course"
       columns={columns}
       dataSource={dataSource}
       loading={isCoursesLoading || isAllGroupsLoading}
-      onRow={(record) => ({
-        onClick: () => navigate(`/courses/${record.id_course}`),
-        style: { cursor: 'pointer' }
-      })}
+      getRowUrl={(record) => `/courses/${record.id_course}`}
     />
   </div>
 }

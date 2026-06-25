@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Table, Button, Tag, Typography, Space, Card, Modal, message, Spin, Tabs } from 'antd';
+import { App, Table, Button, Tag, Typography, Space, Card, Modal, Spin, Tabs } from 'antd';
+import { STATUS_COLORS } from '../../theme/semantic-colors';
 import { ExpandAltOutlined, ReloadOutlined, ImportOutlined, CloudDownloadOutlined } from '@ant-design/icons';
 import { useMoodleCoursesQuery } from '../../hooks/api/moodle/use-moodle-courses.query';
 import { useMoodleGroupsByCourseQuery } from '../../hooks/api/moodle/use-moodle-groups-by-course.query';
@@ -52,7 +53,7 @@ const GroupsTable: React.FC<{
       dataIndex: 'isImported',
       key: 'status',
       render: (isImported: boolean) => (
-        <Tag color={isImported ? 'green' : 'orange'}>
+        <Tag color={isImported ? STATUS_COLORS.active : STATUS_COLORS.warning}>
           {isImported ? '✓ Importado' : '⏳ Pendiente'}
         </Tag>
       ),
@@ -103,6 +104,7 @@ const GroupsTable: React.FC<{
 };
 
 export const MoodleImportManager: React.FC = () => {
+  const { message } = App.useApp();
   const [importingAll, setImportingAll] = useState<'all' | 'allNoUsers' | null>(null);
   const { data: coursesData, isLoading, error, refetch } = useMoodleCoursesQuery();
   const importCourseMutation = useImportMoodleCourseMutation();
@@ -265,7 +267,7 @@ export const MoodleImportManager: React.FC = () => {
       dataIndex: 'isImported',
       key: 'status',
       render: (isImported: boolean) => (
-        <Tag color={isImported ? 'green' : 'orange'}>
+        <Tag color={isImported ? STATUS_COLORS.active : STATUS_COLORS.warning}>
           {isImported ? '✓ Importado' : '⏳ Pendiente'}
         </Tag>
       ),

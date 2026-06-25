@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Router from './router';
 import AuthProvider from './providers/auth/auth.provider';
 import { App as AntdApp } from "antd";
+import { appTheme } from './theme/tokens';
 import './index.css';
 
 const queryClient = new QueryClient();
@@ -12,14 +13,7 @@ const queryClient = new QueryClient();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <ConfigProvider
-        theme={{
-          token: {
-            // Seed Token
-            colorPrimary: '#00b96b',
-          },
-        }}
-      >
+      <ConfigProvider theme={appTheme}>
         <AntdApp>
           <AuthProvider>
             <Router/>

@@ -2,7 +2,9 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Tabs, Row, Col, Space } from "antd";
+import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Row, Col, Space } from "antd";
+import { RouteTabs } from "../../components/common/RouteTabs";
+import { ActiveTag } from "../../components/common/tags";
 import HtmlEditor from '../../components/courses/HtmlEditor';
 import { DeleteOutlined, SaveOutlined, TeamOutlined, CommentOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
@@ -43,7 +45,7 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
 });
 
 export default function CourseDetailRoute() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const role = useRole();
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
   const navigate = useNavigate();
@@ -79,7 +81,6 @@ export default function CourseDetailRoute() {
   const { refetch: refetchUsersByGroup } = useUsersByGroupQuery(selectedGroupId);
   const { mutateAsync: deleteCourse } = useDeleteCourseMutation(id_course || "");
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
-  const [modal, contextHolder] = Modal.useModal();
   const [userToLookup, setUserToLookup] = useState<number | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -228,27 +229,33 @@ export default function CourseDetailRoute() {
   const fundingValue = watch('funding');
   const showFundaeId = fundingValue === CourseFunding.FUNDAE || Boolean(courseData?.fundae_id);
   const showFileNumber = originValue === CourseOrigin.INAEM || Boolean(courseData?.file_number);
+  // El botón de Foros solo tiene sentido para cursos online vinculados a Moodle.
+  const showForumButton = courseData?.modality === CourseModality.ONLINE && hasMoodleId;
 
   return (
     <div>
-      {contextHolder}
-      <Tabs defaultActiveKey="ficha" items={[{
+      <RouteTabs
+        defaultTabKey="ficha"
+        tabBarExtraContent={{
+          right: (
+            <Space size={12} align="center">
+              <ActiveTag active={courseActive} title="Derivado: el curso está activo si tiene algún grupo activo" />
+              {hasMoodleId && (
+                <span style={{ fontSize: 12, color: '#bfbfbf' }}>ID Moodle: {courseData.moodle_id}</span>
+              )}
+            </Space>
+          ),
+        }}
+        items={[{
         key: 'ficha',
         label: 'Ficha',
         children: (
           <Form layout="vertical" onFinish={handleSubmit(submit)}>
             <Controller name="id_course" control={control} render={({ field }) => <input type="hidden" {...field} id="id_course" value={field.value ?? ''} />} />
 
-            {/* Nombre del curso */}
+            {/* Nombre del curso + fechas (a la derecha de los nombres) */}
             <Row gutter={[16, 0]}>
-              {hasMoodleId && (
-                <Col xs={24} sm={6} md={4}>
-                  <Form.Item label="ID Moodle" name="moodle_id">
-                    <Controller name="moodle_id" control={control} render={({ field }) => <Input {...field} id="moodle_id" autoComplete="off" readOnly value={field.value ?? ''} />} />
-                  </Form.Item>
-                </Col>
-              )}
-              <Col xs={24} sm={hasMoodleId ? 18 : 24} md={hasMoodleId ? 13 : 17}>
+              <Col xs={24} sm={12} md={8}>
                 <Form.Item
                   label="Nombre del curso"
                   name="course_name"
@@ -259,7 +266,7 @@ export default function CourseDetailRoute() {
                   <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" value={field.value ?? ''} readOnly={!canEdit} />} />
                 </Form.Item>
               </Col>
-              <Col xs={24} sm={24} md={7}>
+              <Col xs={24} sm={12} md={6}>
                 <Form.Item
                   label="Nombre corto"
                   name="short_name"
@@ -270,11 +277,7 @@ export default function CourseDetailRoute() {
                   <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" value={field.value ?? ''} readOnly={!canEdit} />} />
                 </Form.Item>
               </Col>
-            </Row>
-
-            {/* Fechas, modalidad y datos numéricos */}
-            <Row gutter={[16, 0]}>
-              <Col xs={24} sm={12} md={4}>
+              <Col xs={12} sm={6} md={4}>
                 <Form.Item
                   label="Fecha Inicio"
                   name="start_date"
@@ -287,7 +290,7 @@ export default function CourseDetailRoute() {
                     render={({ field }) => (
                       <DatePicker
                         {...field}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', maxWidth: 140 }}
                         value={field.value ? dayjs(field.value) : null}
                         onChange={date => {
                           if (!canEdit) return;
@@ -302,7 +305,7 @@ export default function CourseDetailRoute() {
                   />
                 </Form.Item>
               </Col>
-              <Col xs={24} sm={12} md={4}>
+              <Col xs={12} sm={6} md={4}>
                 <Form.Item
                   label="Fecha Fin"
                   name="end_date"
@@ -315,7 +318,7 @@ export default function CourseDetailRoute() {
                     render={({ field }) => (
                       <DatePicker
                         {...field}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', maxWidth: 140 }}
                         value={field.value ? dayjs(field.value) : null}
                         onChange={date => {
                           if (!canEdit) return;
@@ -330,81 +333,11 @@ export default function CourseDetailRoute() {
                   />
                 </Form.Item>
               </Col>
-              <Col xs={24} sm={12} md={5}>
-                <Form.Item
-                  label="Modalidad"
-                  name="modality"
-                  required
-                  help={errors.modality?.message}
-                  validateStatus={errors.modality ? "error" : undefined}
-                >
-                  <Controller
-                    name="modality"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        {...field}
-                        id="modality"
-                        data-testid="modality"
-                        onChange={(value) => {
-                          if (!canEdit) return;
-                          field.onChange(value);
-                        }}
-                        open={canEdit ? undefined : false}
-                        showSearch={canEdit}
-                        allowClear={canEdit}
-                      >
-                        {Object.values(CourseModality).map((modality) => (
-                          <Select.Option key={modality} value={modality} data-testid={`modality-option-${modality}`}>
-                            {modality}
-                          </Select.Option>
-                        ))}
-                      </Select>
-                    )}
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={12} sm={6} md={3}>
-                <Form.Item
-                  label="Horas"
-                  name="hours"
-                  help={errors.hours?.message}
-                  validateStatus={errors.hours ? "error" : undefined}
-                >
-                  <Controller
-                    name="hours"
-                    control={control}
-                    render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" value={field.value ?? ''} readOnly={!canEdit} />}
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={12} sm={6} md={3}>
-                <Form.Item
-                  label="Precio/hora"
-                  name="price_per_hour"
-                  help={errors.price_per_hour?.message}
-                  validateStatus={errors.price_per_hour ? "error" : undefined}
-                >
-                  <Controller
-                    name="price_per_hour"
-                    control={control}
-                    render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" value={field.value ?? ''} readOnly={!canEdit} />}
-                  />
-                </Form.Item>
-              </Col>
-              <Col xs={24} sm={12} md={3}>
-                <Form.Item label="Estado">
-                  <Tag color={courseActive ? 'green' : 'red'} title="Derivado: el curso está activo si tiene algún grupo activo">
-                    {courseActive ? 'Activo' : 'Inactivo'}
-                  </Tag>
-                </Form.Item>
-              </Col>
             </Row>
 
-            {/* Clasificación: origen (¿quién lo encarga?) + financiación (¿cómo se paga?).
-                Nº Expediente solo aplica a INAEM; FUNDAE ID solo a financiación FUNDAE. */}
+            {/* Clasificación (origen, financiación, expediente/fundae) + modalidad y datos numéricos */}
             <Row gutter={[16, 0]}>
-              <Col xs={24} sm={12} md={5}>
+              <Col xs={12} sm={6} md={3}>
                 <Form.Item
                   label="Origen"
                   name="origin"
@@ -433,7 +366,7 @@ export default function CourseDetailRoute() {
                   />
                 </Form.Item>
               </Col>
-              <Col xs={24} sm={12} md={5}>
+              <Col xs={12} sm={6} md={3}>
                 <Form.Item
                   label="Financiación"
                   name="funding"
@@ -463,9 +396,9 @@ export default function CourseDetailRoute() {
                 </Form.Item>
               </Col>
               {showFileNumber && (
-                <Col xs={24} sm={12} md={5}>
+                <Col xs={12} sm={6} md={4}>
                   <Form.Item
-                    label="Nº Expediente (INAEM)"
+                    label="Nº Expediente"
                     name="file_number"
                     help={errors.file_number?.message}
                     validateStatus={errors.file_number ? "error" : undefined}
@@ -473,13 +406,13 @@ export default function CourseDetailRoute() {
                     <Controller
                       name="file_number"
                       control={control}
-                      render={({ field }) => <Input {...field} id="file_number" autoComplete="off" placeholder="p.ej. 25/0202.001" value={field.value ?? ''} readOnly={!canEdit} />}
+                      render={({ field }) => <Input {...field} id="file_number" autoComplete="off" maxLength={20} placeholder="p.ej. 25/0202.001" value={field.value ?? ''} readOnly={!canEdit} />}
                     />
                   </Form.Item>
                 </Col>
               )}
               {showFundaeId && (
-                <Col xs={24} sm={12} md={4}>
+                <Col xs={12} sm={6} md={3}>
                   <Form.Item
                     label="FUNDAE ID"
                     name="fundae_id"
@@ -489,21 +422,87 @@ export default function CourseDetailRoute() {
                     <Controller
                       name="fundae_id"
                       control={control}
-                      render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" value={field.value ?? ''} readOnly={!canEdit} />}
+                      render={({ field }) => <Input {...field} id="fundae_id" autoComplete="off" maxLength={10} value={field.value ?? ''} readOnly={!canEdit} />}
                     />
                   </Form.Item>
                 </Col>
               )}
-              {courseData?.is_provisional && (
-                <Col xs={24} sm={24} md={5}>
+              <Col xs={12} sm={6} md={4}>
+                <Form.Item
+                  label="Modalidad"
+                  name="modality"
+                  required
+                  help={errors.modality?.message}
+                  validateStatus={errors.modality ? "error" : undefined}
+                >
+                  <Controller
+                    name="modality"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        {...field}
+                        id="modality"
+                        data-testid="modality"
+                        style={{ width: '100%', maxWidth: 130 }}
+                        onChange={(value) => {
+                          if (!canEdit) return;
+                          field.onChange(value);
+                        }}
+                        open={canEdit ? undefined : false}
+                        showSearch={canEdit}
+                        allowClear={canEdit}
+                      >
+                        {Object.values(CourseModality).map((modality) => (
+                          <Select.Option key={modality} value={modality} data-testid={`modality-option-${modality}`}>
+                            {modality}
+                          </Select.Option>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={12} sm={6} md={2}>
+                <Form.Item
+                  label="Horas"
+                  name="hours"
+                  help={errors.hours?.message}
+                  validateStatus={errors.hours ? "error" : undefined}
+                >
+                  <Controller
+                    name="hours"
+                    control={control}
+                    render={({ field }) => <Input type="number" min={0} {...field} id="hours" autoComplete="off" style={{ maxWidth: 90 }} value={field.value ?? ''} readOnly={!canEdit} />}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={12} sm={6} md={3}>
+                <Form.Item
+                  label="Precio/hora"
+                  name="price_per_hour"
+                  help={errors.price_per_hour?.message}
+                  validateStatus={errors.price_per_hour ? "error" : undefined}
+                >
+                  <Controller
+                    name="price_per_hour"
+                    control={control}
+                    render={({ field }) => <Input type="number" min={0} step="0.01" {...field} id="price_per_hour" autoComplete="off" style={{ maxWidth: 120 }} value={field.value ?? ''} readOnly={!canEdit} />}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {courseData?.is_provisional && (
+              <Row gutter={[16, 0]}>
+                <Col xs={24}>
                   <Form.Item label="Aviso">
                     <Tag color="orange" title="Curso autocreado por la importación INAEM a partir del nº de expediente. Importa el fichero de Acciones para completar nombre, fechas y horas.">
                       Provisional — pendiente de completar (importa Acciones)
                     </Tag>
                   </Form.Item>
                 </Col>
-              )}
-            </Row>
+              </Row>
+            )}
 
             {/* Grupos del curso y gestión de usuarios — stacked en mobile, side-by-side en lg+ */}
             <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
@@ -516,15 +515,17 @@ export default function CourseDetailRoute() {
                         Añadir Grupo al Curso
                       </Button>
                     </AuthzHide>
-                    <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-                      <Button
-                        type="default"
-                        icon={<CommentOutlined />}
-                        onClick={() => window.open(`/tools/forum-duplicator?courseId=${id_course}`, '_blank', 'noopener')}
-                      >
-                        Foros
-                      </Button>
-                    </AuthzHide>
+                    {showForumButton && (
+                      <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+                        <Button
+                          type="default"
+                          icon={<CommentOutlined />}
+                          onClick={() => window.open(`/tools/forum-duplicator?courseId=${id_course}`, '_blank', 'noopener')}
+                        >
+                          Foros
+                        </Button>
+                      </AuthzHide>
+                    )}
                   </Space>
                 </div>
                 <Table<Group>
@@ -640,7 +641,7 @@ export default function CourseDetailRoute() {
         refetchUsersByGroup();
         setUserToLookup(null);
       }} footer={null}>
-        {userToLookup && <UserDetail userId={userToLookup} />}
+        {userToLookup && <UserDetail userId={userToLookup} syncTabsToUrl={false} />}
       </Modal>
       <Modal
         title="Éxito"
