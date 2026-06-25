@@ -3,39 +3,41 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
 import { useAllGroupsQuery } from "../../hooks/api/groups/use-all-groups.query";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, type Key } from "react";
 import { Course } from "../../shared/types/course/course";
-import { CourseOrigin } from "../../shared/types/course/course-origin.enum";
+import { CourseClient } from "../../shared/types/course/course-client.enum";
 import { CourseFunding } from "../../shared/types/course/course-funding.enum";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { isGroupActive } from "../../utils/group-active.util";
 import { DataTable } from "../../components/common/DataTable";
-import { OriginTag, FundingTag, ActiveTag, ProvisionalTag } from "../../components/common/tags";
+import { ClientTag, FundingTag, ActiveTag, ProvisionalTag } from "../../components/common/tags";
 import { formatDate } from "../../utils/format";
 import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
 import type { ColumnsType } from "antd/es/table";
 
-// Pestañas de tipología. Cada una es un predicado sobre el curso ya cargado
-// (el filtrado es en cliente, coherente con la búsqueda y el estado activo que
-// también se calculan aquí; los filtros server-side existen para uso por API).
-type CourseTab = "todos" | "fundae" | "inaem" | "privada" | "sin_clasificar";
+// Pestañas por financiación (de la que se deriva el ámbito público/privado). Cada
+// una es un predicado sobre el curso ya cargado (el filtrado es en cliente,
+// coherente con la búsqueda y el estado activo que también se calculan aquí; los
+// filtros server-side existen para uso por API). El cliente (INAEM/VITALIA/OTRO)
+// es una columna con filtro propio, no una pestaña.
+type CourseTab = "todos" | "publica" | "fundae" | "privada" | "sin_clasificar";
 
 const TAB_OPTIONS: { label: string; value: CourseTab }[] = [
   { label: "Todos", value: "todos" },
+  { label: "Pública", value: "publica" },
   { label: "FUNDAE", value: "fundae" },
-  { label: "INAEM", value: "inaem" },
   { label: "Privada", value: "privada" },
   { label: "Sin clasificar", value: "sin_clasificar" },
 ];
 
 const TAB_PREDICATE: Record<CourseTab, (c: Course) => boolean> = {
   todos: () => true,
+  publica: (c) => c.funding === CourseFunding.PUBLICA,
   fundae: (c) => c.funding === CourseFunding.FUNDAE,
-  inaem: (c) => c.origin === CourseOrigin.INAEM,
-  // Privada = mercado no bonificado (las bonificadas viven en la pestaña FUNDAE).
-  privada: (c) => c.origin === CourseOrigin.PRIVADA && c.funding !== CourseFunding.FUNDAE,
-  sin_clasificar: (c) => !c.origin,
+  // Privada = financiación privada no bonificada (las bonificadas → pestaña FUNDAE).
+  privada: (c) => c.funding === CourseFunding.PRIVADA,
+  sin_clasificar: (c) => !c.funding,
 };
 
 const isCourseTab = (v: string | null): v is CourseTab =>
@@ -128,8 +130,9 @@ export default function CoursesRoute() {
     return counts;
   }, [coursesData]);
 
-  // Columnas según la pestaña: se ocultan las redundantes (Origen en pestañas de
-  // un solo origen; Nº Exp. fuera de INAEM; Financiación fuera de Todos/Privada).
+  // Columnas según la pestaña: la Financiación se oculta en las pestañas que ya
+  // filtran por ella (redundante); el Nº Exp. y la columna Cliente acompañan a
+  // las pestañas donde aparecen cursos INAEM/clasificados.
   const columns = useMemo<ColumnsType<CourseRow>>(() => {
     const idCol = { title: 'ID', dataIndex: 'id_course', sorter: (a: CourseRow, b: CourseRow) => a.id_course - b.id_course };
     const moodleCol = { title: 'ID Moodle', dataIndex: 'moodle_id', sorter: (a: CourseRow, b: CourseRow) => (a.moodle_id ?? 0) - (b.moodle_id ?? 0) };
@@ -148,11 +151,13 @@ export default function CoursesRoute() {
       sorter: (a: CourseRow, b: CourseRow) => (a.file_number ?? '').localeCompare(b.file_number ?? ''),
     };
 
-    const originCol = {
-      title: 'Origen',
-      dataIndex: 'origin',
-      key: 'origin',
-      render: (origin: string | null) => <OriginTag origin={origin} />,
+    const clientCol = {
+      title: 'Cliente',
+      dataIndex: 'client',
+      key: 'client',
+      filters: Object.values(CourseClient).map((c) => ({ text: c, value: c })),
+      onFilter: (value: boolean | Key, record: CourseRow) => record.client === value,
+      render: (client: string | null) => <ClientTag client={client} />,
     };
 
     const fundingCol = {
@@ -180,9 +185,11 @@ export default function CoursesRoute() {
     };
 
     const cols: ColumnsType<CourseRow> = [idCol, moodleCol, nameCol, shortCol];
-    if (activeTab === 'inaem' || activeTab === 'todos' || activeTab === 'sin_clasificar') cols.push(expedienteCol);
-    if (activeTab === 'todos' || activeTab === 'sin_clasificar') cols.push(originCol);
-    if (activeTab === 'todos' || activeTab === 'privada') cols.push(fundingCol);
+    // Nº Exp. donde puede haber cursos INAEM (públicos / sin clasificar / todos).
+    if (activeTab === 'publica' || activeTab === 'todos' || activeTab === 'sin_clasificar') cols.push(expedienteCol);
+    cols.push(clientCol);
+    // Financiación solo cuando no la fija ya la pestaña.
+    if (activeTab === 'todos' || activeTab === 'sin_clasificar') cols.push(fundingCol);
     cols.push(groupEndCol, stateCol);
     return cols;
   }, [activeTab]);

@@ -13,6 +13,7 @@ import { userPreinscriptionTable } from "src/database/schema/tables/user_preinsc
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { groupTable } from "src/database/schema/tables/group.table";
 import { courseTable } from "src/database/schema/tables/course.table";
+import { formationTypePredicate } from "./formation-type.util";
 
 @Injectable()
 export class UserRepository extends Repository {
@@ -145,12 +146,11 @@ export class UserRepository extends Repository {
     // con las pestañas de la lista de cursos. Los valores son literales controlados
     // (validados por IsIn en el DTO), no entrada libre.
     if (filter.formation_type) {
+      const { column, value } = formationTypePredicate(filter.formation_type);
       const typeCond =
-        filter.formation_type === "fundae"
-          ? sql`c.funding::text = 'FUNDAE'`
-          : filter.formation_type === "inaem"
-          ? sql`c.origin::text = 'INAEM'`
-          : sql`c.origin::text = 'PRIVADA' AND c.funding::text IS DISTINCT FROM 'FUNDAE'`;
+        column === "client"
+          ? sql`c.client::text = ${value}`
+          : sql`c.funding::text = ${value}`;
       conditions.push(sql`EXISTS (
         SELECT 1 FROM ${userGroupTable} ug
         JOIN ${groupTable} g ON ug.id_group = g.id_group

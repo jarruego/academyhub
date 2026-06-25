@@ -9,7 +9,7 @@ export interface UserPreinscription {
   preinscription_date: string | null;
   course_name: string;
   file_number: string | null;
-  origin: string | null;
+  client: string | null;
   // Finalización de la matrícula: true/false si está matriculado, null si no hay datos.
   finalized: boolean | null;
 }

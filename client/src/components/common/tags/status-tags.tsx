@@ -1,5 +1,5 @@
 import { Tag } from "antd";
-import { originColor, fundingColor, modalityColor, STATUS_COLORS, FLAG_COLORS } from "../../../theme/semantic-colors";
+import { clientColor, fundingColor, modalityColor, STATUS_COLORS, FLAG_COLORS } from "../../../theme/semantic-colors";
 
 /**
  * Tags semánticos compartidos. Centralizan el render `<Tag color=...>` para que
@@ -9,10 +9,10 @@ import { originColor, fundingColor, modalityColor, STATUS_COLORS, FLAG_COLORS } 
 
 const DASH = "-";
 
-/** Tag de origen del curso (INAEM / PRIVADA). Render `-` si no hay valor. */
-export function OriginTag({ origin }: { origin?: string | null }) {
-  if (!origin) return <>{DASH}</>;
-  return <Tag color={originColor(origin)}>{origin}</Tag>;
+/** Tag de cliente/comitente del curso (INAEM / VITALIA / OTRO). Render `-` si no hay valor. */
+export function ClientTag({ client }: { client?: string | null }) {
+  if (!client) return <>{DASH}</>;
+  return <Tag color={clientColor(client)}>{client}</Tag>;
 }
 
 /** Tag de financiación del curso (FUNDAE / PUBLICA / PRIVADA). Render `-` si no hay valor. */

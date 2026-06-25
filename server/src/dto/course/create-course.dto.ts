@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import { IsNotEmpty, IsString, IsInt, IsBoolean,  IsIn, IsOptional, IsDateString, IsNumberString, IsDate, IsNumber } from "class-validator";
 import { CourseModality } from "src/types/course/course-modality.enum";
-import { CourseOrigin } from "src/types/course/course-origin.enum";
+import { CourseClient } from "src/types/course/course-client.enum";
 import { CourseFunding } from "src/types/course/course-funding.enum";
 
 export class CreateCourseDTO {
@@ -73,11 +73,11 @@ export class CreateCourseDTO {
   @IsString()
   file_number?: string;
 
-  // Origen del curso: ¿quién lo encarga? (PRIVADA/INAEM).
-  @ApiPropertyOptional({ enum: CourseOrigin })
+  // Cliente/comitente del curso (INAEM/VITALIA/OTRO). El ámbito se deriva de funding.
+  @ApiPropertyOptional({ enum: CourseClient })
   @IsOptional()
-  @IsIn(Object.values(CourseOrigin))
-  origin?: CourseOrigin;
+  @IsIn(Object.values(CourseClient))
+  client?: CourseClient;
 
   // Financiación del curso: ¿cómo se paga? (PRIVADA/FUNDAE/PUBLICA).
   @ApiPropertyOptional({ enum: CourseFunding })

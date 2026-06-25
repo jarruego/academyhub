@@ -7,7 +7,7 @@ import { PaginationParams, PaginationResult } from "../../../shared/types/pagina
 // Tipo específico para la respuesta de usuarios paginados
 type PaginatedUsersResult = PaginationResult<User>;
 
-export type FormationType = 'fundae' | 'inaem' | 'privada';
+export type FormationType = 'fundae' | 'publica' | 'inaem' | 'privada';
 
 export type UsersQueryParams = PaginationParams & { id_company?: string; id_center?: string; preinscribed?: boolean; formation_type?: FormationType; includeInactive?: boolean; mainCenterOnly?: boolean };
 

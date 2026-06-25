@@ -21,7 +21,7 @@ export interface CourseSelectModel {
   price_per_hour: number | null;
   active: boolean;
   fundae_id: string | null;
-  origin: string | null;
+  client: string | null;
   createdAt: Date;
   updatedAt: Date;
   moodle_synced_at: Date | null;

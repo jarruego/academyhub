@@ -1,5 +1,5 @@
 import { CourseModality } from "../shared/types/course/course-modality.enum";
-import { CourseOrigin } from "../shared/types/course/course-origin.enum";
+import { CourseClient } from "../shared/types/course/course-client.enum";
 import { CourseFunding } from "../shared/types/course/course-funding.enum";
 
 /**
@@ -14,7 +14,7 @@ import { CourseFunding } from "../shared/types/course/course-funding.enum";
  */
 export interface CourseProfileInput {
   modality?: CourseModality | string | null;
-  origin?: CourseOrigin | string | null;
+  client?: CourseClient | string | null;
   funding?: CourseFunding | string | null;
 }
 
@@ -23,8 +23,12 @@ export interface CourseProfile {
   isPresential: boolean;
   isOnline: boolean;
   isMixed: boolean;
+  /** Cliente INAEM (activa expediente, preinscripciones y finalización). */
   isInaem: boolean;
   isFundae: boolean;
+  /** Ámbito derivado de la financiación: pública (PUBLICA) vs privada (FUNDAE/PRIVADA). */
+  isPublic: boolean;
+  isPrivate: boolean;
   // Capacidades de UI
   /** Sincronización con Moodle (online/mixta; un presencial no se sube a Moodle). */
   showMoodleSync: boolean;
@@ -53,14 +57,18 @@ const norm = (v: string | null | undefined): string => String(v ?? "").toLowerCa
 
 export function getCourseProfile(input: CourseProfileInput): CourseProfile {
   const modality = norm(input.modality);
-  const origin = norm(input.origin);
+  const client = norm(input.client);
   const funding = norm(input.funding);
 
   const isPresential = modality === norm(CourseModality.PRESENTIAL);
   const isOnline = modality === norm(CourseModality.ONLINE);
   const isMixed = modality === norm(CourseModality.MIXED);
-  const isInaem = origin === norm(CourseOrigin.INAEM);
+  const isInaem = client === norm(CourseClient.INAEM);
   const isFundae = funding === norm(CourseFunding.FUNDAE);
+  // Ámbito derivado de la financiación (no se almacena por separado).
+  const isPublic = funding === norm(CourseFunding.PUBLICA);
+  const isPrivate =
+    funding === norm(CourseFunding.FUNDAE) || funding === norm(CourseFunding.PRIVADA);
   // Financiación clasificada explícitamente como NO bonificable.
   const isNonBonifiable =
     funding === norm(CourseFunding.PRIVADA) || funding === norm(CourseFunding.PUBLICA);
@@ -71,6 +79,8 @@ export function getCourseProfile(input: CourseProfileInput): CourseProfile {
     isMixed,
     isInaem,
     isFundae,
+    isPublic,
+    isPrivate,
     // Un presencial no se sincroniza con Moodle ni tiene progreso; el resto sí.
     showMoodleSync: !isPresential,
     showProgressColumn: !isPresential,

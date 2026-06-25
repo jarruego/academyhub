@@ -4,10 +4,10 @@
  * - FUNDAE: formación bonificada (la empresa bonifica la cuota de la Seguridad Social).
  *   Aplica a cursos de origen PRIVADA; lleva asociado el `fundae_id` (a nivel de
  *   grupo/acción formativa).
- * - PUBLICA: subvención pública (INAEM/SEPE). Se asigna automáticamente a los
- *   cursos de origen INAEM.
+ * - PUBLICA: subvención pública (INAEM/SEPE/LANBIDE…). Se asigna automáticamente
+ *   a los cursos de cliente INAEM. De este eje se deriva el ámbito público/privado.
  *
- * Eje ortogonal al origen (ver course-origin.enum.ts) y a la modalidad.
+ * Eje ortogonal al cliente (ver course-client.enum.ts) y a la modalidad.
  */
 export enum CourseFunding {
   PRIVADA = 'PRIVADA',

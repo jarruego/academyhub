@@ -28,7 +28,7 @@ interface Props {
   groupId: number | null | undefined;
   courseName?: string;
   courseModality?: string | null;
-  courseOrigin?: string | null;
+  courseClient?: string | null;
   courseFunding?: string | null;
   groupStart?: string | Date | null;
   groupEnd?: string | Date | null;
@@ -67,7 +67,7 @@ const isStudentUser = (user: User): boolean => {
   return typeof role === 'string' ? role.toLowerCase() === 'student' : false;
 };
 
-const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseOrigin, courseFunding, groupStart, groupEnd, highlightUserId }) => {
+const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseClient, courseFunding, groupStart, groupEnd, highlightUserId }) => {
   const { message: messageApi, modal, notification: notificationApi } = App.useApp();
 
   const extractSummary = (text?: string) => {
@@ -124,8 +124,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const exportUsersToSmsCsv = useExportUsersToSmsCsv();
   // Capacidades de UI derivadas de la tipología del curso (fuente única de verdad).
   const profile = useMemo(
-    () => getCourseProfile({ modality: courseModality, origin: courseOrigin, funding: courseFunding }),
-    [courseModality, courseOrigin, courseFunding],
+    () => getCourseProfile({ modality: courseModality, client: courseClient, funding: courseFunding }),
+    [courseModality, courseClient, courseFunding],
   );
 
   const handleMarkBelow75 = () => {

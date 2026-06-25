@@ -18,12 +18,13 @@ Read before adding modules, tables, repositories, or scheduler tasks.
 A lookup catalog of role definitions (`role_shortname`, `role_description`) used to label roles within groups/courses. Not the same as `auth_user.role`.
 
 ## Course typology
-A course is labelled by three **orthogonal** axes (enums mirrored client↔server). Tagged at course level, never on the student:
+A course is labelled by two stored **orthogonal** axes plus modality (enums mirrored client↔server). Tagged at course level, never on the student:
 - `modality` (`course_modality`: `Online`/`Presencial`/`Mixta`) — how it's delivered.
-- `origin` (`course_origin`: `PRIVADA`/`INAEM`) — who commissions it. Empresa-vs-particular is derived from the student's `company`, not stored.
-- `funding` (`course_funding`: `PRIVADA`/`FUNDAE`/`PUBLICA`) — how it's paid; orthogonal to origin. INAEM ⇒ `PUBLICA`; FUNDAE applies to PRIVADA-origin bonified courses (`fundae_id` itself lives per **group**). `origin`/`funding` nullable = "sin clasificar".
+- `client` (`course_client`: `INAEM`/`VITALIA`/`OTRO`) — who commissions it / who it's for. `INAEM` gates the INAEM-specific features (expediente, preinscripciones, finalización). Extensible: a new client (e.g. LANBIDE) is one more enum value. Empresa-vs-particular is derived from the student's `company`, not stored.
+- `funding` (`course_funding`: `PRIVADA`/`FUNDAE`/`PUBLICA`) — how it's paid. INAEM ⇒ `PUBLICA`; FUNDAE applies to private bonified courses (`fundae_id` itself lives per **group**). Both nullable = "sin clasificar".
+- **Ámbito público/privado is NOT a stored axis** — it is *derived* from `funding` (`PUBLICA` ⇒ público; `FUNDAE`/`PRIVADA` ⇒ privado). That's why `client` carries the specific entity and `funding` carries the regime.
 
-Migration `0051` recreated `course_origin` (old `CLIENTE`/`PRIVADO`/`OTRO` → `PRIVADA`) and added `funding` (backfill: INAEM→PUBLICA, has `fundae_id`→FUNDAE, else PRIVADA). Bonification (`group-bonification.service`) rejects explicit non-FUNDAE funding. UI (tabs, `getCourseProfile` capability helper, derived user filter) → `docs/client.md`.
+Migration `0051` first split origin/funding; migration `0052` then replaced `origin` (`PRIVADA`/`INAEM`) with `client` (backfill: `origin=INAEM`→`INAEM`; `PRIVADA`+`funding=FUNDAE`→`VITALIA` (heuristic, ~95% of FUNDAE is VITALIA — review exceptions); rest `PRIVADA`→`OTRO`) and dropped `course_origin`. Bonification (`group-bonification.service`) rejects explicit non-FUNDAE funding. UI (tabs by funding + client column/filter, `getCourseProfile` capability helper, derived user filter) → `docs/client.md`.
 
 ## Active state (groups & courses)
 The authoritative "active" state lives at the **group** level, resolved by `groupActiveCondition()` (`server/src/utils/group-active.util.ts`, SQL) with a client mirror `isGroupActive()` (`client/src/utils/group-active.util.ts`, TS) — **keep both in sync**. Resolution order:

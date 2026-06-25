@@ -6,7 +6,7 @@ import type { ColumnType } from 'antd/es/table';
 import { useUserCoursesQuery } from '../../hooks/api/users/use-user-courses.query';
 import { useUserQuery } from '../../hooks/api/users/use-user.query';
 import { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
-import { CourseOrigin } from '../../shared/types/course/course-origin.enum';
+import { CourseClient } from '../../shared/types/course/course-client.enum';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
 import type { SettingsMap } from '../../shared/types/organization/organization';
 import { useMoodleUsersByUserIdQuery } from '../../hooks/api/moodle-users/use-moodle-users-by-user-id.query';
@@ -20,9 +20,9 @@ interface UserCoursesSectionProps {
 
 // Determina si un curso está finalizado para el usuario.
 // - INAEM: depende del flag `finalized` del grupo (la finalización la marca la gestión del expediente).
-// - PRIVADA / sin clasificar: depende del progreso (>= 75%), ignorando el flag `finalized`.
+// - Resto / sin clasificar: depende del progreso (>= 75%), ignorando el flag `finalized`.
 const isCourseFinalized = (record: UserCourseWithCourse): boolean => {
-  if (record.course?.origin === CourseOrigin.INAEM) {
+  if (record.course?.client === CourseClient.INAEM) {
     return (record.groups ?? []).some((g) => g.finalized);
   }
   const pct = Number(record.completion_percentage ?? 0);

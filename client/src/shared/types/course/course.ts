@@ -1,5 +1,5 @@
 import { CourseModality } from "./course-modality.enum";
-import { CourseOrigin } from "./course-origin.enum";
+import { CourseClient } from "./course-client.enum";
 import { CourseFunding } from "./course-funding.enum";
 
 export type Course = {
@@ -17,8 +17,8 @@ export type Course = {
     fundae_id?: string | null;
     // Nº de expediente INAEM (matching de importación / etiquetado manual).
     file_number?: string | null;
-    // Origen: ¿quién lo encarga? (PRIVADA/INAEM).
-    origin?: CourseOrigin | null;
+    // Cliente/comitente (INAEM/VITALIA/OTRO). El ámbito se deriva de funding.
+    client?: CourseClient | null;
     // Financiación: ¿cómo se paga? (PRIVADA/FUNDAE/PUBLICA).
     funding?: CourseFunding | null;
     // Curso provisional autocreado por la importación INAEM (a completar).

@@ -365,6 +365,13 @@
       "when": 1781778841853,
       "tag": "0051_quiet_rhino",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1781865241853,
+      "tag": "0052_swift_client",
+      "breakpoints": true
     }
   ]
 }

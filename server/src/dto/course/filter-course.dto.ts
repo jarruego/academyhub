@@ -1,7 +1,7 @@
 import { Type } from "class-transformer";
 import { IsOptional, IsString, IsInt, IsBoolean, IsDateString, IsIn, IsNumber, isNumberString, IsNumberString, IsDate } from "class-validator";
 import { CourseModality } from "src/types/course/course-modality.enum";
-import { CourseOrigin } from "src/types/course/course-origin.enum";
+import { CourseClient } from "src/types/course/course-client.enum";
 import { CourseFunding } from "src/types/course/course-funding.enum";
 
 export class FilterCourseDTO {
@@ -53,10 +53,10 @@ export class FilterCourseDTO {
   @IsString()
   fundae_id?: string;
 
-  // Origen: ¿quién lo encarga? (PRIVADA/INAEM).
+  // Cliente/comitente (INAEM/VITALIA/OTRO). El ámbito se deriva de funding.
   @IsOptional()
-  @IsIn(Object.values(CourseOrigin))
-  origin?: CourseOrigin;
+  @IsIn(Object.values(CourseClient))
+  client?: CourseClient;
 
   // Financiación: ¿cómo se paga? (PRIVADA/FUNDAE/PUBLICA).
   @IsOptional()

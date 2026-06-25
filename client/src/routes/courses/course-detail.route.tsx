@@ -11,7 +11,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
-import { CourseOrigin } from "../../shared/types/course/course-origin.enum";
+import { CourseClient } from "../../shared/types/course/course-client.enum";
 import { CourseFunding } from "../../shared/types/course/course-funding.enum";
 import { useDeleteCourseMutation } from "../../hooks/api/courses/use-delete-course.mutation";
 import { useNavigate } from "react-router-dom";
@@ -37,7 +37,7 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
   price_per_hour: z.coerce.number().min(0, "El precio/hora debe ser un número positivo").optional().nullish(),
   fundae_id: z.string().optional().nullish(),
   file_number: z.string().optional().nullish(),
-  origin: z.nativeEnum(CourseOrigin).optional().nullish(),
+  client: z.nativeEnum(CourseClient).optional().nullish(),
   funding: z.nativeEnum(CourseFunding).optional().nullish(),
   moodle_id: z.number().optional().nullish(),
   category: z.string().optional().nullish(),
@@ -98,7 +98,7 @@ export default function CourseDetailRoute() {
       price_per_hour: null,
       fundae_id: '',
       file_number: '',
-      origin: null,
+      client: null,
       funding: null,
       moodle_id: null,
       category: '',
@@ -225,10 +225,10 @@ export default function CourseDetailRoute() {
   // Visibilidad condicional de los campos de clasificación. Se muestran cuando el
   // eje correspondiente lo justifica O cuando ya hay dato (para no ocultar valores
   // existentes de cursos aún sin clasificar del todo).
-  const originValue = watch('origin');
+  const clientValue = watch('client');
   const fundingValue = watch('funding');
   const showFundaeId = fundingValue === CourseFunding.FUNDAE || Boolean(courseData?.fundae_id);
-  const showFileNumber = originValue === CourseOrigin.INAEM || Boolean(courseData?.file_number);
+  const showFileNumber = clientValue === CourseClient.INAEM || Boolean(courseData?.file_number);
   // El botón de Foros solo tiene sentido para cursos online vinculados a Moodle.
   const showForumButton = courseData?.modality === CourseModality.ONLINE && hasMoodleId;
 
@@ -335,22 +335,22 @@ export default function CourseDetailRoute() {
               </Col>
             </Row>
 
-            {/* Clasificación (origen, financiación, expediente/fundae) + modalidad y datos numéricos */}
+            {/* Clasificación (cliente, financiación, expediente/fundae) + modalidad y datos numéricos */}
             <Row gutter={[16, 0]}>
               <Col xs={12} sm={6} md={3}>
                 <Form.Item
-                  label="Origen"
-                  name="origin"
-                  help={errors.origin?.message}
-                  validateStatus={errors.origin ? "error" : undefined}
+                  label="Cliente"
+                  name="client"
+                  help={errors.client?.message}
+                  validateStatus={errors.client ? "error" : undefined}
                 >
                   <Controller
-                    name="origin"
+                    name="client"
                     control={control}
                     render={({ field }) => (
                       <Select
                         {...field}
-                        id="origin"
+                        id="client"
                         style={{ width: '100%' }}
                         placeholder="Sin clasificar"
                         value={field.value ?? undefined}
@@ -358,8 +358,8 @@ export default function CourseDetailRoute() {
                         open={canEdit ? undefined : false}
                         allowClear={canEdit}
                       >
-                        {Object.values(CourseOrigin).map((origin) => (
-                          <Select.Option key={origin} value={origin}>{origin}</Select.Option>
+                        {Object.values(CourseClient).map((client) => (
+                          <Select.Option key={client} value={client}>{client}</Select.Option>
                         ))}
                       </Select>
                     )}
@@ -592,7 +592,7 @@ export default function CourseDetailRoute() {
                   groupId={selectedGroupId}
                   courseName={courseData?.course_name}
                   courseModality={courseData?.modality}
-                  courseOrigin={courseData?.origin}
+                  courseClient={courseData?.client}
                   courseFunding={courseData?.funding}
                   groupStart={sortedGroups.find(g => g.id_group === selectedGroupId)?.start_date}
                   groupEnd={sortedGroups.find(g => g.id_group === selectedGroupId)?.end_date}

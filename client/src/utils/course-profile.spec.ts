@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { getCourseProfile } from "./course-profile";
 import { CourseModality } from "../shared/types/course/course-modality.enum";
-import { CourseOrigin } from "../shared/types/course/course-origin.enum";
+import { CourseClient } from "../shared/types/course/course-client.enum";
 import { CourseFunding } from "../shared/types/course/course-funding.enum";
 
 describe("getCourseProfile", () => {
@@ -29,20 +29,37 @@ describe("getCourseProfile", () => {
     expect(p.showFinalizedColumn).toBe(false);
   });
 
-  it("origen INAEM activa expediente y preinscripciones", () => {
-    const inaem = getCourseProfile({ origin: CourseOrigin.INAEM });
+  it("cliente INAEM activa expediente y preinscripciones", () => {
+    const inaem = getCourseProfile({ client: CourseClient.INAEM });
     expect(inaem.isInaem).toBe(true);
     expect(inaem.showExpediente).toBe(true);
     expect(inaem.showPreinscripciones).toBe(true);
 
-    const privada = getCourseProfile({ origin: CourseOrigin.PRIVADA });
-    expect(privada.isInaem).toBe(false);
-    expect(privada.showExpediente).toBe(false);
-    expect(privada.showPreinscripciones).toBe(false);
+    const otro = getCourseProfile({ client: CourseClient.OTRO });
+    expect(otro.isInaem).toBe(false);
+    expect(otro.showExpediente).toBe(false);
+    expect(otro.showPreinscripciones).toBe(false);
+  });
+
+  it("ámbito público/privado se deriva de la financiación, no del cliente", () => {
+    const publica = getCourseProfile({ funding: CourseFunding.PUBLICA });
+    expect(publica.isPublic).toBe(true);
+    expect(publica.isPrivate).toBe(false);
+
+    for (const f of [CourseFunding.FUNDAE, CourseFunding.PRIVADA]) {
+      const p = getCourseProfile({ funding: f });
+      expect(p.isPrivate).toBe(true);
+      expect(p.isPublic).toBe(false);
+    }
+
+    // Sin financiación -> ni público ni privado (sin clasificar).
+    const sin = getCourseProfile({ client: CourseClient.OTRO });
+    expect(sin.isPublic).toBe(false);
+    expect(sin.isPrivate).toBe(false);
   });
 
   it("INAEM online: muestra finalización aunque no sea presencial", () => {
-    const p = getCourseProfile({ modality: CourseModality.ONLINE, origin: CourseOrigin.INAEM });
+    const p = getCourseProfile({ modality: CourseModality.ONLINE, client: CourseClient.INAEM });
     expect(p.isOnline).toBe(true);
     expect(p.isInaem).toBe(true);
     expect(p.showFinalizedColumn).toBe(true);
@@ -60,14 +77,14 @@ describe("getCourseProfile", () => {
   });
 
   it("normaliza mayúsculas/minúsculas y tolera strings sueltos", () => {
-    const p = getCourseProfile({ modality: "presencial", origin: "inaem", funding: "fundae" });
+    const p = getCourseProfile({ modality: "presencial", client: "inaem", funding: "fundae" });
     expect(p.isPresential).toBe(true);
     expect(p.isInaem).toBe(true);
     expect(p.isFundae).toBe(true);
   });
 
   it("entradas nulas/vacías: todo en estado seguro (sin capacidades especiales)", () => {
-    const p = getCourseProfile({ modality: null, origin: undefined, funding: "" });
+    const p = getCourseProfile({ modality: null, client: undefined, funding: "" });
     expect(p.isPresential).toBe(false);
     expect(p.isInaem).toBe(false);
     expect(p.isFundae).toBe(false);

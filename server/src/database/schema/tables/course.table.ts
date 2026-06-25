@@ -1,12 +1,12 @@
 import { pgTable, serial, integer, text, date, boolean, decimal, pgEnum, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { CourseModality } from "../../../types/course/course-modality.enum";
-import { CourseOrigin } from "../../../types/course/course-origin.enum";
+import { CourseClient } from "../../../types/course/course-client.enum";
 import { CourseFunding } from "../../../types/course/course-funding.enum";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 export const courseModality = pgEnum('course_modality', Object.values(CourseModality) as [string, ...string[]]);
-export const courseOrigin = pgEnum('course_origin', Object.values(CourseOrigin) as [string, ...string[]]);
+export const courseClient = pgEnum('course_client', Object.values(CourseClient) as [string, ...string[]]);
 export const courseFunding = pgEnum('course_funding', Object.values(CourseFunding) as [string, ...string[]]);
 
 export const courseTable = pgTable('courses', {
@@ -29,10 +29,11 @@ export const courseTable = pgTable('courses', {
   // importación INAEM y campo manual para etiquetar cursos ya existentes y
   // evitar duplicados. Null en cursos no INAEM.
   file_number: text(),
-  // Origen del curso: ¿quién lo encarga? (PRIVADA/INAEM). Null hasta clasificar.
-  origin: courseOrigin(),
+  // Cliente/comitente del curso (INAEM/VITALIA/OTRO). Null hasta clasificar.
+  // El ámbito público/privado se deriva de `funding`, no de aquí.
+  client: courseClient(),
   // Financiación del curso: ¿cómo se paga? (PRIVADA/FUNDAE/PUBLICA). Eje ortogonal
-  // al origen. Null hasta clasificar; los cursos INAEM son siempre PUBLICA.
+  // al cliente y del que se deriva el ámbito. Null hasta clasificar; INAEM ⇒ PUBLICA.
   funding: courseFunding(),
   // Curso provisional autocreado durante la importación INAEM cuando llegó un
   // alumno/preinscrito de un expediente sin curso. Se completa al importar Acciones.

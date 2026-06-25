@@ -38,7 +38,7 @@ export class UserPreinscriptionRepository extends Repository {
         preinscription_date: userPreinscriptionTable.preinscription_date,
         course_name: courseTable.course_name,
         file_number: courseTable.file_number,
-        origin: courseTable.origin,
+        client: courseTable.client,
         // Finalización de la matrícula (user_group) en ese curso:
         // true = algún grupo finalizado, false = matriculado sin finalizar,
         // null = sin matrícula (no hay datos de finalización).

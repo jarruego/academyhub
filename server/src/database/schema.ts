@@ -21,7 +21,7 @@ import { auditLogTable } from "./schema/tables/audit_log.table";
 import { emailLogTable } from "./schema/tables/email_log.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
-import { courseModality, courseOrigin } from "./schema/tables/course.table";
+import { courseModality, courseClient } from "./schema/tables/course.table";
 import { groupActiveMode } from "./schema/tables/group.table";
 
 export const auth_users = authUserTable;
@@ -49,7 +49,7 @@ export const email_log = emailLogTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
-export const courseOriginSchema = courseOrigin;
+export const courseClientSchema = courseClient;
 export const genderSchema = gender;
 export const document_type = documentType;
 export const group_active_mode = groupActiveMode;

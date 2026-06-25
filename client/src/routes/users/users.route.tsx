@@ -104,6 +104,7 @@ export default function UsersRoute() {
         onChange={(val: FormationType | undefined) => { setFormationType(val); resetPage(); }}
         options={[
           { label: 'FUNDAE', value: 'fundae' },
+          { label: 'Pública', value: 'publica' },
           { label: 'INAEM', value: 'inaem' },
           { label: 'Privada', value: 'privada' },
         ]}

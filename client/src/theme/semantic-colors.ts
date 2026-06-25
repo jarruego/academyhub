@@ -9,14 +9,15 @@
  * de modo que siguen el tema y el modo oscuro automáticamente.
  */
 
-import { CourseOrigin } from "../shared/types/course/course-origin.enum";
+import { CourseClient } from "../shared/types/course/course-client.enum";
 import { CourseFunding } from "../shared/types/course/course-funding.enum";
 import { CourseModality } from "../shared/types/course/course-modality.enum";
 
-/** Color de tag para el origen del curso (¿quién lo encarga?). */
-export const ORIGIN_COLORS: Record<CourseOrigin, string> = {
-  [CourseOrigin.INAEM]: "geekblue",
-  [CourseOrigin.PRIVADA]: "green",
+/** Color de tag para el cliente/comitente del curso. */
+export const CLIENT_COLORS: Record<CourseClient, string> = {
+  [CourseClient.INAEM]: "geekblue",
+  [CourseClient.VITALIA]: "green",
+  [CourseClient.OTRO]: "default",
 };
 
 /** Color de tag para la financiación del curso (¿cómo se paga?). */
@@ -61,10 +62,10 @@ export const FLAG_COLORS = {
   manual: "gold",
 } as const;
 
-/** Devuelve el color de origen, con fallback neutro para valores nulos/desconocidos. */
-export function originColor(origin?: string | null): string {
-  if (!origin) return STATUS_COLORS.neutral;
-  return ORIGIN_COLORS[origin as CourseOrigin] ?? STATUS_COLORS.neutral;
+/** Devuelve el color de cliente, con fallback neutro para valores nulos/desconocidos. */
+export function clientColor(client?: string | null): string {
+  if (!client) return STATUS_COLORS.neutral;
+  return CLIENT_COLORS[client as CourseClient] ?? STATUS_COLORS.neutral;
 }
 
 /** Devuelve el color de financiación, con fallback neutro para valores nulos/desconocidos. */

@@ -41,8 +41,8 @@ export class CourseRepository extends Repository {
         // if (filter.price_per_hour) where.push(eq(courseTable.price_per_hour, filter.price_per_hour));
         if (filter.modality) where.push(eq(courseTable.modality, filter.modality));
         if (filter.active) where.push(eq(courseTable.active, filter.active));
-        // Ejes de tipología (Fase 2): origen y financiación.
-        if (filter.origin) where.push(eq(courseTable.origin, filter.origin));
+        // Ejes de tipología: cliente y financiación (el ámbito se deriva de funding).
+        if (filter.client) where.push(eq(courseTable.client, filter.client));
         if (filter.funding) where.push(eq(courseTable.funding, filter.funding));
         // Búsqueda libre sobre nombre / nombre corto / nº de expediente.
         if (filter.search) {

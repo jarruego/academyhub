@@ -147,10 +147,11 @@ export class FilterUserDTO {
   preinscribed?: boolean;
 
   // Tipo de formación del alumno (derivado de sus matrículas): casa con las
-  // pestañas de la lista de cursos. `privada` = origen PRIVADA no bonificado.
+  // pestañas de la lista de cursos. Ejes: `funding` (fundae/publica/privada) y
+  // `client` (inaem). `privada` = financiación privada no bonificada.
   @IsOptional()
-  @IsIn(['fundae', 'inaem', 'privada'])
-  formation_type?: 'fundae' | 'inaem' | 'privada';
+  @IsIn(['fundae', 'publica', 'inaem', 'privada'])
+  formation_type?: 'fundae' | 'publica' | 'inaem' | 'privada';
 
   // Mostrar/ocultar usuarios dados de baja (con fecha de baja en su centro
   // principal). Por defecto se muestran todos; con `false` se excluyen los de baja.

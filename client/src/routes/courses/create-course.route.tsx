@@ -2,7 +2,7 @@ import { useCreateCourseMutation } from "../../hooks/api/courses/use-create-cour
 import { App, Button, DatePicker, Form, Input, Select, Row, Col } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
-import { CourseOrigin } from "../../shared/types/course/course-origin.enum";
+import { CourseClient } from "../../shared/types/course/course-client.enum";
 import { CourseFunding } from "../../shared/types/course/course-funding.enum";
 import { useNavigate } from "react-router-dom";
 import { SaveOutlined, ReloadOutlined } from "@ant-design/icons";
@@ -23,7 +23,7 @@ const CREATE_COURSE_FORM = z.object({
   price_per_hour: z.coerce.number().optional(),
   fundae_id: z.string().optional(),
   file_number: z.string().optional(),
-  origin: z.nativeEnum(CourseOrigin).optional(),
+  client: z.nativeEnum(CourseClient).optional(),
   funding: z.nativeEnum(CourseFunding).optional(),
   moodle_id: z.coerce.number().optional(),
   category: z.string().optional(),
@@ -36,11 +36,11 @@ export default function CreateCourseRoute() {
     resolver: zodResolver(CREATE_COURSE_FORM),
   });
   const navigate = useNavigate();
-  // Visibilidad condicional: Nº Expediente solo para INAEM; FUNDAE ID solo para
-  // financiación FUNDAE.
-  const originValue = watch('origin');
+  // Visibilidad condicional: Nº Expediente solo para cliente INAEM; FUNDAE ID solo
+  // para financiación FUNDAE.
+  const clientValue = watch('client');
   const fundingValue = watch('funding');
-  const showFileNumber = originValue === CourseOrigin.INAEM;
+  const showFileNumber = clientValue === CourseClient.INAEM;
   const showFundaeId = fundingValue === CourseFunding.FUNDAE;
 
   useEffect(() => {
@@ -206,14 +206,14 @@ export default function CreateCourseRoute() {
         </Row>
         <Row gutter={[16, 0]}>
           <Col xs={24} sm={12} md={6}>
-            <Form.Item label="Origen" name="origin">
+            <Form.Item label="Cliente" name="client">
               <Controller
-                name="origin"
+                name="client"
                 control={control}
                 render={({ field }) => (
-                  <Select {...field} id="origin" allowClear placeholder="Sin clasificar" style={{ width: '100%' }}>
-                    {Object.values(CourseOrigin).map((origin) => (
-                      <Select.Option key={origin} value={origin}>{origin}</Select.Option>
+                  <Select {...field} id="client" allowClear placeholder="Sin clasificar" style={{ width: '100%' }}>
+                    {Object.values(CourseClient).map((client) => (
+                      <Select.Option key={client} value={client}>{client}</Select.Option>
                     ))}
                   </Select>
                 )}
