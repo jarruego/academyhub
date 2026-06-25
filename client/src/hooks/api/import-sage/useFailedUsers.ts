@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAuthInfo } from '../../../providers/auth/auth.context'
+import { getApiHost } from '../../../utils/api/get-api-host.util'
 
 interface FailedUser {
   id: number
@@ -48,7 +49,7 @@ export const useFailedUsers = (page: number = 1, limit: number = 50) => {
         throw new Error('No hay token de autenticación')
       }
 
-      const response = await fetch(`/api/import/failed-users?page=${page}&limit=${limit}`, {
+      const response = await fetch(`${getApiHost()}/api/import/failed-users?page=${page}&limit=${limit}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${authInfo.token}`,
@@ -77,7 +78,7 @@ export const useFailedUsersStats = () => {
         throw new Error('No hay token de autenticación')
       }
 
-      const response = await fetch('/api/import/failed-users/stats', {
+      const response = await fetch(`${getApiHost()}/api/import/failed-users/stats`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${authInfo.token}`,
