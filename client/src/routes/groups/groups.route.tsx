@@ -1,3 +1,4 @@
+import React from "react";
 import { Button, Input, Tag, Tooltip } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useAllGroupsQuery } from "../../hooks/api/groups/use-all-groups.query";
@@ -14,6 +15,7 @@ import { ActiveTag } from "../../components/common/tags";
 import { formatDate } from "../../utils/format";
 import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
 import { FLAG_COLORS } from "../../theme/semantic-colors";
+import { openDetail } from "../../utils/open-detail";
 
 export default function GroupsRoute() {
   const { data: groupsData, isLoading: isGroupsLoading } = useAllGroupsQuery();
@@ -96,6 +98,13 @@ export default function GroupsRoute() {
                 ? <Tooltip title={text}><span>{text.slice(0, 45)}…</span></Tooltip>
                 : text;
             },
+            onCell: (record: Group) => ({
+              onClick: (e: React.MouseEvent) => {
+                e.stopPropagation();
+                openDetail(`/courses/${record.id_course}`);
+              },
+              style: { cursor: 'pointer', color: '#1677ff' },
+            }),
             sorter: (a: Group, b: Group) => (courseNameById[a.id_course] ?? '').localeCompare(courseNameById[b.id_course] ?? ''),
           },
           {
