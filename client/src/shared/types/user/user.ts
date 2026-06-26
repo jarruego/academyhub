@@ -54,4 +54,6 @@ export type User = {
     moodle_synced_at?: string | Date | null;
     // Si el usuario ha finalizado el curso/grupo (de user_group.finalized)
     finalized?: boolean | null;
+    // Si el usuario fue incluido en la última bonificación FUNDAE del grupo
+    bonified?: boolean | null;
 }

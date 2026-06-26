@@ -43,7 +43,7 @@ All DB access goes through repositories in `server/src/database/repository/`. Ea
 
 The base `Repository` class (`src/database/repository/repository.ts`) exposes `dbService`, a `query()` method (uses an active transaction if one is passed), and a `transaction()` wrapper. Pass a transaction object through service calls to make multiple repository operations atomic.
 
-Key junction tables: `user_center`, `user_course`, `user_group`, `moodle_user_auth_user`, `user_preinscription` (INAEM pre-registrations — see `docs/import-inaem.md`). (Note: the schema does NOT actually have an `organization_id` FK on domain tables — multi-tenancy is not implemented.)
+Key junction tables: `user_center`, `user_course`, `user_group`, `moodle_user_auth_user`, `user_preinscription` (INAEM pre-registrations — see `docs/import-inaem.md`). `user_group.bonified` (boolean, default false) tracks whether a student was included in the **last** FUNDAE XML generated for that group; it is reset to false for all group members and set to true only for those bonified each time `generateBonificationFile` is called. Useful for filtering bonified students in reports. (Note: the schema does NOT actually have an `organization_id` FK on domain tables — multi-tenancy is not implemented.)
 
 ## Drizzle migrations
 Migration files live in `server/drizzle/`. After modifying any table file under `schema/tables/`, run `npm run db:generate` then `npm run db:migrate`. The `unaccent` and `pg_trgm` PostgreSQL extensions must exist before the first migration (requires superuser).

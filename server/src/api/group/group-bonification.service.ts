@@ -130,7 +130,10 @@ export class GroupBonificableService {
             const xmlString = xml.replace(/(<(?:directos|indirectos|organizacion|salariales|importe)>)(\d+)(<\/(?:directos|indirectos|organizacion|salariales|importe)>)/g, (match, open, num, close) => {
                 return `${open}${Number(num).toFixed(2)}${close}`;
             });
-            
+
+            // Marcar como bonificados los usuarios incluidos en este XML (reset + set dentro de la tx)
+            await this.userGroupRepository.setBonifiedUsersInGroup(groupId, userIds, { transaction });
+
             // Devuelve también el nombre sugerido para el archivo
             return { xml: xmlString, filename: `${group.group_name.replace(/[^a-zA-Z0-9_-]/g, '_')}.xml` };
         });

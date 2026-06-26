@@ -51,6 +51,8 @@ export interface CourseProfile {
   showExpediente: boolean;
   /** Pestaña de preinscripciones (INAEM). */
   showPreinscripciones: boolean;
+  /** Columnas Centro y Empresa (ocultas en financiación pública: INAEM/PUBLICA). */
+  showCompanyColumns: boolean;
 }
 
 const norm = (v: string | null | undefined): string => String(v ?? "").toLowerCase().trim();
@@ -88,5 +90,6 @@ export function getCourseProfile(input: CourseProfileInput): CourseProfile {
     showBonificationButton: !isNonBonifiable,
     showExpediente: isInaem,
     showPreinscripciones: isInaem,
+    showCompanyColumns: !isPublic,
   };
 }

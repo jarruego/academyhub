@@ -1,0 +1,1 @@
+ALTER TABLE "user_group" ADD COLUMN "bonified" boolean DEFAULT false NOT NULL;

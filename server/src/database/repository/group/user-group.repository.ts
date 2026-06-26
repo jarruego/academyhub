@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { and, eq, not, inArray, count } from "drizzle-orm";
+import { and, eq, not, inArray, count, notInArray } from "drizzle-orm";
 import { UserGroupInsertModel, userGroupTable, UserGroupUpdateModel } from "src/database/schema/tables/user_group.table";
 import { userRolesTable } from "src/database/schema/tables/user_roles.table";
 import { userTable, UserSelectModel } from "src/database/schema/tables/user.table";
@@ -27,6 +27,8 @@ export type UserWithEnrollmentInfo = UserSelectModel & {
     moodle_synced_at?: Date | null;
     // Si el usuario ha finalizado el curso/grupo (de user_group.finalized)
     finalized?: boolean;
+    // Si el usuario fue incluido en la última bonificación FUNDAE del grupo
+    bonified?: boolean;
 };
 
 @Injectable()
@@ -86,6 +88,7 @@ export class UserGroupRepository extends Repository {
             id_moodle_user: r.user_course?.id_moodle_user ?? null,
             moodle_synced_at: r.user_group?.moodle_synced_at ?? null,
             finalized: r.user_group?.finalized ?? false,
+            bonified: r.user_group?.bonified ?? false,
         }));
     }
 
@@ -250,6 +253,22 @@ export class UserGroupRepository extends Repository {
             ));
         const otherGroups = await query;
         return otherGroups.length > 0;
+    }
+
+    /**
+     * Resetea bonified=false para todos los miembros del grupo y luego marca
+     * bonified=true exclusivamente para los userIds indicados. Ambas operaciones
+     * ocurren en la misma transacción que reciba el caller.
+     */
+    async setBonifiedUsersInGroup(groupId: number, userIds: number[], options?: QueryOptions): Promise<void> {
+        const q = this.query(options);
+        // Reset de todos los miembros del grupo
+        await q.update(userGroupTable).set({ bonified: false }).where(eq(userGroupTable.id_group, groupId));
+        if (userIds.length > 0) {
+            await q.update(userGroupTable).set({ bonified: true }).where(
+                and(eq(userGroupTable.id_group, groupId), inArray(userGroupTable.id_user, userIds))
+            );
+        }
     }
 
     async findUserInGroup(id_user: number, id_group: number, options?: QueryOptions) {

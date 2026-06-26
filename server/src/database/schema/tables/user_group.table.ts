@@ -21,6 +21,10 @@ export const userGroupTable = pgTable("user_group", {
   last_access: timestamp("last_access"),
   // Fecha/hora en la que este usuario se subió al grupo en Moodle (null si no sincronizado)
   moodle_synced_at: timestamp("moodle_synced_at"),
+  // Indica si el usuario fue incluido en la última bonificación FUNDAE del grupo.
+  // Se resetea a false para todos los miembros y se marca a true en los seleccionados
+  // cada vez que se genera el fichero FUNDAE.
+  bonified: boolean("bonified").notNull().default(false),
 }, (table) => {
   return {
     pk: primaryKey(table.id_user, table.id_group),

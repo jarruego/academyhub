@@ -201,6 +201,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       window.URL.revokeObjectURL(url);
       messageApi.success('XML generado correctamente');
       setIsBonificationModalOpen(false);
+      void refetch();
     } catch (err) {
       let detail: string | undefined;
       const anyErr = err as { response?: { data?: unknown } };
@@ -472,17 +473,34 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       ),
     });
 
+    const bonifiedColumn = studentOnly({
+      title: 'Bonificado',
+      dataIndex: 'bonified',
+      key: 'bonified',
+      width: 100,
+      sorter: { compare: (a: User, b: User) => Number(a.bonified ?? false) - Number(b.bonified ?? false) },
+      render: (_: unknown, user: User) =>
+        user.bonified
+          ? <span style={{ color: '#52c41a', fontWeight: 700 }}>Sí</span>
+          : <span style={{ color: '#bfbfbf' }}>—</span>,
+    });
+
     const gateStudentColumns = (cols: (typeof USERS_TABLE_COLUMNS)[number][]) =>
       cols.map((column) =>
         column.title === 'Porcentaje' || column.title === 'Tiempo usado' ? studentOnly(column) : column,
       );
 
+    const filterCompanyColumns = (cols: (typeof USERS_TABLE_COLUMNS)[number][]) =>
+      profile.showCompanyColumns ? cols : cols.filter((c) => c.title !== 'Centro' && c.title !== 'Empresa');
+
     if (profile.isPresential) {
       // En presencial el porcentaje/tiempo no aplican (no hay Moodle): se sustituye
       // la columna Porcentaje por el estado de finalización.
-      return USERS_TABLE_COLUMNS
+      const cols = filterCompanyColumns(USERS_TABLE_COLUMNS)
         .filter((column) => column.title !== 'Tiempo usado')
         .map((column) => (column.title === 'Porcentaje' ? finalizedColumn : column));
+      if (profile.showBonificationButton) cols.push(bonifiedColumn);
+      return cols;
     }
 
     const groupSyncedColumn = {
@@ -499,20 +517,24 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       }
     } as const;
 
-    const baseColumns = gateStudentColumns(filterUsersTimeSpentColumn(USERS_TABLE_COLUMNS, itopTrainingEnabled));
+    const baseColumns = gateStudentColumns(filterUsersTimeSpentColumn(filterCompanyColumns(USERS_TABLE_COLUMNS), itopTrainingEnabled));
     const cols = [groupSyncedColumn, ...baseColumns];
     // INAEM online/mixta: se conservan las columnas online (Moodle/progreso) y se
     // añade la finalización (el INAEM informa FINALIZADO sea cual sea la modalidad).
     if (profile.showFinalizedColumn) {
       cols.push(finalizedColumn);
     }
+    if (profile.showBonificationButton) {
+      cols.push(bonifiedColumn);
+    }
     return cols;
   }, [profile, itopTrainingEnabled]);
 
-  const { totalStudents, studentsAtOrAbove75 } = useMemo(() => {
+  const { totalStudents, studentsAtOrAbove75, bonifiedStudents } = useMemo(() => {
     let total = 0;
     let at75 = 0;
-    if (!usersData || usersData.length === 0) return { totalStudents: 0, studentsAtOrAbove75: 0 };
+    let bonified = 0;
+    if (!usersData || usersData.length === 0) return { totalStudents: 0, studentsAtOrAbove75: 0, bonifiedStudents: 0 };
 
     const getPercent = (v: unknown) => {
       const n = Number(v ?? 0) || 0;
@@ -525,10 +547,11 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         total += 1;
         const pct = getPercent(u.completion_percentage);
         if (pct >= 75) at75 += 1;
+        if (u.bonified) bonified += 1;
       }
     }
 
-    return { totalStudents: total, studentsAtOrAbove75: at75 };
+    return { totalStudents: total, studentsAtOrAbove75: at75, bonifiedStudents: bonified };
   }, [usersData]);
 
   // ── Menús de los dropdowns ──────────────────────────────────────────────────
@@ -728,6 +751,12 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
                 <strong>Estudiantes:</strong>&nbsp;{totalStudents}
                 <span>•</span>
                 <strong>≥75%:</strong>&nbsp;{studentsAtOrAbove75}
+                {profile.showBonificationButton && (
+                  <>
+                    <span>•</span>
+                    <strong>Bonificados:</strong>&nbsp;{bonifiedStudents}
+                  </>
+                )}
               </div>
             </div>
           );
