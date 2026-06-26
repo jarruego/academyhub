@@ -8,10 +8,10 @@ describe("email.util", () => {
     it("quita espacios internos", () => {
       expect(sanitizeEmail("juan perez@empresa.com")).toBe("juanperez@empresa.com");
     });
-    it("transectoriza acentos/diacríticos a ASCII", () => {
-      expect(sanitizeEmail("josé.pérez@empresa.com")).toBe("jose.perez@empresa.com");
-      expect(sanitizeEmail("niño@correo.es")).toBe("nino@correo.es");
-      expect(sanitizeEmail("müller@correo.de")).toBe("muller@correo.de");
+    it("conserva los acentos tal cual (no transliera)", () => {
+      expect(sanitizeEmail("josé.pérez@empresa.com")).toBe("josé.pérez@empresa.com");
+      expect(sanitizeEmail("niño@correo.es")).toBe("niño@correo.es");
+      expect(sanitizeEmail("Müller@correo.de")).toBe("müller@correo.de");
     });
     it("acepta los símbolos válidos del set local (. _ % + -)", () => {
       expect(sanitizeEmail("a.b_c%d+e-f@dom.com")).toBe("a.b_c%d+e-f@dom.com");
