@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsInt, IsString, IsDateString, IsArray } from "class-validator";
-import { Type } from "class-transformer";
+import { IsOptional, IsInt, IsString, IsDateString, IsArray, IsBoolean } from "class-validator";
+import { Type, Transform } from "class-transformer";
 
 export class ReportFilterDTO {
   @ApiPropertyOptional()
@@ -79,4 +79,10 @@ export class ReportFilterDTO {
   @Type(() => Number)
   @IsInt()
   completion_percentage?: number;
+
+  @ApiPropertyOptional({ type: Boolean, description: 'Si es true, sólo devuelve inscripciones marcadas como bonificadas (user_group.bonified = true)' })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  bonified?: boolean;
 }

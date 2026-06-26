@@ -60,6 +60,7 @@ export default function ReportsRoute() {
   const [selectedRoles, setSelectedRoles] = useState<number[]>([]);
   const [roleDefaultApplied, setRoleDefaultApplied] = useState(false);
   const [completionFilter, setCompletionFilter] = useState<'all' | 'gte75' | 'eq100'>('all');
+  const [onlyBonified, setOnlyBonified] = useState<boolean>(false);
 
   const { data: orgSettings } = useOrganizationSettingsQuery();
   const itopTrainingEnabled = useMemo(() => {
@@ -147,6 +148,9 @@ export default function ReportsRoute() {
   // Map UI completion filter into server-side single threshold param
   if (completionFilter === 'gte75') params.completion_percentage = 75;
   if (completionFilter === 'eq100') params.completion_percentage = 100;
+
+  // Solo alumnos marcados como bonificados en la BD (user_group.bonified = true)
+  if (onlyBonified) params.bonified = true;
 
   const { data, isLoading } = useReportsQuery(params);
 
@@ -604,6 +608,15 @@ export default function ReportsRoute() {
                 { label: '100%', value: 'eq100' },
               ]}
             />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4, visibility: 'hidden' }}>Bonificados</div>
+            <Checkbox
+              checked={onlyBonified}
+              onChange={(e) => { setOnlyBonified(e.target.checked); setPage(1); clearSelection(); }}
+            >
+              Solo bonificados
+            </Checkbox>
           </div>
           <div>
             <div style={{ marginBottom: 4, visibility: 'hidden' }}>Export</div>

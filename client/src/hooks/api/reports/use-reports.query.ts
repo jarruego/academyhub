@@ -19,6 +19,7 @@ export type ReportsQueryParams = {
   sort_field?: string;
   sort_order?: 'asc' | 'desc';
   completion_percentage?: number;
+  bonified?: boolean;
 };
 
 export const useReportsQuery = (params?: ReportsQueryParams) => {

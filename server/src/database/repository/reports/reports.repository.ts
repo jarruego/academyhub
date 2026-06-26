@@ -70,6 +70,11 @@ export class ReportsRepository extends Repository {
       where.push(sql`COALESCE(${userGroupTable.completion_percentage}, ${userCourseTable.completion_percentage}, 0) >= ${Number(filter.completion_percentage)}`);
     }
 
+    // Sólo inscripciones marcadas como bonificadas en la última bonificación FUNDAE del grupo
+    if (filter?.bonified) {
+      where.push(eq(userGroupTable.bonified, true));
+    }
+
     if (filter?.search) {
       const term = `%${String(filter.search).trim()}%`;
       // Search across multiple user fields: name, first/second surname, full name,
