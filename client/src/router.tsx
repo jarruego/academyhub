@@ -29,6 +29,7 @@ import AuditLogRoute from './routes/tools/audit-log.route';
 import EmailLogRoute from './routes/tools/email-log.route';
 import ForumDuplicatorRoute from './routes/tools/forum-duplicator.route';
 import MergeDuplicatesRoute from './routes/tools/merge-duplicates.route';
+import UserSanitizationRoute from './routes/tools/user-sanitization.route';
 import UserManagementRoute from './routes/auth-users/auth-user-management.route';
 import ReportsRoute from './routes/reports/reports.route';
 import OrganizationSettingsPage from './routes/organization/OrganizationSettingsPage';
@@ -172,6 +173,7 @@ export default function AppRouter() {
               <Route path="/tools/data-cross-reference" element={<DataCrossReferenceRoute />} />
               <Route path="/tools/user-management" element={<UserManagementRoute />} />
               <Route path="/tools/merge-duplicates" element={<MergeDuplicatesRoute />} />
+              <Route path="/tools/user-sanitization" element={<UserSanitizationRoute />} />
               <Route path="/tools/moodle-import" element={<MoodleImportRoute />} />
               <Route path="/tools/import-sage" element={<SageImportRoute />} />
               <Route path="/tools/import-inaem" element={<InaemImportRoute />} />

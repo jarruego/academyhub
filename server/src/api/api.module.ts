@@ -15,8 +15,9 @@ import { OrganizationModule } from './organization/organization.module';
 import { FilesModule } from './files/files.module';
 import { AuditModule } from './audit/audit.module';
 import { UserMergeModule } from './user-merge/user-merge.module';
+import { UserSanitizationModule } from './user-sanitization/user-sanitization.module';
 
 @Module({
-  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, ForumModule, MoodleUserModule, ImportModule, ImportInaemModule, ReportsModule, OrganizationModule, FilesModule, MailModule, AuditModule, UserMergeModule],
+  imports: [CompanyModule, CenterModule, CourseModule, GroupModule, UserModule, MoodleModule, ForumModule, MoodleUserModule, ImportModule, ImportInaemModule, ReportsModule, OrganizationModule, FilesModule, MailModule, AuditModule, UserMergeModule, UserSanitizationModule],
 })
 export class ApiModule {}
