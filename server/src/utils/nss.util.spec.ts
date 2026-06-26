@@ -17,6 +17,10 @@ describe("nss.util", () => {
     it("acepta un NSS de 12 dígitos con control correcto", () => {
       expect(isValidNss(VALID)).toBe(true);
     });
+    it("acepta un NSS con afiliación de cero a la izquierda (algoritmo oficial)", () => {
+      // prov 41 (Sevilla), afiliación 00959520 (< 10M), control 08 → válido
+      expect(isValidNss("410095952008")).toBe(true);
+    });
     it("rechaza el que le falta el cero (11 dígitos)", () => {
       expect(isValidNss(MISSING_ZERO)).toBe(false);
     });

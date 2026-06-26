@@ -2,9 +2,14 @@
  * Utilidades del Número de Seguridad Social (NSS / NAF) español.
  *
  * Formato válido: 12 dígitos = PP (provincia, 2) + NNNNNNNN (nº afiliación, 8) +
- * CC (control, 2). El dígito de control es el resto de dividir los 10 primeros
- * dígitos entre 97. Verificado empíricamente contra los datos reales (el ~86% de
- * los NSS de 12 dígitos en BD lo cumplen; el resto son tecleos erróneos legacy).
+ * CC (control, 2). El dígito de control es el resto de dividir la "base" entre 97,
+ * según el algoritmo OFICIAL de la Seguridad Social:
+ *   - si el nº de afiliación (numérico) es < 10.000.000 (lleva ceros a la
+ *     izquierda): base = afiliación + provincia · 10.000.000;
+ *   - en caso contrario: base = provincia concatenada con afiliación (provincia · 10^8 + afiliación).
+ * (Antes se usaba siempre la concatenación de los 10 primeros dígitos, lo que
+ * marcaba como inválidos los NSS con afiliación de cero a la izquierda, p. ej.
+ * 410095952008 → provincia 41, afiliación 00959520, control 08, que SÍ es válido.)
  *
  * Problema frecuente: muchos NSS se guardaron SIN el cero a la izquierda (11
  * dígitos), por conversión numérica en Excel/SAGE. La forma canónica rellena con
@@ -17,11 +22,15 @@ export function nssDigits(nss: string | null | undefined): string {
   return nss ? String(nss).replace(/\D/g, "") : "";
 }
 
-/** true si es un NSS de 12 dígitos con dígito de control correcto. */
+/** true si es un NSS de 12 dígitos con dígito de control correcto (algoritmo oficial). */
 export function isValidNss(nss: string | null | undefined): boolean {
   const d = nssDigits(nss);
   if (d.length !== 12) return false;
-  return Number(d.slice(0, 10)) % 97 === Number(d.slice(10, 12));
+  const provincia = Number(d.slice(0, 2));
+  const afiliacion = Number(d.slice(2, 10));
+  const control = Number(d.slice(10, 12));
+  const base = afiliacion < 10_000_000 ? afiliacion + provincia * 10_000_000 : provincia * 100_000_000 + afiliacion;
+  return base % 97 === control;
 }
 
 /**
