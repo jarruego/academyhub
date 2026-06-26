@@ -56,6 +56,8 @@ import { DocumentType } from "src/types/user/document-type.enum";
 import { Gender } from "src/types/user/gender.enum";
 import { mapSageEducationLevel, FUNDAE_DEFAULT_EDUCATION_LEVEL } from "./education-level.util";
 import { canonicalNss } from "src/utils/nss.util";
+import { sanitizePhone } from "src/utils/phone.util";
+import { sanitizeEmail } from "src/utils/email.util";
 
 @Injectable()
 export class ImportService {
@@ -1155,10 +1157,10 @@ export class ImportService {
             // 'Movilidad geográfica', // Legacy desactivado
         );
 
-        // Email: si no tiene formato válido se descarta (mejor vacío que basura
-        // que luego bloquearía notificaciones o el alta en Moodle)
-        const emailRaw = getValue('Email').trim();
-        const email = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailRaw) ? emailRaw : undefined;
+        // Email: se sanea (minúsculas, sin espacios, sin tildes) y se valida;
+        // si no cumple el formato se descarta (mejor vacío que basura que luego
+        // bloquearía notificaciones o el alta en Moodle). Ver src/utils/email.util.ts
+        const email = sanitizeEmail(getValue('Email'));
 
         const normalizedData = {
             // Datos del usuario
@@ -1173,7 +1175,7 @@ export class ImportService {
             first_surname: firstSurname,
             second_surname: secondSurname,
             email: email,
-            phone: phoneValue.trim() || undefined,
+            phone: sanitizePhone(phoneValue),
             birth_date: birthDate,
             job_position: getValue('Categoría').trim() || undefined,
             salary_group: salaryGroup,
