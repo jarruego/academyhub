@@ -11,6 +11,8 @@ import {
 } from "./inaem-normalize.util";
 import { mapInaemEducationLevel } from "./inaem-education-level.util";
 import { COMMON, OBSERVATION_FIELD_HEADERS } from "./inaem-column-map";
+import { sanitizeEmail } from "../../utils/email.util";
+import { sanitizePhone } from "../../utils/phone.util";
 
 type Row = Record<string, string>;
 
@@ -33,13 +35,6 @@ export interface IncomingUserFields {
   province?: string;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function validEmail(raw: string | undefined): string | undefined {
-  if (!raw) return undefined;
-  return EMAIL_RE.test(raw) ? raw : undefined;
-}
-
 /** Extrae los campos de usuario de una fila (sin tocar observations). */
 export function mapRowToUserFields(row: Row): IncomingUserFields {
   const dni = sanitizeDni(row[COMMON.DNI]);
@@ -49,8 +44,8 @@ export function mapRowToUserFields(row: Row): IncomingUserFields {
     name: cleanText(row[COMMON.NAME]),
     first_surname: cleanText(row[COMMON.SURNAME1]),
     second_surname: cleanText(row[COMMON.SURNAME2]),
-    email: validEmail(cleanText(row[COMMON.EMAIL])),
-    phone: cleanText(row[COMMON.PHONE_MOBILE]) ?? cleanText(row[COMMON.PHONE_LANDLINE]),
+    email: sanitizeEmail(row[COMMON.EMAIL]),
+    phone: sanitizePhone(row[COMMON.PHONE_MOBILE]) ?? sanitizePhone(row[COMMON.PHONE_LANDLINE]),
     birth_date: parseInaemDate(row[COMMON.BIRTH_DATE]),
     gender: parseGender(row[COMMON.GENDER]),
     disability: parseSiNo(row[COMMON.DISABILITY]),

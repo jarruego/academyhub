@@ -47,6 +47,20 @@ describe("mapRowToUserFields", () => {
     const f = mapRowToUserFields(baseRow({ "TELÉFONO MOVIL": "", "TELÉFONO FIJO": "976111222" }));
     expect(f.phone).toBe("976111222");
   });
+
+  it("sanea el email (minúsculas/espacios) conservando acentos", () => {
+    expect(mapRowToUserFields(baseRow({ EMAIL: " José.Pérez@Empresa.COM " })).email)
+      .toBe("josé.pérez@empresa.com");
+  });
+
+  it("sanea el teléfono (quita separadores)", () => {
+    expect(mapRowToUserFields(baseRow({ "TELÉFONO MOVIL": "603 63.12-26" })).phone).toBe("603631226");
+  });
+
+  it("descarta el teléfono con menos de 9 dígitos y cae al fijo", () => {
+    const f = mapRowToUserFields(baseRow({ "TELÉFONO MOVIL": "12345", "TELÉFONO FIJO": "976111222" }));
+    expect(f.phone).toBe("976111222");
+  });
 });
 
 describe("buildObservationsForRow", () => {

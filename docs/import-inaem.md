@@ -27,7 +27,7 @@ Mapping/normalization is **not** in the parser (it returns raw rows); see below.
 ## Mapping & normalization
 - `inaem-normalize.util.ts`: `sanitizeDni` (uppercase, strip non-alphanumerics), `inferDocumentType` (X/Y/Z→NIE), `parseInaemDate` (dd/mm/yyyy + ISO), `parseGender` (Hombre/Mujer), `parseSiNo`, `cleanText`, `buildInaemObservationBlock` + `upsertObservationBlock` (idempotent block per expediente, header `[INAEM <exp>]`).
 - `inaem-column-map.ts`: exact column header constants + `OBSERVATION_FIELD_HEADERS`.
-- `inaem-mapping.util.ts`: `mapRowToUserFields`, `buildObservationsForRow`, `computeUserMerge` (fill-gaps update + conflict list).
+- `inaem-mapping.util.ts`: `mapRowToUserFields`, `buildObservationsForRow`, `computeUserMerge` (fill-gaps update + conflict list). Email y teléfono se sanean con los mismos utils compartidos que SAGE: `sanitizeEmail` (`src/utils/email.util.ts`) y `sanitizePhone` (`src/utils/phone.util.ts`) — el teléfono prueba móvil y, si queda inválido (<9 dígitos), cae al fijo.
 - `inaem-education-level.util.ts`: `mapInaemEducationLevel` — explicit INAEM→FUNDAE dict (FP I=3, "FP II/Ciclo Grado medio"=4, Ciclo Grado Superior=6, Diplomatura=7, Licenciatura=8, ESO/Graduado Escolar=3, Estudios primarios=2, Sin estudios=1), fallback to SAGE keyword classifier, then default `10`; empty → undefined.
 
 ## Import flow (`inaem-import.service.ts`, `InaemImportService`)
