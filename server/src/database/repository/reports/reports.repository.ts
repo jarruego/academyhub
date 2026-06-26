@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { Repository, QueryOptions } from "../repository";
-import { and, eq, sql, or, count, desc } from "drizzle-orm";
+import { and, eq, sql, or, count, desc, inArray } from "drizzle-orm";
 import type { SQL } from "drizzle-orm/sql";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
@@ -15,51 +15,65 @@ import { moodleUserTable } from "src/database/schema/tables/moodle_user.table";
 import { userRolesTable } from "src/database/schema/tables/user_roles.table";
 import { ReportFilterDTO } from "src/dto/reports/report-filter.dto";
 
+// Dimensiones cuyo desplegable se calcula como faceta. Al recalcular las opciones
+// de una dimensión se aplican todos los filtros EXCEPTO el de esa misma dimensión
+// (facetas estándar: una multiselección no restringe sus propias opciones).
+export type FacetDimension = 'company' | 'center' | 'course' | 'group' | 'role' | 'modality' | 'client' | 'funding';
+
 @Injectable()
 export class ReportsRepository extends Repository {
   /**
-   * Devuelve un listado plano con información cruzada por usuario/inscripción
+   * Construye las condiciones WHERE compartidas por el listado y por las facetas.
+   * Si `exclude` está presente se omite el filtro de esa dimensión (para no
+   * autorrestringir su propio desplegable). El resto de filtros (fechas, búsqueda,
+   * % completado, bonificados) son globales y se aplican siempre.
+   *
+   * Método puro: solo construye expresiones SQL, no accede a la base de datos.
    */
-  async getReportRows(filter?: ReportFilterDTO, options?: QueryOptions) {
-    const q = this.query(options);
-
-    const page = Number(filter?.page) || 1;
-    const limit = Number(filter?.limit) || 100;
-    const offset = (page - 1) * limit;
-
-    // Conditions for WHERE clause: Drizzle SQL expressions
+  buildWhereConditions(filter?: ReportFilterDTO, exclude?: FacetDimension): SQL[] {
     const where: SQL[] = [];
 
     // support arrays for company/center filters (multiple selection)
-    if (filter?.id_company) {
+    if (exclude !== 'company' && filter?.id_company) {
       if (Array.isArray(filter.id_company) && filter.id_company.length) {
         where.push(or(...filter.id_company.map((id) => eq(companyTable.id_company, Number(id)))));
       } else if (!Array.isArray(filter.id_company)) {
         where.push(eq(companyTable.id_company, filter.id_company));
       }
     }
-    if (filter?.id_center) {
+    if (exclude !== 'center' && filter?.id_center) {
       if (Array.isArray(filter.id_center) && filter.id_center.length) {
         where.push(or(...filter.id_center.map((id) => eq(centers.id_center, Number(id)))));
       } else if (!Array.isArray(filter.id_center)) {
         where.push(eq(centers.id_center, filter.id_center));
       }
     }
-    if (filter?.id_course) where.push(eq(courseTable.id_course, filter.id_course));
+    if (exclude !== 'course' && filter?.id_course) where.push(eq(courseTable.id_course, filter.id_course));
     // Support multiple selected groups (id_group can be number[])
-    if (filter?.id_group) {
+    if (exclude !== 'group' && filter?.id_group) {
       if (Array.isArray(filter.id_group) && filter.id_group.length) {
         where.push(or(...filter.id_group.map((id) => eq(groupTable.id_group, Number(id)))));
       } else if (!Array.isArray(filter.id_group)) {
         where.push(eq(groupTable.id_group, filter.id_group as unknown as number));
       }
     }
-    if (filter?.id_role) {
+    if (exclude !== 'role' && filter?.id_role) {
       if (Array.isArray(filter.id_role) && filter.id_role.length) {
         where.push(or(...filter.id_role.map((id) => eq(userGroupTable.id_role, Number(id)))));
       } else if (!Array.isArray(filter.id_role)) {
         where.push(eq(userGroupTable.id_role, filter.id_role as unknown as number));
       }
+    }
+
+    // Ejes de clasificación del curso (modalidad / cliente / financiación)
+    if (exclude !== 'modality' && Array.isArray(filter?.modality) && filter.modality.length) {
+      where.push(inArray(courseTable.modality, filter.modality));
+    }
+    if (exclude !== 'client' && Array.isArray(filter?.client) && filter.client.length) {
+      where.push(inArray(courseTable.client, filter.client));
+    }
+    if (exclude !== 'funding' && Array.isArray(filter?.funding) && filter.funding.length) {
+      where.push(inArray(courseTable.funding, filter.funding));
     }
 
     if (filter?.start_date) where.push(sql`${groupTable.start_date} >= ${filter.start_date}`);
@@ -92,6 +106,78 @@ export class ReportsRepository extends Repository {
         sql`unaccent(lower(${centers.employer_number})) LIKE unaccent(lower(${term}))`,
       ));
     }
+
+    return where;
+  }
+
+  /**
+   * Devuelve, por cada dimensión-desplegable, los valores distintos que tienen al
+   * menos una fila de informe compatible con el resto de filtros (facetas estándar).
+   * Reutiliza exactamente los JOINs del listado para mantener la coherencia.
+   * El desplegable de grupos solo se calcula cuando hay un curso seleccionado
+   * (igual que en el cliente, para no devolver miles de grupos).
+   */
+  async getReportFacets(filter?: ReportFilterDTO, options?: QueryOptions) {
+    // El builder se tipa como `any` internamente porque un genérico amplio en
+    // `selectDistinct` rompe la inferencia del encadenado de joins en drizzle;
+    // el shape concreto se reimpone con la aserción de cada faceta.
+    const baseSelect = (cols: Record<string, PgColumn>, exclude: FacetDimension) => {
+      const where = this.buildWhereConditions(filter, exclude);
+      const cond = where.length > 0 ? and(...where) : undefined;
+      return (this.query(options) as any)
+        .selectDistinct(cols)
+        .from(userGroupTable)
+        .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
+        .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
+        .innerJoin(courseTable, eq(groupTable.id_course, courseTable.id_course))
+        .leftJoin(userRolesTable, eq(userGroupTable.id_role, userRolesTable.id_role))
+        .leftJoin(userCourseTable, and(eq(userCourseTable.id_user, userTable.id_user), eq(userCourseTable.id_course, courseTable.id_course)))
+        .leftJoin(userCenterTable, and(eq(userCenterTable.id_user, userTable.id_user), eq(userCenterTable.is_main_center, true)))
+        .leftJoin(centers, eq(userCenterTable.id_center, centers.id_center))
+        .leftJoin(companyTable, eq(centers.id_company, companyTable.id_company))
+        .where(cond);
+    };
+
+    const [companies, centersList, courses, groups, roles, modalities, clients, fundings] = await Promise.all([
+      baseSelect({ id_company: companyTable.id_company, company_name: companyTable.company_name }, 'company').orderBy(companyTable.company_name) as Promise<{ id_company: number; company_name: string | null }[]>,
+      baseSelect({ id_center: centers.id_center, center_name: centers.center_name }, 'center').orderBy(centers.center_name) as Promise<{ id_center: number; center_name: string | null }[]>,
+      baseSelect({ id_course: courseTable.id_course, course_name: courseTable.course_name }, 'course').orderBy(courseTable.course_name) as Promise<{ id_course: number; course_name: string | null }[]>,
+      (filter?.id_course
+        ? baseSelect({ id_group: groupTable.id_group, group_name: groupTable.group_name }, 'group').orderBy(groupTable.group_name)
+        : Promise.resolve([])) as Promise<{ id_group: number; group_name: string | null }[]>,
+      baseSelect({ id_role: userRolesTable.id_role, role_shortname: userRolesTable.role_shortname }, 'role').orderBy(userRolesTable.role_shortname) as Promise<{ id_role: number; role_shortname: string | null }[]>,
+      baseSelect({ value: courseTable.modality }, 'modality').orderBy(courseTable.modality) as Promise<{ value: string | null }[]>,
+      baseSelect({ value: courseTable.client }, 'client').orderBy(courseTable.client) as Promise<{ value: string | null }[]>,
+      baseSelect({ value: courseTable.funding }, 'funding').orderBy(courseTable.funding) as Promise<{ value: string | null }[]>,
+    ]);
+
+    const nonNull = (arr: { value: string | null }[]) => arr.map((r) => r.value).filter((v): v is string => v != null);
+
+    // Los LEFT JOIN de centro/empresa/rol pueden producir filas con id nulo; se descartan.
+    return {
+      companies: companies.filter((c) => c.id_company != null),
+      centers: centersList.filter((c) => c.id_center != null),
+      courses,
+      groups,
+      roles: roles.filter((r) => r.id_role != null),
+      modalities: nonNull(modalities),
+      clients: nonNull(clients),
+      fundings: nonNull(fundings),
+    };
+  }
+
+  /**
+   * Devuelve un listado plano con información cruzada por usuario/inscripción
+   */
+  async getReportRows(filter?: ReportFilterDTO, options?: QueryOptions) {
+    const q = this.query(options);
+
+    const page = Number(filter?.page) || 1;
+    const limit = Number(filter?.limit) || 100;
+    const offset = (page - 1) * limit;
+
+    // Conditions for WHERE clause: Drizzle SQL expressions (shared with the facets endpoint)
+    const where = this.buildWhereConditions(filter);
 
     const whereCondition = where.length > 0 ? and(...where) : undefined;
 

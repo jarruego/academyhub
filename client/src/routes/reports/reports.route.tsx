@@ -7,18 +7,13 @@ import type { Dayjs } from 'dayjs';
 import { App, Table, TablePaginationConfig, Select, Space, DatePicker, Input, Button, Modal, Checkbox } from 'antd';
 import type { SorterResult, FilterValue, SortOrder } from 'antd/es/table/interface';
 import { useReportsQuery, ReportsQueryParams } from '../../hooks/api/reports/use-reports.query';
+import { useReportFacetsQuery, ReportFacetsParams } from '../../hooks/api/reports/use-report-facets.query';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
-import { useCoursesQuery } from '../../hooks/api/courses/use-courses.query';
-import { useGroupsQuery } from '../../hooks/api/groups/use-groups.query';
-import { useCompaniesQuery } from '../../hooks/api/companies/use-companies.query';
-import { useCentersQuery } from '../../hooks/api/centers/use-centers.query';
-import { useCentersByCompaniesQuery } from '../../hooks/api/centers/use-centers-by-companies.query';
 import useReportExport from '../../hooks/api/reports/use-report-export';
 import { useReportRolesQuery } from '../../hooks/api/reports/use-report-roles.query';
 import type { ReportExportRequest } from '../../hooks/api/reports/use-export-report.mutation';
 import { ReportRow } from '../../shared/types/reports/report-row';
 import { PaginationResult } from '../../shared/types/pagination';
-import type { Center } from '../../shared/types/center/center';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { getApiHost } from '../../utils/api/get-api-host.util';
 
@@ -49,7 +44,6 @@ export default function ReportsRoute() {
   const tableScrollY = useTableScroll(wrapperRef, controlsRef, { footerOffset: 5});
   const [selectedCompanies, setSelectedCompanies] = useState<number[]>([]);
   const [selectedCenters, setSelectedCenters] = useState<number[]>([]);
-  const [availableCenters, setAvailableCenters] = useState<Center[]>([]);
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | undefined>(undefined);
   const [search, setSearch] = useState<string>('');
   const debouncedSearch = useDebounce(search, 350);
@@ -61,6 +55,9 @@ export default function ReportsRoute() {
   const [roleDefaultApplied, setRoleDefaultApplied] = useState(false);
   const [completionFilter, setCompletionFilter] = useState<'all' | 'gte75' | 'eq100'>('all');
   const [onlyBonified, setOnlyBonified] = useState<boolean>(false);
+  const [selectedModalities, setSelectedModalities] = useState<string[]>([]);
+  const [selectedClients, setSelectedClients] = useState<string[]>([]);
+  const [selectedFundings, setSelectedFundings] = useState<string[]>([]);
 
   const { data: orgSettings } = useOrganizationSettingsQuery();
   const itopTrainingEnabled = useMemo(() => {
@@ -73,62 +70,22 @@ export default function ReportsRoute() {
   const [sortField, setSortField] = useState<string | undefined>('group_end_date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | undefined>('desc');
 
-  // Fetch companies (for select options)
-  const { data: companies } = useCompaniesQuery();
-  // keep companies sorted alphabetically by name for the Select
-  const sortedCompanies = useMemo(() => (companies && Array.isArray(companies)) ? [...companies].sort((a, b) => String(a.company_name ?? '').localeCompare(String(b.company_name ?? ''))) : [], [companies]);
-
-  // When no companies selected, fetch all centers via the centers hook
-  const { data: allCenters } = useCentersQuery();
-  // Fetch centers for the selected companies (hook handles parallel requests & dedupe)
-  const { data: centersForCompanies } = useCentersByCompaniesQuery(selectedCompanies?.length ? selectedCompanies : undefined);
-  // Fetch courses and groups for the course/group filters
-  const { data: courses } = useCoursesQuery();
+  // Roles completos: para el default "student" y para que ese rol siga visible/etiquetado
+  // aunque las facetas no lo incluyan. Las opciones visibles salen de las facetas.
   const { data: reportRoles } = useReportRolesQuery();
-  // Pass the numeric course id (or undefined) so the groups query can enable/disable itself
-  const { data: groupsForCourse } = useGroupsQuery(selectedCourse);
-
-  // Keep courses and groups sorted alphabetically by name for their Selects
-  const sortedCourses = useMemo(() => (courses && Array.isArray(courses)) ? [...courses].sort((a, b) => String(a.course_name ?? '').localeCompare(String(b.course_name ?? ''))) : [], [courses]);
-  const sortedGroups = useMemo(() => (groupsForCourse && Array.isArray(groupsForCourse)) ? [...groupsForCourse].sort((a, b) => String(a.group_name ?? '').localeCompare(String(b.group_name ?? ''))) : [], [groupsForCourse]);
+  const studentRole = useMemo(
+    () => (reportRoles ?? []).find((r) => String(r.role_shortname ?? '').toLowerCase() === 'student'),
+    [reportRoles],
+  );
+  const studentRoleId = studentRole?.id_role != null ? Number(studentRole.id_role) : undefined;
 
   // Select "student" by default once roles are loaded (if present)
   useEffect(() => {
     if (roleDefaultApplied) return;
-    if (!reportRoles || !Array.isArray(reportRoles) || reportRoles.length === 0) return;
-
-    const studentRole = reportRoles.find((r) => String(r.role_shortname ?? '').toLowerCase() === 'student');
-    if (studentRole?.id_role != null) {
-      setSelectedRoles([Number(studentRole.id_role)]);
-    }
+    if (studentRoleId == null) return;
+    setSelectedRoles([studentRoleId]);
     setRoleDefaultApplied(true);
-  }, [reportRoles, roleDefaultApplied]);
-
-  // Update available centers depending on selectedCompanies
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      // If no companies selected, show all centers (if available)
-      if (!selectedCompanies || selectedCompanies.length === 0) {
-        if (mounted) setAvailableCenters((allCenters ?? []).slice().sort((a: Center, b: Center) => String(a.center_name ?? '').localeCompare(String(b.center_name ?? ''))));
-        return;
-      }
-
-      // If we already have allCenters, filter locally (fast and avoids many requests)
-      if (allCenters && Array.isArray(allCenters)) {
-        const filtered = allCenters.filter((c: Center) => selectedCompanies.includes(c.id_company)).slice().sort((a: Center, b: Center) => String(a.center_name ?? '').localeCompare(String(b.center_name ?? '')));
-        if (mounted) setAvailableCenters(filtered);
-        return;
-      }
-      // If we don't have allCenters, but the centersForCompanies query has data, use it.
-      if (centersForCompanies && Array.isArray(centersForCompanies)) {
-        if (mounted) setAvailableCenters(centersForCompanies.slice().sort((a: Center, b: Center) => String(a.center_name ?? '').localeCompare(String(b.center_name ?? ''))));
-        return;
-      }
-    };
-    load();
-    return () => { mounted = false; };
-  }, [selectedCompanies, allCenters, centersForCompanies]);
+  }, [studentRoleId, roleDefaultApplied]);
 
   // Build params including chosen company/center filters (arrays)
   const params: ReportsQueryParams = { page, limit: pageSize, sort_field: sortField, sort_order: sortOrder };
@@ -152,7 +109,66 @@ export default function ReportsRoute() {
   // Solo alumnos marcados como bonificados en la BD (user_group.bonified = true)
   if (onlyBonified) params.bonified = true;
 
+  // Ejes de clasificación del curso
+  if (selectedModalities.length) params.modality = selectedModalities;
+  if (selectedClients.length) params.client = selectedClients;
+  if (selectedFundings.length) params.funding = selectedFundings;
+
   const { data, isLoading } = useReportsQuery(params);
+
+  // Facetas: mismas condiciones de filtro que el listado, pero sin paginación ni
+  // ordenación (no afectan al conjunto filtrado). Alimentan las opciones de los
+  // desplegables de forma interdependiente (faceted search).
+  const facetParams: ReportFacetsParams = {
+    id_company: params.id_company,
+    id_center: params.id_center,
+    id_course: params.id_course,
+    id_group: params.id_group,
+    id_role: params.id_role,
+    search: params.search,
+    start_date: params.start_date,
+    end_date: params.end_date,
+    completion_percentage: params.completion_percentage,
+    bonified: params.bonified,
+    modality: params.modality,
+    client: params.client,
+    funding: params.funding,
+  };
+  const { data: facets, isFetching: facetsLoading } = useReportFacetsQuery(facetParams);
+
+  // Autolimpieza: al recalcularse las facetas, descartar de cada selección los
+  // valores que ya no estén disponibles, para mantener filtros y tabla coherentes.
+  useEffect(() => {
+    if (!facets) return;
+    const companyIds = new Set(facets.companies.map((c) => c.id_company));
+    setSelectedCompanies((prev) => { const next = prev.filter((id) => companyIds.has(id)); return next.length === prev.length ? prev : next; });
+    const centerIds = new Set(facets.centers.map((c) => c.id_center));
+    setSelectedCenters((prev) => { const next = prev.filter((id) => centerIds.has(id)); return next.length === prev.length ? prev : next; });
+    const groupIds = new Set(facets.groups.map((g) => g.id_group));
+    setSelectedGroup((prev) => { const next = prev.filter((id) => groupIds.has(id)); return next.length === prev.length ? prev : next; });
+    // El rol "student" (default) es pegajoso: se conserva aunque las facetas no lo
+    // incluyan; solo desaparece si el usuario lo deselecciona manualmente.
+    const roleIds = new Set(facets.roles.map((r) => r.id_role));
+    setSelectedRoles((prev) => { const next = prev.filter((id) => roleIds.has(id) || id === studentRoleId); return next.length === prev.length ? prev : next; });
+    const courseIds = new Set(facets.courses.map((c) => c.id_course));
+    setSelectedCourse((prev) => (prev != null && !courseIds.has(prev) ? undefined : prev));
+    const modalitySet = new Set(facets.modalities);
+    setSelectedModalities((prev) => { const next = prev.filter((v) => modalitySet.has(v)); return next.length === prev.length ? prev : next; });
+    const clientSet = new Set(facets.clients);
+    setSelectedClients((prev) => { const next = prev.filter((v) => clientSet.has(v)); return next.length === prev.length ? prev : next; });
+    const fundingSet = new Set(facets.fundings);
+    setSelectedFundings((prev) => { const next = prev.filter((v) => fundingSet.has(v)); return next.length === prev.length ? prev : next; });
+  }, [facets, studentRoleId]);
+
+  // Opciones del desplegable de Rol: las facetas + el rol "student" seleccionado aunque
+  // las facetas no lo incluyan, para que siga mostrándose etiquetado (y no como id).
+  const roleOptions = useMemo(() => {
+    const base = (facets?.roles ?? []).map((r) => ({ label: r.role_shortname ?? String(r.id_role), value: r.id_role as number }));
+    if (studentRoleId != null && selectedRoles.includes(studentRoleId) && !base.some((o) => o.value === studentRoleId)) {
+      base.unshift({ label: studentRole?.role_shortname ?? 'student', value: studentRoleId });
+    }
+    return base;
+  }, [facets, studentRoleId, studentRole, selectedRoles]);
 
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [includePasswords, setIncludePasswords] = useState(false);
@@ -576,8 +592,57 @@ export default function ReportsRoute() {
               popupMatchSelectWidth={false}
               dropdownStyle={{ minWidth: 240 }}
               value={selectedCourse}
+              loading={facetsLoading}
               onChange={(val) => { setSelectedCourse(val == null ? undefined : Number(val)); setSelectedGroup([]); setPage(1); clearSelection(); }}
-              options={(sortedCourses || []).map(c => ({ label: c.course_name ?? String(c.id_course), value: c.id_course }))}
+              options={(facets?.courses ?? []).map(c => ({ label: c.course_name ?? String(c.id_course), value: c.id_course }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Modalidad</div>
+            <Select<string[]>
+              mode="multiple"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              style={{ minWidth: 200 }}
+              placeholder="Modalidad"
+              value={selectedModalities}
+              loading={facetsLoading}
+              onChange={(vals: string[]) => { setSelectedModalities(vals); setPage(1); clearSelection(); }}
+              options={(facets?.modalities ?? []).map(v => ({ label: v, value: v }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Cliente</div>
+            <Select<string[]>
+              mode="multiple"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              style={{ minWidth: 200 }}
+              placeholder="Cliente"
+              value={selectedClients}
+              loading={facetsLoading}
+              onChange={(vals: string[]) => { setSelectedClients(vals); setPage(1); clearSelection(); }}
+              options={(facets?.clients ?? []).map(v => ({ label: v, value: v }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Financiación</div>
+            <Select<string[]>
+              mode="multiple"
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              style={{ minWidth: 200 }}
+              placeholder="Financiación"
+              value={selectedFundings}
+              loading={facetsLoading}
+              onChange={(vals: string[]) => { setSelectedFundings(vals); setPage(1); clearSelection(); }}
+              options={(facets?.fundings ?? []).map(v => ({ label: v, value: v }))}
             />
           </div>
           <div>
@@ -592,8 +657,77 @@ export default function ReportsRoute() {
               mode="multiple"
               disabled={!selectedCourse}
               value={selectedGroup}
+              loading={facetsLoading}
               onChange={(vals: number[]) => { setSelectedGroup(vals); setPage(1); clearSelection(); }}
-              options={(sortedGroups || []).map(g => ({ label: g.group_name ?? String(g.id_group), value: g.id_group }))}
+              options={(facets?.groups ?? []).map(g => ({ label: g.group_name ?? String(g.id_group), value: g.id_group }))}
+            />
+          </div>
+        </Space>
+
+        {/* Fila 2 — Organización (empresa / centro / rol) */}
+        <Space wrap>
+          <div>
+            <div style={{ marginBottom: 4 }}>Empresa</div>
+            <Select<number[]>
+              mode="multiple"
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              style={{ minWidth: 240 }}
+              placeholder="Selecciona empresas"
+              value={selectedCompanies}
+              loading={facetsLoading}
+              onChange={(vals: number[]) => { setSelectedCompanies(vals); setSelectedCenters([]); /* reset centers selection when companies change */ setPage(1); clearSelection(); }}
+              options={(facets?.companies ?? []).map(c => ({ label: c.company_name ?? String(c.id_company), value: c.id_company }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Centro</div>
+            <Select<number[]>
+              mode="multiple"
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              style={{ minWidth: 240 }}
+              placeholder="Selecciona centros"
+              value={selectedCenters}
+              loading={facetsLoading}
+              onChange={(vals: number[]) => { setSelectedCenters(vals); setPage(1); clearSelection(); }}
+              options={(facets?.centers ?? []).map(c => ({ label: c.center_name ?? String(c.id_center), value: c.id_center }))}
+            />
+          </div>
+          <div>
+            <div style={{ marginBottom: 4 }}>Rol</div>
+            <Select<number[]>
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
+              placeholder="Selecciona rol"
+              style={{ minWidth: 240 }}
+              mode="multiple"
+              value={selectedRoles}
+              loading={facetsLoading}
+              onChange={(vals: number[]) => { setSelectedRoles(vals); setPage(1); clearSelection(); }}
+              options={roleOptions}
+            />
+          </div>
+        </Space>
+
+        {/* Fila 3 — Criterios de la inscripción (fechas / progreso / bonificación) */}
+        <Space wrap>
+          <div>
+            <div style={{ marginBottom: 4 }}>Rango fechas grupo</div>
+            <DatePicker.RangePicker
+              style={{ minWidth: 300 }}
+              value={dateRange}
+              format="DD/MM/YYYY"
+              onChange={(dates) => {
+                setDateRange(dates as [Dayjs | null, Dayjs | null] | undefined);
+                  setPage(1);
+                  clearSelection();
+              }}
+              allowClear
             />
           </div>
           <div>
@@ -618,118 +752,58 @@ export default function ReportsRoute() {
               Solo bonificados
             </Checkbox>
           </div>
-          <div>
-            <div style={{ marginBottom: 4, visibility: 'hidden' }}>Export</div>
-            <Space>
-              <Select
-                value={exportReportType}
-                onChange={(val) => setExportReportType(val as 'dedication' | 'certification' | 'bonification' | 'excel')}
-                options={[
-                  { label: 'PDF Dedicación', value: 'dedication' },
-                  { label: 'PDF Certificado', value: 'certification' },
-                  { label: 'PDF Bonificada', value: 'bonification' },
-                  { label: 'Exportar a Excel OLD', value: 'excel' },
-                ]}
-                style={{ minWidth: 220 }}
-              />
-              <Button type="primary" onClick={() => {
-                if (exportReportType === 'excel') {
-                  // Exportar solo seleccionados
-                  const selected = selectedRowKeys && selectedRowKeys.length ? rows.filter(row => selectedRowKeys.includes(getRowKey(row))) : [];
-                  if (!selected.length) {
-                    modal.confirm({
-                      title: 'Exportación a Excel OLD',
-                      content: 'No ha seleccionado alumnos para exportar. ¿Desea exportar todos los registros filtrados?',
-                      okText: 'Exportar todos',
-                      cancelText: 'Cancelar',
-                      onOk: async () => {
-                        // Exportar todos los registros filtrados (todas las páginas)
-                        try {
-                          const allRows = await fetchAllFilteredRowsForExcelOld();
-                          if (!allRows.length) {
-                            modal.error({ title: 'Exportación a Excel OLD', content: 'No hay registros para exportar.' });
-                            return;
-                          }
-                          const csvContent = buildExcelOldCsv(allRows);
-                          downloadCsvFile(csvContent, 'informe-old.csv');
-                        } catch (err) {
-                          modal.error({ title: 'Exportación a Excel OLD', content: 'Error al obtener todos los registros.' });
-                        }
-                      },
-                    });
-                    return;
-                  }
-                  const csvContent = buildExcelOldCsv(selected);
-                  downloadCsvFile(csvContent, 'informe-old.csv');
-                } else {
-                  setExportModalVisible(true);
-                }
-              }}>Generar</Button>
-            </Space>
-          </div>
         </Space>
 
-        {/* Second row: Company, Center and Date range */}
-        <Space>
-          <div>
-            <div style={{ marginBottom: 4 }}>Empresa</div>
-            <Select<number[]>
-              mode="multiple"
-              showSearch
-              optionFilterProp="label"
-              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
-              style={{ minWidth: 240 }}
-              placeholder="Selecciona empresas"
-              value={selectedCompanies}
-              onChange={(vals: number[]) => { setSelectedCompanies(vals); setSelectedCenters([]); /* reset centers selection when companies change */ setPage(1); clearSelection(); }}
-              options={(sortedCompanies || []).map(c => ({ label: c.company_name ?? String(c.id_company), value: c.id_company }))}
+        {/* Acción de exportación, separada de los filtros */}
+        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+          <Space>
+            <span>Exportar</span>
+            <Select
+              value={exportReportType}
+              onChange={(val) => setExportReportType(val as 'dedication' | 'certification' | 'bonification' | 'excel')}
+              options={[
+                { label: 'PDF Dedicación', value: 'dedication' },
+                { label: 'PDF Certificado', value: 'certification' },
+                { label: 'PDF Bonificada', value: 'bonification' },
+                { label: 'Exportar a Excel OLD', value: 'excel' },
+              ]}
+              style={{ minWidth: 220 }}
             />
-          </div>
-          <div>
-            <div style={{ marginBottom: 4 }}>Centro</div>
-            <Select<number[]>
-              mode="multiple"
-              showSearch
-              optionFilterProp="label"
-              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
-              style={{ minWidth: 240 }}
-              placeholder="Selecciona centros"
-              value={selectedCenters}
-              onChange={(vals: number[]) => { setSelectedCenters(vals); setPage(1); clearSelection(); }}
-              options={(availableCenters || []).map(c => ({ label: c.center_name ?? String(c.id_center), value: c.id_center }))}
-            />
-          </div>
-          <div>
-            <div style={{ marginBottom: 4 }}>Rango fechas grupo</div>
-            <DatePicker.RangePicker
-              style={{ minWidth: 300 }}
-              value={dateRange}
-              format="DD/MM/YYYY"
-              onChange={(dates) => {
-                setDateRange(dates as [Dayjs | null, Dayjs | null] | undefined);
-                  setPage(1);
-                  clearSelection();
-              }}
-              allowClear
-            />
-          </div>
-          <div>
-            <div style={{ marginBottom: 4 }}>Rol</div>
-            <Select<number[]>
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(String(input).toLowerCase())}
-              placeholder="Selecciona rol"
-              style={{ minWidth: 240 }}
-              mode="multiple"
-              value={selectedRoles}
-              onChange={(vals: number[]) => { setSelectedRoles(vals); setPage(1); clearSelection(); }}
-              options={(reportRoles || []).map(r => ({ label: r.role_shortname ?? String(r.id_role), value: r.id_role }))}
-            />
-          </div>
-        </Space>
-        {/* global select-all UI handled via table header checkbox; no external control */}
+            <Button type="primary" onClick={() => {
+              if (exportReportType === 'excel') {
+                // Exportar solo seleccionados
+                const selected = selectedRowKeys && selectedRowKeys.length ? rows.filter(row => selectedRowKeys.includes(getRowKey(row))) : [];
+                if (!selected.length) {
+                  modal.confirm({
+                    title: 'Exportación a Excel OLD',
+                    content: 'No ha seleccionado alumnos para exportar. ¿Desea exportar todos los registros filtrados?',
+                    okText: 'Exportar todos',
+                    cancelText: 'Cancelar',
+                    onOk: async () => {
+                      // Exportar todos los registros filtrados (todas las páginas)
+                      try {
+                        const allRows = await fetchAllFilteredRowsForExcelOld();
+                        if (!allRows.length) {
+                          modal.error({ title: 'Exportación a Excel OLD', content: 'No hay registros para exportar.' });
+                          return;
+                        }
+                        const csvContent = buildExcelOldCsv(allRows);
+                        downloadCsvFile(csvContent, 'informe-old.csv');
+                      } catch (err) {
+                        modal.error({ title: 'Exportación a Excel OLD', content: 'Error al obtener todos los registros.' });
+                      }
+                    },
+                  });
+                  return;
+                }
+                const csvContent = buildExcelOldCsv(selected);
+                downloadCsvFile(csvContent, 'informe-old.csv');
+              } else {
+                setExportModalVisible(true);
+              }
+            }}>Generar</Button>
+          </Space>
+        </div>
         <Modal
           title={
             (exportReportType === 'certification' ? 'Generar certificado' : exportReportType === 'bonification' ? 'Generar bonificación' : 'Exportar informe')

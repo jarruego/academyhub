@@ -1,6 +1,9 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsInt, IsString, IsDateString, IsArray, IsBoolean } from "class-validator";
+import { IsOptional, IsInt, IsString, IsDateString, IsArray, IsBoolean, IsEnum } from "class-validator";
 import { Type, Transform } from "class-transformer";
+import { CourseModality } from "src/types/course/course-modality.enum";
+import { CourseClient } from "src/types/course/course-client.enum";
+import { CourseFunding } from "src/types/course/course-funding.enum";
 
 export class ReportFilterDTO {
   @ApiPropertyOptional()
@@ -85,4 +88,22 @@ export class ReportFilterDTO {
   @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   bonified?: boolean;
+
+  @ApiPropertyOptional({ enum: CourseModality, isArray: true, description: 'Filtra por modalidad del curso' })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(CourseModality, { each: true })
+  modality?: CourseModality[];
+
+  @ApiPropertyOptional({ enum: CourseClient, isArray: true, description: 'Filtra por cliente/comitente del curso' })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(CourseClient, { each: true })
+  client?: CourseClient[];
+
+  @ApiPropertyOptional({ enum: CourseFunding, isArray: true, description: 'Filtra por financiación del curso' })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(CourseFunding, { each: true })
+  funding?: CourseFunding[];
 }

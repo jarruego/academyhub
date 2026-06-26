@@ -10,6 +10,10 @@ export class ReportsService {
     return this.reportsRepository.getReportRows(filter);
   }
 
+  async getFacets(filter?: ReportFilterDTO) {
+    return this.reportsRepository.getReportFacets(filter);
+  }
+
   async getRowsByKeys(keys: string[]) {
     return this.reportsRepository.getReportRowsByKeys(keys);
   }
