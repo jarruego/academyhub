@@ -1,4 +1,4 @@
-import { Button, Input, Tag } from "antd";
+import { Button, Input, Tag, Tooltip } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useAllGroupsQuery } from "../../hooks/api/groups/use-all-groups.query";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
@@ -78,12 +78,24 @@ export default function GroupsRoute() {
           {
             title: 'Nombre',
             dataIndex: 'group_name',
+            render: (text: string) => {
+              if (!text) return '';
+              return text.length > 25
+                ? <Tooltip title={text}><span>{text.slice(0, 25)}…</span></Tooltip>
+                : text;
+            },
             sorter: (a: Group, b: Group) => (a.group_name ?? '').localeCompare(b.group_name ?? ''),
           },
           {
             title: 'Curso',
             dataIndex: 'id_course',
-            render: (id: number) => courseNameById[id] ?? '',
+            render: (id: number) => {
+              const text = courseNameById[id] ?? '';
+              if (!text) return '';
+              return text.length > 45
+                ? <Tooltip title={text}><span>{text.slice(0, 45)}…</span></Tooltip>
+                : text;
+            },
             sorter: (a: Group, b: Group) => (courseNameById[a.id_course] ?? '').localeCompare(courseNameById[b.id_course] ?? ''),
           },
           {
