@@ -18,8 +18,8 @@ export class SageImportTask implements ScheduledTask {
     }
 
     get cronExpression(): string {
-        // Por defecto 2:00 AM todos los días (0 2 * * *)
-        return process.env.SAGE_IMPORT_CRON || '0 2 * * *';
+        // Por defecto 5:30 AM todos los días (30 5 * * *)
+        return process.env.SAGE_IMPORT_CRON || '30 5 * * *';
     }
 
     get runOnStartup(): boolean {

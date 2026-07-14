@@ -72,7 +72,9 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 | `DB_SSL` | No | Set `true` for SSL (auto-enabled in production) |
 | `DB_POOL_MAX` | No | PG pool size (default `10`) |
 | `ENABLE_CRON_SCHEDULER` | No | `true` to enable internal cron |
-| `SCHEDULER_TIMEZONE` | No | Cron timezone (default `UTC`) |
+| `SAGE_IMPORT_ENABLED` / `SAGE_IMPORT_CRON` | No | SAGE auto-import toggle/schedule (defaults `true` / `30 5 * * *`) |
+| `MOODLE_ACTIVE_SYNC_ENABLED` / `MOODLE_ACTIVE_SYNC_CRON` | No | Moodle progress sync toggle/schedule (defaults `false` / `0 4 * * *`) |
+| `SCHEDULER_TIMEZONE` | No | Timezone for **all** cron exprs (code default `UTC`; repo `.env`/`.env.example` set `Europe/Madrid` → times are Spanish local). Prod (Render): set this + `SAGE_IMPORT_CRON` in the dashboard, they override code. |
 | `APP_MASTER_KEY` | Yes | Base64 AES-256 key for encrypting secrets at rest. Generate with `openssl rand -base64 32`. |
 | `SFTP_SAGE_*` | No | SFTP credentials for SAGE import |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` | No | Supabase Storage for mail template images |

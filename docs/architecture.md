@@ -60,8 +60,9 @@ Internal cron scheduler; tasks in `server/src/scheduler/tasks/`. Active tasks:
 
 Controlled via env vars:
 - `ENABLE_CRON_SCHEDULER=true` — master switch
-- `SAGE_IMPORT_ENABLED` / `SAGE_IMPORT_CRON` — SAGE CSV import (default: enabled, `0 2 * * *`)
+- `SAGE_IMPORT_ENABLED` / `SAGE_IMPORT_CRON` — SAGE CSV import (default: enabled, `30 5 * * *`)
 - `MOODLE_ACTIVE_SYNC_ENABLED` / `MOODLE_ACTIVE_SYNC_CRON` — progress sync (default: disabled, `0 4 * * *`)
+- `SCHEDULER_TIMEZONE` — timezone in which **all** cron expressions are interpreted (code default `UTC`; `.env`/`.env.example` set `Europe/Madrid` so the times above are Spanish local, auto-adjusting DST). Changing it shifts every task, not just SAGE.
 - Designed for single-instance deployments only
 
 ## Common utilities

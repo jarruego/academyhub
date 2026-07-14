@@ -149,13 +149,28 @@ Server variables live in `server/.env` (start from `server/.env.example`).
 | `MOODLE_TOKEN` | — | Legacy fallback Moodle token (usually stored encrypted in the DB instead) |
 | `DB_SSL` / `DB_POOL_MAX` | `false` / `10` | SSL toggle (auto-on in prod) and PG pool size |
 | `ENABLE_CRON_SCHEDULER` | `false` | Master switch for the internal scheduler |
-| `SAGE_IMPORT_ENABLED` / `SAGE_IMPORT_CRON` | `true` / `0 2 * * *` | Automated SAGE import schedule |
+| `SAGE_IMPORT_ENABLED` / `SAGE_IMPORT_CRON` | `true` / `30 5 * * *` | Automated SAGE import schedule |
 | `MOODLE_ACTIVE_SYNC_ENABLED` / `MOODLE_ACTIVE_SYNC_CRON` | `false` / `0 4 * * *` | Daily Moodle progress sync |
-| `SCHEDULER_TIMEZONE` | `UTC` | Cron timezone |
+| `SCHEDULER_TIMEZONE` | `UTC` (code) / `Europe/Madrid` (repo `.env`) | Timezone in which **all** cron expressions are interpreted |
 | `SFTP_SAGE_*` | — | SFTP credentials/path for the SAGE import |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` | — | Supabase Storage for mail-template images |
 
 > Swagger API docs are served at `/documentation` when `NODE_ENV !== 'production'`.
+
+### ⏰ Scheduler on Render (production)
+
+The internal `node-cron` scheduler is driven **entirely by environment variables**, and on Render the **dashboard env vars override** anything in the repo (`.env`, code defaults). To run the automated SAGE import at **05:30 Spanish local time**, set in _Render → your service → Environment_:
+
+| Variable | Value | Notes |
+|---|---|---|
+| `ENABLE_CRON_SCHEDULER` | `true` | Master switch — must be exactly `true` (lowercase) or the scheduler stays off |
+| `SAGE_IMPORT_ENABLED` | `true` | Enables the SAGE import task |
+| `SAGE_IMPORT_CRON` | `30 5 * * *` | 05:30 daily (add/change — was `0 2 * * *`) |
+| `SCHEDULER_TIMEZONE` | `Europe/Madrid` | **Interprets the cron in Spanish local time, auto-adjusting summer/winter** (add/change — was `UTC`) |
+
+After saving, **redeploy** so the new values take effect. Verify in the logs: `⏰ Programando: sage-import - Cron: "30 5 * * *"`.
+
+> ⚠️ `SCHEDULER_TIMEZONE` applies to **every** scheduled task. With `Europe/Madrid`, the optional Moodle progress sync (`MOODLE_ACTIVE_SYNC_CRON`, default `0 4 * * *`) also runs at 04:00 Spanish local time instead of 04:00 UTC.
 
 ## 🌱 Seed Data Scripts
 
