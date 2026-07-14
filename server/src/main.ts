@@ -27,16 +27,15 @@ async function bootstrap() {
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://localhost:4173',
-    'https://app.mecohisa.com',
-  ];
+  const allowedOrigins = ['https://app.mecohisa.com'];
+  // En desarrollo, Vite puede arrancar en otro puerto si el habitual está ocupado
+  const isDevLocalhost = (origin: string) =>
+    process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin);
 
   app.enableCors({
     origin: (origin, callback) => {
       // Permitir peticiones sin origen (server-to-server, curl, Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || allowedOrigins.includes(origin) || isDevLocalhost(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origen no permitido — ${origin}`));

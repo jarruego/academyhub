@@ -16,7 +16,7 @@
 **Public routes**: only `POST /auth/login` and `GET /api/files/organization/:filename` are decorated `@Public()`.
 
 ## CORS
-Configured in `server/src/main.ts` with an explicit origin allowlist: `localhost:5173`, `localhost:4173`, `https://app.mecohisa.com`. Requests without `Origin` header (server-to-server) are always allowed.
+Configured in `server/src/main.ts`. Production allowlist: `https://app.mecohisa.com` only. Outside production (`NODE_ENV !== 'production'`) any `http://localhost:<port>` is also accepted (Vite may pick another port if the usual one is busy). Requests without `Origin` header (server-to-server) are always allowed.
 
 ## JWT lifecycle
 - **Issued** at `POST /auth/login` — payload: `{ id, username, role, jti }`
