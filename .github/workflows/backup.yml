@@ -1,0 +1,79 @@
+name: Backup nocturno (BD + Storage)
+
+on:
+  schedule:
+    # 03:15 UTC = 04:15/05:15 hora española (invierno/verano)
+    - cron: "15 3 * * *"
+  workflow_dispatch: # permite lanzarlo a mano desde la pestaña Actions
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      # ---- Destino de las copias (R2/B2 o cualquier S3 compatible) ----
+      RCLONE_CONFIG_DEST_TYPE: s3
+      RCLONE_CONFIG_DEST_PROVIDER: Other
+      RCLONE_CONFIG_DEST_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+      RCLONE_CONFIG_DEST_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_DEST_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_KEY }}
+      RCLONE_CONFIG_DEST_NO_CHECK_BUCKET: "true"
+      # ---- Origen: Supabase Storage vía su endpoint S3 compatible ----
+      RCLONE_CONFIG_SUPA_TYPE: s3
+      RCLONE_CONFIG_SUPA_PROVIDER: Other
+      RCLONE_CONFIG_SUPA_ENDPOINT: ${{ secrets.SUPABASE_S3_ENDPOINT }}
+      RCLONE_CONFIG_SUPA_REGION: ${{ secrets.SUPABASE_S3_REGION }}
+      RCLONE_CONFIG_SUPA_ACCESS_KEY_ID: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_SUPA_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_S3_SECRET_KEY }}
+      RCLONE_CONFIG_SUPA_FORCE_PATH_STYLE: "true"
+      BACKUP_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+      STORAGE_BUCKET: ${{ secrets.SUPABASE_STORAGE_BUCKET }}
+
+    steps:
+      - name: Instalar cliente PostgreSQL 17 y rclone
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl ca-certificates rclone gnupg
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | \
+            sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Volcado de la base de datos (pg_dump)
+        run: |
+          FECHA=$(date -u +%F)
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" -Fc --no-owner -f "db-${FECHA}.dump"
+          ls -lh "db-${FECHA}.dump"
+
+      - name: Cifrar el volcado
+        run: |
+          FECHA=$(date -u +%F)
+          echo "${{ secrets.BACKUP_PASSPHRASE }}" | \
+            gpg --batch --yes --cipher-algo AES256 --passphrase-fd 0 -c "db-${FECHA}.dump"
+          rm "db-${FECHA}.dump"
+
+      - name: Subir volcado y borrar copias de más de 30 días
+        run: |
+          FECHA=$(date -u +%F)
+          rclone copyto "db-${FECHA}.dump.gpg" "DEST:${BACKUP_BUCKET}/db/db-${FECHA}.dump.gpg"
+          rclone delete "DEST:${BACKUP_BUCKET}/db/" --min-age 30d
+          echo "Copias actuales en el destino:"
+          rclone ls "DEST:${BACKUP_BUCKET}/db/"
+
+      - name: Copiar Supabase Storage (ficheros)
+        run: |
+          if [ -z "${STORAGE_BUCKET}" ]; then
+            echo "SUPABASE_STORAGE_BUCKET no configurado; se omite la copia de Storage."
+            exit 0
+          fi
+          FECHA=$(date -u +%F)
+          # sync = espejo del bucket; lo borrado en origen se aparta a storage-borrados/<fecha>
+          rclone sync "SUPA:${STORAGE_BUCKET}" "DEST:${BACKUP_BUCKET}/storage/" \
+            --backup-dir "DEST:${BACKUP_BUCKET}/storage-borrados/${FECHA}" \
+            --transfers 8 --checkers 16
+          echo "Ficheros copiados:"
+          rclone size "DEST:${BACKUP_BUCKET}/storage/"
