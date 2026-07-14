@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { PdfService } from 'src/common/pdf/pdf.service';
 import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
+import { buildIssuerLine, normalizeOrganizationSettings } from 'src/api/organization/organization-settings.model';
 import { ReportRenderer } from '../reports/report-renderer.service';
 import { UserService } from './user.service';
 
@@ -76,18 +77,9 @@ export class UserCoursesCertificateService {
 
     const orgRow = await this.organizationRepository.findFirst();
     if (orgRow) {
-      const settings = (orgRow.settings ?? {}) as Record<string, unknown>;
-      const company = (settings['company'] as Record<string, unknown> | undefined) ?? undefined;
-      if (company) {
-        const responsable = (company.responsable_nombre as string | undefined) ?? '';
-        const razon = (company.razon_social as string | undefined) ?? '';
-        const cif = (company.cif as string | undefined) ?? '';
-        const direccion = (company.direccion as string | undefined) ?? '';
-        const ciudad = (company.ciudad as string | undefined) ?? '';
-
-        companyCity = ciudad;
-        issuerName = `${responsable ? `D. ${responsable}, ` : ''}${razon ? `administrador de ${razon}` : ''}${cif ? `, con CIF ${cif}` : ''}${direccion ? ` y domicilio en ${direccion}` : ''}.`;
-      }
+      const { company } = normalizeOrganizationSettings(orgRow.settings);
+      companyCity = company.ciudad;
+      issuerName = buildIssuerLine(company);
 
       if (orgRow.logo_path) {
         logoBuffer = await this.loadAssetBuffer(String(orgRow.logo_path));

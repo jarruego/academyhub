@@ -30,7 +30,7 @@ Configured in `server/src/main.ts`. Production allowlist: `https://app.mecohisa.
 
 ## Secrets at rest
 - **SMTP password** is encrypted (AES-256-GCM serialized to JSON) via `secrets.util` `encryptSecretToString`/`decryptSecretFromString` (back-compat: reads legacy plaintext too). Never returned to the client — `smtp-settings.controller` masks it to `''` + a `hasPassword` flag; `MailService` reads it decrypted internally. Saving with an empty password preserves the stored one. Column widened to `text` (migration `0042`).
-- **Org `settings.file_transfer.password` / `settings.sftp.password`** are redacted (`''`) on GET and preserved on save (`organization.service` `redactSecretSettings`/`preserveSecretSettings`). These are NOT encrypted at rest yet (still plaintext in the `settings` JSONB) — only hidden from the API/UI. The SAGE importer reads creds from `settings.file_transfer` (see `docs/import.md`).
+- **Org file-transfer password (SAGE)** is encrypted in `organization_settings.encrypted_secrets.file_transfer_password` (never stored in the `settings` JSONB, never returned to the client — only a `has_file_transfer_password` flag). The PATCH accepts it write-only inside `settings.file_transfer.password`; empty = keep stored. Legacy plaintext passwords inside `settings` are lazily migrated on the next save (readers fall back until then). See `docs/organization.md`.
 - **`moodle_users.moodle_password`** is intentionally NOT encrypted — it is shown to users (welcome emails `{CLAVE_MOODLE}`, report "Clave" column).
 - `APP_MASTER_KEY` (base64 AES-256, required at boot) is the key for all of the above.
 

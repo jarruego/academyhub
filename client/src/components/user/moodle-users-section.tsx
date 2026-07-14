@@ -29,9 +29,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
   const { message: messageApi } = App.useApp();
   const [syncingMoodleId, setSyncingMoodleId] = useState<number | null>(null);
   const queryClient = useQueryClient();
-  const certificatesPluginEnabled = Boolean(
-    orgSettings?.settings && (orgSettings.settings as any).plugins?.certificates === true,
-  );
+  const certificatesPluginEnabled = orgSettings?.settings.plugins.certificates ?? false;
   // Prepare queries to fetch courses for each moodle user in parallel
   const courseQueries = useQueries({
     queries: (moodleUsers || []).map(mu => ({
@@ -194,7 +192,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
         // build moodle base origin from org settings if available
         let moodleBase: string | undefined;
         try {
-          const raw = (orgSettings?.settings as any)?.moodle?.url ?? '';
+          const raw = orgSettings?.settings.moodle.url ?? '';
           if (raw) moodleBase = new URL(raw).origin + '/';
         } catch (e) {
           moodleBase = undefined;

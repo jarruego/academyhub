@@ -41,7 +41,7 @@ export class OrganizationController {
     const uploaded = await this.supabaseStorageService.uploadImage(`organization/${type}`, file);
     const id = s?.id;
     if (!id) {
-      const created = await this.organizationService.upsertSettings({} as any);
+      const created = await this.organizationService.upsertSettings({});
       const newId = created?.id;
       if (!newId) throw new BadRequestException('Unable to create organization settings');
       const updated = await this.organizationService.setAssetPath(newId, type === 'logo' ? 'logo' : 'signature', uploaded.publicUrl);
