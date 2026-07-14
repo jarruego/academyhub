@@ -35,11 +35,13 @@ ENABLE_CRON_SCHEDULER=true
 
 # --- Tarea: Importación SAGE ---
 SAGE_IMPORT_ENABLED=true
-SAGE_IMPORT_CRON=0 2 * * *         # 2:00 AM todos los días
+SAGE_IMPORT_CRON=30 5 * * *        # 5:30 AM todos los días
 
-# Timezone (opcional, por defecto UTC)
-SCHEDULER_TIMEZONE=UTC
+# Timezone (por defecto UTC en código; el repo usa Europe/Madrid = hora española)
+SCHEDULER_TIMEZONE=Europe/Madrid
 ```
+
+> **Importante (Render/producción):** las variables del panel de Render **tienen prioridad** sobre el `.env` y sobre el default del código. Para que la importación corra a las **5:30 hora española**, en _Render → tu servicio → Environment_ hay que fijar/actualizar `SAGE_IMPORT_CRON=30 5 * * *` y `SCHEDULER_TIMEZONE=Europe/Madrid` (además de `ENABLE_CRON_SCHEDULER=true` y `SAGE_IMPORT_ENABLED=true`), y **redesplegar**. La zona horaria afecta a **todas** las tareas: con `Europe/Madrid`, la sync de Moodle (`0 4 * * *`) pasa a las 4:00 hora española.
 
 ### 2. Configuración SFTP (obligatoria para importación SAGE)
 
@@ -124,8 +126,8 @@ SCHEDULER_TIMEZONE=Australia/Sydney   # Sídney
    ```env
    ENABLE_CRON_SCHEDULER=true
    SAGE_IMPORT_ENABLED=true
-   SAGE_IMPORT_CRON=0 2 * * *
-   SCHEDULER_TIMEZONE=UTC
+   SAGE_IMPORT_CRON=30 5 * * *
+   SCHEDULER_TIMEZONE=Europe/Madrid
    ```
 3. Redespliega la app
 
@@ -136,16 +138,16 @@ Al arrancar la app, verás:
 ```
 📅 Iniciando scheduler con expresiones cron...
 📝 Tarea registrada: sage-import - Importación automática de usuarios SAGE desde SFTP
-⏰ Programando: sage-import - Cron: "0 2 * * *"
+⏰ Programando: sage-import - Cron: "30 5 * * *"
 ✅ Scheduler iniciado con 1 tarea(s) activa(s)
 ```
 
-Cuando se ejecute (a las 2:00 AM):
+Cuando se ejecute (a las 5:30 AM):
 
 ```
 🔄 Iniciando: sage-import
 📥 Descargando e importando CSV SAGE desde SFTP...
-✅ Importación SAGE iniciada - Job ID: import_20260127_020000_abc
+✅ Importación SAGE iniciada - Job ID: import_20260127_053000_abc
 ✅ Completado: sage-import
 ```
 

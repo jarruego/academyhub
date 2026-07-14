@@ -58,11 +58,7 @@ Internal cron scheduler; tasks in `server/src/scheduler/tasks/`. Active tasks:
 - `moodle-active-progress.task.ts` — syncs active course progress from Moodle
 - `sage-import.task.ts` — automated SAGE CSV import from SFTP
 
-Controlled via env vars:
-- `ENABLE_CRON_SCHEDULER=true` — master switch
-- `SAGE_IMPORT_ENABLED` / `SAGE_IMPORT_CRON` — SAGE CSV import (default: enabled, `0 2 * * *`)
-- `MOODLE_ACTIVE_SYNC_ENABLED` / `MOODLE_ACTIVE_SYNC_CRON` — progress sync (default: disabled, `0 4 * * *`)
-- Designed for single-instance deployments only
+Toggles, schedules and timezone are env vars (`ENABLE_CRON_SCHEDULER` master switch, `SAGE_IMPORT_*`, `MOODLE_ACTIVE_SYNC_*`, `SCHEDULER_TIMEZONE`) — see the env table in `CLAUDE.md` for defaults. `SCHEDULER_TIMEZONE` governs **all** cron expressions, not just one task. Designed for single-instance deployments only.
 
 ## Common utilities
 - `src/utils/crypto/secrets.util.ts` — AES-256-GCM for org-level secrets (Moodle token) and string-column secrets (SMTP password): `encryptSecretToString`/`decryptSecretFromString`
