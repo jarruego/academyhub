@@ -230,6 +230,28 @@ export default function OrganizationSettingsPage() {
           </Row>
         </Card>
 
+        <Card title="Logo y firma" style={{ marginBottom: 16 }}>
+          <Typography.Paragraph type="secondary">
+            Se incluyen en los PDF de informes y certificados. La vista se actualiza automáticamente tras la subida.
+          </Typography.Paragraph>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <h3>Logo</h3>
+              {data?.logo_path ? <Image src={resolveAssetUrl(data.logo_path)} alt="logo" width={200} /> : <div>No hay logo configurado</div>}
+              <Upload customRequest={(opts) => uploadRequest(opts, 'logo')} showUploadList={false} disabled={!admin}>
+                <Button icon={<InboxOutlined />} style={{ marginTop: 8 }} disabled={!admin} loading={loadingUpload}>Subir logo</Button>
+              </Upload>
+            </Col>
+            <Col xs={24} md={12}>
+              <h3>Firma</h3>
+              {data?.signature_path ? <Image src={resolveAssetUrl(data.signature_path)} alt="signature" width={200} /> : <div>No hay firma configurada</div>}
+              <Upload customRequest={(opts) => uploadRequest(opts, 'signature')} showUploadList={false} disabled={!admin}>
+                <Button icon={<InboxOutlined />} style={{ marginTop: 8 }} disabled={!admin} loading={loadingUpload}>Subir firma</Button>
+              </Upload>
+            </Col>
+          </Row>
+        </Card>
+
         <Card title="Datos fiscales" style={{ marginBottom: 16 }}>
           <Typography.Paragraph type="secondary">
             Se usan en los informes SEPE/FUNDAE. Todos los campos son obligatorios salvo la ciudad.
@@ -446,28 +468,6 @@ export default function OrganizationSettingsPage() {
           </Button>
         </div>
       </Form>
-
-      <Card title="Logo y firma" style={{ margin: 16 }}>
-        <Typography.Paragraph type="secondary">
-          Se incluyen en los PDF de informes y certificados. La vista se actualiza automáticamente tras la subida.
-        </Typography.Paragraph>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={12}>
-            <h3>Logo</h3>
-            {data?.logo_path ? <Image src={resolveAssetUrl(data.logo_path)} alt="logo" width={200} /> : <div>No hay logo configurado</div>}
-            <Upload customRequest={(opts) => uploadRequest(opts, 'logo')} showUploadList={false} disabled={!admin}>
-              <Button icon={<InboxOutlined />} style={{ marginTop: 8 }} disabled={!admin} loading={loadingUpload}>Subir logo</Button>
-            </Upload>
-          </Col>
-          <Col xs={24} md={12}>
-            <h3>Firma</h3>
-            {data?.signature_path ? <Image src={resolveAssetUrl(data.signature_path)} alt="signature" width={200} /> : <div>No hay firma configurada</div>}
-            <Upload customRequest={(opts) => uploadRequest(opts, 'signature')} showUploadList={false} disabled={!admin}>
-              <Button icon={<InboxOutlined />} style={{ marginTop: 8 }} disabled={!admin} loading={loadingUpload}>Subir firma</Button>
-            </Upload>
-          </Col>
-        </Row>
-      </Card>
 
       <Modal title="Configurar token de Moodle" open={tokenModalVisible} onOk={handleTokenSave} onCancel={() => setTokenModalVisible(false)} okText="Guardar">
         <Form layout="vertical">
