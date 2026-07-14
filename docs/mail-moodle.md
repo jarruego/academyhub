@@ -3,15 +3,16 @@
 Read before touching `api/moodle/`, `api/mail/`, or notification/token logic.
 
 ## Moodle integration
-`MoodleService` (`server/src/api/moodle/moodle.service.ts`) wraps all Moodle Web Services calls. The org-level Moodle token is stored encrypted in `organization_settings` (via `secrets.util.ts`) and can be overridden per `auth_user.moodleToken`. The optional custom plugin `block_advanced_reports_get_userstats` is gated by `organization_settings.settings.plugins.itop_training` — when enabled, it syncs `time_spent` and uses custom endpoints when creating users. The other plugin flags (`configurable_reports`, `certificates`, `progress_bar`) are declared in settings but currently unused by the code.
+`MoodleService` (`server/src/api/moodle/moodle.service.ts`) wraps all Moodle Web Services calls. The org-level Moodle token is stored encrypted in `organization_settings` (via `secrets.util.ts`); per-user tokens live only in the `moodle_user_auth_user` links. The optional custom plugin `block_advanced_reports_get_userstats` is gated by `organization_settings.settings.plugins.itop_training` — when enabled, it syncs `time_spent` and uses custom endpoints when creating users. The other plugin flags (`configurable_reports`, `certificates`, `progress_bar`) are declared in settings but currently unused by the code.
 
 `moodle_users.moodle_password` is stored in plaintext on purpose (shown to users) — see `docs/security.md`.
 
 ## Token resolution
 `process.env.MOODLE_TOKEN` is a legacy fallback that may not be set in production. The real org-level token lives in `organization_settings.encrypted_secrets`, read via `MoodleService.resolveMoodleToken()`. `MailService.resolveToken()` implements the full priority chain for notifications:
 1. `moodle_user_auth_user.moodle_token` — link-specific token for the `auth_user`+`moodle_user` pair (highest `id` wins if several)
-2. `auth_user.moodleToken` — per-authenticated-user fallback
-3. `MoodleService.resolveMoodleToken()` — org-level token (default when `moodleSenderChoice = 'default'`)
+2. `MoodleService.resolveMoodleToken()` — org-level token (default when `moodleSenderChoice = 'default'`)
+
+The old `auth_user.moodleToken` column was removed (migration 0054); links are the only per-user token source. `AuthUserService.findAll()` exposes `has_moodle_token` (= has at least one link) for the admin listing.
 
 Only implemented in `MailService.resolveToken()` — other call sites must replicate it manually; no shared helper exists yet.
 
@@ -40,6 +41,15 @@ Mail templates are stored in the database (`mail_templates` table). Template ima
 `POST /mail/send` and `POST /mail/send-from-template` accept a `moodleSenderChoice` parameter (`'default'` | `'auth'` | `'tutor'`) that selects which Moodle token is used. See `MailService.resolveToken()` for the full logic.
 
 `MailModule` imports `MoodleModule` (for `MoodleService`). Avoid creating a reverse import from `MoodleModule` into `MailModule` — it would create a circular dependency.
+
+## Admin failure notifications (`AdminNotificationService`)
+`server/src/notifications/` (`NotificationsModule` → `AdminNotificationService`) sends an SMTP email (via `MailService.sendMail`, no Moodle) to **every `auth_user` with role `admin`** when an unattended job fails. Recipients come from `authUserRepository.findAll({ role: 'admin' })` (empty/blank emails filtered). `notifyScheduledJobFailure({ source, error, jobId?, details? })` is **best-effort**: it never throws (missing SMTP, no admins, send error → logged only), so it can't affect the calling flow. Error text is HTML-escaped. Timestamp uses `SCHEDULER_TIMEZONE`. The send is recorded in `email_log` with actor `system`.
+
+Wired at two failure funnels:
+- **SAGE import** — called from `ImportService.failJob` (the single point where any SAGE `import_job` becomes `FAILED`, covering both manual and scheduled runs, and pre-processing failures like FTP/extraction). Fire-and-forget (`void`).
+- **Moodle active-progress sync** — called from `MoodleActiveProgressTask.execute`: on a global failure (can't even list active courses → notify **and** rethrow so the scheduler logs it) and on partial failures (some courses errored → notify with a sample of up to 10, without rethrowing).
+
+To avoid a cycle, `NotificationsModule` imports `MailModule` (which now **exports `MailService`**); `ImportModule` and `SchedulerModule` import `NotificationsModule`. The `AdminNotificationService` dep is injected optionally into `ImportService` (`?.`) so its pure-method unit tests still construct it with a stub.
 
 ## Email log (`email_log`)
 Every real send is recorded in the `email_log` table by `MailService.sendMail` (which wraps the real send `deliverMail`): actor (from JWT, passed by the controller via `@Req`), recipient, subject, template id/name, sender mode, the **resolved real sender** (`from_name`/`from_email` — what the recipient sees, returned by `deliverMail`), `via_moodle`, and `status` (`sent`/`failed` + `error_message`). Best-effort (`recordEmailLog` never throws/blocks the send) and **never stores the email body** (it contains the `{CLAVE_MOODLE}` password). Has a free-text `notes` column and a `metadata` jsonb column, both for future use (`recordEmailLog` accepts them; no caller fills them yet). The ad-hoc "test mail" path (`/mail/send` with an inline `smtp` body) is not logged.

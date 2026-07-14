@@ -10,7 +10,7 @@ Read before adding modules, tables, repositories, or scheduler tasks.
 - `SchedulerModule` — internal cron scheduler using `node-cron`; each task implements `ScheduledTask` interface
 
 ## Three distinct user concepts
-- **`auth_user`** — login credentials (`username`, `password` (scrypt+salt), `role`). Roles: `admin`, `manager`, `viewer`. Optionally holds a per-user `moodleToken` that overrides the org-level token.
+- **`auth_user`** — login credentials (`username`, `password` (scrypt+salt), `role`). Roles: `admin`, `manager`, `viewer`. Per-user Moodle tokens live in the `moodle_user_auth_user` links, not here (the old `moodleToken` column was dropped in migration 0054).
 - **`user`** — training domain users (students/employees). Linked to courses via `user_course`, to groups via `user_group`, to centers via `user_center`. Can optionally be linked to a `moodle_user` via `moodle_user_auth_user`.
 - **`moodle_user`** — a Moodle platform user record, synced from Moodle. Its `id_user` FK references the `user` table (domain user), **not** `auth_user`. The `moodle_user_auth_user` table is a many-to-many bridge between `auth_user` and `moodle_user`; each row has its own `moodle_token` field.
 
@@ -59,6 +59,8 @@ Internal cron scheduler; tasks in `server/src/scheduler/tasks/`. Active tasks:
 - `sage-import.task.ts` — automated SAGE CSV import from SFTP
 
 Toggles, schedules and timezone are env vars (`ENABLE_CRON_SCHEDULER` master switch, `SAGE_IMPORT_*`, `MOODLE_ACTIVE_SYNC_*`, `SCHEDULER_TIMEZONE`) — see the env table in `CLAUDE.md` for defaults. `SCHEDULER_TIMEZONE` governs **all** cron expressions, not just one task. Designed for single-instance deployments only.
+
+**Failure notifications**: both jobs email all admin `auth_user`s on failure via `AdminNotificationService` (`server/src/notifications/`) — SAGE from `ImportService.failJob` (any FAILED job), Moodle from the task's catch/partial-failure paths. → `docs/mail-moodle.md`.
 
 ## Common utilities
 - `src/utils/crypto/secrets.util.ts` — AES-256-GCM for org-level secrets (Moodle token) and string-column secrets (SMTP password): `encryptSecretToString`/`decryptSecretFromString`

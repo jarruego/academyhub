@@ -27,8 +27,4 @@ export class UpdateUserDTO {
   @IsString()
   @IsEnum(Role)
   role?: Role;
-
-  @IsOptional()
-  @IsString()
-  moodleToken?: string; // <-- Añadido aquí
 }

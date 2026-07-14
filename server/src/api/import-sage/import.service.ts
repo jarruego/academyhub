@@ -59,6 +59,7 @@ import { normalizeOrganizationSettings, readLegacyFileTransferPassword, readOrgS
 import { canonicalNss } from "src/utils/nss.util";
 import { sanitizePhone } from "src/utils/phone.util";
 import { sanitizeEmail } from "src/utils/email.util";
+import { AdminNotificationService } from "src/notifications/admin-notification.service";
 
 @Injectable()
 export class ImportService {
@@ -77,8 +78,9 @@ export class ImportService {
     private userCenterCache: Map<number, any[]> | null = null; // key: id_user
 
     constructor(
-        @Inject(DATABASE_PROVIDER) 
+        @Inject(DATABASE_PROVIDER)
         private readonly databaseService: DatabaseService,
+        private readonly adminNotificationService?: AdminNotificationService,
     ) {}
 
     /**
@@ -2479,6 +2481,14 @@ export class ImportService {
                 updated_at: new Date()
             })
             .where(eq(import_jobs.job_id, jobId));
+
+        // Avisar a los administradores de cualquier importación SAGE fallida
+        // (best-effort, sin bloquear ni propagar errores del envío).
+        void this.adminNotificationService?.notifyScheduledJobFailure({
+            source: 'Importación SAGE',
+            jobId,
+            error: errorMessage,
+        });
     }
 
     private updateSummaryFromResult(summary: ImportSummary, result: ProcessingResult, rowNumber?: number): void {

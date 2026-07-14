@@ -3,9 +3,10 @@ import { DatabaseModule } from "src/database/database.module";
 import { ImportController } from "./import.controller";
 import { ImportService } from "./import.service";
 import { JobService } from "./job.service";
+import { NotificationsModule } from "src/notifications/notifications.module";
 
 @Module({
-    imports: [DatabaseModule],
+    imports: [DatabaseModule, NotificationsModule],
     controllers: [ImportController],
     providers: [ImportService, JobService],
     exports: [ImportService, JobService]

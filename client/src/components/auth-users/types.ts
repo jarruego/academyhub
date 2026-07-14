@@ -6,7 +6,8 @@ export interface AuthUser {
   username: string;
   password?: string;
   role: string;
-  moodleToken?: string; // <-- Añadido aquí
+  /** true si tiene algún vínculo Moodle (los vínculos siempre llevan token) */
+  has_moodle_token?: boolean;
   created_at?: string | null;
   updated_at?: string | null;
 }
@@ -18,5 +19,4 @@ export type AuthUserFormValues = {
   name: string;
   lastName?: string;
   role?: string;
-  moodleToken?: string; // <-- Añadido aquí
 }

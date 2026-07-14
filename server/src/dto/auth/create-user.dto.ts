@@ -26,8 +26,4 @@ export class CreateUserDTO {
   @IsEnum(Role)
   @IsOptional()
   role?: Role;
-
-  @IsOptional()
-  @IsString()
-  moodleToken?: string; // <-- Añadido aquí
 }

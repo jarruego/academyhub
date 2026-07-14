@@ -22,9 +22,9 @@ Read before touching `api/forum/` o los métodos de foro en `MoodleService`.
   grupo (Moodle: `groupid` en `mod_forum_add_discussion`).
 
 ## Token del tutor
-El tutor es un `user` con `is_tutor` en `user_group`. Su token WS se resuelve por:
-`moodle_user_auth_user.moodle_token` (principal) → `auth_user.moodleToken`
-(respaldo). `UserGroupRepository.findGroupTutors(groupId)` agrega por usuario
+El tutor es un `user` con `is_tutor` en `user_group`. Su token WS se resuelve vía
+`moodle_user_auth_user.moodle_token` (única fuente por usuario; la columna
+`auth_user.moodleToken` fue eliminada). `UserGroupRepository.findGroupTutors(groupId)` agrega por usuario
 (varias cuentas Moodle/tokens posibles), prefiere la cuenta `is_main_user` para el
 `moodle_id` del autor y expone `has_token`. Un tutor sin token deja su grupo
 **bloqueado** en la previsualización sin romper el lote.

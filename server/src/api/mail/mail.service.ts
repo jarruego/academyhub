@@ -122,9 +122,7 @@ export class MailService {
 
     if (choice === 'auth' && authUserId) {
       const link = await this.authUserRepository.findTopMoodleLinkByAuthUserId(authUserId);
-      if (link?.moodle_token) return link.moodle_token;
-      const authUser = await this.authUserRepository.findById(authUserId);
-      return authUser?.moodleToken ?? undefined;
+      return link?.moodle_token ?? undefined;
     }
 
     if (choice === 'tutor' && tutorUserId) {
