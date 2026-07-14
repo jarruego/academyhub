@@ -97,6 +97,7 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 | `docs/user-merge.md` | **touching `api/user-merge/`** (Fusión de duplicados). Covers NSS-normalized duplicate detection, the transactional merge primitive (FK/PK-collision handling across the 6 child tables, main-center recalc, dual-Moodle), field-by-field reconciliation whitelist, and the admin tool. Audit via `audit_log` (IDs in the route), no dedicated log table. |
 | `docs/user-sanitization.md` | **touching `api/user-sanitization/`** (Sanitización de datos). Covers the "present-but-invalid" detection of phone/email/dni/nss reusing the existing validators (`email/phone/nss/dni .util`), the pure `detectUserIssues`/`suggestFix` helpers, server-authoritative auto-fix endpoint, unique-collision handling, and the admin tool. |
 | `docs/reports.md` | touching `api/reports/` (PDF templating, report rows). |
+| `docs/backups.md` | touching `.github/workflows/backup.yml` or anything about copias de seguridad (nightly pg_dump + Storage mirror to external S3 via GitHub Actions; secrets list, restore procedure). |
 | `docs/client.md` | frontend work under `client/` (API hooks, auth flow, routing, responsive conventions, type sharing, tests). |
 
 Memory note `project_sage_import_field_update` tracks a pending SAGE field-sync policy decision.
