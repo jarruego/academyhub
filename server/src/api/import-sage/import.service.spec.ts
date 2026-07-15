@@ -5,7 +5,7 @@ import { Gender } from '../../types/user/gender.enum';
 // buildUserUpdates y findSimilarUsers son métodos puros (no tocan BD cuando el
 // cache está poblado), así que instanciamos el servicio con un db ficticio y
 // accedemos a los métodos privados vía cast.
-const makeService = () => new ImportService({} as any);
+const makeService = () => new ImportService({} as any, { notifyScheduledJobFailure: jest.fn() } as any);
 
 describe('ImportService.buildUserUpdates (fill-gaps + overwrite)', () => {
   let svc: any;

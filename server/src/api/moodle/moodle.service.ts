@@ -15,6 +15,7 @@ import { QueryOptions, Transaction } from 'src/database/repository/repository';
 import { CourseRepository } from 'src/database/repository/course/course.repository';
 import { GroupRepository } from 'src/database/repository/group/group.repository';
 import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
+import { MoodleCustomFieldConfig, normalizeOrganizationSettings } from '../organization/organization-settings.model';
 import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
 import { UserRepository } from 'src/database/repository/user/user.repository';
 import { UserGroupRepository } from 'src/database/repository/group/user-group.repository';
@@ -48,7 +49,6 @@ type RequestOptions<D extends MoodleParams = MoodleParams> = {
 type MoodleParamsValue = string | number | boolean | object | Array<string | number | boolean | object> | null | undefined;
 type MoodleParams = Record<string, MoodleParamsValue>;
 
-type MoodleCustomFieldConfig = { shortname: string; source: string };
 type MoodleUserCustomField = { type: string; shortname: string; value: string };
 type MoodleUserCreatePayload = {
     username: string;
@@ -355,17 +355,9 @@ export class MoodleService {
                     }
                 }
 
-                // Try settings.moodle.url or a couple of common alternatives
-                const s = (row.settings ?? {}) as Record<string, unknown>;
-                const maybeMoodle = s['moodle'];
-                if (maybeMoodle && typeof maybeMoodle === 'object') {
-                    const url = (maybeMoodle as Record<string, unknown>)['url'];
-                    if (typeof url === 'string') return url;
-                }
-                const alt1 = s['moodle_url'];
-                if (typeof alt1 === 'string') return alt1;
-                const alt2 = s['moodleUrl'];
-                if (typeof alt2 === 'string') return alt2;
+                // settings.moodle.url (el normalizador absorbe las formas legacy)
+                const url = normalizeOrganizationSettings(row.settings).moodle.url;
+                if (url) return url;
             }
         } catch (err: unknown) {
             Logger.warn({ err }, 'MoodleService:resolveMoodleUrl - DB lookup failed, falling back to env');
@@ -388,23 +380,9 @@ export class MoodleService {
             }
 
             if (rows && rows.length > 0) {
-                const row: OrganizationSettingsSelectModel = rows[0];
-                const settings = (row.settings ?? {}) as Record<string, unknown>;
-                const moodle = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['moodle'] : undefined;
-                const customFields = (moodle && typeof moodle === 'object') ? (moodle as Record<string, unknown>)['customfields'] : undefined;
-                const altCustomFields = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['moodle_customfields'] : undefined;
-                const raw = Array.isArray(customFields) ? customFields : (Array.isArray(altCustomFields) ? altCustomFields : []);
-
-                return raw
-                    .filter((c) => c && typeof c === 'object')
-                    .map((c) => {
-                        const r = c as Record<string, unknown>;
-                        return {
-                            shortname: String(r['shortname'] ?? '').trim(),
-                            source: String(r['source'] ?? '').trim(),
-                        } as MoodleCustomFieldConfig;
-                    })
-                    .filter((c) => c.shortname.length > 0 && c.source.length > 0);
+                // El normalizador ya filtra entradas incompletas y absorbe la
+                // forma legacy `settings.moodle_customfields`
+                return normalizeOrganizationSettings(rows[0].settings).moodle.customfields;
             }
         } catch (err: unknown) {
             Logger.warn({ err }, 'MoodleService:resolveMoodleCustomFields - failed to read organization settings');
@@ -513,9 +491,7 @@ export class MoodleService {
         try {
             const orgRow = await this.organizationRepository.findFirst();
             if (!orgRow) return false;
-            const settings = orgRow.settings ?? {};
-            const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
-            return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
+            return normalizeOrganizationSettings(orgRow.settings).plugins.itop_training;
         } catch (err) {
             this.logger.warn({ err }, 'MoodleService:isItopTrainingEnabled - failed to read organization settings');
             return false;
@@ -2054,13 +2030,7 @@ export class MoodleService {
                 return { success: true, moodleGroupId: localGroup.moodle_id, message: 'Group updated in Moodle' };
             } else {
                 // For creation we may need to use a custom plugin endpoint (itop_training) if enabled in organization settings
-                const orgRow = await this.organizationRepository.findFirst();
-                let itopEnabled = false;
-                if (orgRow) {
-                    const settings = orgRow.settings ?? {};
-                    const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
-                    itopEnabled = !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
-                }
+                const itopEnabled = await this.isItopTrainingEnabled();
 
                 if (itopEnabled) {
                     // Prepare params for the custom block_gestion_grupos_create_group_custom1

@@ -87,11 +87,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   }, [usersData]);
 
   const { data: orgSettings } = useOrganizationSettingsQuery();
-  const itopTrainingEnabled = useMemo(() => {
-    const settings = orgSettings?.settings ?? {};
-    const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
-    return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
-  }, [orgSettings]);
+  const itopTrainingEnabled = orgSettings?.settings.plugins.itop_training ?? false;
 
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
 

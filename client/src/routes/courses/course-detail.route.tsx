@@ -27,6 +27,7 @@ import { Group } from "../../shared/types/group/group";
 import { isGroupActive } from "../../utils/group-active.util";
 import { useCoursePreinscriptionsQuery } from "../../hooks/api/import-inaem/useInaemData";
 import { CoursePreinscriptionsSection } from "../../components/course/course-preinscriptions-section";
+import { useOrganizationSettingsQuery } from "../../hooks/api/organization/use-organization-settings.query";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -78,6 +79,18 @@ export default function CourseDetailRoute() {
   }, [groupsData]);
   // A course is active if it has at least one active group (derived state).
   const courseActive = useMemo(() => (groupsData ?? []).some((g) => isGroupActive(g)), [groupsData]);
+  // Enlace al curso en Moodle. La URL configurada puede ser la del webservice
+  // (p.ej. .../webservice/rest/server.php), por eso se usa solo el origin.
+  const { data: orgSettings } = useOrganizationSettingsQuery();
+  const moodleCourseUrl = useMemo(() => {
+    const raw = orgSettings?.settings.moodle.url ?? '';
+    if (!raw || !courseData?.moodle_id) return undefined;
+    try {
+      return `${new URL(raw).origin}/course/view.php?id=${courseData.moodle_id}`;
+    } catch {
+      return undefined;
+    }
+  }, [orgSettings, courseData?.moodle_id]);
   // Preinscripciones del curso: solo ADMIN/MANAGER (el endpoint exige ese rol).
   // La pestaña solo aparece si el curso tiene preinscripciones asociadas.
   const { data: coursePreinscriptions } = useCoursePreinscriptionsQuery(
@@ -250,7 +263,19 @@ export default function CourseDetailRoute() {
             <Space size={12} align="center">
               <ActiveTag active={courseActive} title="Derivado: el curso está activo si tiene algún grupo activo" />
               {hasMoodleId && (
-                <span style={{ fontSize: 12, color: '#bfbfbf' }}>ID Moodle: {courseData.moodle_id}</span>
+                moodleCourseUrl ? (
+                  <a
+                    href={moodleCourseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Abrir el curso en Moodle"
+                    style={{ fontSize: 12, color: '#bfbfbf', textDecoration: 'underline' }}
+                  >
+                    ID Moodle: {courseData.moodle_id}
+                  </a>
+                ) : (
+                  <span style={{ fontSize: 12, color: '#bfbfbf' }}>ID Moodle: {courseData.moodle_id}</span>
+                )
               )}
             </Space>
           ),

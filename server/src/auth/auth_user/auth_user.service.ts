@@ -34,7 +34,6 @@ export class AuthUserService {
       name: user.name,
       lastName: user.lastName ?? null,
       role: user.role ?? undefined,
-      moodleToken: user.moodleToken ?? null, // <-- Añadido aquí
     } as AuthUserInsertModel;
 
     await this.authUserRepository.createUser(insertUser);
@@ -44,9 +43,15 @@ export class AuthUserService {
     return rest;
   }
 
-  async findAll(): Promise<Omit<AuthUserSelectModel, 'password'>[]> {
+  async findAll(): Promise<(Omit<AuthUserSelectModel, 'password'> & { has_moodle_token: boolean })[]> {
     const users = await this.authUserRepository.findAll();
-    return users.map(({ password, ...rest }) => rest);
+    // El token vive en los vínculos moodle_user_auth_user (moodle_token NOT NULL):
+    // tener algún vínculo equivale a tener token disponible.
+    const linkedRows = await this.dbService.db
+      .selectDistinct({ id_auth_user: moodleUserAuthUserTable.id_auth_user })
+      .from(moodleUserAuthUserTable);
+    const linked = new Set(linkedRows.map((r) => r.id_auth_user));
+    return users.map(({ password, ...rest }) => ({ ...rest, has_moodle_token: linked.has(rest.id) }));
   }
 
   async updateUser(id: number, data: UpdateUserDTO): Promise<Omit<AuthUserSelectModel, 'password'> | undefined> {
@@ -58,7 +63,6 @@ export class AuthUserService {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.lastName !== undefined) updateData.lastName = data.lastName ?? null;
     if (data.role !== undefined) updateData.role = data.role;
-    if (data.moodleToken !== undefined) updateData.moodleToken = data.moodleToken ?? null; // <-- Añadido aquí
 
     // Only update password when a non-empty value is provided
     if (data.password !== undefined && data.password !== null && data.password !== '') {

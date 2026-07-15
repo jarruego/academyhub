@@ -5,9 +5,10 @@ import { MoodleActiveProgressTask } from './tasks/moodle-active-progress.task';
 import { ImportModule } from '../api/import-sage/import.module';
 import { MoodleModule } from '../api/moodle/moodle.module';
 import { DatabaseModule } from '../database/database.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-    imports: [ImportModule, MoodleModule, DatabaseModule],
+    imports: [ImportModule, MoodleModule, DatabaseModule, NotificationsModule],
     providers: [
         SchedulerService,
         SageImportTask,

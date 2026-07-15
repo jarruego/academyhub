@@ -1,15 +1,17 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsObject } from "class-validator";
+import { Type } from "class-transformer";
+import { IsOptional, IsObject, ValidateNested } from "class-validator";
+import { OrganizationSettingsDto } from "./organization-settings.dto";
 
 export class UpdateOrganizationSettingsDTO {
-  @ApiPropertyOptional({ description: 'Free-form settings JSON for the organization. Recommended keys: settings.company.cif, settings.company.razon_social, settings.company.direccion, settings.company.ciudad, settings.company.responsable_nombre, settings.company.responsable_dni, settings.sftp (con campos host, port, user, password, path)' })
+  @ApiPropertyOptional({ type: OrganizationSettingsDto, description: 'Ajustes de la organización (forma validada; las claves desconocidas se descartan)' })
   @IsOptional()
-  @IsObject()
-  settings?: Record<string, any>;
+  @ValidateNested()
+  @Type(() => OrganizationSettingsDto)
+  settings?: OrganizationSettingsDto;
 
-  @ApiPropertyOptional({ description: 'Encrypted secrets JSON (opaque)' })
+  @ApiPropertyOptional({ description: 'Secretos a cifrar/almacenar (opaco). Soporta moodle_token_plain / moodle_url_plain, que se cifran en el servidor.' })
   @IsOptional()
   @IsObject()
   encrypted_secrets?: Record<string, any>;
 }
-

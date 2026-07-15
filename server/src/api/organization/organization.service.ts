@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { tryEncryptSecret } from 'src/utils/crypto/secrets.util';
 import { DatabaseService } from 'src/database/database.service';
 import { DATABASE_PROVIDER } from 'src/database/database.module';
@@ -6,55 +6,32 @@ import { OrganizationRepository } from 'src/database/repository/organization/org
 import { centerTable } from 'src/database/schema/tables/center.table';
 import { UpdateOrganizationSettingsDTO } from 'src/dto/organization/update-organization.dto';
 import { OrganizationSettingsSelectModel, OrganizationSettingsInsertModel } from 'src/database/schema/tables/organization_settings.table';
+import {
+  normalizeOrganizationSettings,
+  readLegacyFileTransferPassword,
+  OrganizationSettingsData,
+  ORG_SECRET_KEYS,
+} from './organization-settings.model';
 
-type CompanyFields = {
-  cif?: string | null;
-  razon_social?: string | null;
-  direccion?: string | null;
-  responsable_nombre?: string | null;
-  responsable_dni?: string | null;
-  ciudad?: string | null;
+/** Forma que reciben el controlador y el cliente: settings normalizados + flags de secretos (nunca los valores). */
+export type OrganizationSettingsResponse = {
+  id: number;
+  center_id: number;
+  settings: OrganizationSettingsData;
+  logo_path: string | null;
+  signature_path: string | null;
+  version: number | null;
+  created_at: Date;
+  updated_at: Date;
+  secrets: {
+    has_moodle_token: boolean;
+    has_file_transfer_password: boolean;
+  };
 };
 
 @Injectable()
 export class OrganizationService {
   private readonly logger = new Logger(OrganizationService.name);
-
-  // Defaults used when DB `settings` is empty
-  private readonly DEFAULT_SETTINGS = {
-    site_name: 'Mi Centro',
-    contact: { name: 'Contacto', email: 'contacto@centro.test', phone: '' },
-    company: {
-      cif: '',
-      razon_social: '',
-      direccion: '',
-      ciudad: '',
-      responsable_nombre: '',
-      responsable_dni: '',
-    },
-    moodle: { url: '' },
-    file_transfer: {
-      type: 'ftp',
-      host: '',
-      port: 21,
-      user: '',
-      password: '',
-      path: '',
-    },
-    plugins: {
-      itop_training: false,
-      configurable_reports: false,
-      certificates: false,
-      progress_bar: false,
-    },
-  } as const;
-
-  // Rutas dentro de `settings` (JSONB) que contienen secretos y NO deben
-  // exponerse al cliente. Cada entrada es [contenedor, campo].
-  private static readonly SETTINGS_SECRET_PATHS: ReadonlyArray<[string, string]> = [
-    ['file_transfer', 'password'],
-    ['sftp', 'password'],
-  ];
 
   constructor(
     private readonly organizationRepository: OrganizationRepository,
@@ -62,79 +39,66 @@ export class OrganizationService {
   ) {}
 
   /**
-   * Devuelve una copia de `settings` con los secretos (contraseñas de
-   * transferencia de archivos) redactados a cadena vacía. No muta el original.
-   * El cliente nunca debe recibir estas contraseñas; al guardar, si llegan
-   * vacías se preservan las existentes (ver `preserveSecretSettings`).
+   * Convierte una fila de BD a la respuesta pública: settings normalizados
+   * (defaults aplicados, sin contraseñas — el modelo tipado no las incluye)
+   * y flags de presencia de secretos para la UI.
    */
-  private redactSecretSettings(settings: unknown): unknown {
-    if (!settings || typeof settings !== 'object') return settings;
-    // Clonado profundo simple (settings es JSON serializable)
-    const clone = JSON.parse(JSON.stringify(settings)) as Record<string, unknown>;
-    for (const [container, field] of OrganizationService.SETTINGS_SECRET_PATHS) {
-      const obj = clone[container];
-      if (obj && typeof obj === 'object' && field in (obj as Record<string, unknown>)) {
-        const val = (obj as Record<string, unknown>)[field];
-        if (typeof val === 'string' && val.length > 0) {
-          (obj as Record<string, unknown>)[field] = '';
-        }
-      }
-    }
-    return clone;
+  private toResponse(row: OrganizationSettingsSelectModel): OrganizationSettingsResponse {
+    const secrets = (row.encrypted_secrets ?? {}) as Record<string, unknown>;
+    const hasSecret = (key: string) => {
+      const v = secrets[key];
+      return v !== undefined && v !== null && v !== '';
+    };
+    // Nota: la fila legacy puede aún tener la contraseña en claro en settings
+    // (se migra al primer guardado); el flag la cuenta como presente.
+    const legacyPwd = readLegacyFileTransferPassword(row.settings);
+    return {
+      id: row.id,
+      center_id: row.center_id,
+      settings: normalizeOrganizationSettings(row.settings),
+      logo_path: row.logo_path ?? null,
+      signature_path: row.signature_path ?? null,
+      version: row.version ?? null,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      secrets: {
+        has_moodle_token: hasSecret(ORG_SECRET_KEYS.moodleToken) || hasSecret('moodle_token_plain'),
+        has_file_transfer_password: hasSecret(ORG_SECRET_KEYS.fileTransferPassword) || legacyPwd !== undefined,
+      },
+    };
   }
 
-  /**
-   * Antes de persistir: si una contraseña de secreto llega vacía/ausente en el
-   * payload pero existe en la BD, se restaura la existente. Evita que el editor
-   * JSON (que reenvía `settings` completo con la contraseña redactada) borre las
-   * credenciales reales. No muta los argumentos.
-   */
-  private preserveSecretSettings(incoming: unknown, existing: unknown): unknown {
-    if (!incoming || typeof incoming !== 'object') return incoming;
-    const result = JSON.parse(JSON.stringify(incoming)) as Record<string, unknown>;
-    const prev = (existing && typeof existing === 'object') ? existing as Record<string, unknown> : {};
-    for (const [container, field] of OrganizationService.SETTINGS_SECRET_PATHS) {
-      const obj = result[container];
-      // Solo actuamos si el contenedor sigue presente en el payload (si el admin
-      // lo elimina por completo, respetamos esa intención).
-      if (!obj || typeof obj !== 'object') continue;
-      const incomingVal = (obj as Record<string, unknown>)[field];
-      const isEmpty = incomingVal === undefined || incomingVal === null || incomingVal === '';
-      if (!isEmpty) continue;
-      const prevContainer = prev[container];
-      const prevVal = (prevContainer && typeof prevContainer === 'object')
-        ? (prevContainer as Record<string, unknown>)[field]
-        : undefined;
-      if (typeof prevVal === 'string' && prevVal.length > 0) {
-        (obj as Record<string, unknown>)[field] = prevVal;
-      }
-    }
-    return result;
-  }
-
-  /** Return organization settings (without encrypted_secrets nor plaintext secrets) or null */
-  async getSettings() {
+  /** Devuelve los ajustes de la organización (normalizados, sin secretos) o null. */
+  async getSettings(): Promise<OrganizationSettingsResponse | null> {
     return await this.databaseService.db.transaction(async transaction => {
       const row = await this.organizationRepository.findFirst({ transaction });
       if (!row) return null;
-      // strip encrypted_secrets
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { encrypted_secrets, ...rest } = row as OrganizationSettingsSelectModel;
-
-      // If settings is empty object or null, provide defaults server-side
-      const settings = (rest.settings && typeof rest.settings === 'object' && Object.keys(rest.settings).length > 0)
-        ? rest.settings
-        : { ...this.DEFAULT_SETTINGS };
-
-      // Redactar secretos (contraseñas FTP/SFTP) antes de devolver al cliente
-      return { ...rest, settings: this.redactSecretSettings(settings) };
+      return this.toResponse(row);
     });
   }
 
-  /** Upsert settings. Will pick a sensible center_id when none exists (single-center setups) */
-  async upsertSettings(payload: UpdateOrganizationSettingsDTO) {
+  /**
+   * Ajustes normalizados para consumo interno (Moodle, importador, informes).
+   * Devuelve defaults si aún no hay fila guardada.
+   */
+  async getTypedSettings(): Promise<OrganizationSettingsData> {
+    const row = await this.organizationRepository.findFirst();
+    return normalizeOrganizationSettings(row?.settings);
+  }
+
+  /**
+   * Upsert de ajustes. La validación de forma la hace el DTO
+   * (`OrganizationSettingsDto` + ValidationPipe global con whitelist).
+   *
+   * Secretos: `file_transfer.password` nunca se guarda en el JSONB `settings`;
+   * si llega en el payload se cifra en `encrypted_secrets.file_transfer_password`
+   * (vacía = conservar la existente). Las contraseñas legacy en claro dentro de
+   * `settings` se migran a `encrypted_secrets` en el primer guardado.
+   * `encrypted_secrets` se fusiona con lo existente (guardar el token de Moodle
+   * no borra la contraseña FTP y viceversa).
+   */
+  async upsertSettings(payload: UpdateOrganizationSettingsDTO): Promise<OrganizationSettingsResponse | null> {
     return await this.databaseService.db.transaction(async transaction => {
-      // Try to find an existing settings row
       const existing = await this.organizationRepository.findFirst({ transaction });
       let centerId: number;
       if (existing) {
@@ -145,97 +109,84 @@ export class OrganizationService {
         centerId = (centers && centers.length) ? (centers[0] as any).id_center : 1;
       }
 
-      // If settings are provided in the payload, validate required company fields and reject if missing or empty
+      // Base de secretos: SIEMPRE los existentes (merge, nunca reemplazo total)
+      const existingSecrets = (existing?.encrypted_secrets ?? {}) as Record<string, unknown>;
+      const mergedSecrets: Record<string, unknown> = { ...existingSecrets };
+      let secretsChanged = false;
+
+      // Claves *_plain enviadas por el cliente: se cifran en el servidor
+      if (payload.encrypted_secrets) {
+        for (const [key, raw] of Object.entries(payload.encrypted_secrets)) {
+          if (key === 'moodle_token_plain' || key === 'moodle_url_plain') {
+            const targetKey = key === 'moodle_token_plain' ? ORG_SECRET_KEYS.moodleToken : ORG_SECRET_KEYS.moodleUrl;
+            const enc = tryEncryptSecret(typeof raw === 'string' ? raw : undefined);
+            if (enc) {
+              mergedSecrets[targetKey] = enc;
+              this.logger.log(`Encrypted ${key} before storing`);
+            } else if (typeof raw === 'string' && raw.length > 0) {
+              this.logger.warn(`APP_MASTER_KEY not set; storing ${key} as plaintext`);
+              mergedSecrets[targetKey] = raw;
+            }
+          } else {
+            mergedSecrets[key] = raw;
+          }
+          secretsChanged = true;
+        }
+      }
+
+      // settings.file_transfer.password es write-only: se extrae y cifra
+      let settingsToPersist: Record<string, unknown> | undefined;
       if (payload.settings !== undefined) {
-        try {
-          const s = payload.settings ?? {} as Record<string, unknown>;
-          const company = ((s as Record<string, unknown>)['company'] ?? null) as CompanyFields | null;
-          const missing: string[] = [];
-
-          const isNonEmptyString = (v: unknown) => typeof v === 'string' && v.trim().length > 0;
-
-          if (!company || !isNonEmptyString(company.cif)) missing.push('company.cif');
-          if (!company || !isNonEmptyString(company.razon_social)) missing.push('company.razon_social');
-          if (!company || !isNonEmptyString(company.direccion)) missing.push('company.direccion');
-          if (!company || !isNonEmptyString(company.responsable_nombre)) missing.push('company.responsable_nombre');
-          if (!company || !isNonEmptyString(company.responsable_dni)) missing.push('company.responsable_dni');
-
-          if (missing.length > 0) {
-            // Reject the request: required fields are missing or empty
-            throw new BadRequestException(`Faltan campos obligatorios o están vacíos: ${missing.join(', ')}`);
-          }
-        } catch (err: unknown) {
-          if (err instanceof BadRequestException) throw err;
-          this.logger.warn('Error while checking organization settings shape', String(err));
-        }
-      }
-
-      // If the client submitted plaintext token/url keys (legacy client), encrypt them server-side when possible
-      const secretsInput = payload.encrypted_secrets ?? undefined;
-      const transformedSecrets = secretsInput ? { ...secretsInput } as Record<string, unknown> : undefined;
-
-      if (transformedSecrets) {
-        // Common plain keys the UI or admin might have used
-        if ('moodle_token_plain' in transformedSecrets) {
-          const raw = transformedSecrets['moodle_token_plain'];
-          const enc = tryEncryptSecret(typeof raw === 'string' ? raw : undefined);
-          if (enc) {
-            transformedSecrets['moodle_token'] = enc;
-            delete transformedSecrets['moodle_token_plain'];
-            this.logger.log('Encrypted moodle_token_plain before storing');
-          } else {
-            this.logger.warn('APP_MASTER_KEY not set; storing moodle_token_plain as plaintext');
+        settingsToPersist = JSON.parse(JSON.stringify(payload.settings)) as Record<string, unknown>;
+        const fileTransfer = settingsToPersist['file_transfer'];
+        if (fileTransfer && typeof fileTransfer === 'object') {
+          const ft = fileTransfer as Record<string, unknown>;
+          const incomingPwd = ft['password'];
+          delete ft['password'];
+          if (typeof incomingPwd === 'string' && incomingPwd.length > 0) {
+            const enc = tryEncryptSecret(incomingPwd);
+            mergedSecrets[ORG_SECRET_KEYS.fileTransferPassword] = enc ?? incomingPwd;
+            if (!enc) this.logger.warn('APP_MASTER_KEY not set; storing file_transfer password as plaintext secret');
+            secretsChanged = true;
           }
         }
-        if ('moodle_url_plain' in transformedSecrets) {
-          const raw = transformedSecrets['moodle_url_plain'];
-          const enc = tryEncryptSecret(typeof raw === 'string' ? raw : undefined);
-          if (enc) {
-            transformedSecrets['moodle_url'] = enc;
-            delete transformedSecrets['moodle_url_plain'];
-            this.logger.log('Encrypted moodle_url_plain before storing');
-          } else {
-            this.logger.warn('APP_MASTER_KEY not set; storing moodle_url_plain as plaintext');
+
+        // Migración perezosa: contraseña legacy en claro dentro del JSONB antiguo
+        if (mergedSecrets[ORG_SECRET_KEYS.fileTransferPassword] === undefined) {
+          const legacyPwd = readLegacyFileTransferPassword(existing?.settings);
+          if (legacyPwd) {
+            const enc = tryEncryptSecret(legacyPwd);
+            mergedSecrets[ORG_SECRET_KEYS.fileTransferPassword] = enc ?? legacyPwd;
+            secretsChanged = true;
+            this.logger.log('Migrated legacy plaintext file_transfer password to encrypted_secrets');
           }
         }
       }
-
-      // Preservar contraseñas de secretos: si el payload las trae vacías
-      // (porque el cliente recibió la versión redactada), se reinyectan las
-      // existentes para no borrar credenciales reales al guardar.
-      const settingsToPersist = payload.settings !== undefined
-        ? this.preserveSecretSettings(payload.settings, existing?.settings)
-        : undefined;
 
       const upsertPayload: Partial<OrganizationSettingsInsertModel> = {
-        settings: settingsToPersist as OrganizationSettingsInsertModel['settings'] ?? undefined,
-        encrypted_secrets: transformedSecrets as OrganizationSettingsInsertModel['encrypted_secrets'] ?? undefined,
+        updated_at: new Date(),
       };
+      if (settingsToPersist !== undefined) {
+        upsertPayload.settings = settingsToPersist as OrganizationSettingsInsertModel['settings'];
+      }
+      if (secretsChanged) {
+        upsertPayload.encrypted_secrets = mergedSecrets as OrganizationSettingsInsertModel['encrypted_secrets'];
+      }
 
       await this.organizationRepository.upsertForCenter(centerId, upsertPayload, { transaction });
 
-      // Return the fresh row (without encrypted_secrets)
       const fresh = await this.organizationRepository.findByCenterId(centerId, { transaction });
       if (!fresh) return null;
-      // strip encrypted_secrets
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { encrypted_secrets, ...rest } = fresh as OrganizationSettingsSelectModel;
-      // Redactar secretos también en la respuesta del guardado
-      return { ...rest, settings: this.redactSecretSettings(rest.settings) };
+      return this.toResponse(fresh);
     });
   }
 
-  async setAssetPath(id: number, type: 'logo' | 'signature', pathValue: string) {
+  async setAssetPath(id: number, type: 'logo' | 'signature', pathValue: string): Promise<OrganizationSettingsResponse | null> {
     return await this.databaseService.db.transaction(async transaction => {
-      // update and then return the row (repository methods update only)
       await this.organizationRepository.setAssetPathById(id, type === 'logo' ? 'logo_path' : 'signature_path', pathValue, { transaction });
-      // simple re-query
       const refreshed = await this.organizationRepository.findFirst({ transaction });
       if (!refreshed) return null;
-      // strip encrypted_secrets
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { encrypted_secrets, ...rest } = refreshed as OrganizationSettingsSelectModel;
-      return { ...rest, settings: this.redactSecretSettings(rest.settings) };
+      return this.toResponse(refreshed);
     });
   }
 }

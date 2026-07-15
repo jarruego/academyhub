@@ -16,6 +16,6 @@ import { StorageModule } from '../../common/storage/storage.module';
   imports: [DatabaseModule, MoodleUserModule, StorageModule, MoodleModule],
   providers: [SmtpSettingsService, MailService, MailTemplatesService, MoodleMessageService, AuthUserRepository],
   controllers: [SmtpSettingsController, MailController, MailTemplatesController],
-  exports: [SmtpSettingsService, MailTemplatesService],
+  exports: [SmtpSettingsService, MailTemplatesService, MailService],
 })
 export class MailModule {}

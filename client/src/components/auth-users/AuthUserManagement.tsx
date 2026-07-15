@@ -1,5 +1,5 @@
 import { App, Card, Alert, Table, Button, Space, Empty, Typography } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useRole } from '../../utils/permissions/use-role';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -43,10 +43,12 @@ export default function AuthUserManagement() {
     { title: 'Rol', dataIndex: 'role', key: 'role' },
     {
       title: 'Token Moodle',
-      dataIndex: 'moodleToken',
-      key: 'moodleToken',
-      render: (token: string | undefined) =>
-        token && token.length > 0 ? '•'.repeat(8) : '', // <-- Oculta el token con asteriscos o puntos
+      dataIndex: 'has_moodle_token',
+      key: 'has_moodle_token',
+      render: (has: boolean | undefined) =>
+        has
+          ? <CheckCircleOutlined style={{ color: '#52c41a' }} title="Tiene al menos un vínculo Moodle con token" />
+          : <MinusCircleOutlined style={{ color: '#bfbfbf' }} title="Sin vínculos Moodle" />,
     },
     {
       title: 'Acciones',

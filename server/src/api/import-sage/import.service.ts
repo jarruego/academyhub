@@ -55,9 +55,11 @@ import { DbCondition } from "src/database/types/db-expression";
 import { DocumentType } from "src/types/user/document-type.enum";
 import { Gender } from "src/types/user/gender.enum";
 import { mapSageEducationLevel, FUNDAE_DEFAULT_EDUCATION_LEVEL } from "./education-level.util";
+import { normalizeOrganizationSettings, readLegacyFileTransferPassword, readOrgSecret, ORG_SECRET_KEYS } from "src/api/organization/organization-settings.model";
 import { canonicalNss } from "src/utils/nss.util";
 import { sanitizePhone } from "src/utils/phone.util";
 import { sanitizeEmail } from "src/utils/email.util";
+import { AdminNotificationService } from "src/notifications/admin-notification.service";
 
 @Injectable()
 export class ImportService {
@@ -76,8 +78,9 @@ export class ImportService {
     private userCenterCache: Map<number, any[]> | null = null; // key: id_user
 
     constructor(
-        @Inject(DATABASE_PROVIDER) 
+        @Inject(DATABASE_PROVIDER)
         private readonly databaseService: DatabaseService,
+        private readonly adminNotificationService?: AdminNotificationService,
     ) {}
 
     /**
@@ -261,27 +264,27 @@ export class ImportService {
     }> {
         try {
             // Intentar leer de BD
-            const settings = await this.databaseService.db.query.organization_settings.findFirst();
-            this.logger.log(`[getFileTransferConfig] Settings encontrados: ${settings ? 'SÍ' : 'NO'}`);
-            
-            const settingsObj = settings?.settings as Record<string, any> | undefined;
-            this.logger.log(`[getFileTransferConfig] settingsObj presente: ${!!settingsObj}`);
-            
-            const fileTransfer = settingsObj?.file_transfer;
-            this.logger.log(`[getFileTransferConfig] file_transfer config presente: ${!!fileTransfer}`);
+            const row = await this.databaseService.db.query.organization_settings.findFirst();
+            this.logger.log(`[getFileTransferConfig] Settings encontrados: ${row ? 'SÍ' : 'NO'}`);
 
-            if (fileTransfer?.host && fileTransfer?.user && fileTransfer?.password && fileTransfer?.path) {
+            const fileTransfer = normalizeOrganizationSettings(row?.settings).file_transfer;
+            // La contraseña vive cifrada en encrypted_secrets; fallback a la
+            // forma legacy en claro dentro del JSONB (filas aún no migradas)
+            const password = readOrgSecret(row?.encrypted_secrets, ORG_SECRET_KEYS.fileTransferPassword)
+                ?? readLegacyFileTransferPassword(row?.settings);
+
+            if (fileTransfer.host && fileTransfer.user && password && fileTransfer.path) {
                 this.logger.log('[getFileTransferConfig] Usando configuración de transferencia de BD');
                 return {
-                    type: fileTransfer.type || 'ftp',  // Default: 'ftp'
+                    type: fileTransfer.type,
                     host: fileTransfer.host,
-                    port: fileTransfer.port ? Number(fileTransfer.port) : (fileTransfer.type === 'sftp' ? 22 : 21),
+                    port: fileTransfer.port,
                     user: fileTransfer.user,
-                    password: fileTransfer.password,
+                    password,
                     path: fileTransfer.path,
                 };
             } else {
-                this.logger.log(`[getFileTransferConfig] Campos faltantes - host: ${!!fileTransfer?.host}, user: ${!!fileTransfer?.user}, password: ${!!fileTransfer?.password}, path: ${!!fileTransfer?.path}`);
+                this.logger.log(`[getFileTransferConfig] Campos faltantes - host: ${!!fileTransfer.host}, user: ${!!fileTransfer.user}, password: ${!!password}, path: ${!!fileTransfer.path}`);
             }
         } catch (error) {
             this.logger.error(`[getFileTransferConfig] Error al leer configuración de BD: ${error instanceof Error ? error.message : String(error)}`);
@@ -2478,6 +2481,14 @@ export class ImportService {
                 updated_at: new Date()
             })
             .where(eq(import_jobs.job_id, jobId));
+
+        // Avisar a los administradores de cualquier importación SAGE fallida
+        // (best-effort, sin bloquear ni propagar errores del envío).
+        void this.adminNotificationService?.notifyScheduledJobFailure({
+            source: 'Importación SAGE',
+            jobId,
+            error: errorMessage,
+        });
     }
 
     private updateSummaryFromResult(summary: ImportSummary, result: ProcessingResult, rowNumber?: number): void {

@@ -9,6 +9,7 @@ import type { Response } from 'express';
 import { PdfService } from 'src/common/pdf/pdf.service';
 import { ReportRenderer } from './report-renderer.service';
 import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
+import { buildIssuerLine, normalizeOrganizationSettings } from 'src/api/organization/organization-settings.model';
 import { OrganizationSettingsSelectModel } from 'src/database/schema/tables/organization_settings.table';
 import axios from 'axios';
 import * as path from 'path';
@@ -455,9 +456,7 @@ export class ReportsPdfService {
     try {
       const orgRow = await this.organizationRepository.findFirst();
       if (!orgRow) return false;
-      const settings = orgRow.settings ?? {};
-      const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
-      return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
+      return normalizeOrganizationSettings(orgRow.settings).plugins.itop_training;
     } catch (e) {
       this.logger.warn({ e }, 'ReportsPdfService:isItopTrainingEnabled - failed to read organization settings');
       return false;
@@ -658,19 +657,10 @@ export class ReportsPdfService {
     let companyCity: string | undefined = undefined;
     if (orgRow) {
       try {
-        const settings = (orgRow.settings ?? {}) as Record<string, unknown>;
-        const company = (settings && typeof settings === 'object') ? (settings['company'] as Record<string, unknown> | undefined) : undefined;
-        if (company) {
-          const responsable = (company.responsable_nombre as string | undefined) ?? undefined;
-          const razon = (company.razon_social as string | undefined) ?? undefined;
-          const cif = (company.cif as string | undefined) ?? undefined;
-          const direccion = (company.direccion as string | undefined) ?? undefined;
-          const ciudad = (company.ciudad as string | undefined) ?? undefined;
-          if (ciudad) companyCity = ciudad;
-          if (responsable || razon || cif || direccion) {
-            issuerName = `${responsable ? `D. ${responsable}, ` : ''}${razon ? `administrador de ${razon}` : ''}${cif ? `, con CIF ${cif}` : ''}${direccion ? ` y domicilio en ${direccion}` : ''}.`;
-          }
-        }
+        const { company } = normalizeOrganizationSettings(orgRow.settings);
+        if (company.ciudad) companyCity = company.ciudad;
+        const issuer = buildIssuerLine(company);
+        if (issuer) issuerName = issuer;
 
         const lp = orgRow.logo_path as string | undefined;
         const sp = orgRow.signature_path as string | undefined;

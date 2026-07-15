@@ -8,7 +8,6 @@ import { useUserQuery } from '../../hooks/api/users/use-user.query';
 import { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
 import { CourseClient } from '../../shared/types/course/course-client.enum';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
-import type { SettingsMap } from '../../shared/types/organization/organization';
 import { useMoodleUsersByUserIdQuery } from '../../hooks/api/moodle-users/use-moodle-users-by-user-id.query';
 import * as XLSX from 'xlsx';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
@@ -37,21 +36,14 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
   const request = useAuthenticatedAxios<Blob>();
   const { message: messageApi } = App.useApp();
   const [isCertificateLoading, setIsCertificateLoading] = React.useState(false);
-  const isRecord = (value: unknown): value is Record<string, unknown> =>
-    typeof value === 'object' && value !== null && !Array.isArray(value);
-  const getBoolean = (value: unknown): value is boolean => typeof value === 'boolean';
-  const getString = (value: unknown): value is string => typeof value === 'string';
   const moodleUserId = React.useMemo(() => {
     if (!moodleUsers || !moodleUsers.length) return undefined;
     const main = moodleUsers.find((mu) => mu.is_main_user) || moodleUsers[0];
     return main?.moodle_id ?? undefined;
   }, [moodleUsers]);
 
-  const settings: SettingsMap | undefined = orgSettings?.settings ?? undefined;
-  const plugins = isRecord(settings?.plugins) ? settings?.plugins : undefined;
-  const certificatesEnabled = getBoolean(plugins?.certificates) ? plugins?.certificates : false;
-  const moodleConfig = isRecord(settings?.moodle) ? settings?.moodle : undefined;
-  const moodleUrl = getString(moodleConfig?.url) ? moodleConfig?.url : '';
+  const certificatesEnabled = orgSettings?.settings.plugins.certificates ?? false;
+  const moodleUrl = orgSettings?.settings.moodle.url ?? '';
 
   const showCertificatesButton = Boolean(
     certificatesEnabled &&

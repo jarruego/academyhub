@@ -60,11 +60,7 @@ export default function ReportsRoute() {
   const [selectedFundings, setSelectedFundings] = useState<string[]>([]);
 
   const { data: orgSettings } = useOrganizationSettingsQuery();
-  const itopTrainingEnabled = useMemo(() => {
-    const settings = orgSettings?.settings ?? {};
-    const plugins = (settings && typeof settings === 'object') ? (settings as Record<string, unknown>)['plugins'] : undefined;
-    return !!(plugins && typeof plugins === 'object' && (plugins as Record<string, unknown>)['itop_training'] === true);
-  }, [orgSettings]);
+  const itopTrainingEnabled = orgSettings?.settings.plugins.itop_training ?? false;
 
   // Default to sort by group end date (newest first)
   const [sortField, setSortField] = useState<string | undefined>('group_end_date');
