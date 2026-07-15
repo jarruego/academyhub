@@ -57,6 +57,7 @@ The typology UI (Cliente/Financiación fields, courses-list tabs/columns, and th
 - User detail: **Preinscripciones** tab (admin/manager only; `user-preinscriptions-section.tsx`). Junto al estado `MATRICULADO` muestra un tag **Finalizado** (verde) / **No finalizado** (rojo) según `finalized` de la matrícula; si no hay datos (`finalized` null) no muestra tag. El backend (`findByUser`) calcula `finalized` con `bool_or(user_group.finalized)` por curso (null si no hay matrícula).
 
 ## Gotchas / conventions
+- Las preinscripciones **bloquean el borrado del curso** (nunca se arrastran en cascada): hay que borrarlas antes desde la pestaña Preinscripciones. Ver "Course deletion" en `docs/architecture.md`.
 - `course.file_number` is UNIQUE — the course service trims it and turns `''`→`null` (so untagged courses don't collide) and maps Postgres `23505` to a `ConflictException`.
 - The importer has **no per-row transactions** (mirrors SAGE); failed rows are preserved in `failed_user_imports` (`import_source='inaem'`).
 - Tests cover pure logic (parser, normalize, education-level, mapping). No automated E2E (needs real Postgres with `unaccent`/`pg_trgm`, like SAGE — don't add without that infra).

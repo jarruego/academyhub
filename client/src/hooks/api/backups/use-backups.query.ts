@@ -19,11 +19,14 @@ export interface BackupStatusResponse {
   runs: BackupRun[];
 }
 
+export type BackupKind = 'daily' | 'monthly';
+
 export interface BackupFile {
   key: string;
   name: string;
   size: number;
   last_modified: string | null;
+  kind: BackupKind;
 }
 
 export interface BackupListResponse {

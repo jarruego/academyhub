@@ -41,7 +41,10 @@ vi.mock('../../hooks/api/backups/use-backups.query', () => ({
   useBackupListQuery: () => ({
     data: {
       s3_configured: true,
-      backups: [{ key: 'db/db-2026-07-15.dump.gpg', name: 'db-2026-07-15.dump.gpg', size: 5_082_629, last_modified: '2026-07-15T03:17:00Z' }],
+      backups: [
+        { key: 'db/db-2026-07-15.dump.gpg', name: 'db-2026-07-15.dump.gpg', size: 5_082_629, last_modified: '2026-07-15T03:17:00Z', kind: 'daily' },
+        { key: 'db-monthly/db-2026-07-01.dump.gpg', name: 'db-2026-07-01.dump.gpg', size: 5_000_000, last_modified: '2026-07-01T03:17:00Z', kind: 'monthly' },
+      ],
     },
     isLoading: false,
     isFetching: false,
@@ -68,9 +71,11 @@ describe('<BackupsPanel/>', () => {
     expect(screen.getByText('Fallida')).toBeDefined();
     // Sin alerta de fallo porque la ejecución más reciente fue correcta
     expect(screen.queryByText('La última copia falló')).toBeNull();
-    // Copia listada con su botón de descarga
+    // Copias listadas (diaria y mensual) con sus botones de descarga
     expect(screen.getByText('db-2026-07-15.dump.gpg')).toBeDefined();
-    expect(screen.getByText('Descargar')).toBeDefined();
+    expect(screen.getByText('Diaria')).toBeDefined();
+    expect(screen.getByText('Mensual')).toBeDefined();
+    expect(screen.getAllByText('Descargar')).toHaveLength(2);
     expect(screen.getByText('Hacer copia ahora')).toBeDefined();
     // Sección de ayuda plegable al pie
     expect(screen.getByText('¿Qué es esta copia de seguridad?')).toBeDefined();

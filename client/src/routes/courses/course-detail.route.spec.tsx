@@ -37,6 +37,9 @@ vi.mock("../../hooks/api/users/use-users-by-group.query", () => ({
 vi.mock("../../hooks/api/courses/use-delete-course.mutation", () => ({
   useDeleteCourseMutation: () => ({ mutateAsync: vi.fn() }),
 }));
+vi.mock("../../hooks/api/courses/use-course-deletion-check.query", () => ({
+  useCourseDeletionCheckQuery: () => ({ refetch: vi.fn() }),
+}));
 vi.mock("../../hooks/api/groups/use-create-bonification-file.mutation", () => ({
   useCreateBonificationFileMutation: () => ({ mutateAsync: vi.fn() }),
 }));

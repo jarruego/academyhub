@@ -14,12 +14,29 @@ import { CourseModality } from "src/types/course/course-modality.enum";
 import { UserService } from "../user/user.service";
 import { CourseInsertModel, CourseSelectModel, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { UserCourseInsertModel, UserCourseUpdateModel } from "src/database/schema/tables/user_course.table";
+import { UserPreinscriptionRepository } from "src/database/repository/preinscription/user-preinscription.repository";
+
+/**
+ * Dependencias que retienen un curso (las 3 FKs que apuntan a `courses`).
+ * `groups` y `preinscriptions` bloquean el borrado; `enrollments` sólo avisa
+ * y puede arrastrarse con `deleteEnrollments`.
+ */
+export interface CourseDeletionCheck {
+  groups: number;
+  enrollments: number;
+  preinscriptions: number;
+  /** true si el curso se puede borrar sin arrastrar nada. */
+  canDelete: boolean;
+  /** true si sólo faltan las matrículas por confirmar (aviso + cascada opcional). */
+  requiresEnrollmentDeletion: boolean;
+}
 
 @Injectable()
 export class CourseService {
   constructor(
     private readonly courseRepository: CourseRepository,
     private readonly userCourseRepository: UserCourseRepository,
+    private readonly userPreinscriptionRepository: UserPreinscriptionRepository,
     private readonly groupRepository: GroupRepository,
     private readonly MoodleService: MoodleService,
     private readonly moodleUserService: MoodleUserService,
@@ -111,10 +128,73 @@ export class CourseService {
     });
   }
 
-  async deleteById(id: number, options?: QueryOptions) {
+  // Postgres lanza 23503 al violar una FK. Red de seguridad por si en el futuro
+  // aparece otra tabla que referencie courses y no esté contemplada en el chequeo.
+  private isForeignKeyViolation(error: unknown): boolean {
+    return (error as { code?: string })?.code === "23503";
+  }
+
+  private async buildDeletionCheck(id: number, options: QueryOptions): Promise<CourseDeletionCheck> {
+    const groups = await this.groupRepository.countByCourse(id, options);
+    const enrollments = await this.userCourseRepository.countByCourse(id, options);
+    const preinscriptions = await this.userPreinscriptionRepository.countByCourse(id, options);
+    const blocked = groups > 0 || preinscriptions > 0;
+    return {
+      groups,
+      enrollments,
+      preinscriptions,
+      canDelete: !blocked && enrollments === 0,
+      requiresEnrollmentDeletion: !blocked && enrollments > 0,
+    };
+  }
+
+  /** Qué retiene al curso, para que el cliente avise antes de borrar. */
+  async getDeletionCheck(id: number, options?: QueryOptions): Promise<CourseDeletionCheck> {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-      return await this.courseRepository.deleteById(id, { transaction });
+      return await this.buildDeletionCheck(id, { transaction });
     });
+  }
+
+  /**
+   * Borra un curso. Los grupos y las preinscripciones lo bloquean (nunca se
+   * arrastran). Las matrículas sólo se borran si `deleteEnrollments` lo pide
+   * explícitamente; se borra la fila de `user_course`, nunca el usuario.
+   */
+  async deleteById(id: number, deleteEnrollments = false, options?: QueryOptions) {
+    try {
+      return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
+        const check = await this.buildDeletionCheck(id, { transaction });
+
+        if (check.preinscriptions > 0) {
+          throw new ConflictException(
+            `No se puede eliminar el curso: tiene ${check.preinscriptions} preinscripción(es) asociada(s). Bórralas primero desde la pestaña Preinscripciones.`,
+          );
+        }
+        if (check.groups > 0) {
+          throw new ConflictException(
+            `No se puede eliminar el curso: tiene ${check.groups} grupo(s). Bórralos primero.`,
+          );
+        }
+        if (check.enrollments > 0) {
+          if (!deleteEnrollments) {
+            throw new ConflictException(
+              `No se puede eliminar el curso: tiene ${check.enrollments} matrícula(s). Confirma el borrado de las matrículas para continuar.`,
+            );
+          }
+          await this.userCourseRepository.deleteByCourse(id, { transaction });
+        }
+
+        return await this.courseRepository.deleteById(id, { transaction });
+      });
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      if (this.isForeignKeyViolation(error)) {
+        throw new ConflictException(
+          "No se puede eliminar el curso: todavía tiene datos asociados.",
+        );
+      }
+      throw error;
+    }
   }
 
   async updateUserInCourse(id_course: number, id_user: number, userCourseUpdateModel: UserCourseUpdateModel, options?: QueryOptions) {

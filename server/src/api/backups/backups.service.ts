@@ -3,12 +3,15 @@ import { GetObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/clien
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import axios from 'axios';
 
+export type BackupKind = 'daily' | 'monthly';
+
 /** Fichero de copia listado desde el bucket externo */
 export interface BackupFile {
   key: string;
   name: string;
   size: number;
   last_modified: string | null;
+  kind: BackupKind;
 }
 
 /** Ejecución del workflow de backup en GitHub Actions */
@@ -29,8 +32,13 @@ export interface BackupStatusResponse {
   runs: BackupRun[];
 }
 
-// Las copias viven en <bucket>/db/db-AAAA-MM-DD.dump.gpg (ver .github/workflows/backup.yml)
-const BACKUP_KEY_REGEX = /^db\/[A-Za-z0-9._-]+\.dump\.gpg$/;
+// Las copias viven en <bucket>/db/ (diarias, 30 días) y <bucket>/db-monthly/ (día 1, 12 meses)
+// — ver .github/workflows/backup.yml
+const BACKUP_KEY_REGEX = /^(db|db-monthly)\/[A-Za-z0-9._-]+\.dump\.gpg$/;
+const BACKUP_PREFIXES: Array<{ prefix: string; kind: BackupKind }> = [
+  { prefix: 'db/', kind: 'daily' },
+  { prefix: 'db-monthly/', kind: 'monthly' },
+];
 const DOWNLOAD_URL_TTL_SECONDS = 600;
 
 /** Convierte una ejecución cruda de la API de GitHub al shape que consume el panel */
@@ -147,28 +155,32 @@ export class BackupsService {
 
     const client = this.getS3Client();
     const backups: BackupFile[] = [];
-    let continuationToken: string | undefined;
     try {
-      do {
-        const page = await client.send(
-          new ListObjectsV2Command({ Bucket: this.s3Bucket, Prefix: 'db/', ContinuationToken: continuationToken }),
-        );
-        for (const obj of page.Contents ?? []) {
-          if (!obj.Key || !BACKUP_KEY_REGEX.test(obj.Key)) continue;
-          backups.push({
-            key: obj.Key,
-            name: obj.Key.replace(/^db\//, ''),
-            size: obj.Size ?? 0,
-            last_modified: obj.LastModified?.toISOString() ?? null,
-          });
-        }
-        continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
-      } while (continuationToken);
+      for (const { prefix, kind } of BACKUP_PREFIXES) {
+        let continuationToken: string | undefined;
+        do {
+          const page = await client.send(
+            new ListObjectsV2Command({ Bucket: this.s3Bucket, Prefix: prefix, ContinuationToken: continuationToken }),
+          );
+          for (const obj of page.Contents ?? []) {
+            if (!obj.Key || !BACKUP_KEY_REGEX.test(obj.Key)) continue;
+            backups.push({
+              key: obj.Key,
+              name: obj.Key.slice(prefix.length),
+              size: obj.Size ?? 0,
+              last_modified: obj.LastModified?.toISOString() ?? null,
+              kind,
+            });
+          }
+          continuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+        } while (continuationToken);
+      }
     } catch (error) {
       this.logger.error(`Failed to list backups in S3 bucket: ${error instanceof Error ? error.message : error}`);
       throw new ServiceUnavailableException('Could not list backups (check BACKUP_S3_* credentials)');
     }
-    backups.sort((a, b) => b.name.localeCompare(a.name));
+    // Más recientes primero; a igual fecha, la diaria antes que la mensual
+    backups.sort((a, b) => b.name.localeCompare(a.name) || a.kind.localeCompare(b.kind));
     return { s3_configured: true, backups };
   }
 
@@ -191,7 +203,7 @@ export class BackupsService {
   async getDownloadUrl(key: string): Promise<{ url: string; expires_in: number }> {
     assertValidBackupKey(key);
     const client = this.getS3Client();
-    const filename = key.replace(/^db\//, '');
+    const filename = key.split('/').pop()!;
     const command = new GetObjectCommand({
       Bucket: this.s3Bucket,
       Key: key,

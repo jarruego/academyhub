@@ -84,6 +84,14 @@ export default function BackupsPanel() {
 
   const fileColumns: ColumnsType<BackupFile> = [
     { title: 'Fichero', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Tipo',
+      dataIndex: 'kind',
+      key: 'kind',
+      width: 90,
+      render: (kind: BackupFile['kind']) =>
+        kind === 'monthly' ? <Tag color="geekblue">Mensual</Tag> : <Tag color={STATUS_COLORS.neutral}>Diaria</Tag>,
+    },
     { title: 'Fecha', dataIndex: 'last_modified', key: 'last_modified', width: 150, render: (v: string | null) => formatDateTime(v, '—') },
     { title: 'Tamaño', dataIndex: 'size', key: 'size', width: 100, render: (v: number) => formatSize(v) },
     {
@@ -178,8 +186,9 @@ export default function BackupsPanel() {
           <div>
             <Typography.Title level={5}>Copias disponibles</Typography.Title>
             <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
-              Ficheros de base de datos guardados en el almacén externo (se conservan 30 días). Se descargan
-              cifrados: para restaurarlos hace falta la frase de cifrado, que no está en esta aplicación.
+              Ficheros de base de datos guardados en el almacén externo: las diarias se conservan 30 días y la del
+              día 1 de cada mes, 12 meses. Se descargan cifrados: para restaurarlos hace falta la frase de cifrado,
+              que no está en esta aplicación.
             </Typography.Paragraph>
             <Table<BackupFile>
               rowKey="key"
@@ -206,7 +215,11 @@ export default function BackupsPanel() {
                       la aplicación: aunque la aplicación o su base de datos desaparecieran, estas copias sobreviven.
                     </Typography.Paragraph>
                     <ul>
-                      <li>Se conservan los últimos <strong>30 días</strong> de copias; las más antiguas se borran solas.</li>
+                      <li>
+                        Retención "abuelo-padre-hijo": las copias <strong>diarias</strong> se conservan{' '}
+                        <strong>30 días</strong>, y la del día 1 de cada mes se guarda como <strong>mensual</strong>{' '}
+                        durante <strong>12 meses</strong>. Las más antiguas se borran solas.
+                      </li>
                       <li>
                         Los ficheros (logos, firmas, imágenes de plantillas de correo) se copian aparte, en la carpeta{' '}
                         <Typography.Text code>storage/</Typography.Text> del mismo almacén.

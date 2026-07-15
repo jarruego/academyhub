@@ -3,7 +3,7 @@ import { QueryOptions, Repository } from "../repository";
 import { UserCourseInsertModel, userCourseTable, UserCourseUpdateModel, UserCourseSelectModel } from "src/database/schema/tables/user_course.table";
 import { courseTable, CourseSelectModel } from "src/database/schema/tables/course.table";
 import { groupTable } from "src/database/schema/tables/group.table";
-import { and, eq, sql, desc } from "drizzle-orm";
+import { and, count, eq, sql, desc } from "drizzle-orm";
 import type { InsertResult } from 'src/database/types/insert-result';
 import { groupActiveCondition } from "src/utils/group-active.util";
 
@@ -64,6 +64,26 @@ export class UserCourseRepository extends Repository {
             .delete(userCourseTable)
             .where(and(eq(userCourseTable.id_course, id_course), eq(userCourseTable.id_user, id_user)));
         return result;
+    }
+
+    /** Nº de matrículas (a nivel de curso) de un curso. */
+    async countByCourse(id_course: number, options?: QueryOptions): Promise<number> {
+        const rows = await this.query(options)
+            .select({ value: count() })
+            .from(userCourseTable)
+            .where(eq(userCourseTable.id_course, id_course));
+        return Number(rows[0]?.value ?? 0);
+    }
+
+    /**
+     * Borra todas las matrículas de un curso (no toca los usuarios).
+     * Sólo se usa al eliminar el curso; ver CourseService.deleteById.
+     */
+    async deleteByCourse(id_course: number, options?: QueryOptions) {
+        return await this.query(options)
+            .delete(userCourseTable)
+            .where(eq(userCourseTable.id_course, id_course))
+            .returning({ id_user: userCourseTable.id_user });
     }
 
     async clearMoodleUserId(moodleUserId: number, options?: QueryOptions) {

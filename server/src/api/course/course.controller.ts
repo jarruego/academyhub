@@ -5,6 +5,7 @@ import { CourseService } from './course.service';
 import { FilterCourseDTO } from 'src/dto/course/filter-course.dto';
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
 import { UpdateUserCourseDTO } from 'src/dto/user-course/update-user-course.dto';
+import { DeleteCourseDTO } from 'src/dto/course/delete-course.dto';
 import { RoleGuard } from 'src/guards/role.guard';
 import { Role } from 'src/guards/role.enum';
 
@@ -66,10 +67,17 @@ export class CourseController {
   }
 
   @UseGuards(RoleGuard([Role.ADMIN]))
-  @Delete(':id')
-  async deleteById(@Param('id') id: string) {
+  @Get(':id/deletion-check')
+  async getDeletionCheck(@Param('id') id: string) {
     const numericId = parseInt(id, 10);
-    return this.courseService.deleteById(numericId);
+    return this.courseService.getDeletionCheck(numericId);
+  }
+
+  @UseGuards(RoleGuard([Role.ADMIN]))
+  @Delete(':id')
+  async deleteById(@Param('id') id: string, @Query() query: DeleteCourseDTO) {
+    const numericId = parseInt(id, 10);
+    return this.courseService.deleteById(numericId, query.deleteEnrollments ?? false);
   }
 
   @UseGuards(RoleGuard([Role.ADMIN]))

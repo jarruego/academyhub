@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
 import { GroupInsertModel, GroupSelectModel, groupTable, GroupUpdateModel } from "src/database/schema/tables/group.table";
 import { courseTable } from "src/database/schema/tables/course.table";
-import { eq, ilike, and } from "drizzle-orm";
+import { eq, ilike, and, count } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
 import { MoodleGroup } from "src/types/moodle/group";
 import { InsertResult } from 'src/database/types/insert-result';
@@ -54,6 +54,15 @@ export class GroupRepository extends Repository {
       .delete(groupTable)
       .where(eq(groupTable.id_group, id));
     return result;
+  }
+
+  /** Nº de grupos de un curso. */
+  async countByCourse(id_course: number, options?: QueryOptions): Promise<number> {
+    const rows = await this.query(options)
+      .select({ value: count() })
+      .from(groupTable)
+      .where(eq(groupTable.id_course, id_course));
+    return Number(rows[0]?.value ?? 0);
   }
 
   async upsertMoodleGroup(moodleGroup: MoodleGroup, id_course: number, options?: QueryOptions) {

@@ -14,6 +14,7 @@ import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { CourseClient } from "../../shared/types/course/course-client.enum";
 import { CourseFunding } from "../../shared/types/course/course-funding.enum";
 import { useDeleteCourseMutation } from "../../hooks/api/courses/use-delete-course.mutation";
+import { useCourseDeletionCheckQuery } from "../../hooks/api/courses/use-course-deletion-check.query";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import z from "zod";
@@ -102,6 +103,8 @@ export default function CourseDetailRoute() {
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const { refetch: refetchUsersByGroup } = useUsersByGroupQuery(selectedGroupId);
   const { mutateAsync: deleteCourse } = useDeleteCourseMutation(id_course || "");
+  // Perezosa: solo se consulta al pulsar "Eliminar Curso" (ver handleDelete).
+  const { refetch: checkCourseDeletion } = useCourseDeletionCheckQuery(id_course || "");
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [userToLookup, setUserToLookup] = useState<number | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -211,25 +214,62 @@ export default function CourseDetailRoute() {
     }
   };
 
+  const runDelete = async (deleteEnrollments: boolean) => {
+    try {
+      await deleteCourse({ deleteEnrollments });
+      navigate('/courses');
+      message.success('Curso borrado exitosamente');
+    } catch (error) {
+      const apiMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      modal.error({
+        title: "Error al eliminar el curso",
+        content: apiMessage || "No se pudo eliminar el curso.",
+      });
+    }
+  };
+
   const handleDelete = async () => {
+    const { data: check } = await checkCourseDeletion();
+    if (!check) {
+      message.error('No se pudo comprobar si el curso se puede eliminar. Inténtalo de nuevo.');
+      return;
+    }
+
+    // Preinscripciones y grupos bloquean el borrado: no se arrastran nunca.
+    if (check.preinscriptions > 0) {
+      modal.error({
+        title: "No se puede eliminar el curso",
+        content: `Tiene ${check.preinscriptions} preinscripción(es) asociada(s). Bórralas primero desde la pestaña Preinscripciones.`,
+      });
+      return;
+    }
+    if (check.groups > 0) {
+      modal.error({
+        title: "No se puede eliminar el curso",
+        content: `Tiene ${check.groups} grupo(s). Bórralos primero.`,
+      });
+      return;
+    }
+
+    if (check.requiresEnrollmentDeletion) {
+      modal.confirm({
+        title: "El curso tiene usuarios matriculados",
+        content: `Hay ${check.enrollments} matrícula(s) asociada(s) a este curso. Se borrarán las matrículas (los usuarios NO se borran) y después el curso. Esta acción no se puede deshacer.`,
+        okText: "Borrar matrículas y eliminar",
+        okType: "danger",
+        cancelText: "Cancelar",
+        onOk: () => runDelete(true),
+      });
+      return;
+    }
+
     modal.confirm({
       title: "¿Seguro que desea eliminar este curso?",
       content: "Esta acción no se puede deshacer.",
       okText: "Eliminar",
       okType: "danger",
       cancelText: "Cancelar",
-      onOk: async () => {
-        try {
-          await deleteCourse();
-          navigate('/courses');
-          message.success('Curso borrado exitosamente');
-        } catch {
-          modal.error({
-            title: "Error al eliminar el curso",
-            content: "No se pudo eliminar el curso. Recuerde que debe de estar vacío.",
-          });
-        }
-      },
+      onOk: () => runDelete(false),
     });
   };
 

@@ -3,15 +3,19 @@ import axios from 'axios';
 import { BackupsService, assertValidBackupKey, mapWorkflowRun } from './backups.service';
 
 describe('assertValidBackupKey', () => {
-  it('acepta una key de copia legítima', () => {
-    expect(() => assertValidBackupKey('db/db-2026-07-15.dump.gpg')).not.toThrow();
-  });
+  it.each(['db/db-2026-07-15.dump.gpg', 'db-monthly/db-2026-08-01.dump.gpg'])(
+    'acepta la key de copia legítima %p',
+    (key) => {
+      expect(() => assertValidBackupKey(key)).not.toThrow();
+    },
+  );
 
   it.each([
-    'storage/foto.jpg', // fuera de la carpeta db/
+    'storage/foto.jpg', // fuera de las carpetas de copias
     'db/../secreto.txt', // path traversal
     'db/db-2026-07-15.dump', // sin cifrar
     'db/sub/dir.dump.gpg', // subdirectorios no permitidos
+    'db-monthlyX/db-2026-08-01.dump.gpg', // prefijo parecido pero no permitido
     '', // vacía
   ])('rechaza la key inválida %p', (key) => {
     expect(() => assertValidBackupKey(key)).toThrow(BadRequestException);

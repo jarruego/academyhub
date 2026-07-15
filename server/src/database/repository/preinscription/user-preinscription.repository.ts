@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { Repository, QueryOptions } from "../repository";
 import { userPreinscriptionTable } from "src/database/schema/tables/user_preinscription.table";
 import { userTable } from "src/database/schema/tables/user.table";
@@ -53,6 +53,15 @@ export class UserPreinscriptionRepository extends Repository {
       .from(userPreinscriptionTable)
       .innerJoin(courseTable, eq(userPreinscriptionTable.id_course, courseTable.id_course))
       .where(eq(userPreinscriptionTable.id_user, id_user));
+  }
+
+  /** Nº de preinscripciones de un curso. */
+  async countByCourse(id_course: number, options?: QueryOptions): Promise<number> {
+    const rows = await this.query(options)
+      .select({ value: count() })
+      .from(userPreinscriptionTable)
+      .where(eq(userPreinscriptionTable.id_course, id_course));
+    return Number(rows[0]?.value ?? 0);
   }
 
   /** Borra todas las preinscripciones de un curso. Devuelve las filas borradas. */

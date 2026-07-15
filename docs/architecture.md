@@ -38,6 +38,16 @@ The authoritative "active" state lives at the **group** level, resolved by `grou
 - Override is editable per group via `active_mode` (`CreateGroupDTO`/`UpdateGroupDTO`).
 - The daily Moodle progress sync acts **only on active groups** → `docs/mail-moodle.md`.
 
+## Course deletion (dependencies)
+Exactly **3 FKs** point at `courses`: `groups.id_course`, `user_course.id_course`, `user_preinscription.id_course`. None cascades, so a plain `DELETE` raises Postgres `23503`. `CourseService.deleteById(id, deleteEnrollments)` pre-checks all three inside the transaction and applies:
+- **`groups` > 0 → blocked** (`ConflictException`, "borra los grupos primero"). Groups are never dragged along.
+- **`user_preinscription` > 0 → blocked**. Delete them first from the course's Preinscripciones tab → `docs/import-inaem.md`.
+- **`user_course` > 0 → warn**: blocked unless `deleteEnrollments=true`, which deletes the `user_course` rows (**enrolments only, never the `users`**) before the course.
+
+`GET /course/:id/deletion-check` (ADMIN) returns `CourseDeletionCheck { groups, enrollments, preinscriptions, canDelete, requiresEnrollmentDeletion }` so the client can pick the right dialog; `DELETE /course/:id?deleteEnrollments=true` (ADMIN, `DeleteCourseDTO`) re-validates server-side — the UI gating is not authoritative. A `23503` catch remains as a safety net for future FKs. Tests: `server/src/api/course/course.service.spec.ts`.
+
+Note `user_course` can legitimately exist **without** a group (Moodle sync, `POST /course/:id/users`), so it is not merely a leftover. Removing a user from a group already deletes their `user_course` when they are in no other group of that course (`GroupService.deleteUserFromGroup` → `isUserEnrolledInOtherGroups`).
+
 ## Database access pattern
 All DB access goes through repositories in `server/src/database/repository/`. Each repository receives the `DATABASE_PROVIDER` injection token and calls `db.select(...)`, `db.insert(...)`, etc. using Drizzle ORM. Schema is defined in `server/src/database/schema/tables/*.table.ts` and re-exported from `server/src/database/schema.ts`.
 
