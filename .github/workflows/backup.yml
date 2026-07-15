@@ -65,6 +65,19 @@ jobs:
           echo "Copias actuales en el destino:"
           rclone ls "DEST:${BACKUP_BUCKET}/db/"
 
+      - name: Copia mensual (día 1) con retención de 12 meses
+        run: |
+          FECHA=$(date -u +%F)
+          if [ "$(date -u +%d)" != "01" ]; then
+            echo "No es día 1 del mes; sin copia mensual."
+            exit 0
+          fi
+          # Esquema abuelo-padre-hijo: la copia del día 1 se conserva 365 días en db-monthly/
+          rclone copyto "db-${FECHA}.dump.gpg" "DEST:${BACKUP_BUCKET}/db-monthly/db-${FECHA}.dump.gpg"
+          rclone delete "DEST:${BACKUP_BUCKET}/db-monthly/" --min-age 365d
+          echo "Copias mensuales actuales:"
+          rclone ls "DEST:${BACKUP_BUCKET}/db-monthly/"
+
       - name: Copiar Supabase Storage (ficheros)
         run: |
           if [ -z "${STORAGE_BUCKET}" ]; then
