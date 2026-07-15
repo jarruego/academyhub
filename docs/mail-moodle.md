@@ -23,6 +23,19 @@ The daily progress sync acts **only on active groups**: `MoodleActiveProgressTas
 
 **Cron = metrics-only, per course.** The cron iterates **per active course** (not per group) calling `refreshActiveCourseProgress(course)`, which only refreshes `completion_percentage`/`time_spent` of **already-linked** users (no new enrolments — those belong to the manual importers / "Traer de Moodle"). Cost: **1 call** `block_advanced_reports_get_usercompletion(courseid)` + **1 call** `get_userstats(courseid, platformdedicationtime)` (only if `itop_training` enabled) per course. Membership and the `moodle_id ↔ id_user` mapping are resolved from the DB via `userGroupRepository.findCourseProgressTargets(courseId, groupIds)`.
 
+## User matching on import (Moodle → local user)
+All three import paths (`upsertMoodleUserAndEnrollToCourse`, `upsertMoodleUserByGroup`, `importMoodleUsers`) resolve the local user through the single helper **`linkOrCreateLocalUserForMoodleUser`**, which also guarantees the `moodle_user` link. Match order:
+
+1. **`moodle_id`** → existing `moodle_user` row. Only `moodle_username` is refreshed.
+2. **DNI** → `userRepository.findByDniAny(variants)`, one indexed query over the variants from `moodleUserDniVariants`: the `dni` customfield **and** the `username` when it validates as DNI/NIE (`utils/dni.util.ts`). Both raw and normalized (upper/lower, no separators), because `users.dni` is stored uppercase/compact while Moodle returns lowercase. **This is not a heuristic**: `createLocalUsersInMoodle` creates Moodle users with `username = normalizeDni(user.dni)`, so the username *is* the DNI for anyone the app pushed up.
+3. **Create** a new local user. Its `dni` is filled **only** when the `username` is a valid document (normalized) — the DNI can't collide with the `users.dni` unique index because that exact value was just searched in step 2 without a hit (a unique violation would abort the whole course transaction).
+
+**Email is deliberately not a matching key** — `users.email` is explicitly non-unique (students commonly share a company address), so matching on it would merge distinct people.
+
+Personal data (`name`/`first_surname`/`email`) of an **existing** user is never overwritten from Moodle; only `importMoodleUsers` (the "traer usuarios" endpoint) refreshes it, and only for users matched by `moodle_id`.
+
+**Center is optional on Moodle imports.** `group.service.addUserToGroup` requires a center for the `student` role, but users arriving from Moodle need not have one (not every course is FUNDAE-funded). `upsertMoodleUserByGroup` resolves the center best-effort via `ensureMainCenterForUserFromAny` (promotes any existing `user_center` to main) and passes `allowWithoutCenter: true`, so a user with no center gets `user_group.id_center = NULL` instead of being dropped from the import along with their progress. Same pattern as `inaem-import.service.ts` and `user.service.ts`.
+
 ## Moodle call-efficiency model (imports & sync)
 - **Token/URL resolution is cached** in-memory (60s TTL) inside `MoodleService` (`resolveMoodleToken`/`resolveMoodleUrl`) so the per-request resolution no longer hits `organization_settings` on every HTTP call.
 - **Bulk stats via the itop plugin** (`block_advanced_reports`), all returning `{ values: [ { userid, value } ] }` — parsed by the shared `extractAdvancedReportsRows`/`buildUserValueMap` helpers:

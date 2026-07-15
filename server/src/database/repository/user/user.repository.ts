@@ -25,6 +25,20 @@ export class UserRepository extends Repository {
     return rows?.[0] || null;
   }
 
+  /**
+   * Buscar usuario por cualquiera de las variantes de un DNI. `dni` es unique y
+   * se guarda normalizado (mayúsculas, sin separadores), pero las fuentes
+   * externas lo mandan con otro formato (Moodle usa el DNI en minúsculas como
+   * username), así que el llamante pasa las variantes a probar y aquí se
+   * resuelven en una sola consulta que sigue usando el índice.
+   */
+  async findByDniAny(dnis: string[], options?: QueryOptions) {
+    const values = [...new Set(dnis.map(d => String(d ?? '').trim()).filter(d => d.length > 0))];
+    if (values.length === 0) return null;
+    const rows = await this.query(options).select().from(userTable).where(inArray(userTable.dni, values)).limit(1);
+    return rows?.[0] || null;
+  }
+
   async findById(id: number, options?: QueryOptions) {
     const rows = await this.query(options).select().from(userTable).where(eq(userTable.id_user, id));
     return rows?.[0];

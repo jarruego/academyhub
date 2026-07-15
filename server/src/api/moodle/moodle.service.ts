@@ -27,6 +27,7 @@ import { UserInsertModel, UserUpdateModel, UserSelectModel } from 'src/database/
 import { MoodleUserInsertModel, MoodleUserSelectModel } from 'src/database/schema/tables/moodle_user.table';
 import { UserGroupSelectModel, UserGroupUpdateModel } from 'src/database/schema/tables/user_group.table';
 import { generatePassword } from 'src/utils/generate-password';
+import { isValidDocument } from 'src/utils/dni.util';
 import dayjs from '../../common/utils/dayjs-tz';
 import { userCenterTable } from 'src/database/schema/tables/user_center.table';
 import { centers } from 'src/database/schema';
@@ -1705,6 +1706,98 @@ export class MoodleService {
     /**
      * HELPER: Crear/actualizar usuario de Moodle e inscribirlo en curso
      */
+    /**
+     * Variantes de DNI con las que buscar el usuario local de un usuario de Moodle:
+     * el customfield `dni` y, si valida como DNI/NIE, el propio `username` (la app
+     * crea los usuarios en Moodle usando el DNI normalizado como username, ver
+     * `createLocalUsersInMoodle`). Se prueban en crudo y normalizadas porque en la
+     * BD el DNI se guarda en mayúsculas y sin separadores, mientras que Moodle lo
+     * devuelve en minúsculas.
+     */
+    private moodleUserDniVariants(moodleUser: MoodleUser): string[] {
+        const variants: string[] = [];
+        const push = (raw: unknown) => {
+            const trimmed = String(raw ?? '').trim();
+            if (!trimmed) return;
+            const compact = trimmed.replace(/[^a-zA-Z0-9]/g, '');
+            variants.push(trimmed, compact.toUpperCase(), compact.toLowerCase());
+        };
+
+        const dniField = moodleUser.customfields?.find(f => (f.shortname && f.shortname.toLowerCase() === 'dni') || (f.name && f.name.toLowerCase() === 'dni'));
+        if (dniField?.value) push(dniField.value);
+        if (isValidDocument(moodleUser.username)) push(moodleUser.username);
+
+        return [...new Set(variants.filter(v => v.length > 0))];
+    }
+
+    /**
+     * DNI a guardar en un usuario local recién creado desde Moodle: solo cuando el
+     * `username` es un documento válido, normalizado como se guarda en la BD.
+     */
+    private moodleUserDniToStore(moodleUser: MoodleUser): string | null {
+        const compact = String(moodleUser.username ?? '').trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        return isValidDocument(compact) ? compact : null;
+    }
+
+    /**
+     * Resuelve el usuario local de un usuario de Moodle y garantiza el vínculo en
+     * `moodle_user`, creando el usuario local solo si no existe. Emparejamiento:
+     * `moodle_id` → DNI (customfield o username, ver `moodleUserDniVariants`) →
+     * alta nueva. Nunca sobreescribe los datos personales de un usuario existente.
+     */
+    private async linkOrCreateLocalUserForMoodleUser(
+        moodleUser: MoodleUser,
+        transaction: Transaction,
+    ): Promise<{ userId: number; moodleUserId: number; matchedBy: 'moodle_id' | 'dni' | 'created' }> {
+        const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+        if (existingMoodleUser) {
+            // El username sí se actualiza: es un dato propio de Moodle.
+            await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
+                moodle_username: moodleUser.username,
+            }, { transaction });
+            return {
+                userId: existingMoodleUser.id_user,
+                moodleUserId: existingMoodleUser.id_moodle_user,
+                matchedBy: 'moodle_id',
+            };
+        }
+
+        const dniVariants = this.moodleUserDniVariants(moodleUser);
+        const foundUserByDni = dniVariants.length > 0
+            ? await this.userRepository.findByDniAny(dniVariants, { transaction })
+            : null;
+
+        let userId: number;
+        let matchedBy: 'dni' | 'created';
+
+        if (foundUserByDni) {
+            userId = foundUserByDni.id_user;
+            matchedBy = 'dni';
+        } else {
+            // Alta nueva. Guardamos el DNI solo si el username es un documento
+            // válido; su forma normalizada está entre las variantes que se acaban
+            // de buscar sin resultado, así que no puede chocar con el unique de
+            // `users.dni` (una violación abortaría toda la transacción del curso).
+            const dni = this.moodleUserDniToStore(moodleUser);
+            const userResult = await this.userRepository.create({
+                name: moodleUser.firstname,
+                first_surname: moodleUser.lastname,
+                email: moodleUser.email,
+                ...(dni ? { dni } : {}),
+            } as UserInsertModel, { transaction });
+            userId = Number(resolveInsertId(userResult as unknown));
+            matchedBy = 'created';
+        }
+
+        const moodleUserResult = await this.moodleUserService.create({
+            id_user: userId,
+            moodle_id: moodleUser.id,
+            moodle_username: moodleUser.username,
+        }, { transaction });
+
+        return { userId, moodleUserId: Number(resolveInsertId(moodleUserResult as unknown)), matchedBy };
+    }
+
     private async upsertMoodleUserAndEnrollToCourse(
         moodleUser: MoodleUser,
         courseId: number,
@@ -1712,87 +1805,8 @@ export class MoodleService {
         completionPercentage?: number | null
     ) {
         const run = async (transaction: Transaction) => {
-            let userId: number;
-            let moodleUserId: number;
             try {
-                // Buscar si ya existe un usuario de Moodle con este moodle_id
-                let existingMoodleUser = null;
-                try {
-                    existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
-                    // Logger.log({ existingMoodleUser }, 'findByMoodleId OK');
-                } catch (err) {
-                    Logger.error({ err, moodleUser }, 'findByMoodleId ERROR');
-                    throw err;
-                }
-
-                if (existingMoodleUser) {
-                    // Solo actualizar el username de Moodle
-                    userId = existingMoodleUser.id_user;
-                    moodleUserId = existingMoodleUser.id_moodle_user;
-                    try {
-                        await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
-                            moodle_username: moodleUser.username,
-                        }, { transaction });
-                        // Logger.log({ userId, moodleUserId }, 'update MoodleUser OK');
-                    } catch (err) {
-                        Logger.error({ err, userId, moodleUser }, 'update MoodleUser ERROR');
-                        throw err;
-                    }
-                } else {
-                    // Intentar buscar usuario por DNI en customfields de Moodle
-                    let foundUserByDni = null;
-                    const dniField = moodleUser.customfields?.find(f => (f.shortname && f.shortname.toLowerCase() === 'dni') || (f.name && f.name.toLowerCase() === 'dni'));
-                    if (dniField && dniField.value) {
-                        try {
-                            foundUserByDni = await this.userRepository.findByDni(dniField.value, { transaction });
-                            // Logger.log({ foundUserByDni }, 'findByDni OK');
-                        } catch (err) {
-                            Logger.error({ err, dniField, moodleUser }, 'findByDni ERROR');
-                            throw err;
-                        }
-                    }
-                    if (foundUserByDni) {
-                        // Asociar usuario de Moodle al usuario existente por DNI
-                        userId = foundUserByDni.id_user;
-                        try {
-                            const moodleUserResult = await this.moodleUserService.create({
-                                id_user: userId,
-                                moodle_id: moodleUser.id,
-                                moodle_username: moodleUser.username,
-                            }, { transaction });
-                            moodleUserId = Number(resolveInsertId(moodleUserResult as unknown));
-                            // Logger.log({ userId, moodleUserId }, 'create MoodleUser by DNI OK');
-                        } catch (err) {
-                            Logger.error({ err, userId, moodleUser }, 'create MoodleUser by DNI ERROR');
-                            throw err;
-                        }
-                    } else {
-                        // No existe usuario Moodle ni local por DNI: crear usuario local y registro Moodle
-                        try {
-                        const userResult = await this.userRepository.create({
-                                name: moodleUser.firstname,
-                                first_surname: moodleUser.lastname,
-                                email: moodleUser.email,
-                            } as UserInsertModel, { transaction });
-                            userId = Number(resolveInsertId(userResult as unknown));
-                        } catch (err) {
-                            Logger.error({ err, moodleUser }, 'create User ERROR');
-                            throw err;
-                        }
-
-                        try {
-                            const moodleUserResult = await this.moodleUserService.create({
-                                id_user: userId,
-                                moodle_id: moodleUser.id,
-                                moodle_username: moodleUser.username,
-                            }, { transaction });
-                            moodleUserId = Number(resolveInsertId(moodleUserResult as unknown));
-                        } catch (err) {
-                            Logger.error({ err, userId, moodleUser }, 'create MoodleUser for new user ERROR');
-                            throw err;
-                        }
-                    }
-                }
+                const { userId, moodleUserId } = await this.linkOrCreateLocalUserForMoodleUser(moodleUser, transaction);
 
                 // Crear/actualizar inscripción al curso
                 const completionStr = completionPercentage !== null && completionPercentage !== undefined
@@ -3025,70 +3039,17 @@ export class MoodleService {
             const moodleUsers = await this.getAllUsers();
 
             for (const moodleUser of moodleUsers) {
-                // Buscar si ya existe un usuario de Moodle con este moodle_id
-                const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
+                const { userId, matchedBy } = await this.linkOrCreateLocalUserForMoodleUser(moodleUser, transaction);
 
-                let userId: number;
-
-                if (existingMoodleUser) {
-                    // Si existe el usuario de Moodle, actualizamos el usuario principal y el usuario de Moodle
-                    userId = existingMoodleUser.id_user;
-
-                    // Actualizar usuario principal
+                // A diferencia del resto de importadores, este endpoint sí refresca los
+                // datos personales desde Moodle, pero solo de los usuarios ya vinculados
+                // por `moodle_id` (los emparejados por DNI conservan sus datos locales).
+                if (matchedBy === 'moodle_id') {
                     await this.userRepository.update(userId, {
                         name: moodleUser.firstname,
                         first_surname: moodleUser.lastname,
                         email: moodleUser.email,
                     } as UserUpdateModel, { transaction });
-
-                    // Actualizar usuario de Moodle
-                    await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
-                        moodle_username: moodleUser.username,
-                    }, { transaction });
-
-                } else {
-                    // Si no existe, intentar buscar por DNI en los customfields de Moodle
-                    let foundUserByDni = null;
-                    const dniField = moodleUser.customfields?.find(f => (f.shortname && f.shortname.toLowerCase() === 'dni') || (f.name && f.name.toLowerCase() === 'dni'));
-                    if (dniField && dniField.value) {
-                        try {
-                            foundUserByDni = await this.userRepository.findByDni(dniField.value, { transaction });
-                        } catch (err) {
-                            Logger.error({ err, dniField, moodleUser }, 'findByDni ERROR');
-                            throw err;
-                        }
-                    }
-
-                    if (foundUserByDni) {
-                        // Asociar el usuario Moodle al usuario local existente por DNI
-                        userId = foundUserByDni.id_user;
-                        try {
-                            await this.moodleUserService.create({
-                                id_user: userId,
-                                moodle_id: moodleUser.id,
-                                moodle_username: moodleUser.username,
-                            }, { transaction });
-                        } catch (err) {
-                            Logger.error({ err, userId, moodleUser }, 'create MoodleUser by DNI ERROR');
-                            throw err;
-                        }
-                    } else {
-                        // Crear nuevo usuario principal
-                                                const userResult = await this.userRepository.create({
-                            name: moodleUser.firstname,
-                            first_surname: moodleUser.lastname,
-                            email: moodleUser.email,
-                        } as UserInsertModel, { transaction });
-
-                                                userId = Number(resolveInsertId(userResult as unknown));
-
-                        // Crear usuario de Moodle asociado
-                        await this.moodleUserService.create({
-                            id_user: userId,
-                            moodle_id: moodleUser.id,
-                            moodle_username: moodleUser.username,
-                        }, { transaction });
-                    }
                 }
             }
 
@@ -3098,64 +3059,10 @@ export class MoodleService {
 
     async upsertMoodleUserByGroup(moodleUser: MoodleUser, id_group: number, options?: QueryOptions) {
         const run = async (transaction: Transaction) => {
-            // Buscar si ya existe un usuario de Moodle con este moodle_id
-            const existingMoodleUser = await this.moodleUserService.findByMoodleId(moodleUser.id, { transaction });
-
-            let userId: number;
-
-            if (existingMoodleUser) {
-                // Si existe el usuario de Moodle, NO sobreescribimos los datos personales locales
-                // (name, first_surname, email) con los valores desde Moodle. De acuerdo a la
-                // nueva regla, cuando el usuario ya existe en la BD solo se deben actualizar
-                // los campos relacionados con rol (user_group.id_role) y porcentaje
-                // (user_course.completion_percentage). El username de Moodle sí se actualiza
-                // porque es específico de Moodle.
-                userId = existingMoodleUser.id_user;
-
-                // Actualizar usuario de Moodle (solo username)
-                await this.moodleUserService.update(existingMoodleUser.id_moodle_user, {
-                    moodle_username: moodleUser.username,
-                }, { transaction });
-
-            } else {
-                // Intentar buscar por DNI en customfields antes de crear usuario nuevo
-                let foundUserByDni = null;
-                const dniField = moodleUser.customfields?.find(f => (f.shortname && f.shortname.toLowerCase() === 'dni') || (f.name && f.name.toLowerCase() === 'dni'));
-                if (dniField && dniField.value) {
-                    try {
-                        foundUserByDni = await this.userRepository.findByDni(dniField.value, { transaction });
-                    } catch (err) {
-                        Logger.error({ err, dniField, moodleUser }, 'findByDni ERROR');
-                        throw err;
-                    }
-                }
-
-                if (foundUserByDni) {
-                    // Asociar usuario de Moodle al usuario local existente por DNI
-                    userId = foundUserByDni.id_user;
-                    await this.moodleUserService.create({
-                        id_user: userId,
-                        moodle_id: moodleUser.id,
-                        moodle_username: moodleUser.username,
-                    }, { transaction });
-                } else {
-                    // Crear nuevo usuario principal
-                                                const userResult = await this.userRepository.create({
-                        name: moodleUser.firstname,
-                        first_surname: moodleUser.lastname,
-                        email: moodleUser.email,
-                    } as UserInsertModel, { transaction });
-
-                                        userId = Number(resolveInsertId(userResult as unknown));
-
-                    // Crear usuario de Moodle asociado
-                    await this.moodleUserService.create({
-                        id_user: userId,
-                        moodle_id: moodleUser.id,
-                        moodle_username: moodleUser.username,
-                    }, { transaction });
-                }
-            }
+            // NO se sobreescriben los datos personales locales (name, first_surname,
+            // email) con los de Moodle: de un usuario ya existente solo se actualizan
+            // el rol (user_group.id_role) y el porcentaje (user_course.completion_percentage).
+            const { userId } = await this.linkOrCreateLocalUserForMoodleUser(moodleUser, transaction);
 
             // Verificar si el usuario ya está en el grupo
             const userGroupRows = await this.userGroupRepository.findUserInGroup(userId, id_group, { transaction });
@@ -3181,23 +3088,19 @@ export class MoodleService {
             }
 
             if (userGroupRows.length <= 0) {
-                // No existía: crear la asociación incluyendo el id_role resuelto (o el por defecto que gestione el repositorio)
-                try {
-                    await this.groupService.addUserToGroup({ id_group, id_user: userId, id_role: roleIdToAssign }, { transaction });
-                } catch (err: unknown) {
-                    const errMsg = err instanceof Error ? err.message : String(err);
-                    const isMissingCenter = typeof errMsg === 'string' && errMsg.includes('no tiene centro asignado');
-
-                    if (!isMissingCenter) throw err;
-
-                    const fallbackCenterId = await this.ensureMainCenterForUserFromAny(userId, transaction);
-                    if (!fallbackCenterId) {
-                        throw err;
-                    }
-
-                    this.logger.warn({ userId, id_group, fallbackCenterId }, 'MoodleService:upsertMoodleUserByGroup - auto-selected main_center fallback');
-                    await this.groupService.addUserToGroup({ id_group, id_user: userId, id_role: roleIdToAssign, id_center: fallbackCenterId }, { transaction });
-                }
+                // No existía: crear la asociación con el id_role resuelto.
+                // El centro es opcional aquí: un usuario que llega de Moodle no tiene por
+                // qué tenerlo (no todos los cursos son bonificados). Se intenta resolver
+                // y, si no hay ninguno, la matrícula se crea con id_center NULL en vez de
+                // descartar al usuario y perder su progreso.
+                const centerId = await this.ensureMainCenterForUserFromAny(userId, transaction);
+                await this.groupService.addUserToGroup({
+                    id_group,
+                    id_user: userId,
+                    id_role: roleIdToAssign,
+                    id_center: centerId ?? undefined,
+                    allowWithoutCenter: true,
+                }, { transaction });
             } else {
                 // Ya existe la fila user_group: sincronizar el rol con Moodle
                 // Siempre se actualiza el rol, incluso si es NULL/undefined (usuario no tiene rol en Moodle)
