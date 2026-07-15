@@ -55,11 +55,13 @@ export function ProvisionalTag({ style }: { style?: React.CSSProperties }) {
 /**
  * Tag de finalización de un alumno en un curso/grupo (presencial / INAEM).
  * Etiqueta y color unificados: verde "Finalizado" / rojo "No finalizado".
+ * `suffix` añade un detalle dentro del tag (p. ej. el % de progreso en online).
  */
-export function FinalizedTag({ finalized }: { finalized: boolean }) {
+export function FinalizedTag({ finalized, suffix }: { finalized: boolean; suffix?: string | null }) {
   return (
     <Tag color={finalized ? STATUS_COLORS.active : STATUS_COLORS.inactive}>
       {finalized ? "Finalizado" : "No finalizado"}
+      {suffix ? ` (${suffix})` : ""}
     </Tag>
   );
 }

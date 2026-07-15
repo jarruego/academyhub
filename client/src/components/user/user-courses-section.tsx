@@ -7,6 +7,7 @@ import { useUserCoursesQuery } from '../../hooks/api/users/use-user-courses.quer
 import { useUserQuery } from '../../hooks/api/users/use-user.query';
 import { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
 import { CourseClient } from '../../shared/types/course/course-client.enum';
+import { CourseModality } from '../../shared/types/course/course-modality.enum';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
 import { useMoodleUsersByUserIdQuery } from '../../hooks/api/moodle-users/use-moodle-users-by-user-id.query';
 import * as XLSX from 'xlsx';
@@ -26,6 +27,16 @@ const isCourseFinalized = (record: UserCourseWithCourse): boolean => {
   }
   const pct = Number(record.completion_percentage ?? 0);
   return !isNaN(pct) && pct >= 75;
+};
+
+// Porcentaje de progreso, solo en cursos online (en el resto de modalidades no
+// hay seguimiento en Moodle y el dato no es significativo). Null si no aplica.
+const formatOnlineProgress = (record: UserCourseWithCourse): string | null => {
+  if (record.course?.modality !== CourseModality.ONLINE) return null;
+  const raw = record.completion_percentage;
+  if (!raw) return null;
+  const pct = parseFloat(raw);
+  return isNaN(pct) ? null : `${pct.toFixed(1)}%`;
 };
 
 export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }) => {
@@ -97,19 +108,12 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
     },
     {
       title: 'Progreso',
-      dataIndex: 'completion_percentage',
-      key: 'completion_percentage',
-      render: (percentage: string | null) => {
-        if (!percentage) return '-';
-        const value = parseFloat(percentage);
-        return `${value.toFixed(1)}%`;
-      },
-    },
-    {
-      title: 'Finalizado',
-      key: 'finalized',
+      key: 'progress',
       render: (_value, record: UserCourseWithCourse) => (
-        <FinalizedTag finalized={isCourseFinalized(record)} />
+        <FinalizedTag
+          finalized={isCourseFinalized(record)}
+          suffix={formatOnlineProgress(record)}
+        />
       ),
     },
     {
