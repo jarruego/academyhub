@@ -30,6 +30,7 @@ import EmailLogRoute from './routes/tools/email-log.route';
 import ForumDuplicatorRoute from './routes/tools/forum-duplicator.route';
 import MergeDuplicatesRoute from './routes/tools/merge-duplicates.route';
 import UserSanitizationRoute from './routes/tools/user-sanitization.route';
+import BackupsRoute from './routes/tools/backups.route';
 import UserManagementRoute from './routes/auth-users/auth-user-management.route';
 import ReportsRoute from './routes/reports/reports.route';
 import OrganizationSettingsPage from './routes/organization/OrganizationSettingsPage';
@@ -180,6 +181,7 @@ export default function AppRouter() {
               <Route path="/tools/audit-log" element={<AuditLogRoute />} />
               <Route path="/tools/email-log" element={<EmailLogRoute />} />
               <Route path="/tools/forum-duplicator" element={<ForumDuplicatorRoute />} />
+              <Route path="/tools/backups" element={<BackupsRoute />} />
               <Route path="/organization/smtp" element={<SmtpSettingsPage />} />
             </Routes>
           </Content>

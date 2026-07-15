@@ -36,6 +36,32 @@ Ficheros de Storage: `rclone sync` en sentido inverso (de la copia al bucket de 
 
 **Prueba de restauración**: al menos una vez tras la puesta en marcha (e idealmente cada pocos meses), restaurar un dump en local y arrancar la app contra él. Un backup nunca restaurado no está verificado.
 
+## Panel de administración (`api/backups`)
+
+Pantalla Administración → Herramientas → "Copias de seguridad" (`/tools/backups`, solo ADMIN). Módulo `server/src/api/backups/` (sin BD propia): `GET status` (últimas 10 ejecuciones del workflow vía API de GitHub), `GET list` (ficheros `db/*.dump.gpg` del bucket vía S3 `ListObjectsV2`), `POST run` ("Hacer copia ahora" → `workflow_dispatch` sobre `main`) y `POST download-url` (URL prefirmada de 10 min con `Content-Disposition: attachment`; el fichero baja cifrado — la passphrase nunca pasa por la app). Los POST quedan en `audit_log` vía el interceptor global. La key de descarga se valida contra `^db/[A-Za-z0-9._-]+\.dump\.gpg$` (sin path traversal ni otros prefijos).
+
+Config por env (todo opcional; el panel muestra alertas de "no configurado" si faltan): `GITHUB_BACKUP_TOKEN` (PAT fine-grained, permiso Actions read+write sobre el repo), `GITHUB_BACKUP_REPO` (default `jarruego/academyhub`) y `BACKUP_S3_*` — **crear en B2 una application key de SOLO LECTURA** para esto, distinta de la de escritura que usan los GitHub Actions (`BACKUP_S3_REGION` es opcional: se deriva del endpoint). Cliente: hooks en `client/src/hooks/api/backups/`, componente `components/tools/BackupsPanel.tsx` (el estado se auto-refresca cada 10 s mientras haya una ejecución en curso). Dependencias servidor: `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`.
+
+**No hay restauración desde el panel, a propósito**: restaurar producción desde una web es un riesgo inaceptable (sesión admin comprometida = datos machacados) y el servidor no puede restaurarse a sí mismo. La restauración es siempre el procedimiento manual de arriba.
+
+## Copia local de desarrollo
+
+Desde 2026-07-15 el desarrollo local usa una restauración del backup en Docker en vez de conectar a producción: contenedor `academyhub-db` (postgres:17, puerto **5433**, volumen `academyhub-pgdata`, `--restart unless-stopped`), BD `academyhub`, usuario `postgres` / contraseña `academyhub`. `server/.env` apunta a `postgresql://postgres:academyhub@127.0.0.1:5433/academyhub`; la URL de producción queda comentada al lado. Requiere Docker Desktop abierto. Ojo: `MOODLE_URL` sigue siendo el Moodle real. La prueba de restauración se validó ese día (dump 2026-07-15: 45.698 users, 305 courses, 821 groups). Al restaurar en postgres vanilla, los 3 errores sobre `supabase_vault` son esperables e inofensivos.
+
+**Refrescar la copia local con datos recientes de producción:**
+```powershell
+# 1. Descargar el último db-*.dump.gpg de Backblaze a Descargas (la web lo renombra a db_db-....dump.gpg)
+# 2. Descifrar (pide la BACKUP_PASSPHRASE):
+& "C:\Program Files\Git\usr\bin\gpg.exe" -o db-restore.dump -d db_db-AAAA-MM-DD.dump.gpg
+# 3. Recrear la BD local y restaurar:
+docker exec academyhub-db psql -U postgres -d postgres -c "DROP DATABASE academyhub WITH (FORCE);"
+docker exec academyhub-db psql -U postgres -d postgres -c "CREATE DATABASE academyhub;"
+docker cp db-restore.dump academyhub-db:/tmp/db-restore.dump
+docker exec academyhub-db pg_restore --no-owner --no-privileges -U postgres -d academyhub /tmp/db-restore.dump
+docker exec academyhub-db rm /tmp/db-restore.dump
+# 4. Borrar db-restore.dump y el .gpg de Descargas (datos personales)
+```
+
 ## Decisiones de diseño
 
 - **Fuera de la app**: el backup no depende de que Render esté vivo ni carga su CPU; sobrevive a un fallo o compromiso de la app.

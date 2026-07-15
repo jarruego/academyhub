@@ -78,6 +78,8 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 | `APP_MASTER_KEY` | Yes | Base64 AES-256 key for encrypting secrets at rest. Generate with `openssl rand -base64 32`. |
 | `SFTP_SAGE_*` | No | SFTP credentials for SAGE import |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` | No | Supabase Storage for mail template images |
+| `GITHUB_BACKUP_TOKEN` / `GITHUB_BACKUP_REPO` | No | GitHub PAT (Actions read+write) + repo for the backups admin panel (`api/backups`) |
+| `BACKUP_S3_*` (`ENDPOINT`/`REGION`/`ACCESS_KEY_ID`/`SECRET_KEY`/`BUCKET`) | No | Read-only S3 credentials of the backup bucket for the panel (list + presigned downloads) |
 
 ### Client (`client/.env`)
 | Variable | Description |
@@ -98,7 +100,7 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 | `docs/user-merge.md` | **touching `api/user-merge/`** (Fusión de duplicados). Covers NSS-normalized duplicate detection, the transactional merge primitive (FK/PK-collision handling across the 6 child tables, main-center recalc, dual-Moodle), field-by-field reconciliation whitelist, and the admin tool. Audit via `audit_log` (IDs in the route), no dedicated log table. |
 | `docs/user-sanitization.md` | **touching `api/user-sanitization/`** (Sanitización de datos). Covers the "present-but-invalid" detection of phone/email/dni/nss reusing the existing validators (`email/phone/nss/dni .util`), the pure `detectUserIssues`/`suggestFix` helpers, server-authoritative auto-fix endpoint, unique-collision handling, and the admin tool. |
 | `docs/reports.md` | touching `api/reports/` (PDF templating, report rows). |
-| `docs/backups.md` | touching `.github/workflows/backup.yml` or anything about copias de seguridad (nightly pg_dump + Storage mirror to external S3 via GitHub Actions; secrets list, restore procedure). |
+| `docs/backups.md` | **touching `api/backups/`** (admin panel: status/list/run/download), `.github/workflows/backup.yml`, or anything about copias de seguridad (nightly pg_dump + Storage mirror to external S3 via GitHub Actions; secrets list, restore procedure, local dev copy). |
 | `docs/client.md` | frontend work under `client/` (API hooks, auth flow, routing, responsive conventions, type sharing, tests). |
 
 Memory note `project_sage_import_field_update` tracks a pending SAGE field-sync policy decision.

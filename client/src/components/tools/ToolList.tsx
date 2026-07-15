@@ -1,5 +1,5 @@
 import { Button, Card, List, Typography } from "antd";
-import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined, SafetyCertificateOutlined, MailOutlined, CommentOutlined, SettingOutlined, MergeCellsOutlined, MedicineBoxOutlined } from "@ant-design/icons";
+import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined, SafetyCertificateOutlined, MailOutlined, CommentOutlined, SettingOutlined, MergeCellsOutlined, MedicineBoxOutlined, CloudDownloadOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
@@ -110,6 +110,13 @@ export const toolCategories: ToolCategory[] = [
         description: "Detecta usuarios duplicados por NSS (caso NIE↔DNI) y fúsionalos en una sola ficha.",
         icon: <MergeCellsOutlined style={{ fontSize: 20 }} />,
         linkTo: "/tools/merge-duplicates",
+      },
+      {
+        key: "backups",
+        label: "Copias de seguridad",
+        description: "Consulta el estado de la copia nocturna, lanza una copia manual o descarga una copia cifrada.",
+        icon: <CloudDownloadOutlined style={{ fontSize: 20 }} />,
+        linkTo: "/tools/backups",
       },
       {
         key: "data-sanitization",
