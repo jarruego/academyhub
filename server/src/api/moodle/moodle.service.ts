@@ -1157,6 +1157,19 @@ export class MoodleService {
             }
         });
 
+        // Moodle puede devolver 200 con un cuerpo inesperado (HTML de login/mantenimiento,
+        // un proxy delante, null...) que no es ni el JSON esperado ni un {exception}.
+        // Validar la forma antes de usarla y dejar en el log qué llegó realmente.
+        if (!basicData || !Array.isArray(basicData.users)) {
+            const snippet = typeof basicData === 'string'
+                ? (basicData as string).slice(0, 300)
+                : JSON.stringify(basicData)?.slice(0, 300);
+            Logger.error({ responseSnippet: snippet }, 'MoodleService:getAllUsers - respuesta inesperada de core_user_get_users');
+            throw new InternalServerErrorException(
+                'Moodle devolvió una respuesta inesperada a core_user_get_users (revisa MOODLE_URL/token y el log del servidor)',
+            );
+        }
+
         const userIds = basicData.users.map(user => user.id);
 
         // Ahora obtener usuarios detallados con customfields usando core_user_get_users_by_field
