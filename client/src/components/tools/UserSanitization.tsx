@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Alert, App, Button, Empty, Input, Modal, Popconfirm, Select, Space, Spin, Switch, Table, Tag, Typography } from "antd";
 import { ArrowRightOutlined, ExportOutlined, SaveOutlined, ThunderboltOutlined, ToolOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+import { PageHeader } from "../common/PageHeader";
 import {
   AutoFixableField,
   SanitizableField,
@@ -285,16 +286,14 @@ const UserSanitization: React.FC = () => {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-      <Alert
-        type="info"
-        showIcon
-        message="Sanitización de datos de usuarios"
-        description={
-          <span>
+      <PageHeader
+        title="Sanitización de datos"
+        subtitle={
+          <>
             Usuarios con un valor <b>presente pero inválido</b> en teléfono, email, DNI/NIE o NSS.
             Haz clic en una etiqueta de error: <Tag>✎</Tag> permite corregirlo automáticamente y
             {" "}<Tag>⚠</Tag> requiere edición manual (abre la ficha en otra pestaña).
-          </span>
+          </>
         }
       />
 

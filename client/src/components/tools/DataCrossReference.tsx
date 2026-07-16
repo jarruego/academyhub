@@ -16,9 +16,8 @@ import {
   App,
   Input
 } from "antd";
-import { 
-  DatabaseOutlined, 
-  LinkOutlined, 
+import {
+  LinkOutlined,
   CheckOutlined, 
   EditOutlined, 
   CloseOutlined,
@@ -35,6 +34,7 @@ import { useUnlinkUsersMutation } from "../../hooks/api/users/tools/use-unlink-u
 import { STATUS_COLORS } from "../../theme/semantic-colors";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { PageHeader } from '../common/PageHeader';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -513,18 +513,14 @@ const DataCrossReference = () => {
 
   return (
     <AuthzHide roles={[Role.ADMIN]}>
-      <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
-      <Card>
-        <Space direction="vertical" size="large" style={{ width: "100%" }}>
-          <div style={{ textAlign: "center" }}>
-            <DatabaseOutlined style={{ fontSize: "48px", color: "#1890ff", marginBottom: "16px" }} />
-            <Title level={2}>Cruce de Datos BD - Moodle</Title>
-            <Paragraph type="secondary">
-              Herramienta para cruzar y comparar datos de usuarios entre la base de datos local y la plataforma Moodle.
-            </Paragraph>
-            <Space>
-              <Button 
-                icon={<SyncOutlined />} 
+      <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
+      <PageHeader
+        title="Cruce de Datos BD - Moodle"
+        subtitle="Herramienta para cruzar y comparar datos de usuarios entre la base de datos local y la plataforma Moodle."
+        extra={
+          <>
+              <Button
+                icon={<SyncOutlined />}
                 onClick={() => refetch()}
                 loading={isLoading || isFetching}
               >
@@ -574,9 +570,11 @@ const DataCrossReference = () => {
               >
                 Sincronizar desde Moodle
               </Button>
-            </Space>
-          </div>
-          
+          </>
+        }
+      />
+      <Card>
+        <Space direction="vertical" size="large" style={{ width: "100%" }}>
           {(isLoading || isFetching) ? (
             <div style={{ textAlign: "center", padding: "40px" }}>
               <Spin size="large" />

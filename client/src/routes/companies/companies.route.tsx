@@ -2,10 +2,11 @@ import { Button, Input } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { PlusOutlined } from "@ant-design/icons";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { DataTable } from "../../components/common/DataTable";
+import { ListPageLayout } from "../../components/common/ListPageLayout";
 import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
 
 export default function CompaniesRoute() {
@@ -13,17 +14,13 @@ export default function CompaniesRoute() {
   const navigate = useNavigate();
   const [searchText, setSearchText] = useState("");
 
-  useEffect(() => {
-    document.title = "Empresas";
-  }, []);
-
   const normalizedSearch = normalizeLoose(searchText);
   const filteredCompanies = companiesData?.filter((company) =>
     matchesLoose(normalizedSearch, [company.company_name, company.corporate_name, company.cif])
   );
 
-  return <div>
-    <div className="list-controls">
+  const toolbar = (
+    <>
       <Input.Search
         id="companies-search"
         placeholder="Buscar por nombre, razón social o CIF"
@@ -35,7 +32,10 @@ export default function CompaniesRoute() {
       <AuthzHide roles={[Role.ADMIN]}>
         <Button type="primary" onClick={() => navigate('/add-company')} icon={<PlusOutlined />}>Añadir Empresa</Button>
       </AuthzHide>
-    </div>
+    </>
+  );
+
+  return <ListPageLayout title="Empresas" toolbar={toolbar}>
     <DataTable
       rowKey="id_company"
       columns={[
@@ -92,5 +92,5 @@ export default function CompaniesRoute() {
       loading={isCompaniesLoading}
       getRowUrl={(record) => `/companies/${record.id_company}`}
     />
-  </div>
+  </ListPageLayout>
 }

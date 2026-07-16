@@ -1,4 +1,4 @@
-import { App, Card, Alert, Table, Button, Space, Empty, Typography } from 'antd';
+import { App, Card, Alert, Table, Button, Space, Empty, Typography, theme } from 'antd';
 import { PlusOutlined, CheckCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useRole } from '../../utils/permissions/use-role';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
@@ -12,6 +12,8 @@ import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.u
 
 export default function AuthUserManagement() {
   const role = useRole();
+  // Antes del early return: los hooks no pueden quedar por debajo de un return condicional.
+  const { token } = theme.useToken();
 
   if (!role || role?.toLowerCase() !== Role.ADMIN) {
     return (
@@ -47,8 +49,8 @@ export default function AuthUserManagement() {
       key: 'has_moodle_token',
       render: (has: boolean | undefined) =>
         has
-          ? <CheckCircleOutlined style={{ color: '#52c41a' }} title="Tiene al menos un vínculo Moodle con token" />
-          : <MinusCircleOutlined style={{ color: '#bfbfbf' }} title="Sin vínculos Moodle" />,
+          ? <CheckCircleOutlined style={{ color: token.colorSuccess }} title="Tiene al menos un vínculo Moodle con token" />
+          : <MinusCircleOutlined style={{ color: token.colorTextQuaternary }} title="Sin vínculos Moodle" />,
     },
     {
       title: 'Acciones',

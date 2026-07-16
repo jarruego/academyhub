@@ -4,7 +4,7 @@ import { useDebounce } from '../../hooks/use-debounce';
 import { normalizeSearch } from '../../utils/normalize-search';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
-import { App, Table, TablePaginationConfig, Select, Space, DatePicker, Input, Button, Modal, Checkbox } from 'antd';
+import { App, Table, TablePaginationConfig, Select, Space, DatePicker, Input, Button, Modal, Checkbox, theme } from 'antd';
 import type { SorterResult, FilterValue, SortOrder } from 'antd/es/table/interface';
 import { useReportsQuery, ReportsQueryParams } from '../../hooks/api/reports/use-reports.query';
 import { useReportFacetsQuery, ReportFacetsParams } from '../../hooks/api/reports/use-report-facets.query';
@@ -16,6 +16,7 @@ import { ReportRow } from '../../shared/types/reports/report-row';
 import { PaginationResult } from '../../shared/types/pagination';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { getApiHost } from '../../utils/api/get-api-host.util';
+import { PageHeader } from '../../components/common/PageHeader';
 
 const formatTimeSpent = (value?: number | null) => {
   if (value === null || value === undefined) return '-';
@@ -30,11 +31,6 @@ const formatTimeSpent = (value?: number | null) => {
 };
 
 export default function ReportsRoute() {
-  
-  useEffect(() => {
-    document.title = "Informes";
-  }, []);
-
   const [page, setPage] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(500);
   // Refs to compute available space and provide isolated table scroll
@@ -173,6 +169,7 @@ export default function ReportsRoute() {
   const { exportPdf: doExportPdf } = useReportExport();
   const request = useAuthenticatedAxios<PaginationResult<ReportRow>>();
   const { modal } = App.useApp();
+  const { token } = theme.useToken();
 
   const handleExport = async () => {
     try {
@@ -551,8 +548,8 @@ export default function ReportsRoute() {
 
   return (
     <div>
-      <h1>Informes</h1>
       <div ref={controlsRef} style={{ marginBottom: 12 }}>
+        <PageHeader title="Informes" />
         <div style={{ marginBottom: 12 }}>
           <Input.Search
             placeholder="Buscar por nombre, apellidos, email, dni, nss o teléfono"
@@ -818,7 +815,7 @@ export default function ReportsRoute() {
                 ? 'Se generará un PDF de bonificación agrupado por Grupo → Empresa → Centro con el número total de alumnos.'
                 : 'Se generará un informe de dedicación con información detallada por usuario.'}
             </div>
-            <div style={{ fontSize: 12, color: '#666' }}>
+            <div style={{ fontSize: 12, color: token.colorTextSecondary }}>
               {exportReportType === 'certification'
                 ? 'El certificado incluirá un párrafo de certificación por cada grupo con las fechas del grupo.'
                 : exportReportType === 'bonification'
@@ -834,7 +831,7 @@ export default function ReportsRoute() {
                 <label>
                   <Checkbox checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} /> Incluir contraseñas en el PDF
                 </label>
-                <div style={{ fontSize: 12, color: '#666' }}>Aviso: incluir contraseñas es una acción sensible y debe registrarse en auditoría.</div>
+                <div style={{ fontSize: 12, color: token.colorTextSecondary }}>Aviso: incluir contraseñas es una acción sensible y debe registrarse en auditoría.</div>
               </div>
             )}
           </div>

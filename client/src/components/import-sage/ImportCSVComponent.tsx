@@ -14,7 +14,8 @@ import {
     App,
     Descriptions,
     Tag,
-    Divider
+    Divider,
+    theme
 } from 'antd';
 import { STATUS_COLORS } from '../../theme/semantic-colors';
 import {
@@ -44,7 +45,8 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
     onJobUpdate
 }) => {
     const { message } = App.useApp();
-    
+    const { token } = theme.useToken();
+
     const [currentJobId, setCurrentJobId] = useState<string | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
@@ -154,13 +156,13 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'completed':
-                return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+                return <CheckCircleOutlined style={{ color: token.colorSuccess }} />;
             case 'failed':
-                return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
+                return <CloseCircleOutlined style={{ color: token.colorError }} />;
             case 'processing':
                 return <Spin size="small" />;
             case 'pending':
-                return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
+                return <ExclamationCircleOutlined style={{ color: token.colorWarning }} />;
             default:
                 return null;
         }
@@ -286,7 +288,7 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
         return (
             <Card>
                 <Title level={4}>
-                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                    <CheckCircleOutlined style={{ color: token.colorSuccess, marginRight: 8 }} />
                     Resumen de Importación
                 </Title>
 
@@ -296,7 +298,7 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
                             <Statistic
                                 title="Usuarios Nuevos"
                                 value={importSummary.new_users}
-                                valueStyle={{ color: '#3f8600' }}
+                                valueStyle={{ color: token.colorSuccess }}
                             />
                         </Card>
                     </Col>
@@ -305,7 +307,7 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
                             <Statistic
                                 title="Usuarios Actualizados"
                                 value={importSummary.updated_users}
-                                valueStyle={{ color: '#1890ff' }}
+                                valueStyle={{ color: token.colorPrimary }}
                             />
                         </Card>
                     </Col>
@@ -314,7 +316,7 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
                             <Statistic
                                 title="Nuevas Empresas"
                                 value={importSummary.new_companies}
-                                valueStyle={{ color: '#722ed1' }}
+                                valueStyle={{ color: token.colorSuccess }}
                             />
                         </Card>
                     </Col>
@@ -323,7 +325,7 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
                             <Statistic
                                 title="Nuevos Centros"
                                 value={importSummary.new_centers}
-                                valueStyle={{ color: '#fa8c16' }}
+                                valueStyle={{ color: token.colorSuccess }}
                             />
                         </Card>
                     </Col>
@@ -332,7 +334,7 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
                             <Statistic
                                 title="Asociaciones Creadas"
                                 value={importSummary.new_associations}
-                                valueStyle={{ color: '#13c2c2' }}
+                                valueStyle={{ color: token.colorSuccess }}
                             />
                         </Card>
                     </Col>
@@ -341,7 +343,7 @@ export const ImportCSVComponent: React.FC<ImportCSVComponentProps> = ({
                             <Statistic
                                 title="Decisiones Pendientes"
                                 value={importSummary.decisions_pending}
-                                valueStyle={{ color: importSummary.decisions_pending > 0 ? '#fa541c' : '#3f8600' }}
+                                valueStyle={{ color: importSummary.decisions_pending > 0 ? token.colorWarning : token.colorSuccess }}
                             />
                         </Card>
                     </Col>

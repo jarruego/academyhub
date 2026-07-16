@@ -30,6 +30,15 @@ export class MoodleAuditController {
     return this.moodleAuditService.fixUsernames(body.idMoodleUsers);
   }
 
+  // Reasigna un vínculo incorrecto al usuario correcto por DNI sin fusionar
+  // fichas (mueve la cuenta de Moodle, sus matrículas y las membresías de esos
+  // cursos; no borra a nadie). El destino lo deriva el servidor del snapshot.
+  // ID en la ruta para que quede en audit_log.
+  @Post("relink/:idMoodleUser")
+  async relink(@Param("idMoodleUser", ParseIntPipe) idMoodleUser: number) {
+    return this.moodleAuditService.relink(idMoodleUser);
+  }
+
   // Limpia un vínculo huérfano. ID en la ruta para que quede en audit_log.
   @Delete("orphans/:idMoodleUser")
   async cleanupOrphan(@Param("idMoodleUser", ParseIntPipe) idMoodleUser: number) {

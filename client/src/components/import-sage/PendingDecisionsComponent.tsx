@@ -14,6 +14,7 @@ import {
     Empty,
     Badge,
     App,
+    theme,
     Input,
     Collapse
 } from 'antd';
@@ -96,6 +97,7 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
     const [selectedAction, setSelectedAction] = useState<'link' | 'create_new' | 'skip' | 'update_and_link'>('update_and_link');
     const [fieldSelections, setFieldSelections] = useState<Partial<Record<SelectableField, FieldSource>>>({});
     const { modal, message } = App.useApp();
+    const { token } = theme.useToken();
     const deleteDecisionMutation = useDeleteDecision();
 
     useEffect(() => {
@@ -277,8 +279,8 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                                         onClick={() => selectable && selectField(f.key, source)}
                                         style={{
                                             cursor: selectable ? 'pointer' : 'default',
-                                            border: selected ? '1px solid #52c41a' : '1px solid #f0f0f0',
-                                            background: selected ? '#f6ffed' : '#fff',
+                                            border: `1px solid ${selected ? token.colorSuccess : token.colorBorderSecondary}`,
+                                            background: selected ? token.colorSuccessBg : token.colorBgContainer,
                                             borderRadius: 6,
                                             padding: '4px 8px',
                                             minHeight: 30,
@@ -288,8 +290,8 @@ const DecisionModal: React.FC<DecisionModalProps> = ({
                                             opacity: empty ? 0.5 : 1,
                                         }}
                                     >
-                                        {selected && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                                        <span style={{ color: diff && !empty ? '#d4380d' : undefined }}>
+                                        {selected && <CheckCircleOutlined style={{ color: token.colorSuccess }} />}
+                                        <span style={{ color: diff && !empty ? token.colorWarningText : undefined }}>
                                             {empty ? <Text type="secondary">Vacío</Text> : String(value)}
                                         </span>
                                         {invalidDni && <Tag color={STATUS_COLORS.inactive} style={{ marginLeft: 'auto' }}>DNI/NIE inválido</Tag>}

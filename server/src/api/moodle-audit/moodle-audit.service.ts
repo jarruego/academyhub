@@ -1,10 +1,11 @@
 import { ConflictException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
-import { users, moodle_users, user_course, user_groups, moodle_user_auth_user } from "src/database/schema";
-import { eq, isNotNull, ne, and, sql } from "drizzle-orm";
+import { users, moodle_users, user_course, user_groups, groups, moodle_user_auth_user } from "src/database/schema";
+import { eq, isNotNull, ne, and, sql, inArray } from "drizzle-orm";
 import { MoodleService } from "src/api/moodle/moodle.service";
 import { compactDniKey } from "src/api/moodle/moodle-user-matching.util";
+import { mergeUserCourseRow, mergeUserGroupRow } from "src/api/user-merge/user-merge.util";
 import {
   AuditLinkRow,
   AuditMoodleUser,
@@ -36,6 +37,23 @@ export interface MoodleAuditReport extends MoodleAuditClassification {
 export interface UsernameFixResult {
   updated: number;
   errors: Array<{ id_moodle_user: number; stored_username: string; real_username: string; message: string }>;
+}
+
+export interface RelinkResult {
+  id_moodle_user: number;
+  moodle_id: number;
+  /** Usuario local que tenía el vínculo (se conserva, NO se borra). */
+  from_user: number;
+  /** Usuario local correcto por DNI al que se reasigna la cuenta. */
+  to_user: number;
+  /** Matrículas de esta cuenta movidas al destino / fusionadas con una existente. */
+  courses: { moved: number; merged: number };
+  /** Membresías de grupo (de los cursos movidos) movidas / fusionadas. */
+  groups: { moved: number; merged: number };
+  /** Cuenta promovida a principal del usuario origen, si la reasignada lo era. */
+  promoted_id_moodle_user: number | null;
+  /** true si la cuenta reasignada queda como principal del usuario destino. */
+  is_main_for_target: boolean;
 }
 
 export interface OrphanCleanupResult {
@@ -284,6 +302,185 @@ export class MoodleAuditService {
     Logger.log({ updated: doable.length, errors: errors.length, requested: idMoodleUsers?.length ?? "all" }, "MoodleAuditService:fixUsernames");
 
     return { updated: doable.length, errors };
+  }
+
+  /**
+   * Reasigna un vínculo incorrecto al usuario correcto por DNI SIN fusionar
+   * fichas: mueve solo la cuenta de Moodle y lo que vino de ella (las
+   * matrículas `user_course` con este `id_moodle_user` y las membresías
+   * `user_group` de los grupos de esos cursos). El usuario mal vinculado se
+   * conserva intacto en todo lo demás — es la alternativa a la fusión cuando
+   * las dos fichas son personas DISTINTAS y solo el vínculo estaba mal.
+   *
+   * Server-authoritative: el destino se deriva del DNI del snapshot (mismo
+   * matching que la clasificación), el cliente nunca lo elige. 0 llamadas a
+   * Moodle.
+   */
+  async relink(idMoodleUser: number): Promise<RelinkResult> {
+    if (!this.snapshot) {
+      throw new ConflictException("No hay snapshot de Moodle: ejecuta primero el diagnóstico");
+    }
+    const [link] = await this.db
+      .select()
+      .from(moodle_users)
+      .where(eq(moodle_users.id_moodle_user, idMoodleUser))
+      .limit(1);
+    if (!link) throw new NotFoundException(`Vínculo moodle_users ${idMoodleUser} no encontrado`);
+
+    const snapshotUser = this.snapshot.users.find(u => u.moodle_id === link.moodle_id);
+    if (!snapshotUser) {
+      throw new ConflictException(
+        `La cuenta de Moodle ${link.moodle_id} no existe en el snapshot: es un huérfano, no se puede reasignar`,
+      );
+    }
+    if (snapshotUser.dni_keys.length === 0) {
+      throw new ConflictException("La cuenta de Moodle no aporta DNI: no se puede determinar el usuario correcto");
+    }
+
+    // Destino por DNI (primer dni_key que resuelva; mismo orden que la clasificación)
+    const candidates = await this.db
+      .select({ id_user: users.id_user, dni: users.dni })
+      .from(users)
+      .where(inArray(users.dni, snapshotUser.dni_keys));
+    const byKey = new Map(candidates.map(c => [compactDniKey(c.dni), c.id_user]));
+    let targetUserId: number | null = null;
+    for (const key of snapshotUser.dni_keys) {
+      const found = byKey.get(key);
+      if (found !== undefined) { targetUserId = found; break; }
+    }
+    if (targetUserId === null) {
+      throw new ConflictException("Ningún usuario de la BD tiene el DNI de esta cuenta de Moodle");
+    }
+    if (targetUserId === link.id_user) {
+      throw new ConflictException("El vínculo ya apunta al usuario correcto por DNI");
+    }
+    const toUserId: number = targetUserId;
+
+    return await this.db.transaction(async tx => {
+      // 1) Matrículas que vinieron de esta cuenta → al destino (fusionando si ya la tiene)
+      const courseRows = await tx
+        .select()
+        .from(user_course)
+        .where(and(eq(user_course.id_moodle_user, idMoodleUser), ne(user_course.id_user, toUserId)));
+
+      const courses = { moved: 0, merged: 0 };
+      // curso → usuarios origen cuya matrícula se ha movido (para mover también sus grupos)
+      const movedFromByCourse = new Map<number, Set<number>>();
+      for (const row of courseRows) {
+        const [existing] = await tx
+          .select()
+          .from(user_course)
+          .where(and(eq(user_course.id_user, toUserId), eq(user_course.id_course, row.id_course)))
+          .limit(1);
+        if (existing) {
+          await tx
+            .update(user_course)
+            .set(mergeUserCourseRow(existing, row))
+            .where(and(eq(user_course.id_user, toUserId), eq(user_course.id_course, row.id_course)));
+          await tx
+            .delete(user_course)
+            .where(and(eq(user_course.id_user, row.id_user), eq(user_course.id_course, row.id_course)));
+          courses.merged++;
+        } else {
+          await tx
+            .update(user_course)
+            .set({ id_user: toUserId })
+            .where(and(eq(user_course.id_user, row.id_user), eq(user_course.id_course, row.id_course)));
+          courses.moved++;
+        }
+        if (!movedFromByCourse.has(row.id_course)) movedFromByCourse.set(row.id_course, new Set());
+        movedFromByCourse.get(row.id_course)!.add(row.id_user);
+      }
+
+      // 2) Membresías de grupo de los cursos movidos (creadas por el mismo import
+      //    que la matrícula mal vinculada) → al destino
+      const groupCounts = { moved: 0, merged: 0 };
+      const courseIds = Array.from(movedFromByCourse.keys());
+      if (courseIds.length > 0) {
+        const groupRows = await tx
+          .select({ id_group: groups.id_group, id_course: groups.id_course })
+          .from(groups)
+          .where(inArray(groups.id_course, courseIds));
+        for (const g of groupRows) {
+          for (const fromUserId of movedFromByCourse.get(g.id_course) ?? []) {
+            const [oldMembership] = await tx
+              .select()
+              .from(user_groups)
+              .where(and(eq(user_groups.id_user, fromUserId), eq(user_groups.id_group, g.id_group)))
+              .limit(1);
+            if (!oldMembership) continue;
+            const [targetMembership] = await tx
+              .select()
+              .from(user_groups)
+              .where(and(eq(user_groups.id_user, toUserId), eq(user_groups.id_group, g.id_group)))
+              .limit(1);
+            if (targetMembership) {
+              await tx
+                .update(user_groups)
+                .set(mergeUserGroupRow(targetMembership, oldMembership))
+                .where(and(eq(user_groups.id_user, toUserId), eq(user_groups.id_group, g.id_group)));
+              await tx
+                .delete(user_groups)
+                .where(and(eq(user_groups.id_user, fromUserId), eq(user_groups.id_group, g.id_group)));
+              groupCounts.merged++;
+            } else {
+              await tx
+                .update(user_groups)
+                .set({ id_user: toUserId })
+                .where(and(eq(user_groups.id_user, fromUserId), eq(user_groups.id_group, g.id_group)));
+              groupCounts.moved++;
+            }
+          }
+        }
+      }
+
+      // 3) Repuntar la cuenta de Moodle al destino, con is_main_user coherente
+      //    en ambos lados: principal en el destino solo si aún no tiene una.
+      const targetAccounts = await tx
+        .select({ id_moodle_user: moodle_users.id_moodle_user, is_main_user: moodle_users.is_main_user })
+        .from(moodle_users)
+        .where(eq(moodle_users.id_user, toUserId));
+      const targetHasMain = targetAccounts.some(a => a.is_main_user);
+      const isMainForTarget = !targetHasMain;
+      await tx
+        .update(moodle_users)
+        .set({ id_user: toUserId, is_main_user: isMainForTarget })
+        .where(eq(moodle_users.id_moodle_user, idMoodleUser));
+
+      // Si era la principal del origen, promover otra cuenta suya
+      let promoted: number | null = null;
+      if (link.is_main_user) {
+        const [other] = await tx
+          .select({ id_moodle_user: moodle_users.id_moodle_user })
+          .from(moodle_users)
+          .where(and(eq(moodle_users.id_user, link.id_user), ne(moodle_users.id_moodle_user, idMoodleUser)))
+          .orderBy(moodle_users.id_moodle_user)
+          .limit(1);
+        if (other) {
+          await tx
+            .update(moodle_users)
+            .set({ is_main_user: true })
+            .where(eq(moodle_users.id_moodle_user, other.id_moodle_user));
+          promoted = other.id_moodle_user;
+        }
+      }
+
+      Logger.log(
+        { idMoodleUser, moodleId: link.moodle_id, fromUser: link.id_user, toUser: toUserId, courses, groups: groupCounts, promoted },
+        "MoodleAuditService:relink",
+      );
+
+      return {
+        id_moodle_user: idMoodleUser,
+        moodle_id: link.moodle_id,
+        from_user: link.id_user,
+        to_user: toUserId,
+        courses,
+        groups: groupCounts,
+        promoted_id_moodle_user: promoted,
+        is_main_for_target: isMainForTarget,
+      };
+    });
   }
 
   /**

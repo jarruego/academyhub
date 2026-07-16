@@ -4,9 +4,11 @@
     box-sizing: border-box;
 }
 
+/* La tipografía NO se declara aquí: la fija el token `fontFamily` del tema
+   (theme/tokens.ts), que antd aplica al contenedor `.ant-app` del que cuelga
+   toda la app. Duplicarla aquí haría que el token dejara de ser la fuente única. */
 html, body {
     height: 100%;
-    font-family: Arial, sans-serif;
 }
 
 body {
@@ -27,10 +29,62 @@ ul, ol {
     list-style: none;
 }
 
-/* Show pointer cursor when hovering rows in the user courses table */
+/* Cursor de mano al pasar por las filas de la tabla de cursos del usuario. */
 .ant-table-row.user-course-row:hover,
 .ant-table-row.user-course-row:hover > td {
     cursor: pointer;
+}
+
+/* Sidebar: el menú fluye arriba y el pie (preferencias + cerrar sesión) queda
+   anclado abajo del todo. Ni el Sider ni el body del Drawer son flex por
+   defecto, así que hay que declararlo para que `margin-top: auto` empuje. */
+.app-sider .ant-layout-sider-children,
+.app-sider-drawer-body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* El menú ocupa el hueco libre (empujando el pie abajo) y hace scroll propio si
+   no cabe — con rol admin y poca altura, sin esto se comprimiría. `min-height: 0`
+   es lo que permite encoger a un hijo flex por debajo de su contenido. */
+.app-sider .ant-layout-sider-children > .ant-menu,
+.app-sider-drawer-body > .ant-menu {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.app-sider-footer {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+}
+
+/* Cabecera de pantalla (PageHeader): título a la izquierda, acciones a la
+   derecha. En móvil las acciones se apilan bajo el título a ancho completo. */
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.page-header__extra {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 767.98px) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }
 
 /* Barra de controles compartida de los listados (ListPageLayout).
@@ -63,24 +117,6 @@ ul, ol {
     align-items: center;
     flex-wrap: wrap;
     margin-top: 8px;
-}
-
-/* Completed rows: green (>=75) */
-.ant-table-row.user-course-row.completed > td {
-    background-color: lightgreen !important; /* antd green-6 / darker green */
-    }
-
-/* Incomplete rows: black background with white text */
-.ant-table-row.user-course-row.incomplete > td {
-    background-color: lightgray !important;
-}
-
-/* Prevent any hover effect from changing background/color */
-.ant-table-row.user-course-row.completed:hover > td,
-.ant-table-row.user-course-row.incomplete:hover > td,
-.ant-table-row.user-course-row.completed:hover,
-.ant-table-row.user-course-row.incomplete:hover {
-    background-color: none !important;
 }
 
 .mail-template-editor-shell {

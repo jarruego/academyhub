@@ -5,6 +5,7 @@ import { AuthzHide } from '../permissions/authz-hide';
 import { STATUS_COLORS } from '../../theme/semantic-colors';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useEmailLogQuery, type EmailLogRow } from '../../hooks/api/audit/use-email-log.query';
+import { PageHeader } from '../common/PageHeader';
 
 const SENDER_MODE_LABEL: Record<string, string> = {
   default: 'Organización',
@@ -67,7 +68,8 @@ export default function EmailLog() {
 
   return (
     <AuthzHide roles={[Role.ADMIN]}>
-      <Card title="Registro de envíos de correo" bordered style={{ margin: '0 auto' }}>
+      <PageHeader title="Registro de envíos de correo" />
+      <Card bordered style={{ margin: '0 auto' }}>
         <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
           <Input.Search
             placeholder="Filtrar por remitente (usuario)"

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Space, Typography, Button, Alert, Input, Tag, Progress, Spin, Divider, Statistic, Row, Col, App } from 'antd';
+import { Card, Space, Typography, Button, Alert, Input, Tag, Progress, Spin, Divider, Statistic, Row, Col, App, theme } from 'antd';
 import { STATUS_COLORS } from '../../theme/semantic-colors';
 import { CloudDownloadOutlined, ReloadOutlined, StopOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, WifiOutlined } from '@ant-design/icons';
 import { useImportUploadFtp } from '../../hooks/api/import-sage/useImportUploadFtp';
@@ -15,6 +15,7 @@ const { Title, Text, Paragraph } = Typography;
 
 export const ImportFTPComponent: React.FC = () => {
   const { message } = App.useApp();
+  const { token } = theme.useToken();
   const [remotePath, setRemotePath] = useState('');
   const [overwriteOptions, setOverwriteOptions] = useState<ImportOverwriteOptions>(DEFAULT_IMPORT_OVERWRITE_OPTIONS);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
@@ -144,14 +145,14 @@ export const ImportFTPComponent: React.FC = () => {
         <Card
           size="small"
           style={{
-            backgroundColor: connectionStatus?.isConnected ? '#f6ffed' : '#fff2e8',
-            borderColor: connectionStatus?.isConnected ? '#b7eb8f' : '#ffbb96',
+            backgroundColor: connectionStatus?.isConnected ? token.colorSuccessBg : token.colorWarningBg,
+            borderColor: connectionStatus?.isConnected ? token.colorSuccessBorder : token.colorWarningBorder,
           }}
         >
           <Space>
             <WifiOutlined
               style={{
-                color: connectionStatus?.isConnected ? '#52c41a' : '#ff7a45',
+                color: connectionStatus?.isConnected ? token.colorSuccess : token.colorWarning,
                 fontSize: 18,
               }}
             />
@@ -276,14 +277,14 @@ export const ImportFTPComponent: React.FC = () => {
             <Col span={6}><Statistic title="Total filas" value={importSummary.total_rows} /></Col>
             <Col span={6}><Statistic title="Nuevos usuarios" value={importSummary.new_users} /></Col>
             <Col span={6}><Statistic title="Usuarios actualizados" value={importSummary.updated_users} /></Col>
-            <Col span={6}><Statistic title="Decisiones pendientes" value={importSummary.decisions_pending} valueStyle={{ color: importSummary.decisions_pending > 0 ? '#fa8c16' : undefined }} /></Col>
+            <Col span={6}><Statistic title="Decisiones pendientes" value={importSummary.decisions_pending} valueStyle={{ color: importSummary.decisions_pending > 0 ? token.colorWarning : undefined }} /></Col>
           </Row>
 
           <Row gutter={16}>
             <Col span={6}><Statistic title="Empresas nuevas" value={importSummary.new_companies} /></Col>
             <Col span={6}><Statistic title="Centros nuevos" value={importSummary.new_centers} /></Col>
             <Col span={6}><Statistic title="Asociaciones nuevas" value={importSummary.new_associations} /></Col>
-            <Col span={6}><Statistic title="Errores" value={importSummary.errors} valueStyle={{ color: importSummary.errors > 0 ? '#ff4d4f' : undefined }} /></Col>
+            <Col span={6}><Statistic title="Errores" value={importSummary.errors} valueStyle={{ color: importSummary.errors > 0 ? token.colorError : undefined }} /></Col>
           </Row>
 
           <Divider />

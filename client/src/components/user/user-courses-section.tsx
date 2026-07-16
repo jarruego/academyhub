@@ -234,9 +234,7 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
           `${range[0]}-${range[1]} de ${total} cursos`,
       }}
       scroll={{ x: 1200 }}
-      rowClassName={(record: UserCourseWithCourse) =>
-        `user-course-row ${isCourseFinalized(record) ? 'completed' : 'incomplete'}`
-      }
+      rowClassName="user-course-row"
       getRowUrl={(record) => {
         const courseId = record.course?.id_course;
         if (!courseId) return undefined;

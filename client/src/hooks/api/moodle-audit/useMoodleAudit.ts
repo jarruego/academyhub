@@ -99,6 +99,17 @@ export interface MoodleAuditReport {
   usernameMismatches: UsernameMismatchFinding[];
 }
 
+export interface RelinkResult {
+  id_moodle_user: number;
+  moodle_id: number;
+  from_user: number;
+  to_user: number;
+  courses: { moved: number; merged: number };
+  groups: { moved: number; merged: number };
+  promoted_id_moodle_user: number | null;
+  is_main_for_target: boolean;
+}
+
 export interface OrphanCleanupResult {
   id_moodle_user: number;
   moodle_id: number;
@@ -148,6 +159,28 @@ export const useFixUsernamesMutation = () => {
         data: idMoodleUsers && idMoodleUsers.length > 0 ? { idMoodleUsers } : {},
       });
       return res.data as UsernameFixResult;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MOODLE_AUDIT_REPORT_KEY });
+    },
+  });
+};
+
+/**
+ * Reasigna un vínculo incorrecto al usuario correcto por DNI sin fusionar fichas:
+ * mueve la cuenta de Moodle, sus matrículas y las membresías de esos cursos.
+ * El destino lo deriva el servidor del snapshot; nadie se borra.
+ */
+export const useRelinkMutation = () => {
+  const request = useAuthenticatedAxios();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (idMoodleUser: number): Promise<RelinkResult> => {
+      const res = await request({
+        method: "POST",
+        url: `${getApiHost()}/api/moodle-audit/relink/${idMoodleUser}`,
+      });
+      return res.data as RelinkResult;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MOODLE_AUDIT_REPORT_KEY });

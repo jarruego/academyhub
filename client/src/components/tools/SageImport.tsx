@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Tabs, Typography, Space } from 'antd';
+import { Card, Tabs, Space } from 'antd';
 import {
     UploadOutlined,
     CheckSquareOutlined,
@@ -18,8 +18,7 @@ import {
 } from '../import-sage';
 import { AuthzHide } from '../permissions/authz-hide';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
-
-const { Title } = Typography;
+import { PageHeader } from '../common/PageHeader';
 
 const SageImport: React.FC = () => {
     const tabItems = [
@@ -87,18 +86,12 @@ const SageImport: React.FC = () => {
 
     return (
         <AuthzHide roles={[Role.ADMIN]}>
-            <div style={{ padding: '24px' }}>
+            <div>
+            <PageHeader
+                title="Importación CSV SAGE"
+                subtitle="Importa usuarios, empresas y centros de trabajo desde archivos CSV de SAGE. Gestiona decisiones manuales y revisa el historial de importaciones."
+            />
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                <Card>
-                    <Title level={2}>
-                        Importación CSV SAGE
-                    </Title>
-                    <p style={{ color: '#666', marginBottom: 0 }}>
-                        Importa usuarios, empresas y centros de trabajo desde archivos CSV de SAGE.
-                        Gestiona decisiones manuales y revisa el historial de importaciones.
-                    </p>
-                </Card>
-
                 <Card>
                     <Tabs 
                         defaultActiveKey="upload" 

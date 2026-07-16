@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { App, Table, Button, Tag, Typography, Space, Card, Modal, Spin, Tabs } from 'antd';
+import { App, Table, Button, Tag, Typography, Space, Card, Modal, Spin, Tabs, theme } from 'antd';
 import { STATUS_COLORS } from '../../theme/semantic-colors';
 import { ExpandAltOutlined, ReloadOutlined, ImportOutlined, CloudDownloadOutlined } from '@ant-design/icons';
+import { PageHeader } from '../common/PageHeader';
 import { useMoodleCoursesQuery } from '../../hooks/api/moodle/use-moodle-courses.query';
 import { useMoodleGroupsByCourseQuery } from '../../hooks/api/moodle/use-moodle-groups-by-course.query';
 import { useImportMoodleCourseMutation } from '../../hooks/api/moodle/use-import-moodle-course.mutation';
@@ -105,6 +106,7 @@ const GroupsTable: React.FC<{
 
 export const MoodleImportManager: React.FC = () => {
   const { message } = App.useApp();
+  const { token } = theme.useToken();
   const [importingAll, setImportingAll] = useState<'all' | 'allNoUsers' | null>(null);
   const { data: coursesData, isLoading, error, refetch } = useMoodleCoursesQuery();
   const importCourseMutation = useImportMoodleCourseMutation();
@@ -255,7 +257,7 @@ export const MoodleImportManager: React.FC = () => {
       key: 'fullname',
       render: (text: string, record: MoodleCourseWithImportStatus) => (
         <div>
-          <div style={{ fontWeight: 500, color: '#1890ff' }}>{text}</div>
+          <div style={{ fontWeight: 500, color: token.colorPrimary }}>{text}</div>
           <Text type="secondary" style={{ fontSize: '12px' }}>
             {record.shortname}
           </Text>
@@ -418,8 +420,8 @@ export const MoodleImportManager: React.FC = () => {
             </strong> desde Moodle?
           </p>
           <div style={{
-            background: '#fff7e6',
-            border: '1px solid #ffd591',
+            background: token.colorWarningBg,
+            border: `1px solid ${token.colorWarningBorder}`,
             borderRadius: '6px',
             padding: '12px',
             marginTop: '12px'
@@ -436,6 +438,7 @@ export const MoodleImportManager: React.FC = () => {
 
   return (
     <div>
+      <PageHeader title="Importación de Moodle" />
       <Tabs
         items={[
           { key: 'import', label: 'Importar Cursos', children: importCoursesContent },

@@ -42,10 +42,6 @@ export default function UsersRoute() {
   const { data: usersResponse, isLoading: isUsersLoading, error } = useUsersQuery(queryParams);
 
   useEffect(() => {
-    document.title = "Usuarios";
-  }, []);
-
-  useEffect(() => {
     if (error) {
       message.error("Error al cargar usuarios");
     }
@@ -128,7 +124,7 @@ export default function UsersRoute() {
   );
 
   return (
-    <ListPageLayout toolbar={toolbar}>
+    <ListPageLayout title="Usuarios" toolbar={toolbar}>
       {({ scrollY }) => (
         <DataTable<User>
           rowKey="id_user"

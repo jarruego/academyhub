@@ -3,7 +3,7 @@ import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { App, Button, Form, Input, DatePicker, Tag, Row, Col } from "antd";
 import { RouteTabs } from "../../components/common/RouteTabs";
 import { ActiveTag } from "../../components/common/tags";
-import { STATUS_COLORS } from "../../theme/semantic-colors";
+import { STATUS_COLORS, BRAND_COLORS } from "../../theme/semantic-colors";
 import { useGroupQuery } from "../../hooks/api/groups/use-group.query";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useUpdateGroupMutation } from "../../hooks/api/groups/use-update-group.mutation";
@@ -308,7 +308,7 @@ export default function EditGroupRoute() {
             {/* Upload button (visible to admins) - moved here from the actions area */}
             <AuthzHide roles={[Role.ADMIN]}>
               <Button
-                icon={<CloudUploadOutlined style={{ color: '#f58b00' }} />}
+                icon={<CloudUploadOutlined style={{ color: BRAND_COLORS.moodle }} />}
                 loading={pushGroupMutation.status === 'pending'}
                 disabled={pushGroupMutation.status === 'pending'}
                 onClick={() => {

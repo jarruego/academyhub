@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { App, Modal, Button, Input, Table } from 'antd';
+import { App, Modal, Button, Input, Table, theme } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useUsersQuery } from '../../hooks/api/users/use-users.query';
 import { useAddUserToGroupMutation } from '../../hooks/api/groups/use-add-user-to-group.mutation';
@@ -19,6 +19,7 @@ interface Props {
 
 const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
   const { message: messageApi, modal } = App.useApp();
+  const { token } = theme.useToken();
   const role = useRole();
   const canEdit = role === Role.ADMIN || role === Role.MANAGER;
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -163,7 +164,7 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
             <p>Has seleccionado <strong>{selectedGroupUserIds.length}</strong> usuario(s). {linkedUsers.length > 0 ? (
               <span><strong>{linkedUsers.length}</strong> de ellos están vinculados a Moodle.</span>
             ) : null}</p>
-            <p style={{ color: '#fa8c16' }}><strong>Importante:</strong> Esta acción eliminará la asociación en la base de datos local. No eliminará automáticamente a los usuarios del grupo en Moodle.</p>
+            <p style={{ color: token.colorWarning }}><strong>Importante:</strong> Esta acción eliminará la asociación en la base de datos local. No eliminará automáticamente a los usuarios del grupo en Moodle.</p>
             <p>Si deseas también eliminar a los usuarios de Moodle, debes hacerlo desde la interfaz de Moodle o pedir que implementemos la opción "Eliminar también en Moodle" en el servidor.</p>
             <p>¿Deseas continuar?</p>
           </div>

@@ -10,6 +10,7 @@ import { resolveAssetUrl } from '../../utils/resolve-asset-url.util';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
 import { useUpsertOrganizationMutation } from '../../hooks/api/organization/use-upsert-organization.mutation';
 import { useUploadOrganizationAsset } from '../../hooks/api/organization/use-upload-organization-asset.mutation';
+import { PageHeader } from '../../components/common/PageHeader';
 import { useCheckMoodleConnection } from '../../hooks/api/moodle/use-check-moodle.mutation';
 import { CIF_SCHEMA } from '../../schemas/cif.schema';
 import { DNI_SCHEMA } from '../../schemas/dni.schema';
@@ -105,12 +106,6 @@ export default function OrganizationSettingsPage() {
     if (data?.settings) reset(toFormValues(data.settings));
   }, [data, reset]);
 
-  useEffect(() => {
-    const prev = document.title;
-    document.title = 'Ajustes Organización';
-    return () => { document.title = prev; };
-  }, []);
-
   const submit: SubmitHandler<OrgSettingsFormValues> = async (values) => {
     const { password, ...fileTransfer } = values.file_transfer;
     const settings: OrganizationSettingsUpsert = {
@@ -193,7 +188,7 @@ export default function OrganizationSettingsPage() {
 
   return (
     <div>
-      <h2 style={{ margin: 16 }}>Ajustes de la organización</h2>
+      <PageHeader title="Ajustes de la organización" documentTitle="Ajustes Organización" />
       {isLoading && <Typography.Text type="secondary" style={{ marginLeft: 16 }}>Cargando ajustes...</Typography.Text>}
 
       {!admin && (

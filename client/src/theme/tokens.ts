@@ -1,4 +1,6 @@
+import { theme } from "antd";
 import type { ThemeConfig } from "antd";
+import type { Density, ThemeMode } from "./ui-preferences";
 
 /**
  * Tema global de la aplicación. Única fuente de verdad para el `ConfigProvider`
@@ -26,6 +28,32 @@ export const appTheme: ThemeConfig = {
     },
   },
 };
+
+/**
+ * Construye el tema final aplicando las preferencias del usuario.
+ *
+ * Los `algorithm` de Ant derivan toda la paleta a partir de los seed tokens, así
+ * que el modo oscuro sale solo **siempre que nadie escriba colores a mano**: por
+ * eso la limpieza de hexes es requisito de esta función y no un extra.
+ */
+export function buildTheme(mode: ThemeMode, density: Density): ThemeConfig {
+  const algorithms = [mode === "dark" ? theme.darkAlgorithm : theme.defaultAlgorithm];
+  if (density === "compact") algorithms.push(theme.compactAlgorithm);
+
+  return {
+    ...appTheme,
+    algorithm: algorithms,
+    components: {
+      ...appTheme.components,
+      Table: {
+        ...appTheme.components?.Table,
+        // El `headerBg` fijo delataría el modo claro sobre fondo oscuro; en oscuro
+        // se deja que lo derive el algoritmo.
+        ...(mode === "dark" ? { headerBg: undefined } : {}),
+      },
+    },
+  };
+}
 
 /**
  * Breakpoint a partir del cual se considera "escritorio". Coincide con el `md`

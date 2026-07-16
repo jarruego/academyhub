@@ -52,6 +52,21 @@ export const STATUS_COLORS = {
   neutral: "default",
 } as const;
 
+/**
+ * Colores de MARCA de terceros. No son estado ni tema: identifican un producto
+ * externo, así que son literales a propósito y NO deben salir de `theme.useToken()`
+ * (el naranja de Moodle sigue siendo naranja aunque cambiemos el color primario).
+ *
+ * Todo lo demás —éxito, error, aviso, texto atenuado, acentos, fondos— se lee del
+ * tema con `theme.useToken()`; no vuelvas a escribir un hex suelto para eso.
+ */
+export const BRAND_COLORS = {
+  /** Naranja de Moodle: acciones que salen hacia/desde Moodle (subir, descargar…). */
+  moodle: "#f56b00",
+  /** Verde de Excel: exportaciones a hoja de cálculo. */
+  excel: "#008000",
+} as const;
+
 /** Flags puntuales reutilizables. */
 export const FLAG_COLORS = {
   /** Curso provisional (autocreado en importación, pendiente de datos). */

@@ -1,4 +1,4 @@
-import { App, Modal, Form, Select, Radio, Button, Typography, Input, Divider, Collapse, Checkbox, Progress, Alert } from 'antd';
+import { App, Modal, Form, Select, Radio, Button, Typography, Input, Divider, Collapse, Checkbox, Progress, Alert, theme } from 'antd';
 import { useMailTemplatesQuery } from '../../hooks/api/mail/use-mail-templates';
 import { useSmtpSettingsQuery } from '../../hooks/api/mail/use-smtp-settings';
 import { useSendMailMutation } from '../../hooks/api/mail/use-send-mail.mutation';
@@ -37,6 +37,7 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
   const { mutateAsync: sendMail, isPending } = useSendMailMutation();
   const { mutateAsync: sendCustomMail, isPending: isCustomPending } = useSendCustomMailMutation();
   const { message: messageApi } = App.useApp();
+  const { token } = theme.useToken();
   const { authInfo } = useAuthInfo();
 
   const [sendMode, setSendMode] = useState<'template' | 'custom'>('template');
@@ -66,7 +67,7 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
   const renderPreview = (subject?: string, content?: string, isHtml?: boolean) => {
     const previewContent = content ?? '';
     return (
-      <div style={{ border: '1px solid #f0f0f0', borderRadius: 6, padding: 12, background: '#fafafa' }}>
+      <div style={{ border: `1px solid ${token.colorBorderSecondary}`, borderRadius: 6, padding: 12, background: token.colorFillAlter }}>
         <Typography.Text strong>Asunto:</Typography.Text>
         <div style={{ marginBottom: 8 }}>{subject || 'Sin asunto'}</div>
         <Typography.Text strong>Contenido:</Typography.Text>
@@ -269,7 +270,7 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
             {finalResults.failed > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
                 <Typography.Text>✕ Fallidos:</Typography.Text>
-                <Typography.Text strong style={{ color: '#ff4d4f' }}>{finalResults.failed}</Typography.Text>
+                <Typography.Text strong style={{ color: token.colorError }}>{finalResults.failed}</Typography.Text>
               </div>
             )}
           </div>
@@ -350,8 +351,8 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
             <Checkbox checked={sendViaMoodle} onChange={(e) => setSendViaMoodle(e.target.checked)}>
               Enviar Notificación por Plataforma Moodle
               {tutorMissingToken
-                ? <span style={{ color: '#ff4d4f', marginLeft: 4 }}>⚠ sin token Moodle para el tutor — se usará el token global</span>
-                : <span style={{ color: '#888', marginLeft: 4 }}>
+                ? <span style={{ color: token.colorError, marginLeft: 4 }}>⚠ sin token Moodle para el tutor — se usará el token global</span>
+                : <span style={{ color: token.colorTextSecondary, marginLeft: 4 }}>
                     ({fromChoice === 'tutor'
                       ? (selectedTutor?.name || 'selecciona un tutor')
                       : fromChoice === 'auth'

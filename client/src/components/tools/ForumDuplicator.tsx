@@ -9,6 +9,7 @@ import { useCoursesQuery } from '../../hooks/api/courses/use-courses.query';
 import { useCourseForumsQuery } from '../../hooks/api/forum/use-course-forums.query';
 import { useCourseGroupsWithTutorsQuery } from '../../hooks/api/forum/use-course-groups-with-tutors.query';
 import { useForumPreviewMutation, useForumExecuteMutation } from '../../hooks/api/forum/use-forum-duplicate.mutation';
+import { PageHeader } from '../common/PageHeader';
 import {
   CELL_STATUS_META,
   DuplicateForumRequest,
@@ -196,7 +197,9 @@ export default function ForumDuplicator() {
   const canPreview = courseId != null && forumIds.length > 0 && groupIds.length > 0;
 
   return (
-    <Card title="Duplicado de Foros" style={{ maxWidth: 1100, margin: '0 auto' }}>
+    <>
+      <PageHeader title="Duplicado de Foros" />
+      <Card style={{ maxWidth: 1100, margin: '0 auto' }}>
       <Paragraph type="secondary">
         Replica el tema de los foros seleccionados a todos los grupos elegidos (un tema por grupo),
         en nombre del tutor de cada grupo. Conserva texto, enlaces, vídeos embebidos e imágenes.
@@ -355,6 +358,7 @@ export default function ForumDuplicator() {
           )}
         </>
       )}
-    </Card>
+      </Card>
+    </>
   );
 }

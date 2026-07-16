@@ -31,6 +31,7 @@ import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { SALARY_GROUP_OPTIONS, EDUCATION_LEVEL_OPTIONS } from '../../constants/options/user-options';
 import { useRole } from "../../utils/permissions/use-role";
+import { BRAND_COLORS } from "../../theme/semantic-colors";
 
 
 function nullsToUndefined<T>(obj: T): T {
@@ -725,7 +726,7 @@ const navigate = useNavigate();
               {/* Subir a Moodle button placed between Guardar and Eliminar Usuario */}
               <Button
                 type="default"
-                icon={<CloudUploadOutlined style={{ color: '#f56b00' }} />}
+                icon={<CloudUploadOutlined style={{ color: BRAND_COLORS.moodle }} />}
                 onClick={async () => {
                   try {
                     const previewItems = await preview(userId);

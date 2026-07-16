@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { AuthzHide } from '../permissions/authz-hide';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useAuditLogQuery, type AuditLogRow } from '../../hooks/api/audit/use-audit-log.query';
+import { PageHeader } from '../common/PageHeader';
 
 const METHOD_COLORS: Record<string, string> = {
   POST: 'green',
@@ -44,7 +45,8 @@ export default function AuditLog() {
 
   return (
     <AuthzHide roles={[Role.ADMIN]}>
-      <Card title="Registro de auditoría" bordered style={{ margin: '0 auto' }}>
+      <PageHeader title="Registro de auditoría" />
+      <Card bordered style={{ margin: '0 auto' }}>
         <Space style={{ marginBottom: 16, flexWrap: 'wrap' }}>
           <Input.Search
             placeholder="Filtrar por usuario"

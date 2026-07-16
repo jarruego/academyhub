@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { App, Table, Card, Pagination, Tag, Typography, Alert, Descriptions, Modal, Tooltip, Space, Statistic, Row, Col, Button, Popconfirm } from 'antd'
+import { App, Table, Card, Pagination, Tag, Typography, Alert, Descriptions, Modal, Tooltip, Space, Statistic, Row, Col, Button, Popconfirm, theme } from 'antd'
 import { STATUS_COLORS } from '../../theme/semantic-colors'
 import { ExclamationCircleOutlined, EyeOutlined, InfoCircleOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useFailedUsers, useFailedUsersStats, useDeleteFailedUsers } from '../../hooks/api/import-sage'
@@ -24,6 +24,7 @@ interface FailedUser {
 
 export const FailedUsersView: React.FC = () => {
   const { message } = App.useApp()
+  const { token } = theme.useToken()
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [selectedUser, setSelectedUser] = useState<FailedUser | null>(null)
@@ -121,7 +122,7 @@ export const FailedUsersView: React.FC = () => {
         <Space size="small">
           <Tooltip title="Ver detalles">
             <EyeOutlined 
-              style={{ cursor: 'pointer', color: '#1890ff' }}
+              style={{ cursor: 'pointer', color: token.colorPrimary }}
               onClick={() => {
                 setSelectedUser(record)
                 setDetailsVisible(true)
@@ -152,9 +153,9 @@ export const FailedUsersView: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>
-        <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} /> Usuarios Fallidos en Importación
+    <div>
+      <Title level={4}>
+        <ExclamationCircleOutlined style={{ color: token.colorError }} /> Usuarios Fallidos en Importación
       </Title>
       
       <Text type="secondary">
@@ -170,7 +171,7 @@ export const FailedUsersView: React.FC = () => {
               <Statistic
                 title="Total de Usuarios Fallidos"
                 value={stats.total}
-                valueStyle={{ color: '#ff4d4f' }}
+                valueStyle={{ color: token.colorError }}
                 prefix={<ExclamationCircleOutlined />}
               />
             </Col>
@@ -178,21 +179,21 @@ export const FailedUsersView: React.FC = () => {
               <Statistic
                 title="Empresas Afectadas"
                 value={stats.companies}
-                valueStyle={{ color: '#fa8c16' }}
+                valueStyle={{ color: token.colorWarning }}
               />
             </Col>
             <Col span={6}>
               <Statistic
                 title="Centros Afectados"
                 value={stats.centers}
-                valueStyle={{ color: '#faad14' }}
+                valueStyle={{ color: token.colorWarning }}
               />
             </Col>
             <Col span={6}>
               <Statistic
                 title="Tipos de Errores"
                 value={stats.uniqueErrors}
-                valueStyle={{ color: '#722ed1' }}
+                valueStyle={{ color: token.colorInfo }}
               />
             </Col>
           </Row>
@@ -255,7 +256,7 @@ export const FailedUsersView: React.FC = () => {
       <Modal
         title={
           <span>
-            <InfoCircleOutlined style={{ color: '#1890ff', marginRight: 8 }} />
+            <InfoCircleOutlined style={{ color: token.colorInfo, marginRight: 8 }} />
             Detalles del Usuario Fallido
           </span>
         }

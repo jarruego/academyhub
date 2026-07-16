@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Table, Button, Tag, Typography, Space, Card, Spin } from 'antd';
+import { Table, Button, Tag, Typography, Space, Card, Spin, theme } from 'antd';
 import { STATUS_COLORS } from '../../theme/semantic-colors';
 import { ReloadOutlined, SyncOutlined } from '@ant-design/icons';
 import { useActiveCoursesProgressQuery } from '../../hooks/api/moodle/use-active-courses-progress.query';
@@ -14,6 +14,7 @@ type GroupSyncState = {
 };
 
 export const ActiveCoursesProgressTab: React.FC = () => {
+  const { token } = theme.useToken();
   const { data: coursesData, isLoading, refetch } = useActiveCoursesProgressQuery();
   const { mutateAsync: syncGroup } = useSyncMoodleGroupMembersMutation();
   const [syncing, setSyncing] = useState(false);
@@ -121,7 +122,7 @@ export const ActiveCoursesProgressTab: React.FC = () => {
         const error = groupStatus[record.id_group]?.error;
         if (!error) return <Text type="secondary">—</Text>;
         return (
-          <div style={{ background: '#fff1f0', border: '1px solid #ffccc7', padding: '6px 8px', borderRadius: 4 }}>
+          <div style={{ background: token.colorErrorBg, border: `1px solid ${token.colorErrorBorder}`, padding: '6px 8px', borderRadius: 4 }}>
             <Text type="danger" style={{ fontSize: 12 }}>{error}</Text>
           </div>
         );
@@ -189,7 +190,7 @@ export const ActiveCoursesProgressTab: React.FC = () => {
         </Space>
 
         {courses.length === 0 ? (
-          <Card style={{ textAlign: 'center', background: '#fafafa' }}>
+          <Card style={{ textAlign: 'center', background: token.colorFillAlter }}>
             <Text type="secondary">No hay cursos activos en este momento</Text>
           </Card>
         ) : (

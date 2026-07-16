@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { PlusOutlined } from "@ant-design/icons"; // Importar los iconos
 import { useAllGroupsQuery } from "../../hooks/api/groups/use-all-groups.query";
-import { useEffect, useState, useMemo, type Key } from "react";
+import { useState, useMemo, type Key } from "react";
 import { Course } from "../../shared/types/course/course";
 import { CourseClient } from "../../shared/types/course/course-client.enum";
 import { CourseFunding } from "../../shared/types/course/course-funding.enum";
@@ -11,6 +11,7 @@ import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { isGroupActive } from "../../utils/group-active.util";
 import { DataTable } from "../../components/common/DataTable";
+import { ListPageLayout } from "../../components/common/ListPageLayout";
 import { ClientTag, FundingTag, ActiveTag, ProvisionalTag } from "../../components/common/tags";
 import { formatDate } from "../../utils/format";
 import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
@@ -60,10 +61,6 @@ export default function CoursesRoute() {
     else next.set("tab", tab);
     setSearchParams(next, { replace: true });
   };
-
-  useEffect(() => {
-    document.title = "Cursos";
-  }, []);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
@@ -194,14 +191,15 @@ export default function CoursesRoute() {
     return cols;
   }, [activeTab]);
 
-  return <div>
-    <Segmented<CourseTab>
-      options={TAB_OPTIONS.map(o => ({ label: `${o.label} (${tabCounts[o.value] ?? 0})`, value: o.value }))}
-      value={activeTab}
-      onChange={setActiveTab}
-      style={{ marginBottom: 16 }}
-    />
-    <div className="list-controls">
+  // El Segmented es un filtro más, así que vive en la barra de controles junto a
+  // la búsqueda (antes ocupaba una fila propia por encima).
+  const toolbar = (
+    <>
+      <Segmented<CourseTab>
+        options={TAB_OPTIONS.map(o => ({ label: `${o.label} (${tabCounts[o.value] ?? 0})`, value: o.value }))}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
       <Input.Search
         id="courses-search"
         placeholder="Buscar cursos"
@@ -213,7 +211,10 @@ export default function CoursesRoute() {
       <AuthzHide roles={[Role.ADMIN]}>
         <Button type="primary" onClick={() => navigate('/add-course')} icon={<PlusOutlined />}>Añadir Curso</Button>
       </AuthzHide>
-    </div>
+    </>
+  );
+
+  return <ListPageLayout title="Cursos" toolbar={toolbar}>
     <DataTable<CourseRow>
       rowKey="id_course"
       columns={columns}
@@ -221,5 +222,5 @@ export default function CoursesRoute() {
       loading={isCoursesLoading || isAllGroupsLoading}
       getRowUrl={(record) => `/courses/${record.id_course}`}
     />
-  </div>
+  </ListPageLayout>
 }

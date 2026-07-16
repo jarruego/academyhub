@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, App, Button, Card, Checkbox, Empty, Modal, Radio, Space, Spin, Table, Tag, Typography } from "antd";
 import { STATUS_COLORS } from "../../theme/semantic-colors";
-import { MergeCellsOutlined, WarningOutlined } from "@ant-design/icons";
+import { MergeCellsOutlined, SwapOutlined, WarningOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+import { PageHeader } from "../common/PageHeader";
 import {
   MergeCandidateGroup,
   MergeCandidateMember,
@@ -27,8 +28,12 @@ export const MergeModal: React.FC<{
   winnerId: number;
   loserId: number;
   onClose: () => void;
-}> = ({ winnerId, loserId, onClose }) => {
+}> = ({ winnerId: initialWinnerId, loserId: initialLoserId, onClose }) => {
   const { message } = App.useApp();
+  // Los props son el punto de partida: el botón "Intercambiar" permite invertir
+  // ganador y perdedor sin cerrar el modal (la previsualización se recarga).
+  const [ids, setIds] = useState({ winnerId: initialWinnerId, loserId: initialLoserId });
+  const { winnerId, loserId } = ids;
   const { data: preview, isLoading } = useMergePreviewQuery(winnerId, loserId);
   const { mutateAsync: merge, isPending } = useMergeMutation();
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -55,8 +60,9 @@ export const MergeModal: React.FC<{
       await merge({ winnerId, loserId, fieldsFromLoser: Array.from(checked) });
       message.success("Usuarios fusionados correctamente");
       onClose();
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || "No se pudo fusionar");
+    } catch (e) {
+      const maybe = e as { response?: { data?: { message?: string } } } | undefined;
+      message.error(maybe?.response?.data?.message || "No se pudo fusionar");
     }
   };
 
@@ -82,6 +88,14 @@ export const MergeModal: React.FC<{
       width={820}
       onCancel={onClose}
       footer={[
+        <Button
+          key="swap"
+          icon={<SwapOutlined />}
+          disabled={isLoading || isPending}
+          onClick={() => setIds(({ winnerId, loserId }) => ({ winnerId: loserId, loserId: winnerId }))}
+        >
+          Intercambiar ganador ↔ perdedor
+        </Button>,
         <Button key="cancel" onClick={onClose}>Cancelar</Button>,
         <Button key="ok" type="primary" danger loading={isPending} onClick={handleConfirm} disabled={isLoading || !preview}>
           Fusionar y borrar al perdedor
@@ -253,11 +267,9 @@ const MergeDuplicates: React.FC = () => {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-      <Alert
-        type="info"
-        showIcon
-        message="Fusión de usuarios duplicados"
-        description="Grupos de fichas que comparten el mismo NSS normalizado (sin ceros a la izquierda ni separadores). Suelen ser la misma persona con NIE y DNI distintos. La leyenda de relaciones es: cursos · grupos · centros · preinscripciones · cuentas Moodle."
+      <PageHeader
+        title="Fusión de duplicados"
+        subtitle="Grupos de fichas que comparten el mismo NSS normalizado (sin ceros a la izquierda ni separadores). Suelen ser la misma persona con NIE y DNI distintos. La leyenda de relaciones es: cursos · grupos · centros · preinscripciones · cuentas Moodle."
       />
       {data.map(group => (
         <CandidateGroup key={group.nss_norm} group={group} />

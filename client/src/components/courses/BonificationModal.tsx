@@ -1,4 +1,4 @@
-import { Modal, Table, Button, Select, App, Alert } from "antd";
+import { Modal, Table, Button, Select, App, Alert, theme } from "antd";
 import type { ColumnGroupType, ColumnType } from "antd/es/table";
 import { User } from "../../shared/types/user/user";
 import React, { useMemo, useState } from "react";
@@ -43,6 +43,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
   onRemoveUser,
 }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { token } = theme.useToken();
   const role = useRole();
   const canEdit = role === Role.ADMIN || role === Role.MANAGER;
 
@@ -177,7 +178,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
                 label: (
                   <span>
                     <span>{center.center_name}</span>
-                    <span style={{ color: '#666', marginLeft: 6 }}>({center.company_name ?? ''})</span>
+                    <span style={{ color: token.colorTextSecondary, marginLeft: 6 }}>({center.company_name ?? ''})</span>
                     {center.is_main_center ? (
                       <span style={{ marginLeft: 8, backgroundColor: 'darkgreen', color: 'white', padding: '2px 6px', borderRadius: 8, fontSize: '0.75em' }}>(principal)</span>
                     ) : (center.id_center === enrollmentCenterId ? (
@@ -316,7 +317,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
             description={
               <div style={{ marginTop: 8 }}>
                 {validationErrors.map(error => (
-                  <div key={error.userId} style={{ marginBottom: 12, padding: 8, backgroundColor: '#fff1f0', borderRadius: 4, border: '1px solid #ffccc7' }}>
+                  <div key={error.userId} style={{ marginBottom: 12, padding: 8, backgroundColor: token.colorErrorBg, borderRadius: 4, border: `1px solid ${token.colorErrorBorder}` }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                       <strong>{error.name}</strong>
                       <Button
@@ -358,7 +359,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
             style: { cursor: 'pointer' }
           })}
         />
-        {selectedUserIds.length === 0 && <div style={{color: 'red', marginTop: 12}}>No hay usuarios seleccionados.</div>}
+        {selectedUserIds.length === 0 && <div style={{ color: token.colorError, marginTop: 12 }}>No hay usuarios seleccionados.</div>}
       </Modal>
     </>
   );

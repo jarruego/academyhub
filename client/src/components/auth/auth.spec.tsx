@@ -26,9 +26,9 @@ describe('<AuthPage/>', () => {
 
     it('should send login data', async () => {
         /* Recogemos las referencias a los componentes */
-        const user = await screen.findByPlaceholderText("Username");
-        const password = await screen.findByPlaceholderText("Password");
-        const submit = await screen.findByText("Submit");
+        const user = await screen.findByPlaceholderText("Usuario");
+        const password = await screen.findByPlaceholderText("Contraseña");
+        const submit = await screen.findByText("Iniciar sesión");
 
         /* Rellenamos los campos del formulario con datos falsos */
         await userEvent.type(user, "john.doe");

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { App, Table, Button, Modal, Dropdown, Spin, Typography } from 'antd';
+import { App, Table, Button, Modal, Dropdown, Spin, Typography, theme } from 'antd';
+import { BRAND_COLORS } from '../../theme/semantic-colors';
 import type { MenuProps } from 'antd';
 import { Tooltip } from 'antd';
 import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined, DownOutlined } from '@ant-design/icons';
@@ -69,6 +70,7 @@ const isStudentUser = (user: User): boolean => {
 
 const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseClient, courseFunding, groupStart, groupEnd, highlightUserId }) => {
   const { message: messageApi, modal, notification: notificationApi } = App.useApp();
+  const { token } = theme.useToken();
 
   const extractSummary = (text?: string) => {
     if (!text) return '';
@@ -477,8 +479,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       sorter: { compare: (a: User, b: User) => Number(a.bonified ?? false) - Number(b.bonified ?? false) },
       render: (_: unknown, user: User) =>
         user.bonified
-          ? <span style={{ color: '#52c41a', fontWeight: 700 }}>Sí</span>
-          : <span style={{ color: '#bfbfbf' }}>—</span>,
+          ? <span style={{ color: token.colorSuccess, fontWeight: 700 }}>Sí</span>
+          : <span style={{ color: token.colorTextQuaternary }}>—</span>,
     });
 
     const gateStudentColumns = (cols: (typeof USERS_TABLE_COLUMNS)[number][]) =>
@@ -507,9 +509,9 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       width: 56,
       render: (_: unknown, user: User) => {
         const synced = user.moodle_synced_at;
-        if (!synced) return <span style={{ color: '#ff4d4f', fontWeight: 700 }}>N</span>;
+        if (!synced) return <span style={{ color: token.colorError, fontWeight: 700 }}>N</span>;
         const date = typeof synced === 'string' ? new Date(synced) : (synced as Date);
-        return <span title={date ? date.toLocaleString() : String(synced)} style={{ color: '#52c41a', fontWeight: 700 }}>S</span>;
+        return <span title={date ? date.toLocaleString() : String(synced)} style={{ color: token.colorSuccess, fontWeight: 700 }}>S</span>;
       }
     } as const;
 
@@ -560,7 +562,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
     },
     {
       key: 'importar',
-      icon: <FileExcelOutlined style={{ color: '#008000' }} />,
+      icon: <FileExcelOutlined style={{ color: BRAND_COLORS.excel }} />,
       label: 'Importar XLS',
     },
   ];
@@ -568,13 +570,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const moodleMenuItems: MenuProps['items'] = [
     {
       key: 'traer',
-      icon: <CloudDownloadOutlined style={{ color: '#f56b00' }} />,
+      icon: <CloudDownloadOutlined style={{ color: BRAND_COLORS.moodle }} />,
       label: 'Traer desde Moodle',
       disabled: isGroupLoading || !groupData?.moodle_id,
     },
     {
       key: 'subir',
-      icon: <SaveOutlined style={{ color: '#fa8c16' }} />,
+      icon: <SaveOutlined style={{ color: token.colorWarning }} />,
       label: 'Subir a Moodle',
       disabled: isGroupLoading,
     },
@@ -598,17 +600,17 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const seleccionMenuItems: MenuProps['items'] = [
     {
       key: 'sel-zero',
-      label: <span style={{ color: '#ff4d4f' }}>Seleccionar 0%</span>,
+      label: <span style={{ color: token.colorError }}>Seleccionar 0%</span>,
       disabled: !usersData || usersData.length === 0,
     },
     {
       key: 'sel-below75',
-      label: <span style={{ color: '#ff4d4f' }}>Seleccionar 1–75%</span>,
+      label: <span style={{ color: token.colorError }}>Seleccionar 1–75%</span>,
       disabled: !usersData || usersData.length === 0,
     },
     {
       key: 'sel-above75',
-      label: <span style={{ color: '#52c41a' }}>Seleccionar ≥75%</span>,
+      label: <span style={{ color: token.colorSuccess }}>Seleccionar ≥75%</span>,
       disabled: !usersData || usersData.length === 0,
     },
   ];
@@ -679,7 +681,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
                 disabled={syncMoodleGroupMembersPending}
               >
                 <Button
-                  icon={<CloudDownloadOutlined style={{ color: '#f56b00' }} />}
+                  icon={<CloudDownloadOutlined style={{ color: BRAND_COLORS.moodle }} />}
                   loading={syncMoodleGroupMembersPending}
                 >
                   Moodle <DownOutlined />
@@ -740,7 +742,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
           const formattedDate = formatDateTime(syncedAt, 'Sin sincronizar');
           return (
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingRight: 8 }}>
-              <div style={{ fontSize: '0.9em', color: '#666' }}>
+              <div style={{ fontSize: '0.9em', color: token.colorTextSecondary }}>
                 <strong>Última sincronización:</strong>&nbsp;{formattedDate}
               </div>
               <div style={{ display: 'flex', gap: 16 }}>

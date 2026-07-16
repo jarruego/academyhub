@@ -1,16 +1,17 @@
 import React from "react";
-import { Button, Input, Tag, Tooltip } from "antd";
+import { Button, Input, Tag, Tooltip, theme } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useAllGroupsQuery } from "../../hooks/api/groups/use-all-groups.query";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { PlusOutlined } from "@ant-design/icons";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Group } from "../../shared/types/group/group";
 import { Course } from "../../shared/types/course/course";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { isGroupActive } from "../../utils/group-active.util";
 import { DataTable } from "../../components/common/DataTable";
+import { ListPageLayout } from "../../components/common/ListPageLayout";
 import { ActiveTag } from "../../components/common/tags";
 import { formatDate } from "../../utils/format";
 import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
@@ -22,10 +23,7 @@ export default function GroupsRoute() {
   const { data: coursesData, isLoading: isCoursesLoading } = useCoursesQuery();
   const [searchText, setSearchText] = useState("");
   const navigate = useNavigate();
-
-  useEffect(() => {
-    document.title = "Grupos";
-  }, []);
+  const { token } = theme.useToken();
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
@@ -48,22 +46,24 @@ export default function GroupsRoute() {
     return bTs - aTs;
   });
 
-  return (
-    <div>
-      <div className="list-controls">
-        <Input.Search
-          id="groups-search"
-          placeholder="Buscar grupos"
-          style={{ minWidth: 260 }}
-          value={searchText}
-          onChange={handleSearch}
-          aria-label="Buscar grupos"
-        />
-        <AuthzHide roles={[Role.ADMIN]}>
-          <Button type="primary" onClick={() => navigate('/courses')} icon={<PlusOutlined />}>Añadir Grupo</Button>
-        </AuthzHide>
-      </div>
+  const toolbar = (
+    <>
+      <Input.Search
+        id="groups-search"
+        placeholder="Buscar grupos"
+        style={{ minWidth: 260 }}
+        value={searchText}
+        onChange={handleSearch}
+        aria-label="Buscar grupos"
+      />
+      <AuthzHide roles={[Role.ADMIN]}>
+        <Button type="primary" onClick={() => navigate('/courses')} icon={<PlusOutlined />}>Añadir Grupo</Button>
+      </AuthzHide>
+    </>
+  );
 
+  return (
+    <ListPageLayout title="Grupos" toolbar={toolbar}>
       <DataTable<Group>
         rowKey="id_group"
         columns={[
@@ -103,7 +103,7 @@ export default function GroupsRoute() {
                 e.stopPropagation();
                 openDetail(`/courses/${record.id_course}`);
               },
-              style: { cursor: 'pointer', color: '#1677ff' },
+              style: { cursor: 'pointer', color: token.colorPrimary },
             }),
             sorter: (a: Group, b: Group) => (courseNameById[a.id_course] ?? '').localeCompare(courseNameById[b.id_course] ?? ''),
           },
@@ -144,6 +144,6 @@ export default function GroupsRoute() {
         loading={isGroupsLoading || isCoursesLoading}
         getRowUrl={(record) => `/groups/${record.id_group}/edit`}
       />
-    </div>
+    </ListPageLayout>
   );
 }

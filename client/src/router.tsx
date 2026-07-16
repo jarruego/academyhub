@@ -16,9 +16,11 @@ import CompanyDetailRoute from './routes/companies/company-detail.route';
 import CreateCenterRoute from './routes/centers/create-center.route';
 import EditCenterRoute from './routes/centers/center-detail.route';
 import CentersRoute from './routes/centers/centers.route';
-import { Layout, Menu, Button, Drawer, Grid } from 'antd';
+import { Layout, Menu, Button, Drawer } from 'antd';
 import type { MenuProps } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
+import { useIsMobile } from './hooks/use-is-mobile';
+import { UiPreferencesControl } from './components/common/UiPreferencesControl';
 import ToolsRoute from './routes/tools/tools.route';
 import ToolList from './components/tools/ToolList';
 import DataCrossReferenceRoute from './routes/tools/data-cross-reference.route';
@@ -52,6 +54,7 @@ import {
   MenuOutlined,
   FileTextOutlined,
   SafetyCertificateOutlined,
+  PoweroffOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content, Header } = Layout;
@@ -98,7 +101,12 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
   const menuContent = (
     <>
       <Menu theme="dark" mode="inline" items={menuItems} />
-      <Button onClick={logout} style={{ margin: '16px' }}>Cerrar sesión</Button>
+      <div className="app-sider-footer">
+        <UiPreferencesControl />
+        <Button danger icon={<PoweroffOutlined />} onClick={logout} block>
+          Cerrar sesión
+        </Button>
+      </div>
     </>
   );
 
@@ -111,6 +119,7 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
         width={220}
         title={<span style={{ color: '#fff' }}>AcademyHub</span>}
         closeIcon={<span style={{ color: 'rgba(255,255,255,0.65)' }}>✕</span>}
+        classNames={{ body: 'app-sider-drawer-body' }}
         styles={{
           body: { padding: 0, background: SIDER_BG },
           header: { background: SIDER_BG, borderBottom: '1px solid #1f1f1f' },
@@ -121,12 +130,11 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
     );
   }
 
-  return <Sider>{menuContent}</Sider>;
+  return <Sider className="app-sider">{menuContent}</Sider>;
 };
 
 export default function AppRouter() {
-  const screens = Grid.useBreakpoint();
-  const isMobile = screens.md === false;
+  const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (

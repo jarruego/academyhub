@@ -2,7 +2,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Row, Col, Space } from "antd";
+import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Row, Col, Space, theme } from "antd";
 import { RouteTabs } from "../../components/common/RouteTabs";
 import { ActiveTag } from "../../components/common/tags";
 import HtmlEditor from '../../components/courses/HtmlEditor';
@@ -50,6 +50,7 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
 
 export default function CourseDetailRoute() {
   const { message, modal } = App.useApp();
+  const { token } = theme.useToken();
   const role = useRole();
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
   const navigate = useNavigate();
@@ -309,12 +310,12 @@ export default function CourseDetailRoute() {
                     target="_blank"
                     rel="noopener noreferrer"
                     title="Abrir el curso en Moodle"
-                    style={{ fontSize: 12, color: '#bfbfbf', textDecoration: 'underline' }}
+                    style={{ fontSize: 12, color: token.colorTextQuaternary, textDecoration: 'underline' }}
                   >
                     ID Moodle: {courseData.moodle_id}
                   </a>
                 ) : (
-                  <span style={{ fontSize: 12, color: '#bfbfbf' }}>ID Moodle: {courseData.moodle_id}</span>
+                  <span style={{ fontSize: 12, color: token.colorTextQuaternary }}>ID Moodle: {courseData.moodle_id}</span>
                 )
               )}
             </Space>
@@ -706,7 +707,7 @@ export default function CourseDetailRoute() {
             </div>
           </Form>
         ) : (
-          <div style={{ padding: 16, background: '#fff', minHeight: 200 }}>
+          <div style={{ padding: 16, background: token.colorBgContainer, minHeight: 200 }}>
             <div dangerouslySetInnerHTML={{ __html: contentsValue || '<em>No hay contenidos</em>' }} />
           </div>
         ),

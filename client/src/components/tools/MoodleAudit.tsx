@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { Alert, App, Button, Card, Empty, Space, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { CloudDownloadOutlined, DeleteOutlined, MergeCellsOutlined, ReloadOutlined, SyncOutlined, WarningOutlined } from "@ant-design/icons";
+import { CloudDownloadOutlined, DeleteOutlined, MergeCellsOutlined, ReloadOutlined, SwapOutlined, SyncOutlined, WarningOutlined } from "@ant-design/icons";
 import { STATUS_COLORS } from "../../theme/semantic-colors";
 import { RouteTabs } from "../common/RouteTabs";
+import { PageHeader } from "../common/PageHeader";
 import { formatDateTime } from "../../utils/format";
 import { openDetail } from "../../utils/open-detail";
+import { detectDocumentType } from "../../utils/detect-document-type";
 import { MergeModal } from "./MergeDuplicates";
 import {
   AuditMoodleUser,
@@ -21,6 +23,7 @@ import {
   useMoodleAuditRefreshMutation,
   useMoodleAuditReportQuery,
   useOrphanCleanupMutation,
+  useRelinkMutation,
 } from "../../hooks/api/moodle-audit/useMoodleAudit";
 
 const { Text } = Typography;
@@ -33,6 +36,13 @@ const apiErrorMessage = (e: unknown, fallback: string): string => {
 const fullName = (u: AuditUserRef | null) =>
   u ? [u.name, u.first_surname, u.second_surname].filter(Boolean).join(" ").trim() || "(sin nombre)" : "(desconocido)";
 
+// DNI/NIE con la letra de control validada: los inválidos, en rojo y negrita
+const DniText: React.FC<{ value: string | null }> = ({ value }) => {
+  if (!value) return <>sin DNI</>;
+  if (detectDocumentType(value) !== undefined) return <>{value}</>;
+  return <Text strong type="danger" style={{ fontSize: "inherit" }}>{value}</Text>;
+};
+
 // Usuario local como enlace a su ficha (nueva pestaña, gesto estándar de la app)
 const LocalUserCell: React.FC<{ user: AuditUserRef | null }> = ({ user }) => {
   if (!user) return <Text type="secondary">—</Text>;
@@ -42,7 +52,7 @@ const LocalUserCell: React.FC<{ user: AuditUserRef | null }> = ({ user }) => {
         #{user.id_user} {fullName(user)}
       </Typography.Link>
       <Text type="secondary" style={{ fontSize: 12 }}>
-        {user.dni ?? "sin DNI"} · {user.courses_count}c · {user.groups_count}g · {user.moodle_count}m
+        <DniText value={user.dni} /> · {user.courses_count}c · {user.groups_count}g · {user.moodle_count}m
       </Text>
     </Space>
   );
@@ -56,18 +66,56 @@ const MoodleUserCell: React.FC<{ moodle: AuditMoodleUser }> = ({ moodle }) => (
     </Text>
     <Text type="secondary" style={{ fontSize: 12 }}>
       {moodle.fullname} · id {moodle.moodle_id}
-      {moodle.dni_keys.length > 0 ? ` · ${moodle.dni_keys.join(", ")}` : ""}
+      {moodle.dni_keys.map(k => (
+        <React.Fragment key={k}>
+          {" · "}
+          <DniText value={k} />
+        </React.Fragment>
+      ))}
     </Text>
   </Space>
 );
 
-// ---- Pestaña: vínculos incorrectos (candidatos a fusión) ----
+// ---- Pestaña: vínculos incorrectos (reasignar o fusionar) ----
 const IncorrectLinksTab: React.FC<{ items: IncorrectLinkFinding[] }> = ({ items }) => {
+  const { message, modal } = App.useApp();
   const [mergeTarget, setMergeTarget] = useState<{ winnerId: number; loserId: number } | null>(null);
+  const { mutateAsync: relink, isPending: isRelinking } = useRelinkMutation();
+
+  const handleRelink = (r: IncorrectLinkFinding) => {
+    modal.confirm({
+      title: "Reasignar vínculo de Moodle",
+      width: 560,
+      content: (
+        <Space direction="vertical" size={4}>
+          <Text>
+            La cuenta <b>{r.moodle.username}</b> pasa de <b>#{r.linkedUser.id_user} {fullName(r.linkedUser)}</b> a{" "}
+            <b>#{r.expectedUser.id_user} {fullName(r.expectedUser)}</b> (correcto por DNI).
+          </Text>
+          <Text type="secondary">
+            Se mueven solo las matrículas de esta cuenta de Moodle y las membresías de grupo de esos cursos.
+            Ninguna ficha se borra ni se fusionan más datos. No toca Moodle ni hace llamadas.
+          </Text>
+        </Space>
+      ),
+      okText: "Reasignar",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          const result = await relink(r.id_moodle_user);
+          message.success(
+            `Vínculo reasignado a #${result.to_user}: ${result.courses.moved + result.courses.merged} matrículas y ${result.groups.moved + result.groups.merged} grupos movidos`,
+          );
+        } catch (e) {
+          message.error(apiErrorMessage(e, "No se pudo reasignar el vínculo"));
+        }
+      },
+    });
+  };
 
   const columns: ColumnsType<IncorrectLinkFinding> = [
     { title: "Cuenta Moodle", key: "moodle", render: (_v, r) => <MoodleUserCell moodle={r.moodle} /> },
-    { title: "Vinculado ahora (duplicado probable)", key: "linked", render: (_v, r) => <LocalUserCell user={r.linkedUser} /> },
+    { title: "Vinculado ahora (incorrecto)", key: "linked", render: (_v, r) => <LocalUserCell user={r.linkedUser} /> },
     { title: "Correcto por DNI", key: "expected", render: (_v, r) => <LocalUserCell user={r.expectedUser} /> },
     {
       title: "Nombres",
@@ -81,15 +129,26 @@ const IncorrectLinksTab: React.FC<{ items: IncorrectLinkFinding[] }> = ({ items 
     {
       title: "Acción",
       key: "action",
-      width: 140,
+      width: 260,
       render: (_v, r) => (
-        <Button
-          size="small"
-          icon={<MergeCellsOutlined />}
-          onClick={() => setMergeTarget({ winnerId: r.expectedUser.id_user, loserId: r.linkedUser.id_user })}
-        >
-          Fusionar →
-        </Button>
+        <Space>
+          <Button
+            size="small"
+            type="primary"
+            icon={<SwapOutlined />}
+            loading={isRelinking}
+            onClick={() => handleRelink(r)}
+          >
+            Reasignar →
+          </Button>
+          <Button
+            size="small"
+            icon={<MergeCellsOutlined />}
+            onClick={() => setMergeTarget({ winnerId: r.expectedUser.id_user, loserId: r.linkedUser.id_user })}
+          >
+            Fusionar →
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -102,8 +161,15 @@ const IncorrectLinksTab: React.FC<{ items: IncorrectLinkFinding[] }> = ({ items 
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="La cuenta de Moodle está vinculada a un usuario local distinto del que casa por su DNI (duplicados creados por imports antiguos)."
-        description={'"Fusionar →" abre la previsualización con el usuario correcto como ganador y el duplicado como perdedor: sus matrículas y progreso pasan al ganador y el duplicado se elimina.'}
+        message="La cuenta de Moodle está vinculada a un usuario local distinto del que casa por su DNI."
+        description={
+          <span>
+            <b>Reasignar →</b> (personas distintas, solo el vínculo está mal): mueve la cuenta de Moodle, sus matrículas
+            y los grupos de esos cursos al usuario correcto; nadie se borra.{" "}
+            <b>Fusionar →</b> (las dos fichas son la misma persona): el usuario correcto absorbe TODO lo del vinculado
+            y este se elimina.
+          </span>
+        }
       />
       <Table size="small" rowKey="id_moodle_user" columns={columns} dataSource={items} scroll={{ x: "max-content" }} />
       {mergeTarget && (
@@ -432,10 +498,10 @@ const MoodleAudit: React.FC = () => {
 
   return (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
-      <Card
-        title="Auditoría de vínculos con Moodle"
+      <PageHeader
+        title="Auditoría de Moodle"
         extra={
-          <Space>
+          <>
             {r.hasSnapshot && (
               <Button icon={<ReloadOutlined />} loading={isRefetching} onClick={() => refetch()}>
                 Recalcular (sin llamadas)
@@ -444,9 +510,10 @@ const MoodleAudit: React.FC = () => {
             <Button type="primary" icon={<CloudDownloadOutlined />} loading={isRefreshing} onClick={handleDownload}>
               {r.hasSnapshot ? "Volver a descargar de Moodle" : "Descargar de Moodle"}
             </Button>
-          </Space>
+          </>
         }
-      >
+      />
+      <Card>
         {r.hasSnapshot ? (
           <Text type="secondary">
             Snapshot de <b>{r.snapshotSize}</b> usuarios de Moodle descargado el {formatDateTime(r.fetchedAt!)} (

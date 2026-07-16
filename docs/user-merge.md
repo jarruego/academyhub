@@ -32,7 +32,7 @@ El prefijo `api/` va **en el decorador** (no hay prefijo global; el cliente llam
 ## Cliente
 Tool **Fusión de duplicados** (`/tools/merge-duplicates`, admin) en categoría "Herramientas" (`ToolList.tsx`). Componente `MergeDuplicates.tsx` + hooks `hooks/api/user-merge/useMergeData.ts`. Flujo: lista de grupos → elegir **ganador** (radio) → "Fusionar →" en la ficha a absorber → modal de previsualización con **checkbox por campo** (por defecto solo trae el valor del perdedor donde el ganador está vacío) + avisos de colisiones/dual-Moodle → confirmar.
 
-El `MergeModal` está **exportado** y lo reutiliza la Auditoría de Moodle (`docs/moodle-audit.md`) para fusionar vínculos incorrectos (ganador = usuario que casa por DNI, perdedor = duplicado vinculado); por eso `useMergeMutation` invalida también `["moodle-audit-report"]`.
+El `MergeModal` está **exportado** y lo reutiliza la Auditoría de Moodle (`docs/moodle-audit.md`) para fusionar vínculos incorrectos (ganador = usuario que casa por DNI, perdedor = duplicado vinculado); por eso `useMergeMutation` invalida también `["moodle-audit-report"]`. Los props `winnerId`/`loserId` son solo el punto de partida: el modal tiene un botón **"Intercambiar ganador ↔ perdedor"** (estado interno; la previsualización se recarga porque la query lleva ambos IDs en la clave).
 
 ## Tests / gotchas
 - Tests Jest cubren los helpers puros (`user-merge.util.spec.ts`): `normalizeNss`, merges de fila, ranking de estado. La fusión completa necesita Postgres real (diferida, como el E2E de SAGE/INAEM).

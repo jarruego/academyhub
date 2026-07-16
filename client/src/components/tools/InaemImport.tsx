@@ -24,11 +24,12 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 import type { RcFile } from "antd/es/upload";
-import { App } from "antd";
+import { App, theme } from "antd";
 import { STATUS_COLORS } from "../../theme/semantic-colors";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useInaemImportUpload, useInaemJobStatus } from "../../hooks/api/import-inaem/useInaemImport";
+import { PageHeader } from '../common/PageHeader';
 
 const { Title } = Typography;
 
@@ -42,6 +43,7 @@ const FILE_LABELS: Record<FileKey, string> = {
 
 const InaemImport: React.FC = () => {
   const { message } = App.useApp();
+  const { token } = theme.useToken();
   const [files, setFiles] = useState<Partial<Record<FileKey, RcFile>>>({});
   const [createMissingCourses, setCreateMissingCourses] = useState(true);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
@@ -105,26 +107,27 @@ const InaemImport: React.FC = () => {
   const statusColor = (s: string) =>
     s === "completed" ? STATUS_COLORS.active : s === "failed" ? STATUS_COLORS.inactive : s === "processing" ? STATUS_COLORS.processing : STATUS_COLORS.neutral;
   const statusIcon = (s: string) =>
-    s === "completed" ? <CheckCircleOutlined style={{ color: "#52c41a" }} />
-      : s === "failed" ? <CloseCircleOutlined style={{ color: "#ff4d4f" }} />
+    s === "completed" ? <CheckCircleOutlined style={{ color: token.colorSuccess }} />
+      : s === "failed" ? <CloseCircleOutlined style={{ color: token.colorError }} />
         : s === "processing" ? <Spin size="small" />
-          : <ExclamationCircleOutlined style={{ color: "#faad14" }} />;
+          : <ExclamationCircleOutlined style={{ color: token.colorWarning }} />;
 
   const summary = jobStatus?.resultSummary;
 
   return (
     <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-      <div style={{ padding: 24 }}>
-        <Space direction="vertical" size="large" style={{ width: "100%" }}>
-          <Card>
-            <Title level={2}>Importación INAEM</Title>
-            <p style={{ color: "#666", marginBottom: 0 }}>
+      <div>
+        <PageHeader
+          title="Importación INAEM"
+          subtitle={
+            <>
               Sube los ficheros del INAEM. Son todos opcionales; si subes varios, se procesan en orden:
               <b> Acciones → Preinscripciones → Alumnos</b>. Los cursos se casan por nº de expediente
               (etiqueta antes tus cursos existentes para no duplicarlos).
-            </p>
-          </Card>
-
+            </>
+          }
+        />
+        <Space direction="vertical" size="large" style={{ width: "100%" }}>
           <Tabs
             defaultActiveKey="import"
             items={[
@@ -196,15 +199,18 @@ const InaemImport: React.FC = () => {
 
                 {summary && (
                   <Row gutter={[16, 16]}>
+                    {/* Escala semántica en vez del arcoíris anterior (6 hexes sueltos):
+                        lo creado en verde, lo actualizado en el color de marca, los
+                        recuentos informativos en azul y los problemas en aviso/error. */}
                     {([
-                      ["Cursos nuevos", summary.coursesCreated, "#3f8600"],
-                      ["Cursos actualizados", summary.coursesUpdated, "#1890ff"],
-                      ["Usuarios nuevos", summary.usersCreated, "#3f8600"],
-                      ["Usuarios actualizados", summary.usersUpdated, "#1890ff"],
-                      ["Matrículas", summary.enrollments, "#13c2c2"],
-                      ["Preinscripciones", summary.preinscriptions, "#722ed1"],
-                      ["Conflictos", summary.conflicts, summary.conflicts > 0 ? "#fa541c" : "#3f8600"],
-                      ["Filas fallidas", summary.failed, summary.failed > 0 ? "#cf1322" : "#3f8600"],
+                      ["Cursos nuevos", summary.coursesCreated, token.colorSuccess],
+                      ["Cursos actualizados", summary.coursesUpdated, token.colorPrimary],
+                      ["Usuarios nuevos", summary.usersCreated, token.colorSuccess],
+                      ["Usuarios actualizados", summary.usersUpdated, token.colorPrimary],
+                      ["Matrículas", summary.enrollments, token.colorInfo],
+                      ["Preinscripciones", summary.preinscriptions, token.colorInfo],
+                      ["Conflictos", summary.conflicts, summary.conflicts > 0 ? token.colorWarning : token.colorSuccess],
+                      ["Filas fallidas", summary.failed, summary.failed > 0 ? token.colorError : token.colorSuccess],
                     ] as [string, number, string][]).map(([title, value, color]) => (
                       <Col xs={12} md={6} key={title}>
                         <Card size="small">

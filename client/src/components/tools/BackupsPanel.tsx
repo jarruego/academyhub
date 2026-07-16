@@ -12,6 +12,7 @@ import {
   type BackupRun,
 } from '../../hooks/api/backups/use-backups.query';
 import { useDownloadBackupMutation, useRunBackupMutation } from '../../hooks/api/backups/use-backups.mutation';
+import { PageHeader } from '../common/PageHeader';
 
 export function runStatusTag(run: BackupRun) {
   if (run.status !== 'completed') return <Tag color={STATUS_COLORS.processing}>En curso</Tag>;
@@ -113,12 +114,10 @@ export default function BackupsPanel() {
 
   return (
     <AuthzHide roles={[Role.ADMIN]}>
-      <Card
+      <PageHeader
         title="Copias de seguridad"
-        bordered
-        style={{ margin: '0 auto' }}
         extra={
-          <Space wrap>
+          <>
             <Button
               icon={<ReloadOutlined />}
               onClick={() => {
@@ -137,9 +136,10 @@ export default function BackupsPanel() {
             >
               Hacer copia ahora
             </Button>
-          </Space>
+          </>
         }
-      >
+      />
+      <Card bordered style={{ margin: '0 auto' }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           {status.data?.github_configured === false && (
             <Alert
