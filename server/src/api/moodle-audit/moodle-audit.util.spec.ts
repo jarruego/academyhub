@@ -304,6 +304,7 @@ describe("classifyCleanupCandidates", () => {
     usersById: new Map([[100, userRef({ id_user: 100 })]]),
     authUserKeys: new Set<string>(),
     tutorUserIds: new Set<number>(),
+    manuallyProtectedIds: new Set<number>(),
   };
 
   it("los matriculados en algún curso de Moodle nunca son candidatos", () => {
@@ -358,5 +359,18 @@ describe("classifyCleanupCandidates", () => {
       links: [link({ id_moodle_user: 1, id_user: 100, moodle_id: 10 })],
     });
     expect(result[0]).toMatchObject({ protected: true, protected_reasons: ["tutor"] });
+  });
+
+  it("protege cuentas marcadas manualmente como intocables (aunque no tengan vínculo)", () => {
+    const result = classifyCleanupCandidates({
+      ...base,
+      manuallyProtectedIds: new Set([10]),
+      snapshot: [auditMoodle({ moodle_id: 10 }), auditMoodle({ moodle_id: 11 })],
+      enrolledMoodleIds: new Set(),
+      links: [],
+    });
+    const byId = new Map(result.map(c => [c.moodle.moodle_id, c]));
+    expect(byId.get(10)).toMatchObject({ protected: true, protected_reasons: ["manual"] });
+    expect(byId.get(11)).toMatchObject({ protected: false });
   });
 });

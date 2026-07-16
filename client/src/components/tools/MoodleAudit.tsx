@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { Alert, App, Button, Card, Empty, Select, Space, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { CloudDownloadOutlined, DeleteOutlined, MergeCellsOutlined, ReloadOutlined, SwapOutlined, SyncOutlined, WarningOutlined } from "@ant-design/icons";
+import { CloudDownloadOutlined, DeleteOutlined, MergeCellsOutlined, ReloadOutlined, SafetyOutlined, SwapOutlined, SyncOutlined, WarningOutlined } from "@ant-design/icons";
 import { STATUS_COLORS } from "../../theme/semantic-colors";
 import { RouteTabs } from "../common/RouteTabs";
 import { PageHeader } from "../common/PageHeader";
-import { formatDateTime } from "../../utils/format";
+import { formatDate, formatDateTime } from "../../utils/format";
 import { openDetail } from "../../utils/open-detail";
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { MergeModal } from "./MergeDuplicates";
@@ -15,6 +15,7 @@ import {
   CleanupCandidate,
   IncorrectLinkFinding,
   MoodleAuditReport,
+  MoodleCourseRow,
   NoCoursesFinding,
   OrphanFinding,
   UnlinkedFinding,
@@ -25,6 +26,7 @@ import {
   useMoodleAuditRefreshMutation,
   useMoodleAuditReportQuery,
   useOrphanCleanupMutation,
+  useProtectMutation,
   useRefreshEnrolmentsMutation,
   useRelinkMutation,
   useSyncStatusMutation,
@@ -167,12 +169,29 @@ const IncorrectLinksTab: React.FC<{ items: IncorrectLinkFinding[] }> = ({ items 
         style={{ marginBottom: 12 }}
         message="La cuenta de Moodle está vinculada a un usuario local distinto del que casa por su DNI."
         description={
-          <span>
-            <b>Reasignar →</b> (personas distintas, solo el vínculo está mal): mueve la cuenta de Moodle, sus matrículas
-            y los grupos de esos cursos al usuario correcto; nadie se borra.{" "}
-            <b>Fusionar →</b> (las dos fichas son la misma persona): el usuario correcto absorbe TODO lo del vinculado
-            y este se elimina.
-          </span>
+          <Space direction="vertical" size={4}>
+            <Text>
+              Ejemplo: la cuenta <Text code>18457959e</Text> aparece vinculada a la ficha #200, pero ese DNI pertenece a
+              la ficha #100. Suele venir de imports antiguos que no reconocían el DNI (mayúsculas/minúsculas) y creaban
+              fichas duplicadas.
+            </Text>
+            <Text>
+              <b>Reasignar →</b> cuando las dos fichas son personas <b>distintas</b> y solo el vínculo está mal colgado:
+              mueve la cuenta de Moodle, sus matrículas y los grupos de esos cursos al usuario correcto. <b>Nadie se
+              borra</b> y el resto de datos del mal vinculado queda intacto.
+            </Text>
+            <Text>
+              <b>Fusionar →</b> cuando las dos fichas son la <b>misma persona</b> duplicada: el usuario correcto absorbe
+              TODO (matrículas, grupos, centros, preinscripciones) y el duplicado se elimina. El modal permite
+              intercambiar ganador y perdedor y elegir qué campos conservar.
+            </Text>
+            <Text type="secondary">
+              Guía rápida: columna «Nombres» = <Tag color={STATUS_COLORS.active}>coinciden</Tag> → casi seguro fusión
+              (duplicado); <Tag color={STATUS_COLORS.warning}>revisar</Tag> → probablemente reasignar. Ninguna de las dos
+              acciones toca Moodle ni gasta llamadas. La fusión es irreversible; revisa la previsualización antes de
+              confirmar.
+            </Text>
+          </Space>
         }
       />
       <Table size="small" rowKey="id_moodle_user" columns={columns} dataSource={items} scroll={{ x: "max-content" }} />
@@ -278,7 +297,25 @@ const OrphansTab: React.FC<{ items: OrphanFinding[] }> = ({ items }) => {
         showIcon
         style={{ marginBottom: 12 }}
         message="Vínculos de la BD cuya cuenta ya no existe en Moodle (borrada allí)."
-        description="Al eliminarlos se conservan las matrículas y el progreso histórico; solo se desconecta la cuenta y se borran sus tokens. Si un usuario aparece también en «Vínculos incorrectos», fusiona primero."
+        description={
+          <Space direction="vertical" size={4}>
+            <Text>
+              Esta lista crece cada vez que se borran usuarios en Moodle (desde la pestaña «Limpieza de Moodle» o desde
+              la propia Moodle). Los IDs de Moodle no se reutilizan nunca, así que un huérfano lo es para siempre.
+            </Text>
+            <Text>
+              Dos maneras de tratarlos: <b>«Sincronizar estado a la BD»</b> (cabecera) los deja como <b>lápida</b> — la
+              fila se conserva con la fecha de borrado y las matrículas históricas siguen apuntando a ella (tag{" "}
+              <Tag color={STATUS_COLORS.neutral}>lápida marcada</Tag>) —, o <b>Eliminar</b> aquí, que borra la fila de la
+              BD por completo.
+            </Text>
+            <Text type="secondary">
+              Al eliminar se conservan las matrículas y su progreso (solo se desconecta la cuenta) y se borran sus
+              tokens. Esta acción no toca Moodle. Si el mismo usuario aparece también en «Vínculos incorrectos», fusiona
+              primero: la fusión puede resolver el huérfano.
+            </Text>
+          </Space>
+        }
       />
       <Space style={{ marginBottom: 12 }}>
         <Button
@@ -367,7 +404,21 @@ const UsernameMismatchesTab: React.FC<{ items: UsernameMismatchFinding[] }> = ({
         showIcon
         style={{ marginBottom: 12 }}
         message="Vínculos correctos por moodle_id cuyo username guardado no coincide con el real de Moodle."
-        description="La actualización copia el username real del snapshot a la BD (sin llamadas y sin tocar Moodle). Si el username real lo tiene ocupado otro vínculo desactualizado, se resuelve solo en la misma pasada."
+        description={
+          <Space direction="vertical" size={4}>
+            <Text>
+              Ejemplo: en la BD está guardado <Text delete type="secondary">ana.garcia</Text> pero en Moodle el username
+              real es <Text strong>agarcia2</Text> (alguien lo cambió allí). No rompe el vínculo (que va por ID), pero
+              ensucia búsquedas y accesos por username.
+            </Text>
+            <Text type="secondary">
+              «Actualizar» copia el username real del snapshot a la BD: sin llamadas, sin tocar Moodle y es seguro
+              lanzarlo sobre todos a la vez. Si el username real lo tiene ocupado otro vínculo también desactualizado
+              (cadenas o intercambios), se resuelve solo en la misma pasada; los conflictos reales se muestran como
+              error por fila sin abortar el resto.
+            </Text>
+          </Space>
+        }
       />
       <Space style={{ marginBottom: 12 }}>
         <Button type="primary" icon={<SyncOutlined />} loading={isPending} onClick={() => runFix()}>
@@ -415,8 +466,22 @@ const CleanupTab: React.FC<{
 }> = ({ items, enrolments, onDownloadEnrolments, isDownloading }) => {
   const { message, modal } = App.useApp();
   const { mutateAsync: deleteFromMoodle, isPending: isDeleting } = useDeleteFromMoodleMutation();
+  const { mutateAsync: toggleProtect, isPending: isProtecting } = useProtectMutation();
   const [selected, setSelected] = useState<React.Key[]>([]);
   const [activity, setActivity] = useState<ActivityFilter>("12m");
+
+  const handleProtect = async (r: CleanupCandidate, protect: boolean) => {
+    try {
+      await toggleProtect({ moodleId: r.moodle.moodle_id, protect });
+      message.success(
+        protect
+          ? `${r.moodle.username} marcado como intocable`
+          : `${r.moodle.username} ya no está protegido manualmente`,
+      );
+    } catch (e) {
+      message.error(apiErrorMessage(e, "No se pudo cambiar la protección"));
+    }
+  };
 
   const filtered = useMemo(() => {
     if (activity === "all") return items;
@@ -498,18 +563,33 @@ const CleanupTab: React.FC<{
     {
       title: "Protección",
       key: "protected",
-      width: 160,
+      width: 200,
       render: (_v, r) =>
         r.protected ? (
           <Space size={4}>
             {r.protected_reasons.map(reason => (
               <Tag key={reason} color={STATUS_COLORS.inactive} icon={<WarningOutlined />}>
-                {reason === "auth-user" ? "gestor" : "tutor"}
+                {reason === "auth-user" ? "gestor" : reason === "tutor" ? "tutor" : "intocable"}
               </Tag>
             ))}
           </Space>
         ) : (
           <Text type="secondary">—</Text>
+        ),
+    },
+    {
+      title: "Acción",
+      key: "action",
+      width: 140,
+      render: (_v, r) =>
+        r.protected_reasons.includes("manual") ? (
+          <Button size="small" loading={isProtecting} onClick={() => handleProtect(r, false)}>
+            Desproteger
+          </Button>
+        ) : (
+          <Button size="small" icon={<SafetyOutlined />} loading={isProtecting} onClick={() => handleProtect(r, true)}>
+            Proteger
+          </Button>
         ),
     },
   ];
@@ -520,8 +600,29 @@ const CleanupTab: React.FC<{
         type="warning"
         showIcon
         style={{ marginBottom: 12 }}
-        message="Usuarios de Moodle que no están matriculados en NINGÚN curso de Moodle."
-        description="El borrado es en Moodle e irreversible. Los marcados como «gestor» (su email/username coincide con un usuario de acceso de AcademyHub) o «tutor» (su vínculo local tutoriza algún grupo) están protegidos y el servidor rechaza borrarlos. Moodle además rechaza admin y guest por su cuenta."
+        message="Usuarios de Moodle que no están matriculados en NINGÚN curso de Moodle. Única pestaña que borra EN Moodle."
+        description={
+          <Space direction="vertical" size={4}>
+            <Text>
+              Ejemplo de candidato claro: <Text code>jlopez3</Text>, sin cursos, nunca conectado, restos de un import
+              fallido. El borrado es <b>en Moodle e irreversible</b> (la cuenta pierde el acceso y desaparece de la
+              plataforma); en la BD local no se borra nada — el vínculo queda marcado como lápida conservando el
+              histórico.
+            </Text>
+            <Text>
+              Protecciones (el checkbox se deshabilita y el servidor rechaza igualmente):{" "}
+              <Tag color={STATUS_COLORS.inactive}>gestor</Tag> su email/username coincide con un usuario de acceso de
+              AcademyHub · <Tag color={STATUS_COLORS.inactive}>tutor</Tag> su vínculo local tutoriza algún grupo ·{" "}
+              <Tag color={STATUS_COLORS.inactive}>intocable</Tag> protegido manualmente con el botón «Proteger» (para
+              cuentas que solo tú sabes que importan: auditores, proveedores…). Moodle además rechaza admin y guest por
+              su cuenta.
+            </Text>
+            <Text type="secondary">
+              El filtro de actividad usa el último acceso real en Moodle. Empieza por «Nunca conectados» (riesgo casi
+              nulo) y ve ampliando. Coste: ~1 llamada por cada 200 borrados; el filtrado no gasta ninguna.
+            </Text>
+          </Space>
+        }
       />
       <Space style={{ marginBottom: 12 }} wrap>
         <Select<ActivityFilter> value={activity} onChange={setActivity} options={ACTIVITY_OPTIONS} style={{ width: 280 }} />
@@ -554,6 +655,132 @@ const CleanupTab: React.FC<{
   );
 };
 
+// ---- Pestaña: cursos de Moodle (informativa, sin acciones) ----
+const CoursesTab: React.FC<{
+  items: MoodleCourseRow[];
+  enrolments: MoodleAuditReport["enrolments"];
+  onDownloadEnrolments: () => void;
+  isDownloading: boolean;
+}> = ({ items, enrolments, onDownloadEnrolments, isDownloading }) => {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+
+  if (!enrolments) {
+    return (
+      <Alert
+        type="info"
+        showIcon
+        message="Falta el snapshot de matrículas de Moodle"
+        description={
+          <Space direction="vertical">
+            <Text>Esta pestaña se alimenta de la misma descarga que «Limpieza de Moodle» (1 llamada por curso + 1 para el catálogo).</Text>
+            <Button type="primary" icon={<CloudDownloadOutlined />} loading={isDownloading} onClick={onDownloadEnrolments}>
+              Descargar matrículas de Moodle
+            </Button>
+          </Space>
+        }
+      />
+    );
+  }
+
+  const columns: ColumnsType<MoodleCourseRow> = [
+    {
+      title: "Curso en Moodle",
+      key: "course",
+      sorter: (a, b) => a.fullname.localeCompare(b.fullname),
+      render: (_v, r) => (
+        <Space direction="vertical" size={0}>
+          <Text>{r.fullname}</Text>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {r.shortname} · id {r.moodle_id}
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: "Estado",
+      key: "status",
+      width: 220,
+      render: (_v, r) => (
+        <Space size={4} wrap>
+          {!r.visible && <Tag color={STATUS_COLORS.neutral}>oculto</Tag>}
+          {r.enddate > 0 && r.enddate < nowEpoch && <Tag color={STATUS_COLORS.warning}>terminado</Tag>}
+          {r.enrolled_count === 0 && <Tag color={STATUS_COLORS.inactive}>sin matriculados</Tag>}
+          {r.visible && (r.enddate === 0 || r.enddate >= nowEpoch) && r.enrolled_count > 0 && (
+            <Tag color={STATUS_COLORS.active}>activo</Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: "Inicio",
+      key: "start",
+      width: 110,
+      sorter: (a, b) => a.startdate - b.startdate,
+      render: (_v, r) => (r.startdate > 0 ? formatDate(new Date(r.startdate * 1000)) : <Text type="secondary">—</Text>),
+    },
+    {
+      title: "Fin",
+      key: "end",
+      width: 110,
+      sorter: (a, b) => a.enddate - b.enddate,
+      render: (_v, r) => (r.enddate > 0 ? formatDate(new Date(r.enddate * 1000)) : <Text type="secondary">—</Text>),
+    },
+    {
+      title: "Matriculados",
+      dataIndex: "enrolled_count",
+      key: "enrolled",
+      width: 130,
+      sorter: (a, b) => a.enrolled_count - b.enrolled_count,
+      render: v => (v > 0 ? v : <Tag color={STATUS_COLORS.inactive}>0</Tag>),
+    },
+    {
+      title: "Curso en AcademyHub",
+      key: "local",
+      render: (_v, r) =>
+        r.localCourse ? (
+          <Typography.Link onClick={() => openDetail(`/courses/${r.localCourse!.id_course}`)}>
+            #{r.localCourse.id_course} {r.localCourse.course_name}
+          </Typography.Link>
+        ) : (
+          <Tag color={STATUS_COLORS.warning}>no importado</Tag>
+        ),
+    },
+  ];
+
+  return (
+    <>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 12 }}
+        message="Catálogo de cursos de Moodle con su estado y matriculados. Solo informativa: aquí no se toca nada."
+        description={
+          <Space direction="vertical" size={4}>
+            <Text>
+              Pensada para decidir qué limpiar <b>desde la propia Moodle</b>: ordena por «Fin» o «Matriculados» para
+              encontrar cursos terminados hace años, vacíos u ocultos. El recuento de matriculados incluye todos los
+              roles (alumnos y docentes).
+            </Text>
+            <Text type="secondary">
+              «No importado» = ningún curso de AcademyHub tiene ese moodle_id. Antes de borrar un curso en Moodle ten en
+              cuenta que se pierden sus calificaciones y registros allí; el histórico de AcademyHub no se ve afectado.
+              Tras borrar cursos en Moodle, vuelve a descargar las matrículas para refrescar esta vista.
+            </Text>
+          </Space>
+        }
+      />
+      <Table
+        size="small"
+        rowKey="moodle_id"
+        columns={columns}
+        dataSource={items}
+        scroll={{ x: "max-content" }}
+        pagination={{ defaultPageSize: 20, showSizeChanger: true }}
+      />
+    </>
+  );
+};
+
 // ---- Pestañas informativas ----
 const UnverifiableTab: React.FC<{ items: UnverifiableFinding[] }> = ({ items }) => {
   const columns: ColumnsType<UnverifiableFinding> = [
@@ -577,8 +804,21 @@ const UnverifiableTab: React.FC<{ items: UnverifiableFinding[] }> = ({ items }) 
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="Vínculos que no se pueden verificar por DNI. No implican error: revísalos manualmente si sospechas de alguno."
-        description="«DNI no encontrado en la BD» puede indicar que al usuario local le falta el DNI (se puede completar desde su ficha)."
+        message="Vínculos que no se pueden verificar por DNI. No implican error: son los puntos ciegos de la auditoría."
+        description={
+          <Space direction="vertical" size={4}>
+            <Text>
+              <Tag color={STATUS_COLORS.neutral}>Moodle no aporta DNI</Tag> la cuenta no tiene el campo DNI relleno y su
+              username no es un DNI/NIE válido — no hay con qué comparar.
+            </Text>
+            <Text>
+              <Tag color={STATUS_COLORS.warning}>DNI no encontrado en la BD</Tag> Moodle sí aporta un DNI pero ningún
+              usuario local lo tiene. Suele significar que a la ficha local le falta el DNI: complétalo desde su ficha
+              (clic en el nombre) y al «Recalcular» el vínculo pasará a verificado.
+            </Text>
+            <Text type="secondary">Pestaña solo informativa: no hay acciones porque no hay nada roto de forma demostrable.</Text>
+          </Space>
+        }
       />
       <Table size="small" rowKey="id_moodle_user" columns={columns} dataSource={items} scroll={{ x: "max-content" }} />
     </>
@@ -598,8 +838,19 @@ const NoCoursesTab: React.FC<{ items: NoCoursesFinding[] }> = ({ items }) => {
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="Cuentas de Moodle vinculadas cuyo usuario local no tiene ninguna matrícula en la BD."
-        description="Puede que estén matriculados en cursos de Moodle que nunca se han importado: esta pantalla no consulta las matrículas de Moodle (costaría llamadas)."
+        message="Cuentas de Moodle vinculadas cuyo usuario local no tiene ninguna matrícula en AcademyHub."
+        description={
+          <Space direction="vertical" size={4}>
+            <Text>
+              Ojo: «sin cursos en la BD» no significa «sin cursos en Moodle» — puede estar matriculado en cursos de
+              Moodle que nunca se han importado a AcademyHub.
+            </Text>
+            <Text type="secondary">
+              El cruce definitivo lo da la pestaña «Limpieza de Moodle» (con el snapshot de matrículas): si una cuenta
+              aparece en las dos listas, no tiene cursos en ningún sitio y es candidata clara a borrado.
+            </Text>
+          </Space>
+        }
       />
       <Table size="small" rowKey="id_moodle_user" columns={columns} dataSource={items} scroll={{ x: "max-content" }} />
     </>
@@ -624,7 +875,19 @@ const UnlinkedTab: React.FC<{ items: UnlinkedFinding[] }> = ({ items }) => {
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message="Cuentas de Moodle sin vínculo en la BD. Informativo: se vincularían (o crearían) en el próximo import de sus cursos."
+        message="Cuentas de Moodle que la BD no conoce (sin fila en moodle_users)."
+        description={
+          <Space direction="vertical" size={4}>
+            <Text>
+              La columna «Casaría por DNI con» anticipa qué hará el próximo import de sus cursos: si muestra un usuario,
+              se vincularía a él; si muestra «nadie», se crearía una ficha local nueva.
+            </Text>
+            <Text type="secondary">
+              Informativa: normalmente se resuelven solas al importar. Si una de estas cuentas no debería existir,
+              trátala desde «Limpieza de Moodle».
+            </Text>
+          </Space>
+        }
       />
       <Table size="small" rowKey={r => r.moodle.moodle_id} columns={columns} dataSource={items} scroll={{ x: "max-content" }} />
     </>
@@ -738,16 +1001,17 @@ const MoodleAudit: React.FC = () => {
             {r.moodleCallsLastFetch} llamadas).{" "}
             {r.enrolments
               ? `Matrículas de ${r.enrolments.courseCount} cursos descargadas el ${formatDateTime(r.enrolments.fetchedAt)} (${r.enrolments.moodleCalls} llamadas). `
-              : "Matrículas de Moodle sin descargar (pestaña «Limpieza de Moodle»). "}
+              : "Matrículas de Moodle sin descargar (pestañas «Limpieza» y «Cursos de Moodle»). "}
             Vínculos correctos: <Tag color={STATUS_COLORS.active}>{r.totals.ok}</Tag>
-            El informe se recalcula contra la BD local sin gastar llamadas; los snapshots se pierden al reiniciar el servidor.
+            El informe se recalcula contra la BD local sin gastar llamadas. Los snapshots se guardan en la BD y
+            sobreviven a reinicios; re-descarga cuando quieras datos frescos de Moodle.
           </Text>
         ) : (
           <Alert
             type="info"
             showIcon
-            message="Aún no hay datos de Moodle en memoria"
-            description="Pulsa «Descargar de Moodle» para traer la lista de usuarios (una sola descarga). Después, todo el diagnóstico y las reparaciones trabajan contra la BD local sin más llamadas."
+            message="Aún no hay snapshot de usuarios de Moodle"
+            description="Pulsa «Descargar de Moodle» para traer la lista de usuarios (una sola descarga, ~1 llamada por cada 200 usuarios). El snapshot se guarda en la BD y sobrevive a reinicios; después, todo el diagnóstico y las reparaciones trabajan en local sin más llamadas."
           />
         )}
       </Card>
@@ -791,6 +1055,18 @@ const MoodleAudit: React.FC = () => {
               children: (
                 <CleanupTab
                   items={r.cleanupCandidates}
+                  enrolments={r.enrolments}
+                  onDownloadEnrolments={handleDownloadEnrolments}
+                  isDownloading={isRefreshingEnrolments}
+                />
+              ),
+            },
+            {
+              key: "cursos-moodle",
+              label: r.enrolments ? `Cursos de Moodle (${r.enrolments.courseCount})` : "Cursos de Moodle",
+              children: (
+                <CoursesTab
+                  items={r.moodleCourses}
                   enrolments={r.enrolments}
                   onDownloadEnrolments={handleDownloadEnrolments}
                   isDownloading={isRefreshingEnrolments}

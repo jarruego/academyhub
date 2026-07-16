@@ -19,6 +19,7 @@ import { revokedTokensTable } from "./schema/tables/revoked_tokens.table";
 import { failedUserImportsTable } from "./schema/tables/failed_user_imports.table";
 import { auditLogTable } from "./schema/tables/audit_log.table";
 import { emailLogTable } from "./schema/tables/email_log.table";
+import { moodleAuditSnapshotTable, moodleProtectedUserTable } from "./schema/tables/moodle_audit.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality, courseClient } from "./schema/tables/course.table";
@@ -46,6 +47,8 @@ export const revoked_tokens = revokedTokensTable;
 export const failed_user_imports = failedUserImportsTable;
 export const audit_log = auditLogTable;
 export const email_log = emailLogTable;
+export const moodle_audit_snapshot = moodleAuditSnapshotTable;
+export const moodle_protected_users = moodleProtectedUserTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;

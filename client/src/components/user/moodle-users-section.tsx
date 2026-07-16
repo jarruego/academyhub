@@ -78,6 +78,27 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
       key: 'id_moodle_user',
     },
     {
+      title: 'Estado',
+      key: 'estado',
+      render: (_v, record) => {
+        if (record.deleted_in_moodle_at) {
+          return (
+            <Tooltip title={`La cuenta ya no existe en Moodle (detectado el ${new Date(record.deleted_in_moodle_at).toLocaleDateString('es-ES')})`}>
+              <Tag color="red">eliminada en Moodle</Tag>
+            </Tooltip>
+          );
+        }
+        if (record.suspended) {
+          return (
+            <Tooltip title="La cuenta existe en Moodle pero está suspendida (sin acceso)">
+              <Tag>suspendida</Tag>
+            </Tooltip>
+          );
+        }
+        return <Tag color="green">activa</Tag>;
+      },
+    },
+    {
       title: 'Cursos',
       key: 'courses',
       render: (_value, record) => {
@@ -105,10 +126,15 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
       title: 'Moodle ID',
       dataIndex: 'moodle_id',
       key: 'moodle_id',
-      render: (moodleId: number | null | undefined) => {
-        const canSync = Boolean(moodleId);
+      render: (moodleId: number | null | undefined, record: MoodleUserSelectModel) => {
+        const isDeleted = Boolean(record.deleted_in_moodle_at);
+        const canSync = Boolean(moodleId) && !isDeleted;
         const isSyncing = moodleId != null && syncingMoodleId === moodleId;
-        const syncTip = !canSync ? 'Sin moodle_id asociado' : 'Traer datos del usuario desde Moodle';
+        const syncTip = isDeleted
+          ? 'La cuenta ya no existe en Moodle'
+          : !canSync
+            ? 'Sin moodle_id asociado'
+            : 'Traer datos del usuario desde Moodle';
 
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -128,7 +154,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
                       await request({ method: 'POST', url: `${getApiHost()}/moodle/users/${moodleId}/sync` });
                       await queryClient.invalidateQueries({ queryKey: ['moodle-users', userId] });
                       messageApi.success('Usuario sincronizado desde Moodle');
-                    } catch (err) {
+                    } catch {
                       messageApi.error('No se pudo traer los datos desde Moodle');
                     } finally {
                       setSyncingMoodleId(null);
@@ -150,15 +176,22 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
           try {
             await setMainMutation.mutateAsync(record.id_moodle_user);
             messageApi.success('Cuenta de Moodle marcada como principal');
-          } catch (err) {
+          } catch {
             messageApi.error('Error marcando como principal');
           }
         };
 
+        // Estado visual pedido: suspendidas en gris claro, eliminadas en rojo y tachadas
+        const deleted = Boolean(record.deleted_in_moodle_at);
+        const suspendedAlive = Boolean(record.suspended) && !deleted;
+        const tagColor = deleted ? 'red' : suspendedAlive ? 'default' : record.is_main_user ? 'green' : 'blue';
+
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Tag color={record.is_main_user ? 'green' : 'blue'}>{username}</Tag>
-            {!record.is_main_user && (
+            <Tag color={tagColor} style={suspendedAlive ? { color: '#999' } : undefined}>
+              {deleted ? <span style={{ textDecoration: 'line-through' }}>{username}</span> : username}
+            </Tag>
+            {!record.is_main_user && !deleted && (
               <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
                 <Popconfirm
                   title={
@@ -194,7 +227,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
         try {
           const raw = orgSettings?.settings.moodle.url ?? '';
           if (raw) moodleBase = new URL(raw).origin + '/';
-        } catch (e) {
+        } catch {
           moodleBase = undefined;
         }
 
@@ -230,7 +263,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
                   try {
                     await unlinkMutation.mutateAsync(record.id_moodle_user);
                     messageApi.success('Usuario desvinculado de Moodle (solo local)');
-                  } catch (err) {
+                  } catch {
                     messageApi.error('No se pudo desvincular el usuario');
                   }
                 }}

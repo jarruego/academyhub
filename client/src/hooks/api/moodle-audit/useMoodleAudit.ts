@@ -58,7 +58,21 @@ export interface OrphanFinding {
   marked_deleted: boolean;
 }
 
-export type ProtectedReason = "auth-user" | "tutor";
+export type ProtectedReason = "auth-user" | "tutor" | "manual";
+
+/** Curso de Moodle en el informe (pestaña informativa, sin acciones). */
+export interface MoodleCourseRow {
+  moodle_id: number;
+  fullname: string;
+  shortname: string;
+  visible: boolean;
+  /** Epoch en segundos (0 = sin fecha). */
+  startdate: number;
+  enddate: number;
+  timecreated: number;
+  enrolled_count: number;
+  localCourse: { id_course: number; course_name: string } | null;
+}
 
 export interface CleanupCandidate {
   moodle: AuditMoodleUser;
@@ -114,6 +128,8 @@ export interface MoodleAuditReport {
   enrolments: { fetchedAt: string; courseCount: number; moodleCalls: number } | null;
   /** Usuarios de Moodle sin ningún curso en Moodle (vacío sin snapshot de matrículas). */
   cleanupCandidates: CleanupCandidate[];
+  /** Cursos de Moodle con su estado y matriculados (informativo). */
+  moodleCourses: MoodleCourseRow[];
   totals: {
     ok: number;
     incorrectLinks: number;
@@ -193,6 +209,24 @@ export const useFixUsernamesMutation = () => {
         data: idMoodleUsers && idMoodleUsers.length > 0 ? { idMoodleUsers } : {},
       });
       return res.data as UsernameFixResult;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MOODLE_AUDIT_REPORT_KEY });
+    },
+  });
+};
+
+/** Marca/desmarca una cuenta de Moodle como intocable para la limpieza. */
+export const useProtectMutation = () => {
+  const request = useAuthenticatedAxios();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ moodleId, protect }: { moodleId: number; protect: boolean }) => {
+      const res = await request({
+        method: protect ? "POST" : "DELETE",
+        url: `${getApiHost()}/api/moodle-audit/protected/${moodleId}`,
+      });
+      return res.data as { moodle_id: number };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MOODLE_AUDIT_REPORT_KEY });

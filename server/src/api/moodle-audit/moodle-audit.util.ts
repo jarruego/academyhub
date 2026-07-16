@@ -139,9 +139,27 @@ export function toAuditMoodleUser(mu: MoodleUser): AuditMoodleUser {
   };
 }
 
+// ---------- cursos de Moodle (pestaña informativa, sin acciones) ----------
+
+/** Proyección de un curso de Moodle en el snapshot de matrículas. */
+export interface AuditMoodleCourse {
+  moodle_id: number;
+  fullname: string;
+  shortname: string;
+  visible: boolean;
+  /** Epoch en segundos (0 = sin fecha). */
+  startdate: number;
+  enddate: number;
+  timecreated: number;
+  /** Matriculados según Moodle (todos los roles: alumnos y docentes). */
+  enrolled_count: number;
+  /** IDs de Moodle de los matriculados (para la unión y futuros cruces). */
+  enrolled_ids: number[];
+}
+
 // ---------- limpieza: usuarios de Moodle sin ningún curso en Moodle ----------
 
-export type ProtectedReason = "auth-user" | "tutor";
+export type ProtectedReason = "auth-user" | "tutor" | "manual";
 
 /** Usuario de Moodle sin matrículas en Moodle: candidato a borrado. */
 export interface CleanupCandidate {
@@ -166,6 +184,8 @@ export interface CleanupInput {
   authUserKeys: Set<string>;
   /** id_user locales que son tutores en algún grupo (`user_group.is_tutor`). */
   tutorUserIds: Set<number>;
+  /** moodle_id marcados manualmente como intocables (`moodle_protected_user`). */
+  manuallyProtectedIds: Set<number>;
 }
 
 /**
@@ -174,11 +194,12 @@ export interface CleanupInput {
  * server-side (el borrado rechaza los `protected`):
  * - "auth-user": su email/username de Moodle coincide con un gestor de la app.
  * - "tutor": su vínculo local es tutor en algún grupo.
+ * - "manual": marcado como intocable desde la UI (`moodle_protected_user`).
  * Los profesores/tutores matriculados en sus cursos nunca llegan aquí (tienen
  * cursos); esto cubre cuentas de gestión sin matrículas.
  */
 export function classifyCleanupCandidates(input: CleanupInput): CleanupCandidate[] {
-  const { snapshot, enrolledMoodleIds, links, usersById, authUserKeys, tutorUserIds } = input;
+  const { snapshot, enrolledMoodleIds, links, usersById, authUserKeys, tutorUserIds, manuallyProtectedIds } = input;
 
   const linkByMoodleId = new Map<number, AuditLinkRow>();
   for (const link of links) linkByMoodleId.set(link.moodle_id, link);
@@ -196,6 +217,9 @@ export function classifyCleanupCandidates(input: CleanupInput): CleanupCandidate
     }
     if (link && tutorUserIds.has(link.id_user)) {
       protected_reasons.push("tutor");
+    }
+    if (manuallyProtectedIds.has(moodle.moodle_id)) {
+      protected_reasons.push("manual");
     }
 
     result.push({

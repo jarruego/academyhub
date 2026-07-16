@@ -45,6 +45,19 @@ export class MoodleAuditController {
     return this.moodleAuditService.deleteFromMoodle(body.moodleIds);
   }
 
+  // Marca una cuenta de Moodle como intocable para la limpieza (idempotente).
+  // ID en la ruta para que quede en audit_log.
+  @Post("protected/:moodleId")
+  async protect(@Param("moodleId", ParseIntPipe) moodleId: number) {
+    return this.moodleAuditService.protectMoodleUser(moodleId);
+  }
+
+  // Retira la protección manual de una cuenta de Moodle (idempotente).
+  @Delete("protected/:moodleId")
+  async unprotect(@Param("moodleId", ParseIntPipe) moodleId: number) {
+    return this.moodleAuditService.unprotectMoodleUser(moodleId);
+  }
+
   // Corrige moodle_usernames desactualizados copiando el real del snapshot
   // (server-authoritative). Sin body corrige todos; con idMoodleUsers, solo esos.
   @Post("fix-usernames")
