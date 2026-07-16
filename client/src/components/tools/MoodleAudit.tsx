@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Alert, App, Button, Card, Empty, Space, Spin, Table, Tag, Typography } from "antd";
+import React, { useMemo, useState } from "react";
+import { Alert, App, Button, Card, Empty, Select, Space, Spin, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { CloudDownloadOutlined, DeleteOutlined, MergeCellsOutlined, ReloadOutlined, SwapOutlined, SyncOutlined, WarningOutlined } from "@ant-design/icons";
 import { STATUS_COLORS } from "../../theme/semantic-colors";
@@ -12,6 +12,7 @@ import { MergeModal } from "./MergeDuplicates";
 import {
   AuditMoodleUser,
   AuditUserRef,
+  CleanupCandidate,
   IncorrectLinkFinding,
   MoodleAuditReport,
   NoCoursesFinding,
@@ -19,11 +20,14 @@ import {
   UnlinkedFinding,
   UnverifiableFinding,
   UsernameMismatchFinding,
+  useDeleteFromMoodleMutation,
   useFixUsernamesMutation,
   useMoodleAuditRefreshMutation,
   useMoodleAuditReportQuery,
   useOrphanCleanupMutation,
+  useRefreshEnrolmentsMutation,
   useRelinkMutation,
+  useSyncStatusMutation,
 } from "../../hooks/api/moodle-audit/useMoodleAudit";
 
 const { Text } = Typography;
@@ -212,7 +216,16 @@ const OrphansTab: React.FC<{ items: OrphanFinding[] }> = ({ items }) => {
   };
 
   const columns: ColumnsType<OrphanFinding> = [
-    { title: "Username Moodle", dataIndex: "moodle_username", key: "u" },
+    {
+      title: "Username Moodle",
+      key: "u",
+      render: (_v, r) => (
+        <Space size={4}>
+          {r.moodle_username}
+          {r.marked_deleted && <Tag color={STATUS_COLORS.neutral}>lápida marcada</Tag>}
+        </Space>
+      ),
+    },
     { title: "Moodle ID", dataIndex: "moodle_id", key: "mid", width: 100 },
     { title: "Usuario local", key: "user", render: (_v, r) => <LocalUserCell user={r.user} /> },
     {
@@ -381,6 +394,166 @@ const UsernameMismatchesTab: React.FC<{ items: UsernameMismatchFinding[] }> = ({
   );
 };
 
+// ---- Pestaña: limpieza de Moodle (usuarios sin ningún curso en Moodle) ----
+type ActivityFilter = "all" | "never" | "6m" | "12m" | "24m";
+
+const ACTIVITY_OPTIONS: Array<{ value: ActivityFilter; label: string }> = [
+  { value: "all", label: "Cualquier actividad" },
+  { value: "never", label: "Nunca conectados" },
+  { value: "6m", label: "Sin conectar > 6 meses (o nunca)" },
+  { value: "12m", label: "Sin conectar > 12 meses (o nunca)" },
+  { value: "24m", label: "Sin conectar > 24 meses (o nunca)" },
+];
+
+const monthsAgoEpoch = (months: number) => Math.floor(Date.now() / 1000) - months * 30 * 24 * 3600;
+
+const CleanupTab: React.FC<{
+  items: CleanupCandidate[];
+  enrolments: MoodleAuditReport["enrolments"];
+  onDownloadEnrolments: () => void;
+  isDownloading: boolean;
+}> = ({ items, enrolments, onDownloadEnrolments, isDownloading }) => {
+  const { message, modal } = App.useApp();
+  const { mutateAsync: deleteFromMoodle, isPending: isDeleting } = useDeleteFromMoodleMutation();
+  const [selected, setSelected] = useState<React.Key[]>([]);
+  const [activity, setActivity] = useState<ActivityFilter>("12m");
+
+  const filtered = useMemo(() => {
+    if (activity === "all") return items;
+    if (activity === "never") return items.filter(c => c.never_accessed);
+    const cutoff = monthsAgoEpoch(activity === "6m" ? 6 : activity === "12m" ? 12 : 24);
+    return items.filter(c => c.never_accessed || c.moodle.lastaccess < cutoff);
+  }, [items, activity]);
+
+  // Al cambiar el filtro puede quedar seleccionado algo ya no visible: limpiar
+  const visibleSelected = useMemo(() => {
+    const visible = new Set(filtered.map(c => c.moodle.moodle_id));
+    return selected.filter(k => visible.has(Number(k)));
+  }, [selected, filtered]);
+
+  const runDelete = (moodleIds: number[]) => {
+    modal.confirm({
+      title: `Borrar ${moodleIds.length} usuario${moodleIds.length === 1 ? "" : "s"} DE MOODLE`,
+      width: 560,
+      content:
+        "IRREVERSIBLE: se borran en Moodle (pierden el acceso y desaparecen de la plataforma). En la BD local no se borra nada: sus vínculos quedan marcados como «borrado en Moodle» conservando el histórico. Coste: ~1 llamada por cada 200 usuarios.",
+      okText: "Borrar de Moodle",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          const result = await deleteFromMoodle(moodleIds);
+          setSelected([]);
+          if (result.deleted > 0) {
+            message.success(
+              `${result.deleted} usuario${result.deleted === 1 ? "" : "s"} borrado${result.deleted === 1 ? "" : "s"} de Moodle (${result.moodleCalls} llamada${result.moodleCalls === 1 ? "" : "s"}; ${result.marked_local} lápida${result.marked_local === 1 ? "" : "s"} local${result.marked_local === 1 ? "" : "es"})`,
+            );
+          }
+          if (result.errors.length > 0) {
+            message.warning(`${result.errors.length} rechazado${result.errors.length === 1 ? "" : "s"}: ${result.errors[0].message}`);
+          }
+        } catch (e) {
+          message.error(apiErrorMessage(e, "No se pudieron borrar los usuarios de Moodle"));
+        }
+      },
+    });
+  };
+
+  if (!enrolments) {
+    return (
+      <Alert
+        type="info"
+        showIcon
+        message="Falta el snapshot de matrículas de Moodle"
+        description={
+          <Space direction="vertical">
+            <Text>
+              Para saber qué usuarios no están en ningún curso de Moodle hay que descargar los matriculados de cada
+              curso (1 llamada por curso + 1 para el catálogo). Después, todo el filtrado y el borrado por lotes
+              trabajan en local.
+            </Text>
+            <Button type="primary" icon={<CloudDownloadOutlined />} loading={isDownloading} onClick={onDownloadEnrolments}>
+              Descargar matrículas de Moodle
+            </Button>
+          </Space>
+        }
+      />
+    );
+  }
+
+  const columns: ColumnsType<CleanupCandidate> = [
+    { title: "Cuenta Moodle", key: "moodle", render: (_v, r) => <MoodleUserCell moodle={r.moodle} /> },
+    { title: "Email", key: "email", render: (_v, r) => r.moodle.email || <Text type="secondary">—</Text> },
+    { title: "Usuario local", key: "user", render: (_v, r) => <LocalUserCell user={r.linkedUser} /> },
+    {
+      title: "Último acceso",
+      key: "lastaccess",
+      width: 150,
+      sorter: (a, b) => a.moodle.lastaccess - b.moodle.lastaccess,
+      render: (_v, r) =>
+        r.moodle.lastaccess === 0
+          ? <Tag color={STATUS_COLORS.warning}>nunca</Tag>
+          : formatDateTime(new Date(r.moodle.lastaccess * 1000)),
+    },
+    {
+      title: "Protección",
+      key: "protected",
+      width: 160,
+      render: (_v, r) =>
+        r.protected ? (
+          <Space size={4}>
+            {r.protected_reasons.map(reason => (
+              <Tag key={reason} color={STATUS_COLORS.inactive} icon={<WarningOutlined />}>
+                {reason === "auth-user" ? "gestor" : "tutor"}
+              </Tag>
+            ))}
+          </Space>
+        ) : (
+          <Text type="secondary">—</Text>
+        ),
+    },
+  ];
+
+  return (
+    <>
+      <Alert
+        type="warning"
+        showIcon
+        style={{ marginBottom: 12 }}
+        message="Usuarios de Moodle que no están matriculados en NINGÚN curso de Moodle."
+        description="El borrado es en Moodle e irreversible. Los marcados como «gestor» (su email/username coincide con un usuario de acceso de AcademyHub) o «tutor» (su vínculo local tutoriza algún grupo) están protegidos y el servidor rechaza borrarlos. Moodle además rechaza admin y guest por su cuenta."
+      />
+      <Space style={{ marginBottom: 12 }} wrap>
+        <Select<ActivityFilter> value={activity} onChange={setActivity} options={ACTIVITY_OPTIONS} style={{ width: 280 }} />
+        <Button
+          danger
+          icon={<DeleteOutlined />}
+          disabled={visibleSelected.length === 0}
+          loading={isDeleting}
+          onClick={() => runDelete(visibleSelected.map(Number))}
+        >
+          Borrar de Moodle seleccionados ({visibleSelected.length})
+        </Button>
+        <Text type="secondary">
+          {filtered.length} de {items.length} candidatos con el filtro actual
+        </Text>
+      </Space>
+      <Table
+        size="small"
+        rowKey={r => r.moodle.moodle_id}
+        columns={columns}
+        dataSource={filtered}
+        scroll={{ x: "max-content" }}
+        rowSelection={{
+          selectedRowKeys: visibleSelected,
+          onChange: setSelected,
+          getCheckboxProps: r => ({ disabled: r.protected }),
+        }}
+      />
+    </>
+  );
+};
+
 // ---- Pestañas informativas ----
 const UnverifiableTab: React.FC<{ items: UnverifiableFinding[] }> = ({ items }) => {
   const columns: ColumnsType<UnverifiableFinding> = [
@@ -463,6 +636,46 @@ const MoodleAudit: React.FC = () => {
   const { message, modal } = App.useApp();
   const { data: report, isLoading, error, refetch, isRefetching } = useMoodleAuditReportQuery();
   const { mutateAsync: refresh, isPending: isRefreshing } = useMoodleAuditRefreshMutation();
+  const { mutateAsync: refreshEnrolments, isPending: isRefreshingEnrolments } = useRefreshEnrolmentsMutation();
+  const { mutateAsync: syncStatus, isPending: isSyncing } = useSyncStatusMutation();
+
+  const handleDownloadEnrolments = () => {
+    modal.confirm({
+      title: "Descargar matrículas de Moodle",
+      content:
+        "Descarga los matriculados de cada curso de Moodle (1 llamada por curso + 1 para el catálogo, cuota limitada). Con ello se calculan los usuarios sin ningún curso en Moodle. El filtrado y el borrado posteriores no gastan llamadas extra.",
+      okText: "Descargar",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          const r = await refreshEnrolments();
+          message.success(
+            `Matrículas descargadas: ${r.enrolments?.courseCount ?? 0} cursos en ${r.enrolments?.moodleCalls ?? 0} llamadas · ${r.totals.cleanupCandidates} candidatos a limpieza`,
+          );
+        } catch (e) {
+          message.error(apiErrorMessage(e, "No se pudo descargar el snapshot de matrículas"));
+        }
+      },
+    });
+  };
+
+  const handleSyncStatus = () => {
+    modal.confirm({
+      title: "Sincronizar estado a la BD",
+      content:
+        "Escribe en la BD el estado según el snapshot descargado (0 llamadas a Moodle): copia el flag «suspendido» de cada cuenta viva y marca como «borrado en Moodle» (lápida, conservando la fila y su histórico) los vínculos cuya cuenta ya no existe.",
+      okText: "Sincronizar",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          const r = await syncStatus();
+          message.success(`Estado sincronizado: ${r.suspended_updated} flags de suspensión actualizados, ${r.deleted_marked} lápidas nuevas`);
+        } catch (e) {
+          message.error(apiErrorMessage(e, "No se pudo sincronizar el estado"));
+        }
+      },
+    });
+  };
 
   const handleDownload = () => {
     modal.confirm({
@@ -507,6 +720,11 @@ const MoodleAudit: React.FC = () => {
                 Recalcular (sin llamadas)
               </Button>
             )}
+            {r.hasSnapshot && (
+              <Button icon={<SyncOutlined />} loading={isSyncing} onClick={handleSyncStatus}>
+                Sincronizar estado a la BD
+              </Button>
+            )}
             <Button type="primary" icon={<CloudDownloadOutlined />} loading={isRefreshing} onClick={handleDownload}>
               {r.hasSnapshot ? "Volver a descargar de Moodle" : "Descargar de Moodle"}
             </Button>
@@ -517,8 +735,12 @@ const MoodleAudit: React.FC = () => {
         {r.hasSnapshot ? (
           <Text type="secondary">
             Snapshot de <b>{r.snapshotSize}</b> usuarios de Moodle descargado el {formatDateTime(r.fetchedAt!)} (
-            {r.moodleCallsLastFetch} llamadas). Vínculos correctos: <Tag color={STATUS_COLORS.active}>{r.totals.ok}</Tag>
-            El informe se recalcula contra la BD local sin gastar llamadas; el snapshot se pierde al reiniciar el servidor.
+            {r.moodleCallsLastFetch} llamadas).{" "}
+            {r.enrolments
+              ? `Matrículas de ${r.enrolments.courseCount} cursos descargadas el ${formatDateTime(r.enrolments.fetchedAt)} (${r.enrolments.moodleCalls} llamadas). `
+              : "Matrículas de Moodle sin descargar (pestaña «Limpieza de Moodle»). "}
+            Vínculos correctos: <Tag color={STATUS_COLORS.active}>{r.totals.ok}</Tag>
+            El informe se recalcula contra la BD local sin gastar llamadas; los snapshots se pierden al reiniciar el servidor.
           </Text>
         ) : (
           <Alert
@@ -562,6 +784,18 @@ const MoodleAudit: React.FC = () => {
               key: "sin-vinculo",
               label: `Sin vínculo local (${r.totals.unlinked})`,
               children: <UnlinkedTab items={r.unlinked} />,
+            },
+            {
+              key: "limpieza",
+              label: r.enrolments ? `Limpieza de Moodle (${r.totals.cleanupCandidates})` : "Limpieza de Moodle",
+              children: (
+                <CleanupTab
+                  items={r.cleanupCandidates}
+                  enrolments={r.enrolments}
+                  onDownloadEnrolments={handleDownloadEnrolments}
+                  isDownloading={isRefreshingEnrolments}
+                />
+              ),
             },
           ]}
         />

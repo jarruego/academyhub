@@ -153,6 +153,19 @@ export class MoodleService {
 
         const isMoodleError = (d: unknown): d is { exception: unknown } => typeof d === 'object' && d !== null && 'exception' in (d as Record<string, unknown>);
 
+        // Nunca loguear el token en claro
+        const redactedParams = { ...params, wstoken: '***' };
+
+        // Mensaje legible del error de Moodle: preferir `message` (texto humano,
+        // p.ej. "Las cuentas de los administradores no pueden ser eliminadas.")
+        // + `errorcode`, con la clase de la excepción como último recurso.
+        const moodleErrorMessage = (d: { exception: unknown; errorcode?: unknown; message?: unknown }): string => {
+            const human = typeof d.message === 'string' && d.message ? d.message : '';
+            const code = typeof d.errorcode === 'string' && d.errorcode ? ` (${d.errorcode})` : '';
+            if (human) return `${human}${code}`;
+            return typeof d.exception === 'string' ? d.exception : JSON.stringify(d.exception);
+        };
+
         try {
             // If method is POST, send params in the request body as form-encoded to avoid URL length limits (414)
             if (method === 'post') {
@@ -198,10 +211,9 @@ export class MoodleService {
                 });
 
                 if (isMoodleError(response.data)) {
-                    const moodleErr = response.data as { exception: unknown };
-                    Logger.error({ moodleError: moodleErr, params, url: resolvedUrl }, 'MoodleService:request - moodle error (post)');
-                    const exMsg = typeof moodleErr.exception === 'string' ? moodleErr.exception : JSON.stringify(moodleErr.exception);
-                    throw new InternalServerErrorException(exMsg || 'Moodle returned an error');
+                    const moodleErr = response.data as { exception: unknown; errorcode?: unknown; message?: unknown };
+                    Logger.error({ moodleError: moodleErr, params: redactedParams, url: resolvedUrl }, 'MoodleService:request - moodle error (post)');
+                    throw new InternalServerErrorException(moodleErrorMessage(moodleErr) || 'Moodle returned an error');
                 }
                 return response.data as R;
             }
@@ -209,21 +221,24 @@ export class MoodleService {
             const response = await axios.request<R, AxiosResponse<R>>({ url: resolvedUrl, params, method });
 
             if (isMoodleError(response.data)) {
-                const moodleErr = response.data as { exception: unknown };
-                Logger.error({ moodleError: moodleErr, params, url: resolvedUrl }, 'MoodleService:request - moodle error (get)');
-                const exMsg = typeof moodleErr.exception === 'string' ? moodleErr.exception : JSON.stringify(moodleErr.exception);
-                throw new InternalServerErrorException(exMsg || 'Moodle returned an error');
+                const moodleErr = response.data as { exception: unknown; errorcode?: unknown; message?: unknown };
+                Logger.error({ moodleError: moodleErr, params: redactedParams, url: resolvedUrl }, 'MoodleService:request - moodle error (get)');
+                throw new InternalServerErrorException(moodleErrorMessage(moodleErr) || 'Moodle returned an error');
             }
 
             return response.data as R;
         } catch (err: unknown) {
+            // Los errores JSON de Moodle ya se lanzaron arriba con mensaje legible:
+            // no re-envolverlos (degradaría el mensaje a "InternalServerErrorException: ...")
+            if (err instanceof HttpException) throw err;
+
             // Better error typing / handling using axios helper
             if (axios.isAxiosError(err)) {
                 Logger.error({
                     message: err.message,
                     status: err.response?.status,
                     responseData: err.response?.data,
-                    params,
+                    params: redactedParams,
                     url: resolvedUrl,
                 }, "MoodleService:request");
 
@@ -232,7 +247,7 @@ export class MoodleService {
             }
 
             // Non-axios error
-            Logger.error({ message: String(err), params, url: resolvedUrl }, 'MoodleService:request');
+            Logger.error({ message: String(err), params: redactedParams, url: resolvedUrl }, 'MoodleService:request');
             throw new InternalServerErrorException(String(err) || 'Error calling Moodle API');
         }
     }
@@ -1298,6 +1313,38 @@ export class MoodleService {
         }
 
         return users;
+    }
+
+    /**
+     * IDs de los usuarios matriculados en un curso, en UNA llamada ligera:
+     * `core_enrol_get_enrolled_users` con `userfields=id` para que Moodle no
+     * serialice perfiles completos. Usado por la auditoría para calcular
+     * "usuarios sin ningún curso en Moodle" a coste 1 llamada por curso.
+     */
+    async getEnrolledUserIds(courseId: number): Promise<number[]> {
+        const data = await this.request<Array<{ id: number }>>('core_enrol_get_enrolled_users', {
+            params: {
+                courseid: courseId,
+                options: [{ name: 'userfields', value: 'id' }],
+            },
+            method: 'post',
+        });
+        return Array.isArray(data) ? data.map(u => u.id) : [];
+    }
+
+    /**
+     * Borra usuarios en Moodle (`core_user_delete_users`): acepta un array de
+     * IDs, así que N usuarios cuestan 1 llamada. IRREVERSIBLE: Moodle marca
+     * deleted=1 y anonimiza username/email. Moodle rechaza admin/guest con
+     * excepción (la llamada entera falla), por eso el caller debe trocear y
+     * tolerar fallos por lote.
+     */
+    async deleteUsers(moodleUserIds: number[]): Promise<void> {
+        if (moodleUserIds.length === 0) return;
+        await this.request<null>('core_user_delete_users', {
+            params: { userids: moodleUserIds },
+            method: 'post',
+        });
     }
 
     async getEnrolledUsers(courseId: number): Promise<MoodleUser[]> {

@@ -1,8 +1,8 @@
 import { ConflictException, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { DATABASE_PROVIDER } from "src/database/database.module";
 import { DatabaseService } from "src/database/database.service";
-import { users, moodle_users, user_course, user_groups, groups, moodle_user_auth_user } from "src/database/schema";
-import { eq, isNotNull, ne, and, sql, inArray } from "drizzle-orm";
+import { users, moodle_users, user_course, user_groups, groups, moodle_user_auth_user, auth_users } from "src/database/schema";
+import { eq, isNotNull, isNull, ne, and, sql, inArray } from "drizzle-orm";
 import { MoodleService } from "src/api/moodle/moodle.service";
 import { compactDniKey } from "src/api/moodle/moodle-user-matching.util";
 import { mergeUserCourseRow, mergeUserGroupRow } from "src/api/user-merge/user-merge.util";
@@ -10,7 +10,9 @@ import {
   AuditLinkRow,
   AuditMoodleUser,
   AuditUserRef,
+  classifyCleanupCandidates,
   classifyMoodleLinks,
+  CleanupCandidate,
   MoodleAuditClassification,
   toAuditMoodleUser,
 } from "./moodle-audit.util";
@@ -23,6 +25,10 @@ export interface MoodleAuditReport extends MoodleAuditClassification {
   snapshotSize: number;
   /** Llamadas a Moodle que costó la última descarga. */
   moodleCallsLastFetch: number | null;
+  /** Estado del snapshot de matrículas de Moodle (null = no descargado). */
+  enrolments: { fetchedAt: string; courseCount: number; moodleCalls: number } | null;
+  /** Usuarios de Moodle sin ningún curso en Moodle (vacío sin snapshot de matrículas). */
+  cleanupCandidates: CleanupCandidate[];
   totals: {
     ok: number;
     incorrectLinks: number;
@@ -31,12 +37,30 @@ export interface MoodleAuditReport extends MoodleAuditClassification {
     noCourses: number;
     unlinked: number;
     usernameMismatches: number;
+    cleanupCandidates: number;
   };
 }
 
 export interface UsernameFixResult {
   updated: number;
   errors: Array<{ id_moodle_user: number; stored_username: string; real_username: string; message: string }>;
+}
+
+export interface SyncStatusResult {
+  /** Vínculos cuyo flag `suspended` ha cambiado (en cualquier dirección). */
+  suspended_updated: number;
+  /** Lápidas nuevas: vínculos marcados `deleted_in_moodle_at` (no estaban en el snapshot). */
+  deleted_marked: number;
+}
+
+export interface DeleteFromMoodleResult {
+  /** Usuarios borrados en Moodle. */
+  deleted: number;
+  /** Lápidas marcadas en `moodle_users` (los borrados que tenían vínculo local). */
+  marked_local: number;
+  errors: Array<{ moodle_id: number; message: string }>;
+  /** Llamadas a Moodle consumidas por el borrado. */
+  moodleCalls: number;
 }
 
 export interface RelinkResult {
@@ -83,6 +107,14 @@ export class MoodleAuditService {
     moodleCalls: number;
   } | null = null;
 
+  /** Snapshot de matrículas: unión de matriculados de todos los cursos de Moodle. */
+  private enrolSnapshot: {
+    fetchedAt: Date;
+    enrolledMoodleIds: Set<number>;
+    courseCount: number;
+    moodleCalls: number;
+  } | null = null;
+
   constructor(
     @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
     private readonly moodleService: MoodleService,
@@ -118,7 +150,9 @@ export class MoodleAuditService {
         fetchedAt: null,
         snapshotSize: 0,
         moodleCallsLastFetch: null,
-        totals: { ok: 0, incorrectLinks: 0, unverifiable: 0, orphans: 0, noCourses: 0, unlinked: 0, usernameMismatches: 0 },
+        enrolments: this.enrolmentsInfo(),
+        cleanupCandidates: [],
+        totals: { ok: 0, incorrectLinks: 0, unverifiable: 0, orphans: 0, noCourses: 0, unlinked: 0, usernameMismatches: 0, cleanupCandidates: 0 },
         ok_count: 0,
         incorrectLinks: [],
         unverifiable: [],
@@ -131,11 +165,57 @@ export class MoodleAuditService {
     return this.buildReport();
   }
 
+  private enrolmentsInfo(): MoodleAuditReport["enrolments"] {
+    if (!this.enrolSnapshot) return null;
+    return {
+      fetchedAt: this.enrolSnapshot.fetchedAt.toISOString(),
+      courseCount: this.enrolSnapshot.courseCount,
+      moodleCalls: this.enrolSnapshot.moodleCalls,
+    };
+  }
+
+  /**
+   * Descarga el snapshot de matrículas: 1 llamada para el catálogo de cursos +
+   * 1 llamada ligera (`userfields=id`) por curso. Es la segunda operación con
+   * coste de la herramienta; todo el filtrado posterior es local.
+   */
+  async refreshEnrolments(): Promise<MoodleAuditReport> {
+    const callsBefore = this.moodleService.moodleCallCount;
+    const courses = await this.moodleService.getAllCourses();
+    const enrolledMoodleIds = new Set<number>();
+    for (const course of courses) {
+      // El curso 1 es la portada del sitio en Moodle: no es un curso real.
+      if (course.id === 1) continue;
+      try {
+        const ids = await this.moodleService.getEnrolledUserIds(course.id);
+        for (const id of ids) enrolledMoodleIds.add(id);
+      } catch (err) {
+        // Fallar cerrado: si un curso no se puede leer, sus matriculados no
+        // contarían y saldrían como falsos candidatos a borrado.
+        Logger.error({ err, courseId: course.id }, "MoodleAuditService:refreshEnrolments - curso fallido");
+        throw new ConflictException(
+          `No se pudieron leer los matriculados del curso ${course.id} de Moodle: snapshot de matrículas descartado (habría falsos candidatos a borrado)`,
+        );
+      }
+    }
+    this.enrolSnapshot = {
+      fetchedAt: new Date(),
+      enrolledMoodleIds,
+      courseCount: courses.length,
+      moodleCalls: this.moodleService.moodleCallCount - callsBefore,
+    };
+    Logger.log(
+      { courses: courses.length, enrolled: enrolledMoodleIds.size, moodleCalls: this.enrolSnapshot.moodleCalls },
+      "MoodleAuditService:refreshEnrolments",
+    );
+    return this.getReport();
+  }
+
   private async buildReport(): Promise<MoodleAuditReport> {
     const snapshot = this.snapshot!;
 
     // Todo en bulk: nada de consultas por usuario.
-    const [linkRows, ucRefRows, tokenRefRows, userRows, courseCountRows, groupCountRows] = await Promise.all([
+    const [linkRows, ucRefRows, tokenRefRows, userRows, courseCountRows, groupCountRows, authUserRows, tutorRows] = await Promise.all([
       this.db
         .select({
           id_moodle_user: moodle_users.id_moodle_user,
@@ -143,6 +223,7 @@ export class MoodleAuditService {
           moodle_id: moodle_users.moodle_id,
           moodle_username: moodle_users.moodle_username,
           is_main_user: moodle_users.is_main_user,
+          deleted_in_moodle_at: moodle_users.deleted_in_moodle_at,
         })
         .from(moodle_users),
       this.db
@@ -173,6 +254,11 @@ export class MoodleAuditService {
         .select({ id_user: user_groups.id_user, c: sql<number>`count(*)` })
         .from(user_groups)
         .groupBy(user_groups.id_user),
+      this.db.select({ email: auth_users.email, username: auth_users.username }).from(auth_users),
+      this.db
+        .selectDistinct({ id_user: user_groups.id_user })
+        .from(user_groups)
+        .where(eq(user_groups.is_tutor, true)),
     ]);
 
     const ucRefs = new Map<number, number>();
@@ -194,6 +280,7 @@ export class MoodleAuditService {
       is_main_user: l.is_main_user,
       user_course_refs: ucRefs.get(l.id_moodle_user) ?? 0,
       token_links: tokenRefs.get(l.id_moodle_user) ?? 0,
+      deleted_in_moodle: l.deleted_in_moodle_at !== null,
     }));
 
     const usersById = new Map<number, AuditUserRef>();
@@ -211,11 +298,27 @@ export class MoodleAuditService {
 
     const classification = classifyMoodleLinks({ snapshot: snapshot.users, links, usersById, userIdByDniKey });
 
+    // Candidatos a limpieza solo si hay snapshot de matrículas (si no, vacío)
+    const cleanupCandidates = this.enrolSnapshot
+      ? classifyCleanupCandidates({
+          snapshot: snapshot.users,
+          enrolledMoodleIds: this.enrolSnapshot.enrolledMoodleIds,
+          links,
+          usersById,
+          authUserKeys: new Set(
+            authUserRows.flatMap(a => [a.email.toLowerCase(), a.username.toLowerCase()]),
+          ),
+          tutorUserIds: new Set(tutorRows.map(t => t.id_user)),
+        })
+      : [];
+
     return {
       hasSnapshot: true,
       fetchedAt: snapshot.fetchedAt.toISOString(),
       snapshotSize: snapshot.users.length,
       moodleCallsLastFetch: snapshot.moodleCalls,
+      enrolments: this.enrolmentsInfo(),
+      cleanupCandidates,
       totals: {
         ok: classification.ok_count,
         incorrectLinks: classification.incorrectLinks.length,
@@ -224,9 +327,163 @@ export class MoodleAuditService {
         noCourses: classification.noCourses.length,
         unlinked: classification.unlinked.length,
         usernameMismatches: classification.usernameMismatches.length,
+        cleanupCandidates: cleanupCandidates.length,
       },
       ...classification,
     };
+  }
+
+  /**
+   * Sincroniza a la BD el estado de las cuentas según el snapshot (0 llamadas):
+   * - `suspended`: espejo del flag de Moodle para las cuentas vivas.
+   * - `deleted_in_moodle_at`: lápida para los vínculos cuyo `moodle_id` ya no
+   *   existe en Moodle (los ids no se reutilizan, el marcado es seguro).
+   * La fila se CONSERVA como histórico; la limpieza física de huérfanos sigue
+   * disponible aparte para quien quiera deshacerse del registro.
+   */
+  async syncStatus(): Promise<SyncStatusResult> {
+    if (!this.snapshot) {
+      throw new ConflictException("No hay snapshot de Moodle: ejecuta primero el diagnóstico");
+    }
+    const suspendedByMoodleId = new Map(this.snapshot.users.map(u => [u.moodle_id, u.suspended]));
+
+    const links = await this.db
+      .select({
+        id_moodle_user: moodle_users.id_moodle_user,
+        moodle_id: moodle_users.moodle_id,
+        suspended: moodle_users.suspended,
+        deleted_in_moodle_at: moodle_users.deleted_in_moodle_at,
+      })
+      .from(moodle_users);
+
+    const toSuspend: number[] = [];
+    const toUnsuspend: number[] = [];
+    const toMarkDeleted: number[] = [];
+    for (const link of links) {
+      const realSuspended = suspendedByMoodleId.get(link.moodle_id);
+      if (realSuspended === undefined) {
+        // No está en el snapshot: la cuenta ya no existe en Moodle
+        if (link.deleted_in_moodle_at === null) toMarkDeleted.push(link.id_moodle_user);
+        continue;
+      }
+      if (realSuspended !== link.suspended) {
+        (realSuspended ? toSuspend : toUnsuspend).push(link.id_moodle_user);
+      }
+    }
+
+    await this.db.transaction(async tx => {
+      if (toSuspend.length > 0) {
+        await tx.update(moodle_users).set({ suspended: true }).where(inArray(moodle_users.id_moodle_user, toSuspend));
+      }
+      if (toUnsuspend.length > 0) {
+        await tx.update(moodle_users).set({ suspended: false }).where(inArray(moodle_users.id_moodle_user, toUnsuspend));
+      }
+      if (toMarkDeleted.length > 0) {
+        await tx
+          .update(moodle_users)
+          .set({ deleted_in_moodle_at: new Date() })
+          .where(inArray(moodle_users.id_moodle_user, toMarkDeleted));
+      }
+    });
+
+    const result: SyncStatusResult = {
+      suspended_updated: toSuspend.length + toUnsuspend.length,
+      deleted_marked: toMarkDeleted.length,
+    };
+    Logger.log({ ...result, links: links.length }, "MoodleAuditService:syncStatus");
+    return result;
+  }
+
+  /**
+   * Borra usuarios EN MOODLE (`core_user_delete_users`, irreversible) y marca
+   * la lápida local. Server-authoritative en las protecciones: solo acepta IDs
+   * que el propio informe considera candidatos (existen en el snapshot, sin
+   * ningún curso en Moodle) y NO protegidos (gestor de la app / tutor); el
+   * resto vuelve como error por fila sin abortar el lote. Coste: ~1 llamada por
+   * cada 200 borrados.
+   */
+  async deleteFromMoodle(moodleIds: number[]): Promise<DeleteFromMoodleResult> {
+    if (!this.snapshot) {
+      throw new ConflictException("No hay snapshot de Moodle: ejecuta primero el diagnóstico");
+    }
+    if (!this.enrolSnapshot) {
+      throw new ConflictException("No hay snapshot de matrículas: descárgalo antes de borrar (evita borrar usuarios con cursos)");
+    }
+
+    // Recalcular los candidatos válidos con los mismos datos que el informe
+    const report = await this.buildReport();
+    const candidateByMoodleId = new Map(report.cleanupCandidates.map(c => [c.moodle.moodle_id, c]));
+
+    const errors: DeleteFromMoodleResult["errors"] = [];
+    const deletable: number[] = [];
+    for (const moodleId of new Set(moodleIds)) {
+      const candidate = candidateByMoodleId.get(moodleId);
+      if (!candidate) {
+        errors.push({
+          moodle_id: moodleId,
+          message: this.snapshot.moodleIds.has(moodleId)
+            ? "No es candidato: tiene cursos en Moodle"
+            : "No existe en el snapshot de Moodle (¿ya borrado?)",
+        });
+      } else if (candidate.protected) {
+        errors.push({
+          moodle_id: moodleId,
+          message: `Protegido contra borrado: ${candidate.protected_reasons.map(r => (r === "auth-user" ? "gestor de la app" : "tutor de grupo")).join(", ")}`,
+        });
+      } else {
+        deletable.push(moodleId);
+      }
+    }
+
+    const callsBefore = this.moodleService.moodleCallCount;
+    const deletedIds: number[] = [];
+    const chunkSize = 200;
+
+    // `core_user_delete_users` es atómico por lote: si un id es rechazable
+    // (p.ej. un admin de Moodle no matriculado en nada, invisible para las
+    // protecciones locales), Moodle rechaza el lote ENTERO sin borrar nada.
+    // Bisección: el lote fallido se parte en mitades hasta aislar a los
+    // culpables, que vuelven como error por fila. Coste extra ~2·log2(n)
+    // llamadas por cada id conflictivo.
+    const deleteBatch = async (ids: number[]): Promise<void> => {
+      try {
+        await this.moodleService.deleteUsers(ids);
+        deletedIds.push(...ids);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (ids.length === 1) {
+          errors.push({ moodle_id: ids[0], message });
+          return;
+        }
+        Logger.warn({ chunkLength: ids.length, message }, "MoodleAuditService:deleteFromMoodle - lote rechazado, bisecando");
+        const mid = Math.ceil(ids.length / 2);
+        await deleteBatch(ids.slice(0, mid));
+        await deleteBatch(ids.slice(mid));
+      }
+    };
+    for (let i = 0; i < deletable.length; i += chunkSize) {
+      await deleteBatch(deletable.slice(i, i + chunkSize));
+    }
+    const moodleCalls = this.moodleService.moodleCallCount - callsBefore;
+
+    // Marcar lápidas locales y sacar los borrados de los snapshots en memoria
+    let markedLocal = 0;
+    if (deletedIds.length > 0) {
+      const marked = await this.db
+        .update(moodle_users)
+        .set({ deleted_in_moodle_at: new Date() })
+        .where(and(inArray(moodle_users.moodle_id, deletedIds), isNull(moodle_users.deleted_in_moodle_at)))
+        .returning({ id_moodle_user: moodle_users.id_moodle_user });
+      markedLocal = marked.length;
+
+      const deletedSet = new Set(deletedIds);
+      this.snapshot.users = this.snapshot.users.filter(u => !deletedSet.has(u.moodle_id));
+      for (const id of deletedIds) this.snapshot.moodleIds.delete(id);
+    }
+
+    const result: DeleteFromMoodleResult = { deleted: deletedIds.length, marked_local: markedLocal, errors, moodleCalls };
+    Logger.log({ requested: moodleIds.length, ...result, errors: errors.length }, "MoodleAuditService:deleteFromMoodle");
+    return result;
   }
 
   /**

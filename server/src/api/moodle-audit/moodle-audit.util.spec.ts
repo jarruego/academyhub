@@ -2,6 +2,7 @@ import {
   AuditLinkRow,
   AuditMoodleUser,
   AuditUserRef,
+  classifyCleanupCandidates,
   classifyMoodleLinks,
   toAuditMoodleUser,
 } from "./moodle-audit.util";
@@ -48,6 +49,8 @@ function auditMoodle(partial: Partial<AuditMoodleUser>): AuditMoodleUser {
     fullname: "Nombre Apellido",
     email: "u@example.com",
     suspended: false,
+    firstaccess: 0,
+    lastaccess: 0,
     dni_keys: [],
     ...partial,
   };
@@ -74,6 +77,7 @@ function link(partial: Partial<AuditLinkRow> & { id_moodle_user: number; id_user
     is_main_user: true,
     user_course_refs: 0,
     token_links: 0,
+    deleted_in_moodle: false,
     ...partial,
   };
 }
@@ -277,5 +281,82 @@ describe("classifyMoodleLinks", () => {
       userIdByDniKey: new Map([[DNI_A, 100]]),
     });
     expect(result.incorrectLinks[0].linkedUser).toMatchObject({ id_user: 999, name: null });
+  });
+
+  it("propaga marked_deleted en huérfanos ya marcados como lápida", () => {
+    const result = classifyMoodleLinks({
+      snapshot: [],
+      links: [
+        link({ id_moodle_user: 1, id_user: 100, moodle_id: 98, deleted_in_moodle: true }),
+        link({ id_moodle_user: 2, id_user: 100, moodle_id: 99 }),
+      ],
+      usersById: new Map([[100, userRef({ id_user: 100 })]]),
+      userIdByDniKey: new Map(),
+    });
+    const byId = new Map(result.orphans.map(o => [o.id_moodle_user, o]));
+    expect(byId.get(1)?.marked_deleted).toBe(true);
+    expect(byId.get(2)?.marked_deleted).toBe(false);
+  });
+});
+
+describe("classifyCleanupCandidates", () => {
+  const base = {
+    usersById: new Map([[100, userRef({ id_user: 100 })]]),
+    authUserKeys: new Set<string>(),
+    tutorUserIds: new Set<number>(),
+  };
+
+  it("los matriculados en algún curso de Moodle nunca son candidatos", () => {
+    const result = classifyCleanupCandidates({
+      ...base,
+      snapshot: [auditMoodle({ moodle_id: 10 }), auditMoodle({ moodle_id: 11 })],
+      enrolledMoodleIds: new Set([10]),
+      links: [],
+    });
+    expect(result.map(c => c.moodle.moodle_id)).toEqual([11]);
+  });
+
+  it("incluye el vínculo local si existe y marca never_accessed con firstaccess=0", () => {
+    const result = classifyCleanupCandidates({
+      ...base,
+      snapshot: [
+        auditMoodle({ moodle_id: 10, firstaccess: 0 }),
+        auditMoodle({ moodle_id: 11, firstaccess: 1600000000, lastaccess: 1700000000 }),
+      ],
+      enrolledMoodleIds: new Set(),
+      links: [link({ id_moodle_user: 1, id_user: 100, moodle_id: 10 })],
+    });
+    const byId = new Map(result.map(c => [c.moodle.moodle_id, c]));
+    expect(byId.get(10)).toMatchObject({ id_moodle_user: 1, linkedUser: { id_user: 100 }, never_accessed: true });
+    expect(byId.get(11)).toMatchObject({ id_moodle_user: null, linkedUser: null, never_accessed: false });
+  });
+
+  it("protege gestores de la app por email o username de Moodle (case-insensitive)", () => {
+    const result = classifyCleanupCandidates({
+      ...base,
+      authUserKeys: new Set(["gestor@empresa.com", "admin.jefe"]),
+      snapshot: [
+        auditMoodle({ moodle_id: 10, email: "GESTOR@empresa.com" }),
+        auditMoodle({ moodle_id: 11, username: "Admin.Jefe", email: "otro@x.com" }),
+        auditMoodle({ moodle_id: 12, email: "alumno@x.com" }),
+      ],
+      enrolledMoodleIds: new Set(),
+      links: [],
+    });
+    const byId = new Map(result.map(c => [c.moodle.moodle_id, c]));
+    expect(byId.get(10)).toMatchObject({ protected: true, protected_reasons: ["auth-user"] });
+    expect(byId.get(11)).toMatchObject({ protected: true, protected_reasons: ["auth-user"] });
+    expect(byId.get(12)).toMatchObject({ protected: false, protected_reasons: [] });
+  });
+
+  it("protege cuentas cuyo vínculo local es tutor de algún grupo", () => {
+    const result = classifyCleanupCandidates({
+      ...base,
+      tutorUserIds: new Set([100]),
+      snapshot: [auditMoodle({ moodle_id: 10 })],
+      enrolledMoodleIds: new Set(),
+      links: [link({ id_moodle_user: 1, id_user: 100, moodle_id: 10 })],
+    });
+    expect(result[0]).toMatchObject({ protected: true, protected_reasons: ["tutor"] });
   });
 });

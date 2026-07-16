@@ -3,6 +3,7 @@ import { RoleGuard } from "src/guards/role.guard";
 import { Role } from "src/guards/role.enum";
 import { MoodleAuditService } from "./moodle-audit.service";
 import { FixUsernamesDto } from "./dto/fix-usernames.dto";
+import { DeleteMoodleUsersDto } from "./dto/delete-moodle-users.dto";
 
 @Controller("api/moodle-audit")
 @UseGuards(RoleGuard([Role.ADMIN]))
@@ -21,6 +22,27 @@ export class MoodleAuditController {
   @Post("refresh")
   async refresh() {
     return this.moodleAuditService.refreshSnapshot();
+  }
+
+  // Descarga el snapshot de matrículas de Moodle (1 llamada por curso + 1 para
+  // el catálogo) y devuelve el informe con los candidatos a limpieza.
+  @Post("refresh-enrolments")
+  async refreshEnrolments() {
+    return this.moodleAuditService.refreshEnrolments();
+  }
+
+  // Sincroniza a la BD el estado de las cuentas según el snapshot (0 llamadas):
+  // suspended espejo de Moodle y lápida deleted_in_moodle_at para las borradas.
+  @Post("sync-status")
+  async syncStatus() {
+    return this.moodleAuditService.syncStatus();
+  }
+
+  // Borra usuarios EN MOODLE (irreversible) y marca la lápida local. Solo
+  // acepta candidatos sin cursos y no protegidos (validación server-side).
+  @Post("delete-users")
+  async deleteFromMoodle(@Body() body: DeleteMoodleUsersDto) {
+    return this.moodleAuditService.deleteFromMoodle(body.moodleIds);
   }
 
   // Corrige moodle_usernames desactualizados copiando el real del snapshot

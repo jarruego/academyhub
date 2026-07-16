@@ -386,6 +386,13 @@
       "when": 1784024742824,
       "tag": "0054_perpetual_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1784191821629,
+      "tag": "0055_medical_trish_tilby",
+      "breakpoints": true
     }
   ]
 }

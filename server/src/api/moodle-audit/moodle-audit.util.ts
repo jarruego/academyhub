@@ -23,6 +23,10 @@ export interface AuditMoodleUser {
   fullname: string;
   email: string;
   suspended: boolean;
+  /** Epoch en segundos del primer acceso (0 = nunca se ha conectado). */
+  firstaccess: number;
+  /** Epoch en segundos del último acceso (0 = nunca se ha conectado). */
+  lastaccess: number;
   /** Claves DNI normalizadas (customfield `dni` y/o `username` válido). */
   dni_keys: string[];
 }
@@ -38,6 +42,8 @@ export interface AuditLinkRow {
   user_course_refs: number;
   /** Vínculos con token (`moodle_user_auth_user`). */
   token_links: number;
+  /** true si la fila ya está marcada como borrada en Moodle (lápida). */
+  deleted_in_moodle: boolean;
 }
 
 /** Vínculo cuyo DNI en Moodle apunta a OTRO usuario local: candidato a fusión. */
@@ -72,6 +78,8 @@ export interface OrphanFinding {
   token_links: number;
   /** Otras cuentas Moodle del mismo usuario local (huérfanas o no). */
   other_accounts: number;
+  /** true si la lápida ya está marcada (`deleted_in_moodle_at`) por la sincronización de estado. */
+  marked_deleted: boolean;
 }
 
 /** Cuenta Moodle vinculada cuyo usuario local no tiene ningún curso en la BD. */
@@ -125,8 +133,81 @@ export function toAuditMoodleUser(mu: MoodleUser): AuditMoodleUser {
     fullname: mu.fullname ?? [mu.firstname, mu.lastname].filter(Boolean).join(" "),
     email: mu.email ?? "",
     suspended: Boolean(mu.suspended),
+    firstaccess: mu.firstaccess ?? 0,
+    lastaccess: mu.lastaccess ?? 0,
     dni_keys: moodleUserDniKeys(mu),
   };
+}
+
+// ---------- limpieza: usuarios de Moodle sin ningún curso en Moodle ----------
+
+export type ProtectedReason = "auth-user" | "tutor";
+
+/** Usuario de Moodle sin matrículas en Moodle: candidato a borrado. */
+export interface CleanupCandidate {
+  moodle: AuditMoodleUser;
+  /** Vínculo local si existe (null = Moodle no está en `moodle_users`). */
+  id_moodle_user: number | null;
+  linkedUser: AuditUserRef | null;
+  /** true si nunca se ha conectado (firstaccess = 0). */
+  never_accessed: boolean;
+  /** Protegido contra borrado: gestor de la app o tutor de algún grupo. */
+  protected: boolean;
+  protected_reasons: ProtectedReason[];
+}
+
+export interface CleanupInput {
+  snapshot: AuditMoodleUser[];
+  /** Unión de matriculados de todos los cursos de Moodle. */
+  enrolledMoodleIds: Set<number>;
+  links: AuditLinkRow[];
+  usersById: Map<number, AuditUserRef>;
+  /** Emails y usernames (en minúsculas) de los `auth_users` de la app. */
+  authUserKeys: Set<string>;
+  /** id_user locales que son tutores en algún grupo (`user_group.is_tutor`). */
+  tutorUserIds: Set<number>;
+}
+
+/**
+ * Candidatos a borrado en Moodle: usuarios del snapshot que no aparecen
+ * matriculados en NINGÚN curso de Moodle. Puro, sin llamadas ni BD. Protección
+ * server-side (el borrado rechaza los `protected`):
+ * - "auth-user": su email/username de Moodle coincide con un gestor de la app.
+ * - "tutor": su vínculo local es tutor en algún grupo.
+ * Los profesores/tutores matriculados en sus cursos nunca llegan aquí (tienen
+ * cursos); esto cubre cuentas de gestión sin matrículas.
+ */
+export function classifyCleanupCandidates(input: CleanupInput): CleanupCandidate[] {
+  const { snapshot, enrolledMoodleIds, links, usersById, authUserKeys, tutorUserIds } = input;
+
+  const linkByMoodleId = new Map<number, AuditLinkRow>();
+  for (const link of links) linkByMoodleId.set(link.moodle_id, link);
+
+  const result: CleanupCandidate[] = [];
+  for (const moodle of snapshot) {
+    if (enrolledMoodleIds.has(moodle.moodle_id)) continue;
+
+    const link = linkByMoodleId.get(moodle.moodle_id) ?? null;
+    const linkedUser = link ? userRefOrPlaceholder(usersById, link.id_user) : null;
+
+    const protected_reasons: ProtectedReason[] = [];
+    if (authUserKeys.has(moodle.email.toLowerCase()) || authUserKeys.has(moodle.username.toLowerCase())) {
+      protected_reasons.push("auth-user");
+    }
+    if (link && tutorUserIds.has(link.id_user)) {
+      protected_reasons.push("tutor");
+    }
+
+    result.push({
+      moodle,
+      id_moodle_user: link?.id_moodle_user ?? null,
+      linkedUser,
+      never_accessed: moodle.firstaccess === 0,
+      protected: protected_reasons.length > 0,
+      protected_reasons,
+    });
+  }
+  return result;
 }
 
 function userRefOrPlaceholder(usersById: Map<number, AuditUserRef>, idUser: number): AuditUserRef {
@@ -252,6 +333,7 @@ export function classifyMoodleLinks(input: ClassifyInput): MoodleAuditClassifica
       user_course_refs: link.user_course_refs,
       token_links: link.token_links,
       other_accounts: siblings.filter(s => s.id_moodle_user !== link.id_moodle_user).length,
+      marked_deleted: link.deleted_in_moodle,
     });
   }
 

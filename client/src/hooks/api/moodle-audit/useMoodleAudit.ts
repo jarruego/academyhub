@@ -23,6 +23,10 @@ export interface AuditMoodleUser {
   fullname: string;
   email: string;
   suspended: boolean;
+  /** Epoch en segundos del primer acceso (0 = nunca se ha conectado). */
+  firstaccess: number;
+  /** Epoch en segundos del último acceso (0 = nunca se ha conectado). */
+  lastaccess: number;
   dni_keys: string[];
 }
 
@@ -50,6 +54,31 @@ export interface OrphanFinding {
   user_course_refs: number;
   token_links: number;
   other_accounts: number;
+  /** true si la lápida ya está marcada (deleted_in_moodle_at). */
+  marked_deleted: boolean;
+}
+
+export type ProtectedReason = "auth-user" | "tutor";
+
+export interface CleanupCandidate {
+  moodle: AuditMoodleUser;
+  id_moodle_user: number | null;
+  linkedUser: AuditUserRef | null;
+  never_accessed: boolean;
+  protected: boolean;
+  protected_reasons: ProtectedReason[];
+}
+
+export interface SyncStatusResult {
+  suspended_updated: number;
+  deleted_marked: number;
+}
+
+export interface DeleteFromMoodleResult {
+  deleted: number;
+  marked_local: number;
+  errors: Array<{ moodle_id: number; message: string }>;
+  moodleCalls: number;
 }
 
 export interface NoCoursesFinding {
@@ -81,6 +110,10 @@ export interface MoodleAuditReport {
   fetchedAt: string | null;
   snapshotSize: number;
   moodleCallsLastFetch: number | null;
+  /** Estado del snapshot de matrículas de Moodle (null = no descargado). */
+  enrolments: { fetchedAt: string; courseCount: number; moodleCalls: number } | null;
+  /** Usuarios de Moodle sin ningún curso en Moodle (vacío sin snapshot de matrículas). */
+  cleanupCandidates: CleanupCandidate[];
   totals: {
     ok: number;
     incorrectLinks: number;
@@ -89,6 +122,7 @@ export interface MoodleAuditReport {
     noCourses: number;
     unlinked: number;
     usernameMismatches: number;
+    cleanupCandidates: number;
   };
   ok_count: number;
   incorrectLinks: IncorrectLinkFinding[];
@@ -159,6 +193,55 @@ export const useFixUsernamesMutation = () => {
         data: idMoodleUsers && idMoodleUsers.length > 0 ? { idMoodleUsers } : {},
       });
       return res.data as UsernameFixResult;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MOODLE_AUDIT_REPORT_KEY });
+    },
+  });
+};
+
+/** Descarga el snapshot de matrículas de Moodle (1 llamada por curso + 1 para el catálogo). */
+export const useRefreshEnrolmentsMutation = () => {
+  const request = useAuthenticatedAxios();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<MoodleAuditReport> => {
+      const res = await request({ method: "POST", url: `${getApiHost()}/api/moodle-audit/refresh-enrolments` });
+      return res.data as MoodleAuditReport;
+    },
+    onSuccess: data => {
+      queryClient.setQueryData(MOODLE_AUDIT_REPORT_KEY, data);
+    },
+  });
+};
+
+/** Sincroniza a la BD el estado de las cuentas según el snapshot (0 llamadas): suspended + lápidas. */
+export const useSyncStatusMutation = () => {
+  const request = useAuthenticatedAxios();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (): Promise<SyncStatusResult> => {
+      const res = await request({ method: "POST", url: `${getApiHost()}/api/moodle-audit/sync-status` });
+      return res.data as SyncStatusResult;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MOODLE_AUDIT_REPORT_KEY });
+    },
+  });
+};
+
+/** Borra usuarios EN MOODLE (irreversible) y marca la lápida local. */
+export const useDeleteFromMoodleMutation = () => {
+  const request = useAuthenticatedAxios();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (moodleIds: number[]): Promise<DeleteFromMoodleResult> => {
+      const res = await request({
+        method: "POST",
+        url: `${getApiHost()}/api/moodle-audit/delete-users`,
+        data: { moodleIds },
+      });
+      return res.data as DeleteFromMoodleResult;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MOODLE_AUDIT_REPORT_KEY });

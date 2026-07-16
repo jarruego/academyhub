@@ -1,5 +1,5 @@
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import { pgTable, serial, text, integer, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
 import { userTable } from "./user.table";
 import { TIMESTAMPS } from "./timestamps";
 
@@ -10,6 +10,11 @@ export const moodleUserTable = pgTable("moodle_users", {
     moodle_username: text("moodle_username").notNull().unique(),
     moodle_password: text("moodle_password"),
     is_main_user: boolean("is_main_user").notNull().default(false),
+    // Espejo del estado en Moodle, sincronizado desde la Auditoría de Moodle
+    // (docs/moodle-audit.md). La fila se conserva como "lápida" cuando la
+    // cuenta se borra en Moodle: deleted_in_moodle_at ≠ null.
+    suspended: boolean("suspended").notNull().default(false),
+    deleted_in_moodle_at: timestamp("deleted_in_moodle_at"),
     ...TIMESTAMPS
 }, (table) => {
     return {
