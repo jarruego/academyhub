@@ -1,5 +1,5 @@
 import { Button, Card, List, Typography } from "antd";
-import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined, SafetyCertificateOutlined, MailOutlined, CommentOutlined, SettingOutlined, MergeCellsOutlined, MedicineBoxOutlined, CloudDownloadOutlined } from "@ant-design/icons";
+import { ToolOutlined, DatabaseOutlined, FileTextOutlined, UserOutlined, SafetyCertificateOutlined, MailOutlined, CommentOutlined, SettingOutlined, MergeCellsOutlined, MedicineBoxOutlined, CloudDownloadOutlined, AuditOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { AuthzHide } from "../permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
@@ -117,6 +117,13 @@ export const toolCategories: ToolCategory[] = [
         description: "Consulta el estado de la copia nocturna, lanza una copia manual o descarga una copia cifrada.",
         icon: <CloudDownloadOutlined style={{ fontSize: 20 }} />,
         linkTo: "/tools/backups",
+      },
+      {
+        key: "moodle-audit",
+        label: "Auditoría de Moodle",
+        description: "Cruza los usuarios de Moodle con la BD (una sola descarga): detecta vínculos incorrectos, huérfanos y cuentas sin vincular; fusiona o limpia.",
+        icon: <AuditOutlined style={{ fontSize: 20 }} />,
+        linkTo: "/tools/moodle-audit",
       },
       {
         key: "data-sanitization",

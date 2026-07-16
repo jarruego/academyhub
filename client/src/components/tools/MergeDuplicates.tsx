@@ -22,7 +22,8 @@ const showValue = (v: unknown) => {
 };
 
 // ---- Modal de previsualización + confirmación de una fusión concreta ----
-const MergeModal: React.FC<{
+// Exportado: lo reutiliza la Auditoría de Moodle para fusionar vínculos incorrectos.
+export const MergeModal: React.FC<{
   winnerId: number;
   loserId: number;
   onClose: () => void;

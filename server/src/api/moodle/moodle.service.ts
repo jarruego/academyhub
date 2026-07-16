@@ -27,7 +27,7 @@ import { UserInsertModel, UserUpdateModel, UserSelectModel } from 'src/database/
 import { MoodleUserInsertModel, MoodleUserSelectModel } from 'src/database/schema/tables/moodle_user.table';
 import { UserGroupSelectModel, UserGroupUpdateModel } from 'src/database/schema/tables/user_group.table';
 import { generatePassword } from 'src/utils/generate-password';
-import { isValidDocument } from 'src/utils/dni.util';
+import { moodleUserDniVariants as sharedMoodleUserDniVariants, moodleUserDniToStore as sharedMoodleUserDniToStore } from './moodle-user-matching.util';
 import dayjs from '../../common/utils/dayjs-tz';
 import { userCenterTable } from 'src/database/schema/tables/user_center.table';
 import { centers } from 'src/database/schema';
@@ -1715,19 +1715,8 @@ export class MoodleService {
      * devuelve en minúsculas.
      */
     private moodleUserDniVariants(moodleUser: MoodleUser): string[] {
-        const variants: string[] = [];
-        const push = (raw: unknown) => {
-            const trimmed = String(raw ?? '').trim();
-            if (!trimmed) return;
-            const compact = trimmed.replace(/[^a-zA-Z0-9]/g, '');
-            variants.push(trimmed, compact.toUpperCase(), compact.toLowerCase());
-        };
-
-        const dniField = moodleUser.customfields?.find(f => (f.shortname && f.shortname.toLowerCase() === 'dni') || (f.name && f.name.toLowerCase() === 'dni'));
-        if (dniField?.value) push(dniField.value);
-        if (isValidDocument(moodleUser.username)) push(moodleUser.username);
-
-        return [...new Set(variants.filter(v => v.length > 0))];
+        // Lógica compartida con la auditoría de vínculos (api/moodle-audit).
+        return sharedMoodleUserDniVariants(moodleUser);
     }
 
     /**
@@ -1735,8 +1724,7 @@ export class MoodleService {
      * `username` es un documento válido, normalizado como se guarda en la BD.
      */
     private moodleUserDniToStore(moodleUser: MoodleUser): string | null {
-        const compact = String(moodleUser.username ?? '').trim().replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-        return isValidDocument(compact) ? compact : null;
+        return sharedMoodleUserDniToStore(moodleUser);
     }
 
     /**

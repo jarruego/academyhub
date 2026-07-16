@@ -86,6 +86,8 @@ export const useMergeMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["merge-candidates"] });
+      // La Auditoría de Moodle también fusiona; su informe queda obsoleto tras cualquier fusión.
+      queryClient.invalidateQueries({ queryKey: ["moodle-audit-report"] });
     },
   });
 };
