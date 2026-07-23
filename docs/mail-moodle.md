@@ -7,6 +7,9 @@ Read before touching `api/moodle/`, `api/mail/`, or notification/token logic.
 
 `moodle_users.moodle_password` is stored in plaintext on purpose (shown to users) — see `docs/security.md`.
 
+## Custom fields de perfil (usuarios subidos a Moodle)
+`settings.moodle.customfields` (`[{ shortname, source: dni|company_name|company_cif }]`, see `docs/organization.md`) defines which Moodle profile fields get filled when pushing local users. `company_name` renders as `"Empresa (Centro)"` — company + the user's (main) center from `resolveUserCompanyInfo` — falling back to just the company when the center has no name. Values are built by `buildMoodleCustomFieldValues` (**only non-empty values** — an empty local field never clears the Moodle value; wire shape is `{ type: <shortname>, value }` — the write WS uses `type` for the shortname, unlike the read shape of `core_user_get_users`) and sent via `core_user_update_users` in two paths: right after creation (`upsertLocalUsersToMoodle` → `ensureProfileInitialized`) and on explicit update (`updateLocalUserInMoodle`). Requires **Moodle ≥ 4.x**: with 3.9 the WS didn't apply customfields, so the send was disabled until 2026-07 (re-enabled after upgrading the org's Moodle to 4.5).
+
 ## Token resolution
 `process.env.MOODLE_TOKEN` is a legacy fallback that may not be set in production. The real org-level token lives in `organization_settings.encrypted_secrets`, read via `MoodleService.resolveMoodleToken()`. `MailService.resolveToken()` implements the full priority chain for notifications:
 1. `moodle_user_auth_user.moodle_token` — link-specific token for the `auth_user`+`moodle_user` pair (highest `id` wins if several)

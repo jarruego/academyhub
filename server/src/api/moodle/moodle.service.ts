@@ -50,7 +50,9 @@ type RequestOptions<D extends MoodleParams = MoodleParams> = {
 type MoodleParamsValue = string | number | boolean | object | Array<string | number | boolean | object> | null | undefined;
 type MoodleParams = Record<string, MoodleParamsValue>;
 
-type MoodleUserCustomField = { type: string; shortname: string; value: string };
+// Forma de ESCRITURA de core_user_create_users/core_user_update_users: `type` es el
+// shortname del campo de perfil (la forma de lectura de core_user_get_users es distinta).
+type MoodleUserCustomField = { type: string; value: string };
 type MoodleUserCreatePayload = {
     username: string;
     password: string;
@@ -407,10 +409,56 @@ export class MoodleService {
         return [];
     }
 
-    private async resolveUserCompanyInfo(userId: number): Promise<{ company_name?: string | null; company_cif?: string | null } | null> {
+    /**
+     * Construye los customfields de perfil Moodle de un usuario local a partir de la
+     * configuración de la organización. Solo incluye valores no vacíos, de modo que
+     * un dato ausente en local nunca borra el valor existente en Moodle.
+     */
+    private async buildMoodleCustomFieldValues(
+        customFieldDefs: MoodleCustomFieldConfig[],
+        user: Pick<UserSelectModel, 'dni'>,
+        localUserId: number,
+    ): Promise<MoodleUserCustomField[]> {
+        if (customFieldDefs.length === 0) return [];
+
+        const needsCompany = customFieldDefs.some((d) => d.source === 'company_name' || d.source === 'company_cif');
+        const companyInfo = needsCompany ? await this.resolveUserCompanyInfo(localUserId) : null;
+
+        const fields: MoodleUserCustomField[] = [];
+        for (const def of customFieldDefs) {
+            let value: unknown;
+            switch (def.source) {
+                case 'dni':
+                    value = user.dni;
+                    break;
+                case 'company_name': {
+                    // Formato "Empresa (Centro)"; sin centro con nombre, solo la empresa
+                    const company = String(companyInfo?.company_name ?? '').trim();
+                    const center = String(companyInfo?.center_name ?? '').trim();
+                    value = company ? (center ? `${company} (${center})` : company) : undefined;
+                    break;
+                }
+                case 'company_cif':
+                    value = companyInfo?.company_cif;
+                    break;
+                default:
+                    value = undefined;
+                    break;
+            }
+
+            const str = value !== undefined && value !== null ? String(value).trim() : '';
+            if (str.length > 0) {
+                fields.push({ type: def.shortname, value: str });
+            }
+        }
+
+        return fields;
+    }
+
+    private async resolveUserCompanyInfo(userId: number): Promise<{ company_name?: string | null; company_cif?: string | null; center_name?: string | null } | null> {
         try {
             const main = await this.databaseService.db
-                .select({ company_name: companyTable.company_name, company_cif: companyTable.cif })
+                .select({ company_name: companyTable.company_name, company_cif: companyTable.cif, center_name: centers.center_name })
                 .from(userCenterTable)
                 .innerJoin(centers, eq(userCenterTable.id_center, centers.id_center))
                 .innerJoin(companyTable, eq(centers.id_company, companyTable.id_company))
@@ -419,7 +467,7 @@ export class MoodleService {
             if (main && main.length > 0) return main[0] ?? null;
 
             const fallback = await this.databaseService.db
-                .select({ company_name: companyTable.company_name, company_cif: companyTable.cif })
+                .select({ company_name: companyTable.company_name, company_cif: companyTable.cif, center_name: centers.center_name })
                 .from(userCenterTable)
                 .innerJoin(centers, eq(userCenterTable.id_center, centers.id_center))
                 .innerJoin(companyTable, eq(centers.id_company, companyTable.id_company))
@@ -2222,33 +2270,25 @@ export class MoodleService {
 
         const ensureProfileInitialized = async (moodleUserId: number, customFields?: MoodleUserCustomField[]) => {
             try {
-                // Note: Moodle 3.9.4 does not support updating customfields via core_user_update_users
-                // Custom fields must be set manually in Moodle or through a different API
+                // customfields vía core_user_update_users requiere Moodle >= 4.x (en 3.9 no funcionaba)
                 const updatePayload: Record<string, unknown> = { id: moodleUserId, description: '' };
-                // Commenting out customfields - not supported in Moodle 3.9.4
-                // if (customFields && customFields.length > 0) {
-                //     updatePayload.customfields = customFields;
-                // }
+                if (customFields && customFields.length > 0) {
+                    updatePayload.customfields = customFields;
+                }
                 await this.request('core_user_update_users', {
                     method: 'post',
                     params: {
                         users: [updatePayload],
                     },
                 });
-                
-                // Log custom fields that need to be set manually
-                if (customFields && customFields.length > 0) {
-                    Logger.warn({ moodleUserId, customFields }, 'MoodleService:upsertLocalUsersToMoodle - Custom fields not set (not supported in Moodle 3.9.4). Please set manually in Moodle or ensure fields are not required.');
-                }
             } catch (err: unknown) {
                 const errForLog = err instanceof Error ? { message: err.message, stack: err.stack } : String(err);
-                Logger.warn({ err: errForLog, moodleUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to initialize description/format');
+                Logger.warn({ err: errForLog, moodleUserId }, 'MoodleService:upsertLocalUsersToMoodle - failed to initialize profile (description/customfields)');
             }
         };
 
         const customFieldDefs = await this.resolveMoodleCustomFields();
         const customFieldsByUserId = new Map<number, MoodleUserCustomField[]>();
-        const needsCompany = customFieldDefs.some((d) => d.source === 'company_name' || d.source === 'company_cif');
 
         // First, collect existing mappings and those missing
         for (const id_user of localUserIds) {
@@ -2277,35 +2317,7 @@ export class MoodleService {
 
         if (customFieldDefs.length > 0) {
             for (const tc of toCreate) {
-                let companyInfo: { company_name?: string | null; company_cif?: string | null } | null = null;
-                if (needsCompany) {
-                    companyInfo = await this.resolveUserCompanyInfo(tc.localUserId);
-                }
-
-                const fields: MoodleUserCustomField[] = [];
-                for (const def of customFieldDefs) {
-                    let value: unknown;
-                    switch (def.source) {
-                        case 'dni':
-                            value = tc.user.dni;
-                            break;
-                        case 'company_name':
-                            value = companyInfo?.company_name;
-                            break;
-                        case 'company_cif':
-                            value = companyInfo?.company_cif;
-                            break;
-                        default:
-                            value = undefined;
-                            break;
-                    }
-
-                    const str = value !== undefined && value !== null ? String(value).trim() : '';
-                    if (str.length > 0) {
-                        fields.push({ type: 'text', shortname: def.shortname, value: str });
-                    }
-                }
-
+                const fields = await this.buildMoodleCustomFieldValues(customFieldDefs, tc.user, tc.localUserId);
                 if (fields.length > 0) {
                     customFieldsByUserId.set(tc.localUserId, fields);
                 }
@@ -2649,6 +2661,11 @@ export class MoodleService {
 
         // Include password if we have one stored locally
         if (main.moodle_password) payload['password'] = main.moodle_password;
+
+        // Refrescar también los customfields configurados (DNI/empresa)
+        const customFieldDefs = await this.resolveMoodleCustomFields();
+        const customFields = await this.buildMoodleCustomFieldValues(customFieldDefs, u, id_user);
+        if (customFields.length > 0) payload['customfields'] = customFields;
 
         try {
             // Moodle expects an array under `users` for core_user_update_users
