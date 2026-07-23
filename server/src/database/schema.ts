@@ -20,6 +20,8 @@ import { failedUserImportsTable } from "./schema/tables/failed_user_imports.tabl
 import { auditLogTable } from "./schema/tables/audit_log.table";
 import { emailLogTable } from "./schema/tables/email_log.table";
 import { moodleAuditSnapshotTable, moodleProtectedUserTable } from "./schema/tables/moodle_audit.table";
+import { courseRequestTable, courseRequestStatus, courseRequestSource } from "./schema/tables/course_request.table";
+import { courseRequestStudentTable } from "./schema/tables/course_request_student.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality, courseClient } from "./schema/tables/course.table";
@@ -49,6 +51,8 @@ export const audit_log = auditLogTable;
 export const email_log = emailLogTable;
 export const moodle_audit_snapshot = moodleAuditSnapshotTable;
 export const moodle_protected_users = moodleProtectedUserTable;
+export const course_requests = courseRequestTable;
+export const course_request_students = courseRequestStudentTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
@@ -57,6 +61,8 @@ export const genderSchema = gender;
 export const document_type = documentType;
 export const group_active_mode = groupActiveMode;
 export const preinscription_status = preinscriptionStatus;
+export const course_request_status = courseRequestStatus;
+export const course_request_source = courseRequestSource;
 // export const enrollment_status = enrollmentStatus;
 
 // Re-export types for convenience

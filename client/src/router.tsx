@@ -16,6 +16,9 @@ import CompanyDetailRoute from './routes/companies/company-detail.route';
 import CreateCenterRoute from './routes/centers/create-center.route';
 import EditCenterRoute from './routes/centers/center-detail.route';
 import CentersRoute from './routes/centers/centers.route';
+import CourseRequestsRoute from './routes/course-requests/course-requests.route';
+import CreateCourseRequestRoute from './routes/course-requests/create-course-request.route';
+import CourseRequestDetailRoute from './routes/course-requests/course-request-detail.route';
 import { Layout, Menu, Button, Drawer } from 'antd';
 import type { MenuProps } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
@@ -55,6 +58,7 @@ import {
   FileTextOutlined,
   SafetyCertificateOutlined,
   PoweroffOutlined,
+  SolutionOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content, Header } = Layout;
@@ -82,6 +86,9 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
     { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses" onClick={onClose}>Cursos</Link> },
     { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies" onClick={onClose}>Empresas</Link> },
     { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers" onClick={onClose}>Centros</Link> },
+    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER
+      ? [{ key: '/course-requests', icon: <SolutionOutlined />, label: <Link to="/course-requests" onClick={onClose}>Peticiones</Link> }]
+      : []),
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER
       ? [{ key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports" onClick={onClose}>Informes</Link> }]
       : []),
@@ -174,6 +181,9 @@ export default function AppRouter() {
               <Route path="/add-company" element={<CreateCompanyRoute />} />
               <Route path="/organization" element={<OrganizationSettingsPage />} />
               <Route path="/centers" element={<CentersRoute />} />
+              <Route path="/course-requests" element={<CourseRequestsRoute />} />
+              <Route path="/course-requests/create" element={<CreateCourseRequestRoute />} />
+              <Route path="/course-requests/:id_request" element={<CourseRequestDetailRoute />} />
               <Route path="/reports" element={<ReportsRoute />} />
               <Route path="/tools" element={<ToolsRoute />} />
               <Route path="/tools/importaciones" element={<ToolList categoryKey="importaciones" />} />

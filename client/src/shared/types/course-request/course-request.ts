@@ -1,0 +1,66 @@
+import { CourseRequestStatus } from "./course-request-status.enum";
+
+export type CourseRequestSource = "EXCEL" | "MANUAL";
+
+export type CourseRequest = {
+  id_request: number;
+  id_center: number | null;
+  id_course: number;
+  contact_email: string | null;
+  status: CourseRequestStatus;
+  source: CourseRequestSource;
+  notes: string | null;
+  created_by: number | null;
+  closed_at: string | null;
+  createdAt: string;
+  updatedAt: string;
+  center_name: string | null;
+  center_contact_email: string | null;
+  id_company: number | null;
+  company_name: string | null;
+  course_name: string;
+  student_count: number;
+};
+
+export type CourseRequestStudent = {
+  id: number;
+  id_request: number;
+  row_order: number;
+  name: string;
+  first_surname: string;
+  second_surname: string | null;
+  dni: string;
+  email: string;
+  phone_mobile: string | null;
+};
+
+export type CourseRequestDetail = CourseRequest & { students: CourseRequestStudent[] };
+
+export type CourseRequestStudentInput = {
+  name: string;
+  first_surname: string;
+  second_surname?: string | null;
+  dni: string;
+  email: string;
+  phone_mobile?: string | null;
+};
+
+export type CourseRequestStatsByCourse = {
+  id_course: number;
+  course_name: string;
+  request_count: number;
+  student_count: number;
+};
+
+export type CourseRequestStatsByCenter = {
+  id_center: number | null;
+  center_name: string | null;
+  company_name: string | null;
+  request_count: number;
+  student_count: number;
+};
+
+export type CourseRequestStats = {
+  byCourse: CourseRequestStatsByCourse[];
+  byCenter: CourseRequestStatsByCenter[];
+};
