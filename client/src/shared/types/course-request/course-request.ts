@@ -60,6 +60,7 @@ export type CourseRequestStatsByCourseCompany = {
   id_company: number;
   company_name: string;
   request_count: number;
+  student_count: number;
 };
 
 export type CourseRequestStats = {

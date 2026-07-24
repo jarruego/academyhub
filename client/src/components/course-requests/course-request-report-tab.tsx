@@ -65,13 +65,15 @@ export function CourseRequestReportTab() {
     const coursesSet = new Set<string>();
     const centersSet = new Set<string>();
     let students = 0;
+    let requests = 0;
     for (const row of rows ?? []) {
       companiesSet.add(String(row.id_company ?? "none"));
       coursesSet.add(String(row.id_course));
       centersSet.add(String(row.id_center ?? "none"));
       students += row.student_count;
+      requests += row.request_count;
     }
-    return { companies: companiesSet.size, courses: coursesSet.size, centers: centersSet.size, students };
+    return { companies: companiesSet.size, courses: coursesSet.size, centers: centersSet.size, students, requests };
   }, [rows]);
 
   const handleExportPdf = async () => {
@@ -147,11 +149,12 @@ export function CourseRequestReportTab() {
         </Col>
       </Row>
 
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={12} sm={6}><Statistic title="Empresas" value={totals.companies} /></Col>
-        <Col xs={12} sm={6}><Statistic title="Cursos" value={totals.courses} /></Col>
-        <Col xs={12} sm={6}><Statistic title="Centros" value={totals.centers} /></Col>
-        <Col xs={12} sm={6}><Statistic title="Alumnos" value={totals.students} /></Col>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={12} sm={8} md={4}><Statistic title="Empresas" value={totals.companies} /></Col>
+        <Col xs={12} sm={8} md={4}><Statistic title="Cursos" value={totals.courses} /></Col>
+        <Col xs={12} sm={8} md={4}><Statistic title="Centros" value={totals.centers} /></Col>
+        <Col xs={12} sm={8} md={4}><Statistic title="Alumnos" value={totals.students} /></Col>
+        <Col xs={12} sm={8} md={4}><Statistic title="Peticiones" value={totals.requests} /></Col>
       </Row>
 
       <div style={{ marginBottom: 12 }}>

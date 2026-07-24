@@ -90,12 +90,14 @@ export class CourseRequestRepository extends Repository {
     return rows[0];
   }
 
-  // Las urgentes primero (destacadas), luego más recientes primero.
+  // Las urgentes primero (destacadas), luego por fecha de la petición más reciente
+  // (request_date: la fecha real de la petición, no la de alta en el sistema —
+  // pueden diferir si se registra tarde una petición ya recibida antes).
   async findAll(filters: CourseRequestFilters, options?: QueryOptions) {
     const where = this.buildFilters(filters);
     return this.baseQuery(options)
       .where(where)
-      .orderBy(desc(courseRequestTable.is_urgent), desc(courseRequestTable.createdAt));
+      .orderBy(desc(courseRequestTable.is_urgent), desc(courseRequestTable.request_date));
   }
 
   async delete(id_request: number, options?: QueryOptions) {
@@ -123,9 +125,11 @@ export class CourseRequestRepository extends Repository {
   }
 
   /**
-   * Nº de peticiones por curso y empresa (para el pivote de columnas por empresa
-   * del dashboard "Por curso"). Solo peticiones con centro **y** empresa
-   * (INNER JOIN): las que no tienen centro no aportan a ninguna columna de empresa.
+   * Nº de peticiones y de alumnos por curso y empresa (para el pivote de columnas
+   * por empresa del dashboard "Por curso"). Solo peticiones con centro **y**
+   * empresa (INNER JOIN): las que no tienen centro no aportan a ninguna columna
+   * de empresa. El LEFT JOIN a los alumnos multiplica filas por petición (fan-out),
+   * por eso request_count cuenta id_request **distintos**.
    */
   async statsByCourseCompany(options?: QueryOptions) {
     return this.query(options)
@@ -133,11 +137,13 @@ export class CourseRequestRepository extends Repository {
         id_course: courseRequestTable.id_course,
         id_company: companyTable.id_company,
         company_name: companyTable.company_name,
-        request_count: count(courseRequestTable.id_request),
+        request_count: sql<number>`count(distinct ${courseRequestTable.id_request})`,
+        student_count: count(courseRequestStudentTable.id),
       })
       .from(courseRequestTable)
       .innerJoin(centerTable, eq(courseRequestTable.id_center, centerTable.id_center))
       .innerJoin(companyTable, eq(centerTable.id_company, companyTable.id_company))
+      .leftJoin(courseRequestStudentTable, eq(courseRequestStudentTable.id_request, courseRequestTable.id_request))
       .groupBy(courseRequestTable.id_course, companyTable.id_company, companyTable.company_name);
   }
 

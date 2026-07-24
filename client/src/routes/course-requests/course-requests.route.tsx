@@ -90,7 +90,6 @@ function CourseRequestsListTab() {
         <Tag color={v === CourseRequestStatus.ABIERTA ? "processing" : "default"}>{v}</Tag>
       ),
     },
-    { title: "Fecha alta", dataIndex: "createdAt", render: (v: string) => formatDate(v) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [canEdit]);
 
@@ -102,11 +101,14 @@ function CourseRequestsListTab() {
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
   }, [stats]);
 
-  // Curso x Empresa -> nº de peticiones, para rellenar las celdas del pivote.
-  const requestsByCourseCompany = useMemo(() => {
-    const map = new Map<string, number>();
+  // Curso x Empresa -> { alumnos, peticiones }, para rellenar las celdas del pivote.
+  const statsByCourseCompanyKey = useMemo(() => {
+    const map = new Map<string, { request_count: number; student_count: number }>();
     for (const row of stats?.byCourseCompany ?? []) {
-      map.set(`${row.id_course}-${row.id_company}`, row.request_count);
+      map.set(`${row.id_course}-${row.id_company}`, {
+        request_count: row.request_count,
+        student_count: row.student_count,
+      });
     }
     return map;
   }, [stats]);
@@ -118,13 +120,14 @@ function CourseRequestsListTab() {
     ...companyColumns.map(([id_company, company_name]) => ({
       title: company_name,
       key: `company_${id_company}`,
-      width: 140,
+      width: 150,
       render: (_: unknown, record: Record<string, unknown>) => {
-        const n = requestsByCourseCompany.get(`${record.id_course}-${id_company}`) ?? 0;
-        return n > 0 ? n : <span style={{ opacity: 0.4 }}>-</span>;
+        const cell = statsByCourseCompanyKey.get(`${record.id_course}-${id_company}`);
+        if (!cell || cell.student_count === 0) return <span style={{ opacity: 0.4 }}>-</span>;
+        return `${cell.student_count} (${cell.request_count})`;
       },
     })),
-  ], [companyColumns, requestsByCourseCompany]);
+  ], [companyColumns, statsByCourseCompanyKey]);
 
   const toolbar = (
     <>
@@ -159,7 +162,12 @@ function CourseRequestsListTab() {
 
   return (
     <ListPageLayout toolbar={toolbar}>
-      <Card size="small" title="Por curso" style={{ marginBottom: 16 }}>
+      <Card
+        size="small"
+        title="Por curso"
+        style={{ marginBottom: 16 }}
+        extra={<span style={{ fontSize: 12, opacity: 0.6 }}>Columnas de empresa: alumnos (peticiones)</span>}
+      >
         <Table
           size="small"
           pagination={false}
