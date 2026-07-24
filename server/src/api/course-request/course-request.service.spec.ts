@@ -37,7 +37,32 @@ describe("CourseRequestService", () => {
       { name: "Juan", first_surname: "García", dni: "12345678A", email: "juan@example.com" },
     ] as any;
     await service.saveStudents(1, students);
-    expect(courseRequestStudentRepository.replaceAll).toHaveBeenCalledWith(1, students);
+    expect(courseRequestStudentRepository.replaceAll).toHaveBeenCalledWith(1, [
+      {
+        name: "Juan",
+        first_surname: "García",
+        second_surname: null,
+        dni: "12345678A",
+        email: "juan@example.com",
+        phone_mobile: null,
+      },
+    ]);
+  });
+
+  it("guarda filas con datos incompletos/inválidos sin bloquear (rellena huecos con '')", async () => {
+    const { service, courseRequestStudentRepository } = buildService();
+    const students = [{ name: "Juan", email: "no-es-un-email" }] as any;
+    await service.saveStudents(1, students);
+    expect(courseRequestStudentRepository.replaceAll).toHaveBeenCalledWith(1, [
+      {
+        name: "Juan",
+        first_surname: "",
+        second_surname: null,
+        dni: "",
+        email: "no-es-un-email",
+        phone_mobile: null,
+      },
+    ]);
   });
 
   it("bloquea editar alumnos de una petición cerrada", async () => {

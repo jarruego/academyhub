@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { App, Button, Input, Modal, Table, Upload } from "antd";
+import { App, Button, Input, Modal, Table, Tooltip, Upload } from "antd";
 import type { UploadRequestOption } from "rc-upload/lib/interface";
 import { DeleteOutlined, InboxOutlined, PlusOutlined, SaveOutlined, SnippetsOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
@@ -7,6 +7,34 @@ import {
   CourseRequestStudent,
   CourseRequestStudentInput,
 } from "../../shared/types/course-request/course-request";
+import { detectDocumentType } from "../../utils/detect-document-type";
+
+// Saneo de campos (espacios, mayúsculas de DNI, minúsculas de email...), igual
+// que hace el backend al guardar/subir Excel — aquí solo para que la grid ya se
+// vea limpia al pegar/editar, no sustituye al saneo del servidor.
+function sanitizeCellText(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+function sanitizeDniValue(value: string): string {
+  return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+function sanitizeEmailValue(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, "");
+}
+function sanitizePhoneValue(value: string): string {
+  const s = value.trim();
+  const hasPlus = s.startsWith("+");
+  const digits = s.replace(/\D/g, "");
+  return hasPlus ? `+${digits}` : digits;
+}
+const FIELD_SANITIZERS: Record<keyof CourseRequestStudentInput, (value: string) => string> = {
+  name: sanitizeCellText,
+  first_surname: sanitizeCellText,
+  second_surname: sanitizeCellText,
+  dni: sanitizeDniValue,
+  email: sanitizeEmailValue,
+  phone_mobile: sanitizePhoneValue,
+};
 
 type Row = CourseRequestStudentInput & { key: string };
 
@@ -86,7 +114,7 @@ function parsePasteBlock(text: string): Row[] {
       const row = EMPTY_ROW();
       cells.forEach((value, i) => {
         const field = fields[i];
-        if (field) row[field] = value.trim();
+        if (field) row[field] = FIELD_SANITIZERS[field](value);
       });
       return row;
     })
@@ -96,12 +124,25 @@ function parsePasteBlock(text: string): Row[] {
 const REQUIRED_FIELDS: (keyof CourseRequestStudentInput)[] = ["name", "first_surname", "dni", "email"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function rowErrors(row: Row): Set<keyof CourseRequestStudentInput> {
-  const errors = new Set<keyof CourseRequestStudentInput>();
+const ERROR_MESSAGES: Partial<Record<keyof CourseRequestStudentInput, string>> = {
+  name: "Falta el nombre",
+  first_surname: "Falta el apellido 1",
+  dni: "Falta el DNI",
+  email: "Falta el correo",
+};
+
+/** Campo -> Set de motivos (para mostrar en rojo y en el tooltip de la celda). */
+function rowErrors(row: Row): Map<keyof CourseRequestStudentInput, string> {
+  const errors = new Map<keyof CourseRequestStudentInput, string>();
   for (const field of REQUIRED_FIELDS) {
-    if (!row[field]?.trim()) errors.add(field);
+    if (!row[field]?.trim()) errors.set(field, ERROR_MESSAGES[field]!);
   }
-  if (row.email && !EMAIL_REGEX.test(row.email)) errors.add("email");
+  if (row.email && !errors.has("email") && !EMAIL_REGEX.test(row.email)) {
+    errors.set("email", "Correo con formato no válido");
+  }
+  if (row.dni && !errors.has("dni") && !detectDocumentType(row.dni)) {
+    errors.set("dni", "DNI/NIE no válido (letra de control incorrecta)");
+  }
   return errors;
 }
 
@@ -128,7 +169,7 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
   }, [studentsSignature]);
 
   const errorsByKey = useMemo(() => {
-    const map = new Map<string, Set<keyof CourseRequestStudentInput>>();
+    const map = new Map<string, Map<keyof CourseRequestStudentInput, string>>();
     for (const row of rows) map.set(row.key, rowErrors(row));
     return map;
   }, [rows]);
@@ -140,6 +181,13 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
 
   const updateCell = (key: string, field: keyof CourseRequestStudentInput, value: string) => {
     setRows((prev) => prev.map((row) => (row.key === key ? { ...row, [field]: value } : row)));
+  };
+
+  // Asea el valor (espacios, mayúsculas de DNI, minúsculas de email...) al salir de la celda.
+  const sanitizeCell = (key: string, field: keyof CourseRequestStudentInput) => {
+    setRows((prev) =>
+      prev.map((row) => (row.key === key ? { ...row, [field]: FIELD_SANITIZERS[field](row[field] ?? "") } : row)),
+    );
   };
 
   const removeRow = (key: string) => setRows((prev) => prev.filter((row) => row.key !== key));
@@ -171,9 +219,10 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
   };
 
   const handleSave = async () => {
+    // No se bloquea el guardado por datos incompletos/inválidos (nombre, DNI,
+    // correo...): solo se avisa. Las filas en rojo se pueden corregir después.
     if (invalidCount > 0) {
-      messageApi.error(`Hay ${invalidCount} fila(s) con datos obligatorios incompletos (nombre, apellido 1, DNI, correo)`);
-      return;
+      messageApi.warning(`Guardado con ${invalidCount} fila(s) con datos incompletos o no válidos (revisa los campos en rojo)`);
     }
     const payload = rows.map(({ key: _key, ...rest }) => rest);
     await onSave(payload);
@@ -188,16 +237,18 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
     dataIndex: field,
     width,
     render: (_: string, row: Row) => {
-      const hasError = errorsByKey.get(row.key)?.has(field);
-      return (
+      const errorMessage = errorsByKey.get(row.key)?.get(field);
+      const input = (
         <Input
           size="small"
           value={row[field] ?? ""}
-          status={hasError ? "error" : undefined}
+          status={errorMessage ? "error" : undefined}
           disabled={readOnly}
           onChange={(e) => updateCell(row.key, field, e.target.value)}
+          onBlur={() => sanitizeCell(row.key, field)}
         />
       );
+      return errorMessage ? <Tooltip title={errorMessage}>{input}</Tooltip> : input;
     },
   });
 

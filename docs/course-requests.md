@@ -10,10 +10,22 @@ Solo alta/gestión de la petición en sí (cabecera + filas de alumnos). **No** 
 
 ## Modelo de datos
 
-- `course_requests` (cabecera): `id_center` (nullable — normal que exista, pero no se bloquea si falta), `id_course` (obligatorio), `contact_email` (nullable, para futuros informes de seguimiento), `status` (`ABIERTA`/`CERRADA`), `source` (`EXCEL`/`MANUAL`, según el último alta de alumnos), `notes`, `created_by`, `closed_at`. Índices por `id_course`, `id_center`, `status`.
+- `course_requests` (cabecera): `id_center` (nullable — normal que exista, pero no se bloquea si falta), `id_course` (obligatorio), `request_date` (fecha `date`, `NOT NULL DEFAULT now()` — fecha de la petición; por defecto la de alta, editable a mano desde el cliente, p. ej. si se sube tarde una petición ya recibida antes), `contact_email` (nullable, para futuros informes de seguimiento), `status` (`ABIERTA`/`CERRADA`), `source` (`EXCEL`/`MANUAL`, según el último alta de alumnos), `notes`, `created_by`, `closed_at`. Índices por `id_course`, `id_center`, `status`.
 - `course_request_students` (filas, ON DELETE CASCADE desde la cabecera): `name`, `first_surname`, `dni`, `email` (**NOT NULL**, pero admiten `''` — ver parser), `second_surname`, `phone_mobile` (opcionales). `row_order` para el orden de la grid.
 
-Obligatorios para poder **guardar** una fila desde la grid (`PUT :id/students`, validado por `CourseRequestStudentDto`): nombre, apellido 1, DNI, correo (formato email). La subida de Excel (`POST :id/upload`) **no** aplica esta validación — inserta lo que reconozca (posiblemente vacío) para que el usuario lo complete en la grid antes de guardar; por eso las columnas de texto son NOT NULL pero aceptan `''`.
+Nombre, apellido 1, DNI y correo son "obligatorios" **solo como indicación visual** (asterisco en la cabecera de columna + rojo en la grid si faltan/son inválidos), pero **no bloquean el guardado**: `CourseRequestStudentDto` no exige ninguno de los campos (`@IsOptional()` en todos), y `saveStudents` (`PUT :id/students`) rellena con `''`/`null` lo que falte antes de persistir. Se decidió así a propósito: el objetivo de esta pantalla es guardar bien la petición tal cual llega, aunque esté incompleta, y corregirla después — nunca perder la subida por un dato mal escrito. La subida de Excel (`POST :id/upload`) igual: inserta lo que reconozca, posiblemente vacío.
+
+## Saneo de campos (`course-request-normalize.util.ts`)
+
+Igual que SAGE/INAEM pero **sin descartar** valores inválidos (esto es contenido editable, no un matching automático): `normalizeText` (trim + colapsa espacios), `normalizeDni` (mayúsculas, sin espacios/guiones/puntos), `normalizeEmail` (trim + minúsculas; reutiliza `sanitizeEmail` de `src/utils/email.util.ts` cuando el resultado es válido), `normalizePhone` (quita separadores, conserva un `+` inicial). Se aplica en dos puntos:
+- **Excel** (`course-request-excel.parser.ts`): a cada celda reconocida, antes de meterla en `rows`.
+- **Guardado desde la grid** (`CourseRequestStudentDto`, `PUT :id/students`): vía `@Transform` de class-transformer, que corre **antes** de `class-validator` (así el valor ya llega saneado al servicio, independientemente de que sea válido o no).
+
+El cliente duplica una versión ligera de estos saneadores en `course-request-students-grid.tsx` (aplicados al pegar un bloque y al perder el foco de una celda, `onBlur`) para que la grid se vea limpia antes de guardar; el saneo real y autoritativo es el del servidor.
+
+## Validación visual en la grid (`course-request-students-grid.tsx`)
+
+Cada celda de alumno se pone en rojo (`Input status="error"` + `Tooltip` con el motivo) si el campo obligatorio falta, si el correo no tiene formato válido, o si el **DNI/NIE no supera la letra de control** (`detectDocumentType` de `client/src/utils/detect-document-type.ts`, el mismo validador que usa el resto de la app — no se duplica el algoritmo). Es un aviso puramente visual: **no bloquea nada** — al pulsar "Guardar" con filas en rojo se guarda igualmente y solo se muestra un `message.warning` avisando de cuántas filas quedaron incompletas/inválidas (el backend tampoco las rechaza, ver arriba).
 
 ## Excel de alta (`course-request-excel.parser.ts`)
 
@@ -26,7 +38,7 @@ ExcelJS, primera hoja. Detección de columnas **por nombre de cabecera** (normal
 - `uploadExcel` (`POST :id/upload`): **añade** filas al final (no sustituye lo ya guardado) y marca `source=EXCEL`.
 - `close`/`reopen`: cambian `status`/`closed_at`. Editar cabecera o alumnos de una petición **CERRADA** lanza `ConflictException` — hay que reabrirla primero.
 - `remove`: borra la cabecera; las filas caen en cascada (FK `ON DELETE CASCADE`).
-- `stats`: agregados `byCourse` / `byCenter` (nº de peticiones y de alumnos), para el dashboard del listado.
+- `stats`: agregados `byCourse` / `byCenter` (nº de peticiones y de alumnos), para el dashboard del listado — ordenados por `student_count` descendente (más alumnos primero) en el propio repositorio.
 - `report` (`course-request-pdf.service.ts` para el PDF): filas empresa/centro/curso con nº de peticiones y alumnos, filtrables por cualquier combinación de `id_company`/`id_center`/`id_course` (`CourseRequestRepository.reportRows`, `LEFT JOIN` hasta `course_request_students` + `GROUP BY`). El PDF agrupa esas filas Empresa → Curso → Centro con totales por curso/empresa/general, escrito directamente con `PdfService` (estilo del informe de bonificación de `api/reports/` — el renderer de plantillas JSON solo soporta tablas planas, no 3 niveles de agrupación) — módulo independiente, sin importar nada de `api/reports/`.
 
 ## Endpoints (`api/course-requests`, `RoleGuard([ADMIN, MANAGER])`)

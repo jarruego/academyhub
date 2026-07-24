@@ -1,0 +1,1 @@
+ALTER TABLE "course_requests" ADD COLUMN "request_date" date DEFAULT now() NOT NULL;

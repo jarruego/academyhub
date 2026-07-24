@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { App, Alert, Button, Card, Col, Form, Input, Row, Select } from "antd";
+import { App, Alert, Button, Card, Col, DatePicker, Form, Input, Row, Select } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
+import dayjs, { Dayjs } from "dayjs";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
@@ -29,6 +30,7 @@ export default function CreateCourseRequestRoute() {
 
   const [idCenter, setIdCenter] = useState<number | undefined>();
   const [idCourse, setIdCourse] = useState<number | undefined>();
+  const [requestDate, setRequestDate] = useState<Dayjs>(dayjs());
   const [contactEmail, setContactEmail] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -53,6 +55,7 @@ export default function CreateCourseRequestRoute() {
       const created = await createRequest({
         id_center: idCenter,
         id_course: idCourse,
+        request_date: requestDate.format("YYYY-MM-DD"),
         contact_email: contactEmail || undefined,
         notes: notes || undefined,
       });
@@ -99,16 +102,31 @@ export default function CreateCourseRequestRoute() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item label="Curso solicitado" required>
-            <Select
-              showSearch
-              placeholder="Selecciona un curso"
-              value={idCourse}
-              onChange={setIdCourse}
-              optionFilterProp="label"
-              options={courses?.map((c) => ({ value: c.id_course, label: c.course_name }))}
-            />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col xs={24} sm={16}>
+              <Form.Item label="Curso solicitado" required>
+                <Select
+                  showSearch
+                  placeholder="Selecciona un curso"
+                  value={idCourse}
+                  onChange={setIdCourse}
+                  optionFilterProp="label"
+                  options={courses?.map((c) => ({ value: c.id_course, label: c.course_name }))}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item label="Fecha de la petición">
+                <DatePicker
+                  style={{ width: "100%" }}
+                  format="DD/MM/YYYY"
+                  value={requestDate}
+                  onChange={(value) => setRequestDate(value ?? dayjs())}
+                  allowClear={false}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item label="Correo de contacto del centro">
             <Input
               type="email"

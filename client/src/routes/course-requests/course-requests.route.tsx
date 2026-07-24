@@ -44,13 +44,14 @@ function CourseRequestsListTab() {
 
   const columns = useMemo<ColumnsType<CourseRequest>>(() => [
     { title: "ID", dataIndex: "id_request", width: 70 },
-    { title: "Curso", dataIndex: "course_name" },
+    { title: "Curso", dataIndex: "course_name", width: 260, ellipsis: true },
     {
       title: "Centro",
       dataIndex: "center_name",
       render: (v: string | null) => v || <Tag>Sin centro</Tag>,
     },
     { title: "Empresa", dataIndex: "company_name", render: (v: string | null) => v || "-" },
+    { title: "Fecha petición", dataIndex: "request_date", width: 130, render: (v: string) => formatDate(v) },
     { title: "Alumnos", dataIndex: "student_count", width: 90 },
     { title: "Contacto", dataIndex: "contact_email", render: (v: string | null) => v || <Tag color="warning">Sin correo</Tag> },
     {

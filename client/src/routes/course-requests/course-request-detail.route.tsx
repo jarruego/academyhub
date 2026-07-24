@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { App, Alert, Button, Card, Col, Form, Input, Row, Select, Tag } from "antd";
+import { App, Alert, Button, Card, Col, DatePicker, Form, Input, Row, Select, Tag } from "antd";
 import { DeleteOutlined, LockOutlined, SaveOutlined, UnlockOutlined } from "@ant-design/icons";
+import dayjs, { Dayjs } from "dayjs";
 import { useCourseRequestQuery } from "../../hooks/api/course-requests/use-course-request.query";
 import { useUpdateCourseRequestMutation } from "../../hooks/api/course-requests/use-update-course-request.mutation";
 import { useSaveCourseRequestStudentsMutation } from "../../hooks/api/course-requests/use-save-course-request-students.mutation";
@@ -52,6 +53,7 @@ export default function CourseRequestDetailRoute() {
 
   const [idCenter, setIdCenter] = useState<number | undefined>();
   const [idCourse, setIdCourse] = useState<number | undefined>();
+  const [requestDate, setRequestDate] = useState<Dayjs>(dayjs());
   const [contactEmail, setContactEmail] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -65,6 +67,7 @@ export default function CourseRequestDetailRoute() {
     if (!data) return;
     setIdCenter(data.id_center ?? undefined);
     setIdCourse(data.id_course);
+    setRequestDate(data.request_date ? dayjs(data.request_date) : dayjs());
     setContactEmail(data.contact_email ?? "");
     setNotes(data.notes ?? "");
   }, [data]);
@@ -84,6 +87,7 @@ export default function CourseRequestDetailRoute() {
       await updateMutation.mutateAsync({
         id_center: idCenter ?? null,
         id_course: idCourse,
+        request_date: requestDate.format("YYYY-MM-DD"),
         contact_email: contactEmail || null,
         notes: notes || null,
       });
@@ -165,16 +169,32 @@ export default function CourseRequestDetailRoute() {
                 </Form.Item>
               </Col>
             </Row>
-            <Form.Item label="Curso solicitado">
-              <Select
-                showSearch
-                disabled={readOnly}
-                value={idCourse}
-                onChange={setIdCourse}
-                optionFilterProp="label"
-                options={courses?.map((c) => ({ value: c.id_course, label: c.course_name }))}
-              />
-            </Form.Item>
+            <Row gutter={16}>
+              <Col xs={24} sm={16}>
+                <Form.Item label="Curso solicitado">
+                  <Select
+                    showSearch
+                    disabled={readOnly}
+                    value={idCourse}
+                    onChange={setIdCourse}
+                    optionFilterProp="label"
+                    options={courses?.map((c) => ({ value: c.id_course, label: c.course_name }))}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Form.Item label="Fecha de la petición">
+                  <DatePicker
+                    style={{ width: "100%" }}
+                    format="DD/MM/YYYY"
+                    disabled={readOnly}
+                    value={requestDate}
+                    onChange={(value) => setRequestDate(value ?? dayjs())}
+                    allowClear={false}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
             <Form.Item label="Correo de contacto del centro">
               <Input type="email" disabled={readOnly} value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
             </Form.Item>

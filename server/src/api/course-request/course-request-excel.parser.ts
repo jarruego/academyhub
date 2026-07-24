@@ -4,6 +4,7 @@ import {
   CourseRequestStudentField,
   normalizeHeader,
 } from "./course-request-column-map";
+import { normalizeDni, normalizeEmail, normalizePhone, normalizeText } from "./course-request-normalize.util";
 
 export type ParsedCourseRequestStudentRow = {
   name: string;
@@ -70,12 +71,14 @@ export async function parseCourseRequestExcel(buffer: Buffer): Promise<{
       const idx = columns![field];
       return idx === undefined ? "" : cellToString(values[idx]);
     };
-    const name = get("name");
-    const first_surname = get("first_surname");
-    const second_surname = get("second_surname");
-    const dni = get("dni");
-    const email = get("email");
-    const phone_mobile = get("phone_mobile");
+    // Saneo (espacios, mayúsculas de DNI, minúsculas de email...) igual que el resto
+    // de importaciones; no se descarta nada inválido, solo se asea la forma.
+    const name = normalizeText(get("name"));
+    const first_surname = normalizeText(get("first_surname"));
+    const second_surname = normalizeText(get("second_surname"));
+    const dni = normalizeDni(get("dni"));
+    const email = normalizeEmail(get("email"));
+    const phone_mobile = normalizePhone(get("phone_mobile"));
     if (!name && !first_surname && !dni && !email) return; // fila vacía
     rows.push({
       name,

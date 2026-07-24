@@ -6,6 +6,7 @@ import { CourseRequest } from "../../../shared/types/course-request/course-reque
 export type UpdateCourseRequestPayload = {
   id_center?: number | null;
   id_course?: number;
+  request_date?: string;
   contact_email?: string | null;
   notes?: string | null;
 };

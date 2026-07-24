@@ -1,4 +1,4 @@
-import { IsEmail, IsInt, IsOptional, IsString } from "class-validator";
+import { IsDateString, IsEmail, IsInt, IsOptional, IsString } from "class-validator";
 
 export class CreateCourseRequestDto {
   @IsOptional()
@@ -7,6 +7,11 @@ export class CreateCourseRequestDto {
 
   @IsInt()
   id_course: number;
+
+  // Fecha de la petición (yyyy-mm-dd). Si se omite, el servidor usa la fecha de alta.
+  @IsOptional()
+  @IsDateString()
+  request_date?: string;
 
   @IsOptional()
   @IsEmail()

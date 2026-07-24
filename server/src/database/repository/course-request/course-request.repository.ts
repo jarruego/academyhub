@@ -23,6 +23,7 @@ const HEADER_COLUMNS = {
   id_request: courseRequestTable.id_request,
   id_center: courseRequestTable.id_center,
   id_course: courseRequestTable.id_course,
+  request_date: courseRequestTable.request_date,
   contact_email: courseRequestTable.contact_email,
   status: courseRequestTable.status,
   source: courseRequestTable.source,
@@ -90,42 +91,46 @@ export class CourseRequestRepository extends Repository {
     return this.query(options).delete(courseRequestTable).where(eq(courseRequestTable.id_request, id_request));
   }
 
-  /** Peticiones y alumnos agrupados por curso, para el dashboard de listado. */
+  /** Peticiones y alumnos agrupados por curso, para el dashboard de listado (más alumnos primero). */
   async statsByCourse(options?: QueryOptions) {
+    const studentCount = sql<number>`(
+      SELECT count(*) FROM course_request_students crs
+      JOIN course_requests cr2 ON cr2.id_request = crs.id_request
+      WHERE cr2.id_course = ${courseRequestTable.id_course}
+    )`;
     return this.query(options)
       .select({
         id_course: courseRequestTable.id_course,
         course_name: courseTable.course_name,
         request_count: count(courseRequestTable.id_request),
-        student_count: sql<number>`(
-          SELECT count(*) FROM course_request_students crs
-          JOIN course_requests cr2 ON cr2.id_request = crs.id_request
-          WHERE cr2.id_course = ${courseRequestTable.id_course}
-        )`,
+        student_count: studentCount,
       })
       .from(courseRequestTable)
       .innerJoin(courseTable, eq(courseRequestTable.id_course, courseTable.id_course))
-      .groupBy(courseRequestTable.id_course, courseTable.course_name);
+      .groupBy(courseRequestTable.id_course, courseTable.course_name)
+      .orderBy(desc(studentCount));
   }
 
-  /** Peticiones y alumnos agrupados por centro/empresa, para el dashboard de listado. */
+  /** Peticiones y alumnos agrupados por centro/empresa, para el dashboard de listado (más alumnos primero). */
   async statsByCenter(options?: QueryOptions) {
+    const studentCount = sql<number>`(
+      SELECT count(*) FROM course_request_students crs
+      JOIN course_requests cr2 ON cr2.id_request = crs.id_request
+      WHERE cr2.id_center IS NOT DISTINCT FROM ${courseRequestTable.id_center}
+    )`;
     return this.query(options)
       .select({
         id_center: courseRequestTable.id_center,
         center_name: centerTable.center_name,
         company_name: companyTable.company_name,
         request_count: count(courseRequestTable.id_request),
-        student_count: sql<number>`(
-          SELECT count(*) FROM course_request_students crs
-          JOIN course_requests cr2 ON cr2.id_request = crs.id_request
-          WHERE cr2.id_center IS NOT DISTINCT FROM ${courseRequestTable.id_center}
-        )`,
+        student_count: studentCount,
       })
       .from(courseRequestTable)
       .leftJoin(centerTable, eq(courseRequestTable.id_center, centerTable.id_center))
       .leftJoin(companyTable, eq(centerTable.id_company, companyTable.id_company))
-      .groupBy(courseRequestTable.id_center, centerTable.center_name, companyTable.company_name);
+      .groupBy(courseRequestTable.id_center, centerTable.center_name, companyTable.company_name)
+      .orderBy(desc(studentCount));
   }
 
   /**

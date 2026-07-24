@@ -6,6 +6,8 @@ export type CourseRequest = {
   id_request: number;
   id_center: number | null;
   id_course: number;
+  // Fecha de la petición (yyyy-mm-dd). Por defecto la fecha de alta, editable.
+  request_date: string;
   contact_email: string | null;
   status: CourseRequestStatus;
   source: CourseRequestSource;

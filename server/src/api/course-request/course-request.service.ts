@@ -27,6 +27,8 @@ export class CourseRequestService {
       return await this.courseRequestRepository.create({
         id_center: dto.id_center ?? null,
         id_course: dto.id_course,
+        // Si no se indica, la columna usa su default (fecha de alta).
+        ...(dto.request_date ? { request_date: new Date(dto.request_date) } : {}),
         contact_email: dto.contact_email ?? null,
         notes: dto.notes ?? null,
         created_by: createdBy ?? null,
@@ -78,8 +80,12 @@ export class CourseRequestService {
   async update(id_request: number, dto: UpdateCourseRequestDto) {
     const header = await this.ensureExists(id_request);
     this.ensureOpen(header);
+    const { request_date, ...rest } = dto;
     try {
-      return await this.courseRequestRepository.update(id_request, dto);
+      return await this.courseRequestRepository.update(id_request, {
+        ...rest,
+        ...(request_date ? { request_date: new Date(request_date) } : {}),
+      });
     } catch (error) {
       if (isForeignKeyViolation(error)) {
         throw new BadRequestException("El centro o el curso indicados no existen.");
@@ -91,7 +97,17 @@ export class CourseRequestService {
   async saveStudents(id_request: number, students: CourseRequestStudentDto[]) {
     const header = await this.ensureExists(id_request);
     this.ensureOpen(header);
-    return this.courseRequestStudentRepository.replaceAll(id_request, students);
+    // No se bloquea el guardado por datos incompletos/inválidos (el aviso es
+    // visual, en el cliente); las columnas NOT NULL de la tabla admiten ''.
+    const rows = students.map((s) => ({
+      name: s.name ?? "",
+      first_surname: s.first_surname ?? "",
+      second_surname: s.second_surname ?? null,
+      dni: s.dni ?? "",
+      email: s.email ?? "",
+      phone_mobile: s.phone_mobile ?? null,
+    }));
+    return this.courseRequestStudentRepository.replaceAll(id_request, rows);
   }
 
   async uploadExcel(id_request: number, buffer: Buffer) {

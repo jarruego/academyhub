@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, pgEnum, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, date, pgEnum, index } from "drizzle-orm/pg-core";
 import { TIMESTAMPS } from "./timestamps";
 import { centerTable } from "./center.table";
 import { courseTable } from "./course.table";
@@ -19,6 +19,9 @@ export const courseRequestTable = pgTable('course_requests', {
   // (se avisa en el cliente).
   id_center: integer().references(() => centerTable.id_center),
   id_course: integer().notNull().references(() => courseTable.id_course),
+  // Fecha de la petición (cuándo la hizo el centro). Por defecto la fecha de
+  // alta, pero editable (p. ej. si se sube tarde una petición ya recibida antes).
+  request_date: date({ mode: 'date' }).notNull().defaultNow(),
   // Correo de contacto del centro para esta petición (para futuros informes de
   // seguimiento). Se prellena desde center.contact_email pero es editable/nullable.
   contact_email: text(),
