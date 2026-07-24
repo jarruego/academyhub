@@ -30,9 +30,9 @@ const STATUS_OPTIONS: { label: string; value: StatusFilter }[] = [
   { label: "Todas", value: "todas" },
 ];
 
-// Altura fija (~12 filas visibles con tablas de tamaño "small") en vez de
+// Altura fija (10 filas visibles con tablas de tamaño "small") en vez de
 // paginación: ambos listados de esta pestaña son pequeños, se cargan enteros.
-const FIXED_TABLE_HEIGHT = 480;
+const FIXED_TABLE_HEIGHT = 400;
 
 function CourseRequestsListTab() {
   const navigate = useNavigate();

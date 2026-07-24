@@ -37,10 +37,12 @@ function parseId(id: string): number {
   return numericId;
 }
 
+// ADMIN/MANAGER: acceso total. VIEWER: solo lectura (los endpoints de escritura
+// llevan además su propio RoleGuard([ADMIN, MANAGER]) que se suma a este).
 @ApiTags("Peticiones de centros")
 @ApiBearerAuth()
 @Controller("api/course-requests")
-@UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+@UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
 export class CourseRequestController {
   constructor(
     private readonly courseRequestService: CourseRequestService,
@@ -48,6 +50,7 @@ export class CourseRequestController {
   ) {}
 
   @Post()
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @ApiOperation({ summary: "Crear una petición (cabecera: centro, curso, contacto, notas)" })
   async create(@Body() dto: CreateCourseRequestDto, @Req() req: { user: JwtPayload }) {
     return this.courseRequestService.create(dto, req.user?.id);
@@ -85,18 +88,21 @@ export class CourseRequestController {
   }
 
   @Put(":id")
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @ApiOperation({ summary: "Editar la cabecera de una petición" })
   async update(@Param("id") id: string, @Body() dto: UpdateCourseRequestDto) {
     return this.courseRequestService.update(parseId(id), dto);
   }
 
   @Put(":id/students")
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @ApiOperation({ summary: "Guardar (sustituir) las filas de alumnos de la petición" })
   async saveStudents(@Param("id") id: string, @Body() dto: SaveCourseRequestStudentsDto) {
     return this.courseRequestService.saveStudents(parseId(id), dto.students);
   }
 
   @Post(":id/upload")
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @ApiOperation({ summary: "Subir Excel de alumnos y añadirlos a la petición" })
   @ApiConsumes("multipart/form-data")
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 10 * 1024 * 1024 } }))
@@ -106,18 +112,21 @@ export class CourseRequestController {
   }
 
   @Put(":id/close")
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @ApiOperation({ summary: "Cerrar manualmente una petición" })
   async close(@Param("id") id: string) {
     return this.courseRequestService.close(parseId(id));
   }
 
   @Put(":id/reopen")
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @ApiOperation({ summary: "Reabrir una petición cerrada" })
   async reopen(@Param("id") id: string) {
     return this.courseRequestService.reopen(parseId(id));
   }
 
   @Delete(":id")
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @ApiOperation({ summary: "Eliminar una petición (y sus filas de alumnos)" })
   async remove(@Param("id") id: string) {
     return this.courseRequestService.remove(parseId(id));

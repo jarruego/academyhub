@@ -86,7 +86,7 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
     { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses" onClick={onClose}>Cursos</Link> },
     { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies" onClick={onClose}>Empresas</Link> },
     { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers" onClick={onClose}>Centros</Link> },
-    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER
+    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER
       ? [{ key: '/course-requests', icon: <SolutionOutlined />, label: <Link to="/course-requests" onClick={onClose}>Peticiones</Link> }]
       : []),
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER
