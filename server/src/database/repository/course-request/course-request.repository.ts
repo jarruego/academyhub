@@ -25,6 +25,7 @@ const HEADER_COLUMNS = {
   id_course: courseRequestTable.id_course,
   request_date: courseRequestTable.request_date,
   contact_email: courseRequestTable.contact_email,
+  is_urgent: courseRequestTable.is_urgent,
   status: courseRequestTable.status,
   source: courseRequestTable.source,
   notes: courseRequestTable.notes,
@@ -82,9 +83,12 @@ export class CourseRequestRepository extends Repository {
     return rows[0];
   }
 
+  // Las urgentes primero (destacadas), luego más recientes primero.
   async findAll(filters: CourseRequestFilters, options?: QueryOptions) {
     const where = this.buildFilters(filters);
-    return this.baseQuery(options).where(where).orderBy(desc(courseRequestTable.createdAt));
+    return this.baseQuery(options)
+      .where(where)
+      .orderBy(desc(courseRequestTable.is_urgent), desc(courseRequestTable.createdAt));
   }
 
   async delete(id_request: number, options?: QueryOptions) {

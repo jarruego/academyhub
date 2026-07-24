@@ -30,6 +30,7 @@ export class CourseRequestService {
         // Si no se indica, la columna usa su default (fecha de alta).
         ...(dto.request_date ? { request_date: new Date(dto.request_date) } : {}),
         contact_email: dto.contact_email ?? null,
+        is_urgent: dto.is_urgent ?? false,
         notes: dto.notes ?? null,
         created_by: createdBy ?? null,
       });

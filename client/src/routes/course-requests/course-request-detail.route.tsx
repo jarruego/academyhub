@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { App, Alert, Button, Card, Col, DatePicker, Form, Input, Row, Select, Tag } from "antd";
-import { DeleteOutlined, LockOutlined, SaveOutlined, UnlockOutlined } from "@ant-design/icons";
+import { App, Alert, Button, Card, Col, DatePicker, Form, Input, Row, Select, Switch, Tag } from "antd";
+import { DeleteOutlined, LockOutlined, SaveOutlined, UnlockOutlined, WarningFilled } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import { useCourseRequestQuery } from "../../hooks/api/course-requests/use-course-request.query";
 import { useUpdateCourseRequestMutation } from "../../hooks/api/course-requests/use-update-course-request.mutation";
@@ -55,6 +55,7 @@ export default function CourseRequestDetailRoute() {
   const [idCourse, setIdCourse] = useState<number | undefined>();
   const [requestDate, setRequestDate] = useState<Dayjs>(dayjs());
   const [contactEmail, setContactEmail] = useState("");
+  const [isUrgent, setIsUrgent] = useState(false);
   const [notes, setNotes] = useState("");
 
   const selectedCenter = useMemo(() => centers?.find((c) => c.id_center === idCenter), [centers, idCenter]);
@@ -69,6 +70,7 @@ export default function CourseRequestDetailRoute() {
     setIdCourse(data.id_course);
     setRequestDate(data.request_date ? dayjs(data.request_date) : dayjs());
     setContactEmail(data.contact_email ?? "");
+    setIsUrgent(data.is_urgent);
     setNotes(data.notes ?? "");
   }, [data]);
 
@@ -89,6 +91,7 @@ export default function CourseRequestDetailRoute() {
         id_course: idCourse,
         request_date: requestDate.format("YYYY-MM-DD"),
         contact_email: contactEmail || null,
+        is_urgent: isUrgent,
         notes: notes || null,
       });
       messageApi.success("Petición actualizada");
@@ -198,6 +201,9 @@ export default function CourseRequestDetailRoute() {
             <Form.Item label="Correo de contacto del centro">
               <Input type="email" disabled={readOnly} value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
             </Form.Item>
+            <Form.Item label="Urgente">
+              <Switch checked={isUrgent} disabled={readOnly} onChange={setIsUrgent} checkedChildren={<WarningFilled />} />
+            </Form.Item>
             <Form.Item label="Notas">
               <Input.TextArea rows={3} disabled={readOnly} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </Form.Item>
@@ -257,7 +263,12 @@ export default function CourseRequestDetailRoute() {
   return (
     <>
       <PageHeader
-        title={<>Petición #{data.id_request} <Tag color={isClosed ? "default" : "processing"}>{data.status}</Tag></>}
+        title={
+          <>
+            Petición #{data.id_request} <Tag color={isClosed ? "default" : "processing"}>{data.status}</Tag>
+            {data.is_urgent && <Tag color="red" icon={<WarningFilled />}>Urgente</Tag>}
+          </>
+        }
         subtitle={data.course_name}
       />
       <RouteTabs items={items} />

@@ -8,6 +8,7 @@ export type CreateCourseRequestPayload = {
   id_course: number;
   request_date?: string;
   contact_email?: string;
+  is_urgent?: boolean;
   notes?: string;
 };
 

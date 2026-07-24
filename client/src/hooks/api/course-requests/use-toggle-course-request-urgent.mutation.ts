@@ -3,26 +3,18 @@ import { useAuthenticatedAxios } from "../../../utils/api/use-authenticated-axio
 import { getApiHost } from "../../../utils/api/get-api-host.util";
 import { CourseRequest } from "../../../shared/types/course-request/course-request";
 
-export type UpdateCourseRequestPayload = {
-  id_center?: number | null;
-  id_course?: number;
-  request_date?: string;
-  contact_email?: string | null;
-  is_urgent?: boolean;
-  notes?: string | null;
-};
-
-export const useUpdateCourseRequestMutation = (id_request: number) => {
+/** Alterna "urgente" desde el listado, sin fijar un id_request de antemano (a diferencia de useUpdateCourseRequestMutation). */
+export const useToggleCourseRequestUrgentMutation = () => {
   const request = useAuthenticatedAxios<CourseRequest>();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: UpdateCourseRequestPayload) =>
+    mutationFn: async ({ id_request, is_urgent }: { id_request: number; is_urgent: boolean }) =>
       (
         await request({
           method: "PUT",
           url: `${getApiHost()}/api/course-requests/${id_request}`,
-          data: payload,
+          data: { is_urgent },
         })
       ).data,
     onSuccess: () => {

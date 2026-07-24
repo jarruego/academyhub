@@ -9,6 +9,7 @@ export type CourseRequest = {
   // Fecha de la petición (yyyy-mm-dd). Por defecto la fecha de alta, editable.
   request_date: string;
   contact_email: string | null;
+  is_urgent: boolean;
   status: CourseRequestStatus;
   source: CourseRequestSource;
   notes: string | null;

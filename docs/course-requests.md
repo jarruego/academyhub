@@ -10,7 +10,7 @@ Solo alta/gestión de la petición en sí (cabecera + filas de alumnos). **No** 
 
 ## Modelo de datos
 
-- `course_requests` (cabecera): `id_center` (nullable — normal que exista, pero no se bloquea si falta), `id_course` (obligatorio), `request_date` (fecha `date`, `NOT NULL DEFAULT now()` — fecha de la petición; por defecto la de alta, editable a mano desde el cliente, p. ej. si se sube tarde una petición ya recibida antes), `contact_email` (nullable, para futuros informes de seguimiento), `status` (`ABIERTA`/`CERRADA`), `source` (`EXCEL`/`MANUAL`, según el último alta de alumnos), `notes`, `created_by`, `closed_at`. Índices por `id_course`, `id_center`, `status`.
+- `course_requests` (cabecera): `id_center` (nullable — normal que exista, pero no se bloquea si falta), `id_course` (obligatorio), `request_date` (fecha `date`, `NOT NULL DEFAULT now()` — fecha de la petición; por defecto la de alta, editable a mano desde el cliente, p. ej. si se sube tarde una petición ya recibida antes), `contact_email` (nullable, para futuros informes de seguimiento), `is_urgent` (boolean, `NOT NULL DEFAULT false` — marca puramente visual, no afecta a ningún flujo), `status` (`ABIERTA`/`CERRADA`), `source` (`EXCEL`/`MANUAL`, según el último alta de alumnos), `notes`, `created_by`, `closed_at`. Índices por `id_course`, `id_center`, `status`.
 - `course_request_students` (filas, ON DELETE CASCADE desde la cabecera): `name`, `first_surname`, `dni`, `email` (**NOT NULL**, pero admiten `''` — ver parser), `second_surname`, `phone_mobile` (opcionales). `row_order` para el orden de la grid.
 
 Nombre, apellido 1, DNI y correo son "obligatorios" **solo como indicación visual** (asterisco en la cabecera de columna + rojo en la grid si faltan/son inválidos), pero **no bloquean el guardado**: `CourseRequestStudentDto` no exige ninguno de los campos (`@IsOptional()` en todos), y `saveStudents` (`PUT :id/students`) rellena con `''`/`null` lo que falte antes de persistir. Se decidió así a propósito: el objetivo de esta pantalla es guardar bien la petición tal cual llega, aunque esté incompleta, y corregirla después — nunca perder la subida por un dato mal escrito. La subida de Excel (`POST :id/upload`) igual: inserta lo que reconozca, posiblemente vacío.
@@ -34,6 +34,7 @@ ExcelJS, primera hoja. Detección de columnas **por nombre de cabecera** (normal
 ## Flujo (`course-request.service.ts`)
 
 - `create`: cabecera; `id_center`/`contact_email` nullable (se avisa en el cliente si faltan, no se bloquea).
+- `findAll`: **urgentes primero**, luego más recientes primero (`ORDER BY is_urgent DESC, createdAt DESC`).
 - `saveStudents` (`PUT :id/students`): **sustituye** todas las filas (guardado desde la grid, validado por fila).
 - `uploadExcel` (`POST :id/upload`): **añade** filas al final (no sustituye lo ya guardado) y marca `source=EXCEL`.
 - `close`/`reopen`: cambian `status`/`closed_at`. Editar cabecera o alumnos de una petición **CERRADA** lanza `ConflictException` — hay que reabrirla primero.
@@ -48,7 +49,7 @@ ExcelJS, primera hoja. Detección de columnas **por nombre de cabecera** (normal
 ## Cliente
 
 Sección de primer nivel `/course-requests` (no bajo `/tools`; visible en el menú solo para ADMIN/MANAGER, igual que el guard del backend). `course-requests.route.tsx` usa `RouteTabs` con dos pestañas:
-- **Peticiones**: listado + dos tablas de resumen (por curso, por centro/empresa) desde `/stats`, filtros por curso/centro/estado.
+- **Peticiones**: listado + dos tablas de resumen (por curso, por centro/empresa) desde `/stats`, filtros por curso/centro/estado. Columna **Urgente** con `Switch` inline (toggle inmediato vía `useToggleCourseRequestUrgentMutation`, con `stopPropagation` para no disparar la navegación de la fila) y fila resaltada en rojo (`rowClassName="course-request-urgent-row"`, estilo en `index.css` — tinte translúcido, válido en claro/oscuro). El toggle falla con mensaje si la petición está cerrada (mismo guard de `ensureOpen` que el resto de ediciones).
 - **Informes** (`components/course-requests/course-request-report-tab.tsx`): filtros empresa/centro/curso (combinables), tabla agrupada Empresa → Curso → Centro (mismas filas de `/report`, con `rowSpan` calculado en cliente para fusionar celdas repetidas de Empresa/Curso — sin depender de ninguna librería de árbol/pivote), tarjetas de totales, y botón "Exportar a PDF" (`use-course-request-report-pdf.mutation.ts`, descarga vía blob).
 
 Resto de pantallas:

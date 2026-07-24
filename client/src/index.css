@@ -35,6 +35,15 @@ ul, ol {
     cursor: pointer;
 }
 
+/* Peticiones marcadas como urgentes: fila destacada en rojo (tinte translúcido,
+   válido en claro y oscuro). El hover conserva el tinte, solo lo intensifica. */
+.ant-table-row.course-request-urgent-row > td {
+    background: rgba(255, 77, 79, 0.12);
+}
+.ant-table-row.course-request-urgent-row:hover > td {
+    background: rgba(255, 77, 79, 0.2) !important;
+}
+
 /* Sidebar: el menú fluye arriba y el pie (preferencias + cerrar sesión) queda
    anclado abajo del todo. Ni el Sider ni el body del Drawer son flex por
    defecto, así que hay que declararlo para que `margin-top: auto` empuje. */

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { App, Alert, Button, Card, Col, DatePicker, Form, Input, Row, Select } from "antd";
-import { SaveOutlined } from "@ant-design/icons";
+import { App, Alert, Button, Card, Col, DatePicker, Form, Input, Row, Select, Switch } from "antd";
+import { SaveOutlined, WarningFilled } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
@@ -32,6 +32,7 @@ export default function CreateCourseRequestRoute() {
   const [idCourse, setIdCourse] = useState<number | undefined>();
   const [requestDate, setRequestDate] = useState<Dayjs>(dayjs());
   const [contactEmail, setContactEmail] = useState("");
+  const [isUrgent, setIsUrgent] = useState(false);
   const [notes, setNotes] = useState("");
 
   const selectedCenter = useMemo(() => centers?.find((c) => c.id_center === idCenter), [centers, idCenter]);
@@ -57,6 +58,7 @@ export default function CreateCourseRequestRoute() {
         id_course: idCourse,
         request_date: requestDate.format("YYYY-MM-DD"),
         contact_email: contactEmail || undefined,
+        is_urgent: isUrgent,
         notes: notes || undefined,
       });
       messageApi.success("Petición creada");
@@ -133,6 +135,13 @@ export default function CreateCourseRequestRoute() {
               placeholder="contacto@centro.com"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
+            />
+          </Form.Item>
+          <Form.Item label="Urgente">
+            <Switch
+              checked={isUrgent}
+              onChange={setIsUrgent}
+              checkedChildren={<WarningFilled />}
             />
           </Form.Item>
           <Form.Item label="Notas">

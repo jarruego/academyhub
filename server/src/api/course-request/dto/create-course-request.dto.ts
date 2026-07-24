@@ -1,4 +1,4 @@
-import { IsDateString, IsEmail, IsInt, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsDateString, IsEmail, IsInt, IsOptional, IsString } from "class-validator";
 
 export class CreateCourseRequestDto {
   @IsOptional()
@@ -16,6 +16,10 @@ export class CreateCourseRequestDto {
   @IsOptional()
   @IsEmail()
   contact_email?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_urgent?: boolean;
 
   @IsOptional()
   @IsString()

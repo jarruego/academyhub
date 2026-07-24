@@ -414,6 +414,13 @@
       "when": 1784874432761,
       "tag": "0058_curious_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1784877174673,
+      "tag": "0059_majestic_synch",
+      "breakpoints": true
     }
   ]
 }

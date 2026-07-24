@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Button, Card, Col, Row, Segmented, Select, Table, Tag } from "antd";
+import { App, Button, Card, Col, Row, Segmented, Select, Switch, Table, Tag } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { ColumnsType } from "antd/es/table";
 import { useCourseRequestsQuery } from "../../hooks/api/course-requests/use-course-requests.query";
 import { useCourseRequestStatsQuery } from "../../hooks/api/course-requests/use-course-request-stats.query";
+import { useToggleCourseRequestUrgentMutation } from "../../hooks/api/course-requests/use-toggle-course-request-urgent.mutation";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { CourseRequestStatus } from "../../shared/types/course-request/course-request-status.enum";
@@ -15,6 +16,7 @@ import { PageHeader } from "../../components/common/PageHeader";
 import { RouteTabs } from "../../components/common/RouteTabs";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { useRole } from "../../utils/permissions/use-role";
 import { formatDate } from "../../utils/format";
 import { CourseRequestReportTab } from "../../components/course-requests/course-request-report-tab";
 
@@ -28,6 +30,9 @@ const STATUS_OPTIONS: { label: string; value: StatusFilter }[] = [
 
 function CourseRequestsListTab() {
   const navigate = useNavigate();
+  const role = useRole();
+  const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
+  const { message: messageApi } = App.useApp();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("abiertas");
   const [idCourse, setIdCourse] = useState<number | undefined>();
   const [idCenter, setIdCenter] = useState<number | undefined>();
@@ -35,6 +40,7 @@ function CourseRequestsListTab() {
   const { data: courses } = useCoursesQuery();
   const { data: centers } = useCentersQuery();
   const { data: stats } = useCourseRequestStatsQuery();
+  const toggleUrgentMutation = useToggleCourseRequestUrgentMutation();
 
   const status = statusFilter === "abiertas" ? CourseRequestStatus.ABIERTA
     : statusFilter === "cerradas" ? CourseRequestStatus.CERRADA
@@ -42,7 +48,30 @@ function CourseRequestsListTab() {
 
   const { data: requests, isLoading } = useCourseRequestsQuery({ id_course: idCourse, id_center: idCenter, status });
 
+  const handleToggleUrgent = async (record: CourseRequest, checked: boolean) => {
+    try {
+      await toggleUrgentMutation.mutateAsync({ id_request: record.id_request, is_urgent: checked });
+    } catch {
+      messageApi.error("No se pudo actualizar (¿la petición está cerrada?)");
+    }
+  };
+
   const columns = useMemo<ColumnsType<CourseRequest>>(() => [
+    {
+      title: "Urgente",
+      dataIndex: "is_urgent",
+      width: 90,
+      render: (v: boolean, record) => (
+        <span onClick={(e) => e.stopPropagation()}>
+          <Switch
+            size="small"
+            checked={v}
+            disabled={!canEdit}
+            onChange={(checked) => handleToggleUrgent(record, checked)}
+          />
+        </span>
+      ),
+    },
     { title: "ID", dataIndex: "id_request", width: 70 },
     { title: "Curso", dataIndex: "course_name", width: 260, ellipsis: true },
     {
@@ -62,7 +91,8 @@ function CourseRequestsListTab() {
       ),
     },
     { title: "Fecha alta", dataIndex: "createdAt", render: (v: string) => formatDate(v) },
-  ], []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [canEdit]);
 
   const toolbar = (
     <>
@@ -136,6 +166,7 @@ function CourseRequestsListTab() {
         dataSource={requests}
         loading={isLoading}
         getRowUrl={(record) => `/course-requests/${record.id_request}`}
+        rowClassName={(record) => (record.is_urgent ? "course-request-urgent-row" : "")}
       />
     </ListPageLayout>
   );
