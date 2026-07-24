@@ -85,9 +85,16 @@ export class CourseRequestRepository extends Repository {
     return rows[0];
   }
 
+  // Postgres devuelve count(*) como bigint, que los drivers serializan como
+  // STRING (para no perder precisión) — sin este cast, sumar student_count en
+  // el cliente concatena texto en vez de sumar (p. ej. "0" + "1" = "01").
+  private castStudentCount<T extends { student_count: unknown }>(row: T): T {
+    return { ...row, student_count: Number(row.student_count) };
+  }
+
   async findById(id_request: number, options?: QueryOptions) {
     const rows = await this.baseQuery(options).where(eq(courseRequestTable.id_request, id_request));
-    return rows[0];
+    return rows[0] ? this.castStudentCount(rows[0]) : rows[0];
   }
 
   // Las urgentes primero (destacadas), luego por fecha de la petición más reciente
@@ -95,9 +102,10 @@ export class CourseRequestRepository extends Repository {
   // pueden diferir si se registra tarde una petición ya recibida antes).
   async findAll(filters: CourseRequestFilters, options?: QueryOptions) {
     const where = this.buildFilters(filters);
-    return this.baseQuery(options)
+    const rows = await this.baseQuery(options)
       .where(where)
       .orderBy(desc(courseRequestTable.is_urgent), desc(courseRequestTable.request_date));
+    return rows.map((r) => this.castStudentCount(r));
   }
 
   async delete(id_request: number, options?: QueryOptions) {
@@ -111,7 +119,7 @@ export class CourseRequestRepository extends Repository {
       JOIN course_requests cr2 ON cr2.id_request = crs.id_request
       WHERE cr2.id_course = ${courseRequestTable.id_course}
     )`;
-    return this.query(options)
+    const rows = await this.query(options)
       .select({
         id_course: courseRequestTable.id_course,
         course_name: courseTable.course_name,
@@ -122,6 +130,8 @@ export class CourseRequestRepository extends Repository {
       .innerJoin(courseTable, eq(courseRequestTable.id_course, courseTable.id_course))
       .groupBy(courseRequestTable.id_course, courseTable.course_name)
       .orderBy(desc(studentCount));
+    // count(*) llega como bigint (string) — cast a number, ver castStudentCount.
+    return rows.map((r) => ({ ...r, request_count: Number(r.request_count), student_count: Number(r.student_count) }));
   }
 
   /**
@@ -132,7 +142,7 @@ export class CourseRequestRepository extends Repository {
    * por eso request_count cuenta id_request **distintos**.
    */
   async statsByCourseCompany(options?: QueryOptions) {
-    return this.query(options)
+    const rows = await this.query(options)
       .select({
         id_course: courseRequestTable.id_course,
         id_company: companyTable.id_company,
@@ -145,6 +155,8 @@ export class CourseRequestRepository extends Repository {
       .innerJoin(companyTable, eq(centerTable.id_company, companyTable.id_company))
       .leftJoin(courseRequestStudentTable, eq(courseRequestStudentTable.id_request, courseRequestTable.id_request))
       .groupBy(courseRequestTable.id_course, companyTable.id_company, companyTable.company_name);
+    // count()/count(distinct) llegan como bigint (string) — cast a number, ver castStudentCount.
+    return rows.map((r) => ({ ...r, request_count: Number(r.request_count), student_count: Number(r.student_count) }));
   }
 
   /**
@@ -160,7 +172,7 @@ export class CourseRequestRepository extends Repository {
     if (filters.id_company?.length) conditions.push(inArray(companyTable.id_company, filters.id_company));
     const where = conditions.length ? and(...conditions) : undefined;
 
-    return this.query(options)
+    const rows = await this.query(options)
       .select({
         id_company: companyTable.id_company,
         company_name: companyTable.company_name,
@@ -186,6 +198,8 @@ export class CourseRequestRepository extends Repository {
         courseTable.course_name,
       )
       .orderBy(companyTable.company_name, courseTable.course_name, centerTable.center_name);
+    // count()/count(distinct) llegan como bigint (string) — cast a number, ver castStudentCount.
+    return rows.map((r) => ({ ...r, request_count: Number(r.request_count), student_count: Number(r.student_count) }));
   }
 }
 

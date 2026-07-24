@@ -8,6 +8,7 @@ import { useCourseRequestStatsQuery } from "../../hooks/api/course-requests/use-
 import { useToggleCourseRequestUrgentMutation } from "../../hooks/api/course-requests/use-toggle-course-request-urgent.mutation";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
+import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { CourseRequestStatus } from "../../shared/types/course-request/course-request-status.enum";
 import { CourseRequest } from "../../shared/types/course-request/course-request";
 import { DataTable } from "../../components/common/DataTable";
@@ -17,6 +18,7 @@ import { RouteTabs } from "../../components/common/RouteTabs";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
+import { useIsMobile } from "../../hooks/use-is-mobile";
 import { formatDate } from "../../utils/format";
 import { CourseRequestReportTab } from "../../components/course-requests/course-request-report-tab";
 
@@ -28,17 +30,24 @@ const STATUS_OPTIONS: { label: string; value: StatusFilter }[] = [
   { label: "Todas", value: "todas" },
 ];
 
+// Altura fija (~12 filas visibles con tablas de tamaño "small") en vez de
+// paginación: ambos listados de esta pestaña son pequeños, se cargan enteros.
+const FIXED_TABLE_HEIGHT = 480;
+
 function CourseRequestsListTab() {
   const navigate = useNavigate();
   const role = useRole();
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
+  const isMobile = useIsMobile();
   const { message: messageApi } = App.useApp();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("abiertas");
   const [idCourse, setIdCourse] = useState<number | undefined>();
   const [idCenter, setIdCenter] = useState<number | undefined>();
+  const [idCompanies, setIdCompanies] = useState<number[]>([]);
 
   const { data: courses } = useCoursesQuery();
   const { data: centers } = useCentersQuery();
+  const { data: companies } = useCompaniesQuery();
   const { data: stats } = useCourseRequestStatsQuery();
   const toggleUrgentMutation = useToggleCourseRequestUrgentMutation();
 
@@ -46,7 +55,26 @@ function CourseRequestsListTab() {
     : statusFilter === "cerradas" ? CourseRequestStatus.CERRADA
     : undefined;
 
-  const { data: requests, isLoading } = useCourseRequestsQuery({ id_course: idCourse, id_center: idCenter, status });
+  const { data: allRequests, isLoading } = useCourseRequestsQuery({ id_course: idCourse, id_center: idCenter, status });
+
+  // La empresa filtra en cliente (el endpoint ya devuelve id_company por fila);
+  // el centro, en cambio, se filtra en servidor (ver query de arriba).
+  const requests = useMemo(
+    () => allRequests?.filter((r) => !idCompanies.length || (r.id_company != null && idCompanies.includes(r.id_company))),
+    [allRequests, idCompanies],
+  );
+
+  // Solo centros de las empresas seleccionadas (si no hay ninguna, todos).
+  const centerOptions = useMemo(
+    () => centers?.filter((c) => !idCompanies.length || idCompanies.includes(c.id_company)),
+    [centers, idCompanies],
+  );
+
+  const handleCompaniesChange = (values: number[]) => {
+    setIdCompanies(values);
+    // El centro elegido podría ya no pertenecer a las empresas seleccionadas.
+    setIdCenter(undefined);
+  };
 
   const handleToggleUrgent = async (record: CourseRequest, checked: boolean) => {
     try {
@@ -60,7 +88,8 @@ function CourseRequestsListTab() {
     {
       title: "Urgente",
       dataIndex: "is_urgent",
-      width: 90,
+      width: 80,
+      sorter: (a, b) => Number(a.is_urgent) - Number(b.is_urgent),
       render: (v: boolean, record) => (
         <span onClick={(e) => e.stopPropagation()}>
           <Switch
@@ -72,20 +101,58 @@ function CourseRequestsListTab() {
         </span>
       ),
     },
-    { title: "ID", dataIndex: "id_request", width: 70 },
-    { title: "Curso", dataIndex: "course_name", width: 260, ellipsis: true },
+    {
+      title: "ID",
+      dataIndex: "id_request",
+      width: 60,
+      sorter: (a, b) => a.id_request - b.id_request,
+    },
+    {
+      title: "Curso",
+      dataIndex: "course_name",
+      ellipsis: true,
+      sorter: (a, b) => a.course_name.localeCompare(b.course_name),
+    },
     {
       title: "Centro",
       dataIndex: "center_name",
+      ellipsis: true,
+      sorter: (a, b) => (a.center_name ?? "").localeCompare(b.center_name ?? ""),
       render: (v: string | null) => v || <Tag>Sin centro</Tag>,
     },
-    { title: "Empresa", dataIndex: "company_name", render: (v: string | null) => v || "-" },
-    { title: "Fecha petición", dataIndex: "request_date", width: 130, render: (v: string) => formatDate(v) },
-    { title: "Alumnos", dataIndex: "student_count", width: 90 },
-    { title: "Contacto", dataIndex: "contact_email", render: (v: string | null) => v || <Tag color="warning">Sin correo</Tag> },
+    {
+      title: "Empresa",
+      dataIndex: "company_name",
+      ellipsis: true,
+      sorter: (a, b) => (a.company_name ?? "").localeCompare(b.company_name ?? ""),
+      render: (v: string | null) => v || "-",
+    },
+    {
+      title: "Fecha petición",
+      dataIndex: "request_date",
+      width: 120,
+      sorter: (a, b) => new Date(a.request_date).getTime() - new Date(b.request_date).getTime(),
+      render: (v: string) => formatDate(v),
+    },
+    {
+      title: "Alumnos",
+      dataIndex: "student_count",
+      width: 50,
+      ellipsis: true,
+      sorter: (a, b) => a.student_count - b.student_count,
+    },
+    {
+      title: "Contacto",
+      dataIndex: "contact_email",
+      ellipsis: true,
+      sorter: (a, b) => (a.contact_email ?? "").localeCompare(b.contact_email ?? ""),
+      render: (v: string | null) => v || <Tag color="warning">Sin correo</Tag>,
+    },
     {
       title: "Estado",
       dataIndex: "status",
+      width: 100,
+      sorter: (a, b) => a.status.localeCompare(b.status),
       render: (v: CourseRequestStatus) => (
         <Tag color={v === CourseRequestStatus.ABIERTA ? "processing" : "default"}>{v}</Tag>
       ),
@@ -114,13 +181,37 @@ function CourseRequestsListTab() {
   }, [stats]);
 
   const byCourseColumns = useMemo<ColumnsType<Record<string, unknown>>>(() => [
-    { title: "Curso", dataIndex: "course_name", width: 220, ellipsis: true },
-    { title: "Peticiones", dataIndex: "request_count", width: 100 },
-    { title: "Alumnos", dataIndex: "student_count", width: 100 },
+    {
+      title: "Curso",
+      dataIndex: "course_name",
+      width: 200,
+      ellipsis: true,
+      sorter: (a, b) => String(a.course_name).localeCompare(String(b.course_name)),
+    },
+    {
+      title: "Peticiones",
+      dataIndex: "request_count",
+      width: 50,
+      ellipsis: true,
+      sorter: (a, b) => Number(a.request_count) - Number(b.request_count),
+    },
+    {
+      title: "Alumnos",
+      dataIndex: "student_count",
+      width: 50,
+      ellipsis: true,
+      sorter: (a, b) => Number(a.student_count) - Number(b.student_count),
+    },
     ...companyColumns.map(([id_company, company_name]) => ({
       title: company_name,
       key: `company_${id_company}`,
-      width: 150,
+      width: 65,
+      ellipsis: true,
+      sorter: (a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const av = statsByCourseCompanyKey.get(`${a.id_course}-${id_company}`)?.student_count ?? 0;
+        const bv = statsByCourseCompanyKey.get(`${b.id_course}-${id_company}`)?.student_count ?? 0;
+        return av - bv;
+      },
       render: (_: unknown, record: Record<string, unknown>) => {
         const cell = statsByCourseCompanyKey.get(`${record.id_course}-${id_company}`);
         if (!cell || cell.student_count === 0) return <span style={{ opacity: 0.4 }}>-</span>;
@@ -132,6 +223,18 @@ function CourseRequestsListTab() {
   const toolbar = (
     <>
       <Segmented<StatusFilter> options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+      <Select
+        mode="multiple"
+        allowClear
+        showSearch
+        maxTagCount="responsive"
+        placeholder="Filtrar por empresa (varias a la vez)"
+        style={{ minWidth: 220 }}
+        value={idCompanies}
+        onChange={handleCompaniesChange}
+        optionFilterProp="label"
+        options={companies?.map((c) => ({ value: c.id_company, label: c.company_name }))}
+      />
       <Select
         allowClear
         showSearch
@@ -150,7 +253,7 @@ function CourseRequestsListTab() {
         value={idCenter}
         onChange={setIdCenter}
         optionFilterProp="label"
-        options={centers?.map((c) => ({ value: c.id_center, label: c.center_name }))}
+        options={centerOptions?.map((c) => ({ value: c.id_center, label: c.center_name }))}
       />
       <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/course-requests/create")}>
@@ -170,20 +273,26 @@ function CourseRequestsListTab() {
       >
         <Table
           size="small"
+          tableLayout={isMobile ? undefined : "fixed"}
           pagination={false}
+          sortDirections={["ascend", "descend"]}
           rowKey="id_course"
           dataSource={stats?.byCourse}
           columns={byCourseColumns}
-          scroll={{ x: "max-content" }}
+          scroll={{ y: FIXED_TABLE_HEIGHT, x: isMobile ? "max-content" : undefined }}
         />
       </Card>
       <DataTable<CourseRequest>
+        size="small"
+        tableLayout={isMobile ? undefined : "fixed"}
         rowKey="id_request"
         columns={columns}
         dataSource={requests}
         loading={isLoading}
         getRowUrl={(record) => `/course-requests/${record.id_request}`}
         rowClassName={(record) => (record.is_urgent ? "course-request-urgent-row" : "")}
+        pagination={false}
+        scroll={{ y: FIXED_TABLE_HEIGHT, x: isMobile ? "max-content" : undefined }}
       />
     </ListPageLayout>
   );
