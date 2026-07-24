@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { App, Alert, Button, Card, Col, DatePicker, Form, Input, Row, Select, Switch, Tag } from "antd";
 import { DeleteOutlined, LockOutlined, SaveOutlined, UnlockOutlined, WarningFilled } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
@@ -35,6 +35,8 @@ function getServerMessage(err: unknown): string {
 export default function CourseRequestDetailRoute() {
   const navigate = useNavigate();
   const { id_request } = useParams();
+  const [searchParams] = useSearchParams();
+  const scrollToStudentId = searchParams.get('studentId') ? Number(searchParams.get('studentId')) : undefined;
   const role = useRole();
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
   const { message: messageApi, modal } = App.useApp();
@@ -245,6 +247,7 @@ export default function CourseRequestDetailRoute() {
             readOnly={readOnly}
             saving={saveStudentsMutation.isPending}
             uploading={uploadMutation.isPending}
+            scrollToStudentId={scrollToStudentId}
             onSave={async (rows) => {
               try {
                 await saveStudentsMutation.mutateAsync(rows);

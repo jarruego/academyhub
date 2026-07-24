@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { App, Button, Input, Modal, Table, Tooltip, Upload } from "antd";
 import type { UploadRequestOption } from "rc-upload/lib/interface";
 import { DeleteOutlined, InboxOutlined, PlusOutlined, SaveOutlined, SnippetsOutlined } from "@ant-design/icons";
@@ -153,13 +153,27 @@ type Props = {
   uploading: boolean;
   onSave: (rows: CourseRequestStudentInput[]) => Promise<void>;
   onUploadExcel: (file: Blob) => Promise<{ inserted: number }>;
+  scrollToStudentId?: number;
 };
 
-export function CourseRequestStudentsGrid({ students, readOnly, saving, uploading, onSave, onUploadExcel }: Props) {
+export function CourseRequestStudentsGrid({ students, readOnly, saving, uploading, onSave, onUploadExcel, scrollToStudentId }: Props) {
   const { message: messageApi } = App.useApp();
   const [rows, setRows] = useState<Row[]>(() => toRows(students));
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
+  const scrolledRef = useRef(false);
+
+  useEffect(() => {
+    if (!scrollToStudentId || scrolledRef.current || rows.length === 0) return;
+    const key = `id-${scrollToStudentId}`;
+    if (!rows.some((r) => r.key === key)) return;
+    scrolledRef.current = true;
+    const id = window.setTimeout(() => {
+      document.querySelector(`tr[data-row-key="${key}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [scrollToStudentId, rows]);
 
   // Resincroniza cuando cambia el conjunto de filas guardadas (carga inicial o alta por Excel).
   const studentsSignature = students.map((s) => s.id).join(",");
@@ -294,6 +308,7 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
         dataSource={rows}
         pagination={false}
         scroll={{ x: "max-content" }}
+        rowClassName={(row) => row.key === `id-${scrollToStudentId}` ? 'student-row-highlight' : ''}
       />
       <Modal
         title="Pegar alumnos desde Excel"

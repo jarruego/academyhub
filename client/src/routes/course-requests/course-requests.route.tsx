@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
-import { App, Button, Card, Segmented, Select, Switch, Table, Tag } from "antd";
+import { App, Button, Card, Segmented, Select, Switch, Table, Tag, Typography } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { ColumnsType } from "antd/es/table";
 import { useCourseRequestsQuery } from "../../hooks/api/course-requests/use-course-requests.query";
-import { useCourseRequestStatsQuery } from "../../hooks/api/course-requests/use-course-request-stats.query";
 import { useToggleCourseRequestUrgentMutation } from "../../hooks/api/course-requests/use-toggle-course-request-urgent.mutation";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
@@ -19,6 +18,7 @@ import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { useIsMobile } from "../../hooks/use-is-mobile";
+import { openDetail } from "../../utils/open-detail";
 import { formatDate } from "../../utils/format";
 import { CourseRequestReportTab } from "../../components/course-requests/course-request-report-tab";
 
@@ -48,7 +48,6 @@ function CourseRequestsListTab() {
   const { data: courses } = useCoursesQuery();
   const { data: centers } = useCentersQuery();
   const { data: companies } = useCompaniesQuery();
-  const { data: stats } = useCourseRequestStatsQuery();
   const toggleUrgentMutation = useToggleCourseRequestUrgentMutation();
 
   const status = statusFilter === "abiertas" ? CourseRequestStatus.ABIERTA
@@ -154,25 +153,45 @@ function CourseRequestsListTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [canEdit]);
 
-  // Empresas con alguna petición, para las columnas dinámicas del pivote "Por curso"
-  // (ordenadas por nombre, para que las columnas no bailen entre recargas).
-  const companyColumns = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const row of stats?.byCourseCompany ?? []) map.set(row.id_company, row.company_name);
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [stats]);
+  // Pivote "Por curso": se calcula en cliente a partir de `requests` (ya
+  // filtrado por curso/centro/estado/empresa), para que siempre refleje los
+  // filtros activos en pantalla — antes venía de un endpoint /stats aparte que
+  // ignoraba estos filtros.
+  const byCourse = useMemo(() => {
+    const map = new Map<number, { id_course: number; course_name: string; request_count: number; student_count: number }>();
+    for (const r of requests ?? []) {
+      const entry = map.get(r.id_course) ?? { id_course: r.id_course, course_name: r.course_name, request_count: 0, student_count: 0 };
+      entry.request_count += 1;
+      entry.student_count += r.student_count;
+      map.set(r.id_course, entry);
+    }
+    return Array.from(map.values()).sort((a, b) => b.student_count - a.student_count);
+  }, [requests]);
 
-  // Curso x Empresa -> { alumnos, peticiones }, para rellenar las celdas del pivote.
+  // Curso x Empresa -> { alumnos, peticiones }, para rellenar las celdas del pivote
+  // (las peticiones sin empresa no aportan a ninguna columna).
   const statsByCourseCompanyKey = useMemo(() => {
     const map = new Map<string, { request_count: number; student_count: number }>();
-    for (const row of stats?.byCourseCompany ?? []) {
-      map.set(`${row.id_course}-${row.id_company}`, {
-        request_count: row.request_count,
-        student_count: row.student_count,
-      });
+    for (const r of requests ?? []) {
+      if (r.id_company == null) continue;
+      const key = `${r.id_course}-${r.id_company}`;
+      const entry = map.get(key) ?? { request_count: 0, student_count: 0 };
+      entry.request_count += 1;
+      entry.student_count += r.student_count;
+      map.set(key, entry);
     }
     return map;
-  }, [stats]);
+  }, [requests]);
+
+  // Empresas con alguna petición (entre las filtradas), para las columnas
+  // dinámicas del pivote (ordenadas por nombre, para que no bailen entre recargas).
+  const companyColumns = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const r of requests ?? []) {
+      if (r.id_company != null) map.set(r.id_company, r.company_name ?? "");
+    }
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [requests]);
 
   const byCourseColumns = useMemo<ColumnsType<Record<string, unknown>>>(() => [
     {
@@ -181,6 +200,9 @@ function CourseRequestsListTab() {
       width: 200,
       ellipsis: true,
       sorter: (a, b) => String(a.course_name).localeCompare(String(b.course_name)),
+      render: (v: string, record: Record<string, unknown>) => (
+        <Typography.Link onClick={() => openDetail(`/courses/${record.id_course}`)}>{v}</Typography.Link>
+      ),
     },
     {
       title: "Peticiones",
@@ -271,7 +293,7 @@ function CourseRequestsListTab() {
           pagination={false}
           sortDirections={["ascend", "descend"]}
           rowKey="id_course"
-          dataSource={stats?.byCourse}
+          dataSource={byCourse}
           columns={byCourseColumns}
           scroll={{ y: FIXED_TABLE_HEIGHT, x: isMobile ? "max-content" : undefined }}
         />

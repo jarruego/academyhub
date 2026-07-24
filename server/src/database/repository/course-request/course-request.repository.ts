@@ -112,53 +112,6 @@ export class CourseRequestRepository extends Repository {
     return this.query(options).delete(courseRequestTable).where(eq(courseRequestTable.id_request, id_request));
   }
 
-  /** Peticiones y alumnos agrupados por curso, para el dashboard de listado (más alumnos primero). */
-  async statsByCourse(options?: QueryOptions) {
-    const studentCount = sql<number>`(
-      SELECT count(*) FROM course_request_students crs
-      JOIN course_requests cr2 ON cr2.id_request = crs.id_request
-      WHERE cr2.id_course = ${courseRequestTable.id_course}
-    )`;
-    const rows = await this.query(options)
-      .select({
-        id_course: courseRequestTable.id_course,
-        course_name: courseTable.course_name,
-        request_count: count(courseRequestTable.id_request),
-        student_count: studentCount,
-      })
-      .from(courseRequestTable)
-      .innerJoin(courseTable, eq(courseRequestTable.id_course, courseTable.id_course))
-      .groupBy(courseRequestTable.id_course, courseTable.course_name)
-      .orderBy(desc(studentCount));
-    // count(*) llega como bigint (string) — cast a number, ver castStudentCount.
-    return rows.map((r) => ({ ...r, request_count: Number(r.request_count), student_count: Number(r.student_count) }));
-  }
-
-  /**
-   * Nº de peticiones y de alumnos por curso y empresa (para el pivote de columnas
-   * por empresa del dashboard "Por curso"). Solo peticiones con centro **y**
-   * empresa (INNER JOIN): las que no tienen centro no aportan a ninguna columna
-   * de empresa. El LEFT JOIN a los alumnos multiplica filas por petición (fan-out),
-   * por eso request_count cuenta id_request **distintos**.
-   */
-  async statsByCourseCompany(options?: QueryOptions) {
-    const rows = await this.query(options)
-      .select({
-        id_course: courseRequestTable.id_course,
-        id_company: companyTable.id_company,
-        company_name: companyTable.company_name,
-        request_count: sql<number>`count(distinct ${courseRequestTable.id_request})`,
-        student_count: count(courseRequestStudentTable.id),
-      })
-      .from(courseRequestTable)
-      .innerJoin(centerTable, eq(courseRequestTable.id_center, centerTable.id_center))
-      .innerJoin(companyTable, eq(centerTable.id_company, companyTable.id_company))
-      .leftJoin(courseRequestStudentTable, eq(courseRequestStudentTable.id_request, courseRequestTable.id_request))
-      .groupBy(courseRequestTable.id_course, companyTable.id_company, companyTable.company_name);
-    // count()/count(distinct) llegan como bigint (string) — cast a number, ver castStudentCount.
-    return rows.map((r) => ({ ...r, request_count: Number(r.request_count), student_count: Number(r.student_count) }));
-  }
-
   /**
    * Filas del informe "qué cursos ha pedido cada empresa, con alumnos por centro":
    * una fila por combinación empresa/centro/curso, filtrable por cualquiera de

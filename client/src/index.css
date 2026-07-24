@@ -44,6 +44,14 @@ ul, ol {
     background: rgba(255, 77, 79, 0.2) !important;
 }
 
+/* Alumno resaltado al abrir la petición desde el modal de importación. */
+.ant-table-row.student-row-highlight > td {
+    background: rgba(255, 214, 0, 0.18);
+}
+.ant-table-row.student-row-highlight:hover > td {
+    background: rgba(255, 214, 0, 0.28) !important;
+}
+
 /* Sidebar: el menú fluye arriba y el pie (preferencias + cerrar sesión) queda
    anclado abajo del todo. Ni el Sider ni el body del Drawer son flex por
    defecto, así que hay que declararlo para que `margin-top: auto` empuje. */

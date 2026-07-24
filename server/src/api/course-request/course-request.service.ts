@@ -47,14 +47,6 @@ export class CourseRequestService {
     return this.courseRequestRepository.findAll(filters);
   }
 
-  async stats() {
-    const [byCourse, byCourseCompany] = await Promise.all([
-      this.courseRequestRepository.statsByCourse(),
-      this.courseRequestRepository.statsByCourseCompany(),
-    ]);
-    return { byCourse, byCourseCompany };
-  }
-
   /** Filas del informe empresa/centro/curso, filtrable por cualquier combinación de los tres (empresa admite varias). */
   async report(filters: CourseRequestReportFilters) {
     return this.courseRequestRepository.reportRows(filters);

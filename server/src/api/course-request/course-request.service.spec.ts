@@ -10,8 +10,6 @@ function buildService({ status = CourseRequestStatus.ABIERTA }: { status?: Cours
     create: jest.fn(),
     delete: jest.fn().mockResolvedValue(undefined),
     findAll: jest.fn(),
-    statsByCourse: jest.fn(),
-    statsByCourseCompany: jest.fn(),
     reportRows: jest.fn().mockResolvedValue([]),
   } as any;
   const courseRequestStudentRepository = {

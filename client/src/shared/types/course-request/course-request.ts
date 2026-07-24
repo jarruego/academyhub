@@ -48,6 +48,9 @@ export type CourseRequestStudentInput = {
   phone_mobile?: string | null;
 };
 
+// Agregados del pivote "Por curso", calculados en cliente a partir de las
+// peticiones ya filtradas (curso/centro/estado/empresa) — así el pivote
+// siempre refleja los filtros activos en pantalla (ver course-requests.route.tsx).
 export type CourseRequestStatsByCourse = {
   id_course: number;
   course_name: string;
@@ -61,10 +64,4 @@ export type CourseRequestStatsByCourseCompany = {
   company_name: string;
   request_count: number;
   student_count: number;
-};
-
-export type CourseRequestStats = {
-  byCourse: CourseRequestStatsByCourse[];
-  // Nº de peticiones por curso y empresa (pivote de columnas por empresa en "Por curso").
-  byCourseCompany: CourseRequestStatsByCourseCompany[];
 };

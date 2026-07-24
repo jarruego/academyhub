@@ -11,7 +11,7 @@ export type CourseRequestFilters = {
   status?: CourseRequestStatus;
 };
 
-export const useCourseRequestsQuery = (filters: CourseRequestFilters = {}) => {
+export const useCourseRequestsQuery = (filters: CourseRequestFilters = {}, options?: { enabled?: boolean }) => {
   const request = useAuthenticatedAxios<CourseRequest[]>();
 
   return useQuery({
@@ -24,5 +24,6 @@ export const useCourseRequestsQuery = (filters: CourseRequestFilters = {}) => {
           params: filters,
         })
       ).data,
+    enabled: options?.enabled !== undefined ? options.enabled : true,
   });
 };

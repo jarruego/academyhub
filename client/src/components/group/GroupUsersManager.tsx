@@ -3,10 +3,11 @@ import { App, Table, Button, Modal, Dropdown, Spin, Typography, theme } from 'an
 import { BRAND_COLORS } from '../../theme/semantic-colors';
 import type { MenuProps } from 'antd';
 import { Tooltip } from 'antd';
-import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined, DownOutlined } from '@ant-design/icons';
+import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, FileTextOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined, DownOutlined } from '@ant-design/icons';
 import { AuthzHide } from '../permissions/authz-hide';
 import CreateUserGroupModal from './CreateUserGroupModal';
 import ImportUsersToGroupModal from './ImportUsersToGroupModal';
+import ImportFromCourseRequestsModal from './ImportFromCourseRequestsModal';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.query';
 import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
@@ -110,6 +111,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const [isBonificationModalOpen, setIsBonificationModalOpen] = useState(false);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isImportFromRequestsModalOpen, setIsImportFromRequestsModalOpen] = useState(false);
   const [isSendMailOpen, setIsSendMailOpen] = useState(false);
 
   const createBonificationFile = useCreateBonificationFileMutation();
@@ -565,6 +567,11 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       icon: <FileExcelOutlined style={{ color: BRAND_COLORS.excel }} />,
       label: 'Importar XLS',
     },
+    {
+      key: 'peticiones',
+      icon: <FileTextOutlined />,
+      label: 'Desde Peticiones',
+    },
   ];
 
   const moodleMenuItems: MenuProps['items'] = [
@@ -618,6 +625,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const handleUsuariosMenuClick: MenuProps['onClick'] = ({ key }) => {
     if (key === 'gestor' && groupId) setIsManageModalOpen(true);
     if (key === 'importar' && groupId) setIsImportModalOpen(true);
+    if (key === 'peticiones' && groupId) setIsImportFromRequestsModalOpen(true);
   };
 
   const handleMoodleMenuClick: MenuProps['onClick'] = ({ key }) => {
@@ -671,7 +679,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
           <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
             <Dropdown menu={{ items: usuariosMenuItems, onClick: handleUsuariosMenuClick }}>
               <Button icon={<TeamOutlined />}>
-                Usuarios <DownOutlined />
+                Matricular <DownOutlined />
               </Button>
             </Dropdown>
 
@@ -791,6 +799,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
       <CreateUserGroupModal open={isManageModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsManageModalOpen(false)} />
       <ImportUsersToGroupModal open={isImportModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsImportModalOpen(false)} onSuccess={() => setIsImportModalOpen(false)} />
+      <ImportFromCourseRequestsModal
+        open={isImportFromRequestsModalOpen}
+        groupId={groupId}
+        courseId={groupData?.id_course}
+        onClose={() => setIsImportFromRequestsModalOpen(false)}
+        onSuccess={() => { setIsImportFromRequestsModalOpen(false); void refetch(); }}
+      />
 
       <SendMailToGroupModal
         open={isSendMailOpen}

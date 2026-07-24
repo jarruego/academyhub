@@ -62,12 +62,6 @@ export class CourseRequestController {
     return this.courseRequestService.findAll(filters);
   }
 
-  @Get("stats")
-  @ApiOperation({ summary: "Resumen de peticiones/alumnos por curso y por centro/empresa" })
-  async stats() {
-    return this.courseRequestService.stats();
-  }
-
   @Get("report")
   @ApiOperation({ summary: "Informe: cursos pedidos por empresa, con alumnos por centro (filtrable)" })
   async report(@Query() filters: CourseRequestReportFilterDto) {
