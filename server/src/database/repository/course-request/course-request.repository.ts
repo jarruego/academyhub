@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { Repository, QueryOptions } from "../repository";
 import { courseRequestTable } from "src/database/schema/tables/course_request.table";
 import { courseRequestStudentTable } from "src/database/schema/tables/course_request_student.table";
@@ -17,6 +17,13 @@ export type CourseRequestFilters = {
   id_center?: number;
   id_company?: number;
   status?: CourseRequestStatus;
+};
+
+/** Filtros del informe empresa/centro/curso: empresa admite varias a la vez. */
+export type CourseRequestReportFilters = {
+  id_course?: number;
+  id_center?: number;
+  id_company?: number[];
 };
 
 const HEADER_COLUMNS = {
@@ -115,26 +122,23 @@ export class CourseRequestRepository extends Repository {
       .orderBy(desc(studentCount));
   }
 
-  /** Peticiones y alumnos agrupados por centro/empresa, para el dashboard de listado (más alumnos primero). */
-  async statsByCenter(options?: QueryOptions) {
-    const studentCount = sql<number>`(
-      SELECT count(*) FROM course_request_students crs
-      JOIN course_requests cr2 ON cr2.id_request = crs.id_request
-      WHERE cr2.id_center IS NOT DISTINCT FROM ${courseRequestTable.id_center}
-    )`;
+  /**
+   * Nº de peticiones por curso y empresa (para el pivote de columnas por empresa
+   * del dashboard "Por curso"). Solo peticiones con centro **y** empresa
+   * (INNER JOIN): las que no tienen centro no aportan a ninguna columna de empresa.
+   */
+  async statsByCourseCompany(options?: QueryOptions) {
     return this.query(options)
       .select({
-        id_center: courseRequestTable.id_center,
-        center_name: centerTable.center_name,
+        id_course: courseRequestTable.id_course,
+        id_company: companyTable.id_company,
         company_name: companyTable.company_name,
         request_count: count(courseRequestTable.id_request),
-        student_count: studentCount,
       })
       .from(courseRequestTable)
-      .leftJoin(centerTable, eq(courseRequestTable.id_center, centerTable.id_center))
-      .leftJoin(companyTable, eq(centerTable.id_company, companyTable.id_company))
-      .groupBy(courseRequestTable.id_center, centerTable.center_name, companyTable.company_name)
-      .orderBy(desc(studentCount));
+      .innerJoin(centerTable, eq(courseRequestTable.id_center, centerTable.id_center))
+      .innerJoin(companyTable, eq(centerTable.id_company, companyTable.id_company))
+      .groupBy(courseRequestTable.id_course, companyTable.id_company, companyTable.company_name);
   }
 
   /**
@@ -143,11 +147,11 @@ export class CourseRequestRepository extends Repository {
    * los tres (o su combinación). Usada tanto para la vista en pantalla como para
    * el PDF (que agrupa estas filas empresa -> curso -> centro).
    */
-  async reportRows(filters: CourseRequestFilters, options?: QueryOptions) {
+  async reportRows(filters: CourseRequestReportFilters, options?: QueryOptions) {
     const conditions = [];
     if (filters.id_course) conditions.push(eq(courseRequestTable.id_course, filters.id_course));
     if (filters.id_center) conditions.push(eq(courseRequestTable.id_center, filters.id_center));
-    if (filters.id_company) conditions.push(eq(companyTable.id_company, filters.id_company));
+    if (filters.id_company?.length) conditions.push(inArray(companyTable.id_company, filters.id_company));
     const where = conditions.length ? and(...conditions) : undefined;
 
     return this.query(options)

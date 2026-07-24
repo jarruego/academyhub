@@ -38,20 +38,24 @@ function withRowSpans(rows: CourseRequestReportRow[]): ReportRow[] {
 
 export function CourseRequestReportTab() {
   const { message: messageApi } = App.useApp();
-  const [idCompany, setIdCompany] = useState<number | undefined>();
+  const [idCompanies, setIdCompanies] = useState<number[]>([]);
   const [idCenter, setIdCenter] = useState<number | undefined>();
   const [idCourse, setIdCourse] = useState<number | undefined>();
 
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery();
   const { data: courses } = useCoursesQuery();
-  const filters = { id_company: idCompany, id_center: idCenter, id_course: idCourse };
+  const filters = {
+    id_company: idCompanies.length ? idCompanies : undefined,
+    id_center: idCenter,
+    id_course: idCourse,
+  };
   const { data: rows, isLoading } = useCourseRequestReportQuery(filters);
   const pdfMutation = useCourseRequestReportPdfMutation();
 
   const centerOptions = useMemo(
-    () => centers?.filter((c) => !idCompany || c.id_company === idCompany),
-    [centers, idCompany],
+    () => centers?.filter((c) => !idCompanies.length || idCompanies.includes(c.id_company)),
+    [centers, idCompanies],
   );
 
   const tableRows = useMemo(() => withRowSpans(rows ?? []), [rows]);
@@ -105,12 +109,14 @@ export function CourseRequestReportTab() {
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
           <Select
+            mode="multiple"
             allowClear
             showSearch
-            placeholder="Filtrar por empresa"
+            maxTagCount="responsive"
+            placeholder="Filtrar por empresa (varias a la vez)"
             style={{ width: "100%" }}
-            value={idCompany}
-            onChange={(v) => { setIdCompany(v); setIdCenter(undefined); }}
+            value={idCompanies}
+            onChange={(values) => { setIdCompanies(values); setIdCenter(undefined); }}
             optionFilterProp="label"
             options={companies?.map((c) => ({ value: c.id_company, label: c.company_name }))}
           />

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { App, Button, Card, Col, Row, Segmented, Select, Switch, Table, Tag } from "antd";
+import { App, Button, Card, Segmented, Select, Switch, Table, Tag } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { ColumnsType } from "antd/es/table";
@@ -94,6 +94,38 @@ function CourseRequestsListTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [canEdit]);
 
+  // Empresas con alguna petición, para las columnas dinámicas del pivote "Por curso"
+  // (ordenadas por nombre, para que las columnas no bailen entre recargas).
+  const companyColumns = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const row of stats?.byCourseCompany ?? []) map.set(row.id_company, row.company_name);
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [stats]);
+
+  // Curso x Empresa -> nº de peticiones, para rellenar las celdas del pivote.
+  const requestsByCourseCompany = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const row of stats?.byCourseCompany ?? []) {
+      map.set(`${row.id_course}-${row.id_company}`, row.request_count);
+    }
+    return map;
+  }, [stats]);
+
+  const byCourseColumns = useMemo<ColumnsType<Record<string, unknown>>>(() => [
+    { title: "Curso", dataIndex: "course_name", width: 220, ellipsis: true },
+    { title: "Peticiones", dataIndex: "request_count", width: 100 },
+    { title: "Alumnos", dataIndex: "student_count", width: 100 },
+    ...companyColumns.map(([id_company, company_name]) => ({
+      title: company_name,
+      key: `company_${id_company}`,
+      width: 140,
+      render: (_: unknown, record: Record<string, unknown>) => {
+        const n = requestsByCourseCompany.get(`${record.id_course}-${id_company}`) ?? 0;
+        return n > 0 ? n : <span style={{ opacity: 0.4 }}>-</span>;
+      },
+    })),
+  ], [companyColumns, requestsByCourseCompany]);
+
   const toolbar = (
     <>
       <Segmented<StatusFilter> options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
@@ -127,39 +159,16 @@ function CourseRequestsListTab() {
 
   return (
     <ListPageLayout toolbar={toolbar}>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col xs={24} md={12}>
-          <Card size="small" title="Por curso">
-            <Table
-              size="small"
-              pagination={false}
-              rowKey="id_course"
-              dataSource={stats?.byCourse}
-              columns={[
-                { title: "Curso", dataIndex: "course_name" },
-                { title: "Peticiones", dataIndex: "request_count", width: 100 },
-                { title: "Alumnos", dataIndex: "student_count", width: 100 },
-              ]}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} md={12}>
-          <Card size="small" title="Por centro / empresa">
-            <Table
-              size="small"
-              pagination={false}
-              rowKey={(r) => `${r.id_center ?? "none"}`}
-              dataSource={stats?.byCenter}
-              columns={[
-                { title: "Centro", dataIndex: "center_name", render: (v: string | null) => v || "Sin centro" },
-                { title: "Empresa", dataIndex: "company_name", render: (v: string | null) => v || "-" },
-                { title: "Peticiones", dataIndex: "request_count", width: 100 },
-                { title: "Alumnos", dataIndex: "student_count", width: 100 },
-              ]}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <Card size="small" title="Por curso" style={{ marginBottom: 16 }}>
+        <Table
+          size="small"
+          pagination={false}
+          rowKey="id_course"
+          dataSource={stats?.byCourse}
+          columns={byCourseColumns}
+          scroll={{ x: "max-content" }}
+        />
+      </Card>
       <DataTable<CourseRequest>
         rowKey="id_request"
         columns={columns}

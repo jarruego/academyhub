@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   CourseRequestFilters,
+  CourseRequestReportFilters,
   CourseRequestRepository,
   CourseRequestStudentRepository,
 } from "src/database/repository/course-request/course-request.repository";
@@ -47,15 +48,15 @@ export class CourseRequestService {
   }
 
   async stats() {
-    const [byCourse, byCenter] = await Promise.all([
+    const [byCourse, byCourseCompany] = await Promise.all([
       this.courseRequestRepository.statsByCourse(),
-      this.courseRequestRepository.statsByCenter(),
+      this.courseRequestRepository.statsByCourseCompany(),
     ]);
-    return { byCourse, byCenter };
+    return { byCourse, byCourseCompany };
   }
 
-  /** Filas del informe empresa/centro/curso, filtrable por cualquier combinación de los tres. */
-  async report(filters: { id_company?: number; id_center?: number; id_course?: number }) {
+  /** Filas del informe empresa/centro/curso, filtrable por cualquier combinación de los tres (empresa admite varias). */
+  async report(filters: CourseRequestReportFilters) {
     return this.courseRequestRepository.reportRows(filters);
   }
 

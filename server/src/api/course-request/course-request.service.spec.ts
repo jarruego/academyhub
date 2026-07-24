@@ -11,7 +11,7 @@ function buildService({ status = CourseRequestStatus.ABIERTA }: { status?: Cours
     delete: jest.fn().mockResolvedValue(undefined),
     findAll: jest.fn(),
     statsByCourse: jest.fn(),
-    statsByCenter: jest.fn(),
+    statsByCourseCompany: jest.fn(),
     reportRows: jest.fn().mockResolvedValue([]),
   } as any;
   const courseRequestStudentRepository = {
@@ -93,10 +93,10 @@ describe("CourseRequestService", () => {
     );
   });
 
-  it("el informe delega en el repositorio con los filtros indicados", async () => {
+  it("el informe delega en el repositorio con los filtros indicados (empresa admite varias)", async () => {
     const { service, courseRequestRepository } = buildService();
-    await service.report({ id_company: 3 });
-    expect(courseRequestRepository.reportRows).toHaveBeenCalledWith({ id_company: 3 });
+    await service.report({ id_company: [3, 5] });
+    expect(courseRequestRepository.reportRows).toHaveBeenCalledWith({ id_company: [3, 5] });
   });
 
   it("subir excel marca la petición como origen EXCEL", async () => {

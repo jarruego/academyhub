@@ -10,7 +10,8 @@ export type CourseRequestReportRow = {
 };
 
 export type CourseRequestReportFilters = {
-  id_company?: number;
+  // Selección múltiple: ver resultados de varias empresas a la vez.
+  id_company?: number[];
   id_center?: number;
   id_course?: number;
 };

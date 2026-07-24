@@ -55,15 +55,15 @@ export type CourseRequestStatsByCourse = {
   student_count: number;
 };
 
-export type CourseRequestStatsByCenter = {
-  id_center: number | null;
-  center_name: string | null;
-  company_name: string | null;
+export type CourseRequestStatsByCourseCompany = {
+  id_course: number;
+  id_company: number;
+  company_name: string;
   request_count: number;
-  student_count: number;
 };
 
 export type CourseRequestStats = {
   byCourse: CourseRequestStatsByCourse[];
-  byCenter: CourseRequestStatsByCenter[];
+  // Nº de peticiones por curso y empresa (pivote de columnas por empresa en "Por curso").
+  byCourseCompany: CourseRequestStatsByCourseCompany[];
 };
