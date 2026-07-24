@@ -116,6 +116,7 @@ function CourseRequestsListTab() {
     {
       title: "Centro",
       dataIndex: "center_name",
+      width: 140,
       ellipsis: true,
       sorter: (a, b) => (a.center_name ?? "").localeCompare(b.center_name ?? ""),
       render: (v: string | null) => v || <Tag>Sin centro</Tag>,
@@ -140,13 +141,6 @@ function CourseRequestsListTab() {
       width: 50,
       ellipsis: true,
       sorter: (a, b) => a.student_count - b.student_count,
-    },
-    {
-      title: "Contacto",
-      dataIndex: "contact_email",
-      ellipsis: true,
-      sorter: (a, b) => (a.contact_email ?? "").localeCompare(b.contact_email ?? ""),
-      render: (v: string | null) => v || <Tag color="warning">Sin correo</Tag>,
     },
     {
       title: "Estado",
