@@ -1,12 +1,13 @@
-import { pgTable, serial, integer, text, date, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { serial, integer, text, date, timestamp } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { courseTable } from "./course.table";
 import { TIMESTAMPS } from "./timestamps";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { GroupActiveMode } from "../../../types/group/group-active-mode.enum";
 
-export const groupActiveMode = pgEnum('group_active_mode', Object.values(GroupActiveMode) as [string, ...string[]]);
+export const groupActiveMode = academyhubSchema.enum('group_active_mode', Object.values(GroupActiveMode) as [string, ...string[]]);
 
-export const groupTable = pgTable("groups", {
+export const groupTable = academyhubSchema.table("groups", {
   id_group: serial("id_group").primaryKey(),
   moodle_id: integer("moodle_id").unique(),
   group_name: text("group_name").notNull(),

@@ -1,9 +1,10 @@
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
-import { pgTable, serial, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { serial, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { userTable } from "./user.table";
 import { TIMESTAMPS } from "./timestamps";
 
-export const moodleUserTable = pgTable("moodle_users", {
+export const moodleUserTable = academyhubSchema.table("moodle_users", {
     id_moodle_user: serial("id_moodle_user").primaryKey(),
     id_user: integer("id_user").notNull().references(() => userTable.id_user),
     moodle_id: integer("moodle_id").notNull().unique(),

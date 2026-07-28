@@ -1,10 +1,11 @@
-import { pgTable, serial, varchar, numeric, jsonb, boolean, timestamp, integer, primaryKey, index } from "drizzle-orm/pg-core";
+import { serial, varchar, numeric, jsonb, boolean, timestamp, integer, primaryKey, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { userTable } from "./user.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Tabla para gestionar trabajos de importación
-export const importJobTable = pgTable('import_jobs', {
+export const importJobTable = academyhubSchema.table('import_jobs', {
     id: serial().primaryKey(),
     job_id: varchar('job_id', { length: 50 }).notNull().unique(),
     import_type: varchar('import_type', { length: 50 }).notNull(),
@@ -19,7 +20,7 @@ export const importJobTable = pgTable('import_jobs', {
 });
 
 // Tabla para decisiones manuales de importación
-export const importDecisionsTable = pgTable('import_decisions', {
+export const importDecisionsTable = academyhubSchema.table('import_decisions', {
     id: serial().primaryKey(),
     import_source: varchar('import_source', { length: 50 }).notNull(),
     dni_csv: varchar('dni_csv', { length: 20 }),

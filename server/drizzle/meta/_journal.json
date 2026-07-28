@@ -421,6 +421,13 @@
       "when": 1784877174673,
       "tag": "0059_majestic_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1785234808394,
+      "tag": "0060_move_tables_to_academyhub_schema",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,10 @@
-import { pgTable, serial, varchar, integer, index } from "drizzle-orm/pg-core";
+import { serial, varchar, integer, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { companyTable } from "./company.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
-export const centerTable = pgTable('centers', {
+export const centerTable = academyhubSchema.table('centers', {
     id_center: serial().primaryKey(),
     center_name: varchar({length: 128}).notNull(),
     employer_number: varchar({length: 128}),

@@ -1,7 +1,8 @@
-import { pgTable, serial, varchar, boolean, text } from 'drizzle-orm/pg-core';
+import { serial, varchar, boolean, text } from 'drizzle-orm/pg-core';
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from './timestamps';
 
-export const mailTemplatesTable = pgTable('mail_templates', {
+export const mailTemplatesTable = academyhubSchema.table('mail_templates', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull().unique(),
   subject: varchar('subject', { length: 255 }).notNull().default(''),

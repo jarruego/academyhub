@@ -1,7 +1,8 @@
-import { pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
+import { varchar, timestamp } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
-export const revokedTokensTable = pgTable('revoked_tokens', {
+export const revokedTokensTable = academyhubSchema.table('revoked_tokens', {
   jti: varchar({ length: 36 }).primaryKey(),
   expiresAt: timestamp('expires_at').notNull(),
 });

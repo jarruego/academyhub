@@ -4,6 +4,8 @@ import { Repository, QueryOptions } from "../repository";
 import { userPreinscriptionTable } from "src/database/schema/tables/user_preinscription.table";
 import { userTable } from "src/database/schema/tables/user.table";
 import { courseTable } from "src/database/schema/tables/course.table";
+import { userGroupTable } from "src/database/schema/tables/user_group.table";
+import { groupTable } from "src/database/schema/tables/group.table";
 import { PreinscriptionStatus } from "src/types/preinscription/preinscription-status.enum";
 
 @Injectable()
@@ -44,8 +46,8 @@ export class UserPreinscriptionRepository extends Repository {
         // null = sin matrícula (no hay datos de finalización).
         finalized: sql<boolean | null>`(
           SELECT bool_or(ug.finalized)
-          FROM user_group ug
-          JOIN groups g ON g.id_group = ug.id_group
+          FROM ${userGroupTable} ug
+          JOIN ${groupTable} g ON g.id_group = ug.id_group
           WHERE ug.id_user = ${userPreinscriptionTable.id_user}
             AND g.id_course = ${userPreinscriptionTable.id_course}
         )`,

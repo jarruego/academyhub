@@ -1,9 +1,10 @@
-import { pgTable, integer, primaryKey, timestamp, text, boolean, index } from "drizzle-orm/pg-core";
+import { integer, primaryKey, timestamp, text, boolean, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { userTable } from "./user.table";
 import { centerTable } from "./center.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
-export const userCenterTable = pgTable("user_center", {
+export const userCenterTable = academyhubSchema.table("user_center", {
   id_user: integer("id_user").notNull().references(() => userTable.id_user),
   id_center: integer("id_center").notNull().references(() => centerTable.id_center),
   start_date: timestamp("start_date", { withTimezone: true, mode: 'date' }),

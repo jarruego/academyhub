@@ -1,7 +1,8 @@
-import { pgTable, serial, integer, jsonb, text, integer as intCol, timestamp } from "drizzle-orm/pg-core";
+import { serial, integer, jsonb, text, integer as intCol, timestamp } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
-export const organizationSettingsTable = pgTable('organization_settings', {
+export const organizationSettingsTable = academyhubSchema.table('organization_settings', {
     id: serial().primaryKey(),
     // Note: center_id is intentionally NOT declared as a foreign key reference.
     // It represents the id of the center the organization settings relate to

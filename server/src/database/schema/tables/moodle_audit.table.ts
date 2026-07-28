@@ -1,5 +1,6 @@
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { pgTable, text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { text, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 
 /**
@@ -10,7 +11,7 @@ import { TIMESTAMPS } from "./timestamps";
  *   matriculados por curso.
  * Se escriben solo al descargar de Moodle; leerlos no cuesta llamadas.
  */
-export const moodleAuditSnapshotTable = pgTable("moodle_audit_snapshot", {
+export const moodleAuditSnapshotTable = academyhubSchema.table("moodle_audit_snapshot", {
     kind: text("kind").primaryKey(),
     fetched_at: timestamp("fetched_at").notNull(),
     moodle_calls: integer("moodle_calls").notNull().default(0),
@@ -22,7 +23,7 @@ export const moodleAuditSnapshotTable = pgTable("moodle_audit_snapshot", {
  * herramienta de limpieza ("intocables"). Clave por moodle_id porque la cuenta
  * puede no tener fila en moodle_users (sin vínculo local).
  */
-export const moodleProtectedUserTable = pgTable("moodle_protected_user", {
+export const moodleProtectedUserTable = academyhubSchema.table("moodle_protected_user", {
     moodle_id: integer("moodle_id").primaryKey(),
     moodle_username: text("moodle_username").notNull(),
     ...TIMESTAMPS,

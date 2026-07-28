@@ -1,4 +1,5 @@
-import { pgTable, serial, varchar, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { serial, varchar, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Tabla de respaldo para filas de importación SAGE que no se pudieron procesar.
@@ -6,7 +7,7 @@ import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 // importación; ahora está versionada en migraciones. Las columnas deben coincidir
 // EXACTAMENTE con ese DDL legacy para que `CREATE TABLE IF NOT EXISTS` sea un no-op
 // en bases donde la tabla ya existe.
-export const failedUserImportsTable = pgTable('failed_user_imports', {
+export const failedUserImportsTable = academyhubSchema.table('failed_user_imports', {
     id: serial('id').primaryKey(),
     dni: varchar('dni', { length: 20 }),
     name: varchar('name', { length: 100 }),

@@ -1,11 +1,12 @@
-import { pgTable, integer, primaryKey, date, decimal, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { integer, primaryKey, date, decimal, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import type { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { userTable } from "./user.table";
 import { groupTable } from "./group.table";
 import { centerTable } from "./center.table";
 import { userRolesTable } from "./user_roles.table";
 
-export const userGroupTable = pgTable("user_group", {
+export const userGroupTable = academyhubSchema.table("user_group", {
   id_user: integer("id_user").notNull().references(() => userTable.id_user),
   id_group: integer("id_group").notNull().references(() => groupTable.id_group),
   // rol aplicado al usuario dentro del grupo (referencia a user_roles.id_role)

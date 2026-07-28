@@ -16,13 +16,14 @@ import { tmpdir } from "os";
 import { basename, extname, join } from "path";
 
 // Schemas
-import { 
-    users, 
-    companies, 
-    centers, 
-    user_center, 
-    import_jobs, 
-    import_decisions 
+import {
+    users,
+    companies,
+    centers,
+    user_center,
+    import_jobs,
+    import_decisions,
+    failed_user_imports
 } from "src/database/schema";
 
 // Types
@@ -1487,7 +1488,7 @@ export class ImportService {
             // (drizzle/0043). Ya NO se crea con DDL aquí: ejecutar CREATE TABLE en
             // cada fila fallida era un coste innecesario en el hot-path del import.
             const result = await this.databaseService.db.execute(sql`
-                INSERT INTO failed_user_imports (
+                INSERT INTO ${failed_user_imports} (
                     dni, name, first_surname, second_surname, email, import_id, nss,
                     company_name, center_name, csv_row_data, failure_reason, import_source
                 ) VALUES (
@@ -1848,8 +1849,8 @@ export class ImportService {
         try {
             // Buscar decisión existente por DNI del CSV o por usuario de la BD
             const result = await this.databaseService.db.execute(sql`
-                SELECT id FROM import_decisions 
-                WHERE processed = false 
+                SELECT id FROM ${import_decisions}
+                WHERE processed = false
                 AND (
                     (dni_csv = ${data.dni} AND dni_csv IS NOT NULL)
                     OR (selected_user_id = ${match.user_id} AND selected_user_id IS NOT NULL)
@@ -1878,8 +1879,8 @@ export class ImportService {
         try {
             // Buscar decisión ya procesada por DNI del CSV y usuario de la BD
             const result = await this.databaseService.db.execute(sql`
-                SELECT decision_action, created_at FROM import_decisions 
-                WHERE processed = true 
+                SELECT decision_action, created_at FROM ${import_decisions}
+                WHERE processed = true
                 AND dni_csv = ${data.dni} 
                 AND selected_user_id = ${match.user_id}
                 AND dni_csv IS NOT NULL 
@@ -2401,10 +2402,10 @@ export class ImportService {
      */
     private async keepOnlyLatestJobs(maxJobs: number): Promise<void> {
         await this.databaseService.db.execute(sql`
-            DELETE FROM import_jobs
+            DELETE FROM ${import_jobs}
             WHERE id IN (
                 SELECT id
-                FROM import_jobs
+                FROM ${import_jobs}
                 ORDER BY created_at DESC, id DESC
                 OFFSET ${maxJobs}
             )
@@ -3080,7 +3081,7 @@ export class ImportService {
             
             // Crear tabla si no existe
             await this.databaseService.db.execute(sql`
-                CREATE TABLE IF NOT EXISTS failed_user_imports (
+                CREATE TABLE IF NOT EXISTS ${failed_user_imports} (
                     id SERIAL PRIMARY KEY,
                     dni VARCHAR(20),
                     name VARCHAR(100),
@@ -3106,7 +3107,7 @@ export class ImportService {
                     id, dni, name, first_surname, second_surname, email,
                     import_id, nss, company_name, center_name,
                     failure_reason, import_source, created_at
-                FROM failed_user_imports
+                FROM ${failed_user_imports}
                 WHERE import_source IS DISTINCT FROM 'inaem'
                 ORDER BY created_at DESC
                 LIMIT ${limit} OFFSET ${offset}
@@ -3114,7 +3115,7 @@ export class ImportService {
 
             // Obtener el total de registros
             const countResult = await this.databaseService.db.execute(sql`
-                SELECT COUNT(*) as total FROM failed_user_imports
+                SELECT COUNT(*) as total FROM ${failed_user_imports}
                 WHERE import_source IS DISTINCT FROM 'inaem'
             `);
 
@@ -3148,7 +3149,7 @@ export class ImportService {
             const maxReasonLength = Math.max(50, Math.min(options?.maxReasonLength ?? 500, 2000));
 
             await this.databaseService.db.execute(sql`
-                CREATE TABLE IF NOT EXISTS failed_user_imports (
+                CREATE TABLE IF NOT EXISTS ${failed_user_imports} (
                     id SERIAL PRIMARY KEY,
                     dni VARCHAR(20),
                     name VARCHAR(100),
@@ -3173,7 +3174,7 @@ export class ImportService {
                     COUNT(DISTINCT company_name) as companies,
                     COUNT(DISTINCT center_name) as centers,
                     COUNT(DISTINCT failure_reason) as unique_errors
-                FROM failed_user_imports
+                FROM ${failed_user_imports}
                 WHERE import_source IS DISTINCT FROM 'inaem'
             `);
 
@@ -3181,7 +3182,7 @@ export class ImportService {
                 SELECT
                     failure_reason,
                     COUNT(*) as count
-                FROM failed_user_imports
+                FROM ${failed_user_imports}
                 WHERE import_source IS DISTINCT FROM 'inaem'
                 GROUP BY failure_reason
                 ORDER BY count DESC
@@ -3218,7 +3219,7 @@ export class ImportService {
      */
     async deleteAllFailedUsers(): Promise<{ deleted: number }> {
         await this.databaseService.db.execute(sql`
-            CREATE TABLE IF NOT EXISTS failed_user_imports (
+            CREATE TABLE IF NOT EXISTS ${failed_user_imports} (
                 id SERIAL PRIMARY KEY,
                 dni VARCHAR(20),
                 name VARCHAR(100),
@@ -3239,13 +3240,13 @@ export class ImportService {
         // Solo borra los fallidos SAGE; los de INAEM (import_source 'inaem')
         // se gestionan aparte. Por eso no se usa TRUNCATE (afectaría a todo).
         const countResult = await this.databaseService.db.execute(sql`
-            SELECT COUNT(*) as total FROM failed_user_imports
+            SELECT COUNT(*) as total FROM ${failed_user_imports}
             WHERE import_source IS DISTINCT FROM 'inaem'
         `);
         const deleted = parseInt((countResult as any).rows?.[0]?.total || '0', 10);
 
         await this.databaseService.db.execute(sql`
-            DELETE FROM failed_user_imports
+            DELETE FROM ${failed_user_imports}
             WHERE import_source IS DISTINCT FROM 'inaem'
         `);
 

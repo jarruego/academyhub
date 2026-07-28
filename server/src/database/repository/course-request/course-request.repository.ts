@@ -46,7 +46,7 @@ const HEADER_COLUMNS = {
   company_name: companyTable.company_name,
   course_name: courseTable.course_name,
   student_count: sql<number>`(
-    SELECT count(*) FROM course_request_students crs
+    SELECT count(*) FROM ${courseRequestStudentTable} crs
     WHERE crs.id_request = ${courseRequestTable.id_request}
   )`.as("student_count"),
 };

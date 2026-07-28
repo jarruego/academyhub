@@ -1,11 +1,12 @@
-import { pgTable, serial, integer, varchar, text, timestamp, index } from "drizzle-orm/pg-core";
+import { serial, integer, varchar, text, timestamp, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Registro de auditoría de operaciones mutantes (quién hizo qué y cuándo).
 // Lo rellena AuditInterceptor a nivel HTTP. NO guarda cuerpos de petición para
 // evitar registrar secretos (contraseñas, tokens). `actor_id` SIN FK a propósito:
 // el log debe sobrevivir al borrado del usuario que originó la acción.
-export const auditLogTable = pgTable('audit_log', {
+export const auditLogTable = academyhubSchema.table('audit_log', {
     id: serial('id').primaryKey(),
     actor_id: integer('actor_id'),                       // auth_user.id (null si no autenticado, p.ej. login)
     actor_username: varchar('actor_username', { length: 64 }),

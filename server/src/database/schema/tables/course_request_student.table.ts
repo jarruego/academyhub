@@ -1,11 +1,12 @@
-import { pgTable, serial, integer, text, index } from "drizzle-orm/pg-core";
+import { serial, integer, text, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { courseRequestTable } from "./course_request.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Filas de alumnos de una petición ("hoja de cálculo"): texto en bruto, sin
 // vínculo a `users` en esta fase. Alta por Excel o pegado manual, editables.
-export const courseRequestStudentTable = pgTable('course_request_students', {
+export const courseRequestStudentTable = academyhubSchema.table('course_request_students', {
   id: serial().primaryKey(),
   id_request: integer().notNull().references(() => courseRequestTable.id_request, { onDelete: 'cascade' }),
   row_order: integer().notNull().default(0),

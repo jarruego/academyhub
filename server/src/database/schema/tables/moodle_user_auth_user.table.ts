@@ -1,10 +1,11 @@
-import { pgTable, serial, integer, varchar } from "drizzle-orm/pg-core";
+import { serial, integer, varchar } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { moodleUserTable } from "./moodle_user.table";
 import { authUserTable } from "./auth_user.table";
 import { TIMESTAMPS } from "./timestamps";
 import { InferSelectModel, InferInsertModel } from "drizzle-orm";
 
-export const moodleUserAuthUserTable = pgTable("moodle_user_auth_user", {
+export const moodleUserAuthUserTable = academyhubSchema.table("moodle_user_auth_user", {
   id: serial("id").primaryKey(),
   id_moodle_user: integer("id_moodle_user").notNull().references(() => moodleUserTable.id_moodle_user),
   id_auth_user: integer("id_auth_user").notNull().references(() => authUserTable.id),

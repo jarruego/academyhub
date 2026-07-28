@@ -1,7 +1,8 @@
-import { pgTable, varchar, integer, boolean, text } from 'drizzle-orm/pg-core';
+import { varchar, integer, boolean, text } from 'drizzle-orm/pg-core';
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from './timestamps';
 
-export const smtpSettingsTable = pgTable('smtp_settings', {
+export const smtpSettingsTable = academyhubSchema.table('smtp_settings', {
   id: integer('id').primaryKey().notNull().default(1),
   host: varchar('host', { length: 255 }).notNull(),
   port: integer('port').notNull(),

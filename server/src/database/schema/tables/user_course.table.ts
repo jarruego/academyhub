@@ -1,13 +1,14 @@
-import { pgTable, integer, date, decimal, doublePrecision, primaryKey, index } from "drizzle-orm/pg-core";
+import { integer, date, decimal, doublePrecision, primaryKey, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { userTable } from "./user.table";
 import { courseTable } from "./course.table";
 import { moodleUserTable } from "./moodle_user.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 // import { EnrollmentStatus } from "src/types/course/enrollment-status.enum";
 
-// export const enrollmentStatus = pgEnum('enrollment_status', Object.values(EnrollmentStatus) as [string, ...string[]]);
+// export const enrollmentStatus = academyhubSchema.enum('enrollment_status', Object.values(EnrollmentStatus) as [string, ...string[]]);
 
-export const userCourseTable = pgTable("user_course", {
+export const userCourseTable = academyhubSchema.table("user_course", {
   id_user: integer("id_user").notNull().references(() => userTable.id_user),
   id_course: integer("id_course").notNull().references(() => courseTable.id_course),
   id_moodle_user: integer("id_moodle_user").references(() => moodleUserTable.id_moodle_user),

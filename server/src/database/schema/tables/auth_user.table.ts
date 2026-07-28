@@ -1,9 +1,10 @@
-import { pgTable, serial, varchar } from "drizzle-orm/pg-core";
+import { serial, varchar } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { Role } from "src/guards/role.enum";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
-export const authUserTable = pgTable('auth_users', {
+export const authUserTable = academyhubSchema.table('auth_users', {
     id: serial().primaryKey(),
     name: varchar({length: 32}).notNull(),
     lastName: varchar({length: 64}),

@@ -1,11 +1,12 @@
-import { pgTable, serial, integer, varchar, text, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { serial, integer, varchar, text, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Registro de envíos de correo: quién, cuándo, a quién, con qué plantilla/asunto
 // y en qué modo de remitente. Lo escribe MailService best-effort (no rompe el
 // envío). NO se guarda el cuerpo del correo (contiene {CLAVE_MOODLE}). Sin FK en
 // actor_id/template_id a propósito: el log sobrevive al borrado de esas entidades.
-export const emailLogTable = pgTable('email_log', {
+export const emailLogTable = academyhubSchema.table('email_log', {
     id: serial('id').primaryKey(),
     actor_id: integer('actor_id'),                          // auth_user.id que originó el envío
     actor_username: varchar('actor_username', { length: 64 }),

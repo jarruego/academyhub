@@ -55,11 +55,11 @@ export class JobService {
         cutoffDate.setMonth(cutoffDate.getMonth() - maxAgeMonths);
 
         await this.databaseService.db.execute(sql`
-            DELETE FROM import_jobs
+            DELETE FROM ${import_jobs}
             WHERE created_at < ${cutoffDate}
                OR id IN (
                     SELECT id
-                    FROM import_jobs
+                    FROM ${import_jobs}
                     ORDER BY created_at DESC, id DESC
                     OFFSET ${maxJobs}
                )

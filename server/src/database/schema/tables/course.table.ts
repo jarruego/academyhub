@@ -1,15 +1,16 @@
-import { pgTable, serial, integer, text, date, boolean, decimal, pgEnum, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { serial, integer, text, date, boolean, decimal, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { CourseModality } from "../../../types/course/course-modality.enum";
 import { CourseClient } from "../../../types/course/course-client.enum";
 import { CourseFunding } from "../../../types/course/course-funding.enum";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
-export const courseModality = pgEnum('course_modality', Object.values(CourseModality) as [string, ...string[]]);
-export const courseClient = pgEnum('course_client', Object.values(CourseClient) as [string, ...string[]]);
-export const courseFunding = pgEnum('course_funding', Object.values(CourseFunding) as [string, ...string[]]);
+export const courseModality = academyhubSchema.enum('course_modality', Object.values(CourseModality) as [string, ...string[]]);
+export const courseClient = academyhubSchema.enum('course_client', Object.values(CourseClient) as [string, ...string[]]);
+export const courseFunding = academyhubSchema.enum('course_funding', Object.values(CourseFunding) as [string, ...string[]]);
 
-export const courseTable = pgTable('courses', {
+export const courseTable = academyhubSchema.table('courses', {
   id_course: serial().primaryKey(),
   moodle_id: integer(),
   course_name: text().notNull(),

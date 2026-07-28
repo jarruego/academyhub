@@ -1,13 +1,14 @@
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { pgTable, serial, text, integer, boolean, date, pgEnum, timestamp, index } from "drizzle-orm/pg-core";
+import { serial, text, integer, boolean, date, timestamp, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { Gender } from "../../../types/user/gender.enum";
 import { DocumentType } from "../../../types/user/document-type.enum";
 
-export const gender = pgEnum('gender', Object.values(Gender) as [string, ...string[]]);
-export const documentType = pgEnum('document_type', Object.values(DocumentType) as [string, ...string[]]);
+export const gender = academyhubSchema.enum('gender', Object.values(Gender) as [string, ...string[]]);
+export const documentType = academyhubSchema.enum('document_type', Object.values(DocumentType) as [string, ...string[]]);
 
-export const userTable = pgTable("users", {
+export const userTable = academyhubSchema.table("users", {
     id_user: serial("id_user").primaryKey(),
     name: text("name").notNull(),
     first_surname: text("first_surname"),

@@ -1,4 +1,5 @@
-import { pgTable, serial, integer, text, timestamp, date, boolean, pgEnum, index } from "drizzle-orm/pg-core";
+import { serial, integer, text, timestamp, date, boolean, index } from "drizzle-orm/pg-core";
+import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { centerTable } from "./center.table";
 import { courseTable } from "./course.table";
@@ -7,13 +8,13 @@ import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { CourseRequestStatus } from "../../../types/course-request/course-request-status.enum";
 import { CourseRequestSource } from "../../../types/course-request/course-request-source.enum";
 
-export const courseRequestStatus = pgEnum('course_request_status', Object.values(CourseRequestStatus) as [string, ...string[]]);
-export const courseRequestSource = pgEnum('course_request_source', Object.values(CourseRequestSource) as [string, ...string[]]);
+export const courseRequestStatus = academyhubSchema.enum('course_request_status', Object.values(CourseRequestStatus) as [string, ...string[]]);
+export const courseRequestSource = academyhubSchema.enum('course_request_source', Object.values(CourseRequestSource) as [string, ...string[]]);
 
 // Petición de formación de un centro: cabecera. Las filas de alumnos viven en
 // course_request_students. En esta fase no se toca `users`/matrícula: los
 // datos de alumnos son texto en bruto, editable como una hoja de cálculo.
-export const courseRequestTable = pgTable('course_requests', {
+export const courseRequestTable = academyhubSchema.table('course_requests', {
   id_request: serial().primaryKey(),
   // Nullable: lo normal es que la petición tenga centro, pero no se bloquea si falta
   // (se avisa en el cliente).
