@@ -81,6 +81,13 @@ export class CourseRequestController {
     return this.courseRequestService.findById(parseId(id));
   }
 
+  @Post(":id/duplicate")
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @ApiOperation({ summary: "Duplicar una petición (cabecera + alumnos) como una nueva petición abierta" })
+  async duplicate(@Param("id") id: string, @Req() req: { user: JwtPayload }) {
+    return this.courseRequestService.duplicate(parseId(id), req.user?.id);
+  }
+
   @Put(":id")
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   @ApiOperation({ summary: "Editar la cabecera de una petición" })

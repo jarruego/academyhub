@@ -97,6 +97,56 @@ describe("CourseRequestService", () => {
     expect(courseRequestRepository.reportRows).toHaveBeenCalledWith({ id_company: [3, 5] });
   });
 
+  it("duplica cabecera y alumnos como una petición nueva (ABIERTA, sin urgente ni fecha original)", async () => {
+    const { service, courseRequestRepository, courseRequestStudentRepository } = buildService();
+    courseRequestRepository.findById
+      .mockResolvedValueOnce({
+        id_request: 1,
+        status: CourseRequestStatus.CERRADA,
+        id_course: 5,
+        id_center: 2,
+        contact_email: "a@b.com",
+        notes: "nota",
+        is_urgent: true,
+      })
+      .mockResolvedValueOnce({
+        id_request: 9,
+        status: CourseRequestStatus.ABIERTA,
+        id_course: 5,
+        id_center: 2,
+        contact_email: "a@b.com",
+        notes: "nota",
+        is_urgent: false,
+      });
+    courseRequestStudentRepository.findByRequest
+      .mockResolvedValueOnce([
+        { id: 1, id_request: 1, row_order: 0, name: "Juan", first_surname: "García", second_surname: null, dni: "12345678A", email: "juan@example.com", phone_mobile: null },
+      ])
+      .mockResolvedValueOnce([]);
+    courseRequestRepository.create.mockResolvedValue({ id_request: 9 });
+
+    const result = await service.duplicate(1, 42);
+
+    expect(courseRequestRepository.create).toHaveBeenCalledWith({
+      id_center: 2,
+      id_course: 5,
+      contact_email: "a@b.com",
+      notes: "nota",
+      created_by: 42,
+    });
+    expect(courseRequestStudentRepository.appendRows).toHaveBeenCalledWith(9, [
+      { name: "Juan", first_surname: "García", second_surname: null, dni: "12345678A", email: "juan@example.com", phone_mobile: null },
+    ]);
+    expect(result.id_request).toBe(9);
+  });
+
+  it("duplicar una petición sin alumnos no llama a appendRows", async () => {
+    const { service, courseRequestRepository, courseRequestStudentRepository } = buildService();
+    courseRequestRepository.create.mockResolvedValue({ id_request: 9 });
+    await service.duplicate(1);
+    expect(courseRequestStudentRepository.appendRows).not.toHaveBeenCalled();
+  });
+
   it("subir excel marca la petición como origen EXCEL", async () => {
     const { service, courseRequestRepository, courseRequestStudentRepository } = buildService();
     // Excel mínimo válido generado en memoria (una fila reconocible).

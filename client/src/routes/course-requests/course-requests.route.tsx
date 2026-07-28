@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { App, Button, Card, Segmented, Select, Switch, Table, Tag, Typography } from "antd";
-import { PlusOutlined } from "@ant-design/icons";
+import { App, Button, Card, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
+import { CopyOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { ColumnsType } from "antd/es/table";
 import { useCourseRequestsQuery } from "../../hooks/api/course-requests/use-course-requests.query";
 import { useToggleCourseRequestUrgentMutation } from "../../hooks/api/course-requests/use-toggle-course-request-urgent.mutation";
+import { useDuplicateCourseRequestMutation } from "../../hooks/api/course-requests/use-duplicate-course-request.mutation";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
@@ -49,6 +50,7 @@ function CourseRequestsListTab() {
   const { data: centers } = useCentersQuery();
   const { data: companies } = useCompaniesQuery();
   const toggleUrgentMutation = useToggleCourseRequestUrgentMutation();
+  const duplicateMutation = useDuplicateCourseRequestMutation();
 
   const status = statusFilter === "abiertas" ? CourseRequestStatus.ABIERTA
     : statusFilter === "cerradas" ? CourseRequestStatus.CERRADA
@@ -80,6 +82,16 @@ function CourseRequestsListTab() {
       await toggleUrgentMutation.mutateAsync({ id_request: record.id_request, is_urgent: checked });
     } catch {
       messageApi.error("No se pudo actualizar (¿la petición está cerrada?)");
+    }
+  };
+
+  const handleDuplicate = async (record: CourseRequest) => {
+    try {
+      const duplicated = await duplicateMutation.mutateAsync(record.id_request);
+      messageApi.success("Petición duplicada");
+      navigate(`/course-requests/${duplicated.id_request}`);
+    } catch {
+      messageApi.error("No se pudo duplicar la petición");
     }
   };
 
@@ -150,6 +162,27 @@ function CourseRequestsListTab() {
         <Tag color={v === CourseRequestStatus.ABIERTA ? "processing" : "default"}>{v}</Tag>
       ),
     },
+    ...(canEdit
+      ? [
+          {
+            title: "",
+            key: "actions",
+            width: 50,
+            render: (_: unknown, record: CourseRequest) => (
+              <span onClick={(e) => e.stopPropagation()}>
+                <Tooltip title="Duplicar petición">
+                  <Button
+                    size="small"
+                    icon={<CopyOutlined />}
+                    loading={duplicateMutation.isPending}
+                    onClick={() => handleDuplicate(record)}
+                  />
+                </Tooltip>
+              </span>
+            ),
+          },
+        ]
+      : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [canEdit]);
 

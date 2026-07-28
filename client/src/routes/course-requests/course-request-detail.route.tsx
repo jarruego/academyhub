@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { App, Alert, Button, Card, Col, DatePicker, Form, Input, Row, Select, Switch, Tag } from "antd";
-import { DeleteOutlined, LockOutlined, SaveOutlined, UnlockOutlined, WarningFilled } from "@ant-design/icons";
+import { CopyOutlined, DeleteOutlined, LockOutlined, SaveOutlined, UnlockOutlined, WarningFilled } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import { useCourseRequestQuery } from "../../hooks/api/course-requests/use-course-request.query";
 import { useUpdateCourseRequestMutation } from "../../hooks/api/course-requests/use-update-course-request.mutation";
@@ -10,6 +10,7 @@ import { useUploadCourseRequestExcelMutation } from "../../hooks/api/course-requ
 import { useCloseCourseRequestMutation } from "../../hooks/api/course-requests/use-close-course-request.mutation";
 import { useReopenCourseRequestMutation } from "../../hooks/api/course-requests/use-reopen-course-request.mutation";
 import { useDeleteCourseRequestMutation } from "../../hooks/api/course-requests/use-delete-course-request.mutation";
+import { useDuplicateCourseRequestMutation } from "../../hooks/api/course-requests/use-duplicate-course-request.mutation";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
@@ -48,6 +49,7 @@ export default function CourseRequestDetailRoute() {
   const closeMutation = useCloseCourseRequestMutation(Number(id_request));
   const reopenMutation = useReopenCourseRequestMutation(Number(id_request));
   const deleteMutation = useDeleteCourseRequestMutation(Number(id_request));
+  const duplicateMutation = useDuplicateCourseRequestMutation();
 
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery();
@@ -115,6 +117,16 @@ export default function CourseRequestDetailRoute() {
     try {
       await reopenMutation.mutateAsync();
       messageApi.success("Petición reabierta");
+    } catch (err) {
+      messageApi.error(getServerMessage(err));
+    }
+  };
+
+  const handleDuplicate = async () => {
+    try {
+      const duplicated = await duplicateMutation.mutateAsync(Number(id_request));
+      messageApi.success("Petición duplicada");
+      navigate(`/course-requests/${duplicated.id_request}`);
     } catch (err) {
       messageApi.error(getServerMessage(err));
     }
@@ -225,6 +237,9 @@ export default function CourseRequestDetailRoute() {
                     Cerrar petición
                   </Button>
                 )}
+                <Button icon={<CopyOutlined />} loading={duplicateMutation.isPending} onClick={handleDuplicate}>
+                  Duplicar petición
+                </Button>
                 <Button danger icon={<DeleteOutlined />} onClick={handleDelete}>
                   Eliminar petición
                 </Button>

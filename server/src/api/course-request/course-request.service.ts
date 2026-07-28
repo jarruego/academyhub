@@ -59,6 +59,38 @@ export class CourseRequestService {
     return { ...header, students };
   }
 
+  /**
+   * Duplica una petición (cabecera + alumnos) como una nueva petición ABIERTA,
+   * para reaprovechar una ya existente. Copia centro/curso/correo/notas, pero
+   * NO la fecha de la petición (se pone hoy, es una petición nueva) ni "urgente"
+   * (se reinicia a false) ni el estado (siempre nace ABIERTA aunque la original
+   * esté cerrada) — todo eso lo controlan los defaults de la propia tabla.
+   */
+  async duplicate(id_request: number, createdBy?: number) {
+    const original = await this.findById(id_request);
+    const created = await this.courseRequestRepository.create({
+      id_center: original.id_center,
+      id_course: original.id_course,
+      contact_email: original.contact_email,
+      notes: original.notes,
+      created_by: createdBy ?? null,
+    });
+    if (original.students.length) {
+      await this.courseRequestStudentRepository.appendRows(
+        created.id_request,
+        original.students.map(({ name, first_surname, second_surname, dni, email, phone_mobile }) => ({
+          name,
+          first_surname,
+          second_surname,
+          dni,
+          email,
+          phone_mobile,
+        })),
+      );
+    }
+    return this.findById(created.id_request);
+  }
+
   private async ensureExists(id_request: number) {
     const header = await this.courseRequestRepository.findById(id_request);
     if (!header) throw new NotFoundException("Petición no encontrada.");

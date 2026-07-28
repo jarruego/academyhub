@@ -46,8 +46,8 @@ ExcelJS, primera hoja. Detección de columnas **por nombre de cabecera** (normal
 
 Permisos: `RoleGuard([ADMIN, MANAGER, VIEWER])` a nivel de controlador (acceso de lectura para los tres roles), y **además** `RoleGuard([ADMIN, MANAGER])` a nivel de método en los endpoints de escritura (ambos guards se aplican, con lo que VIEWER pasa el primero pero no el segundo — mismo patrón que usa `import-inaem` para el `DELETE` solo-ADMIN). ADMIN y MANAGER tienen acceso total; VIEWER solo lectura (no puede crear, editar, cerrar/reabrir, subir Excel ni borrar).
 
-- **Lectura** (ADMIN/MANAGER/VIEWER): `GET /` (filtros `id_course`/`id_center`/`id_company`/`status`), `GET /stats`, `GET /report` (filtros `id_company`/`id_center`/`id_course`), `GET /report/pdf` (mismos filtros, streama el PDF), `GET /:id`.
-- **Escritura** (solo ADMIN/MANAGER): `POST /`, `PUT /:id`, `PUT /:id/students`, `POST /:id/upload`, `PUT /:id/close`, `PUT /:id/reopen`, `DELETE /:id`.
+- **Lectura** (ADMIN/MANAGER/VIEWER): `GET /` (filtros `id_course`/`id_center`/`id_company`/`status`), `GET /report` (filtros `id_company`/`id_center`/`id_course`), `GET /report/pdf` (mismos filtros, streama el PDF), `GET /:id`.
+- **Escritura** (solo ADMIN/MANAGER): `POST /`, `POST /:id/duplicate`, `PUT /:id`, `PUT /:id/students`, `POST /:id/upload`, `PUT /:id/close`, `PUT /:id/reopen`, `DELETE /:id`.
 
 `report`/`report/pdf` están declarados **antes** de `GET /:id` en el controlador para que Nest no intente parsear "report" como un ID.
 
@@ -71,7 +71,11 @@ Resto de pantallas:
 
 ## Gotchas / convenciones
 
-- **`count()` de Postgres llega como `string`** (bigint, para no perder precisión), no como `number`, pese a que Drizzle lo tipa `number` en TS — es una mentira de tipos habitual en este proyecto (mismo patrón que `Number(rows[0]?.value ?? 0)` en otros repositorios, p. ej. `group.repository.ts`). Si no se castea, sumar varias filas con `+=` en el cliente/servidor concatena texto en vez de sumar (`0 + "1" + "1"... = "0111111"`, que además el `Statistic` de antd renderiza agrupado como `0,111,111` — bug real detectado y corregido). Por eso `CourseRequestRepository` castea `request_count`/`student_count` a `Number(...)` **en el propio repositorio** (`castStudentCount` + `.map()` tras cada `await`) en `findAll`, `findById`, `statsByCourse`, `statsByCourseCompany` y `reportRows`, para que el resto de capas (servicio, PDF, cliente) puedan confiar en el tipo `number` sin re-castear.
+- **`count()` de Postgres llega como `string`** (bigint, para no perder precisión), no como `number`, pese a que Drizzle lo tipa `number` en TS — es una mentira de tipos habitual en este proyecto (mismo patrón que `Number(rows[0]?.value ?? 0)` en otros repositorios, p. ej. `group.repository.ts`). Si no se castea, sumar varias filas con `+=` en el cliente/servidor concatena texto en vez de sumar (`0 + "1" + "1"... = "0111111"`, que además el `Statistic` de antd renderiza agrupado como `0,111,111` — bug real detectado y corregido). Por eso `CourseRequestRepository` castea `student_count` a `Number(...)` **en el propio repositorio** (`castStudentCount` + `.map()` tras cada `await`) en `findAll`, `findById`; `reportRows` hace lo mismo con `request_count`/`student_count`. El resto de capas (servicio, PDF, cliente) confían en el tipo `number` sin re-castear.
+
+## Duplicar una petición (`duplicate`)
+
+Botón "Duplicar petición" en el detalle (junto a Cerrar/Reabrir/Eliminar, visible con la petición **cerrada o abierta**) y acción rápida por fila en el listado (`course-requests.route.tsx`, columna de acciones solo si `canEdit`). `POST /:id/duplicate` (`CourseRequestService.duplicate`) crea una petición nueva copiando `id_center`/`id_course`/`contact_email`/`notes` y las filas de alumnos tal cual (vía `appendRows`), pero deja que los **defaults de la tabla** fijen el resto: `status=ABIERTA` (aunque la original esté `CERRADA`), `request_date=hoy` (no la de la original — es una petición nueva), `is_urgent=false`, `source=MANUAL`. No hay un estado "duplicada" a propósito: la petición nace `ABIERTA` normal y corriente, sin marca especial que mantener sincronizada — la decisión de diseño fue no añadir una tercera categoría a `status` solo para señalizar "recién creada, sin revisar". Tras duplicar, el cliente navega a la ficha de la nueva petición.
 
 ## Importación en grupos (`ImportFromCourseRequestsModal`)
 
