@@ -45,6 +45,7 @@ function CourseRequestsListTab() {
   const [idCourse, setIdCourse] = useState<number | undefined>();
   const [idCenter, setIdCenter] = useState<number | undefined>();
   const [idCompanies, setIdCompanies] = useState<number[]>([]);
+  const [idGroup, setIdGroup] = useState<number | undefined>();
 
   const { data: courses } = useCoursesQuery();
   const { data: centers } = useCentersQuery();
@@ -58,11 +59,17 @@ function CourseRequestsListTab() {
 
   const { data: allRequests, isLoading } = useCourseRequestsQuery({ id_course: idCourse, id_center: idCenter, status });
 
-  // La empresa filtra en cliente (el endpoint ya devuelve id_company por fila);
-  // el centro, en cambio, se filtra en servidor (ver query de arriba).
-  const requests = useMemo(
+  // La empresa y el grupo filtran en cliente (el endpoint ya devuelve
+  // id_company y groups por fila); el centro y el curso, en cambio, se
+  // filtran en servidor (ver query de arriba).
+  const companyFilteredRequests = useMemo(
     () => allRequests?.filter((r) => !idCompanies.length || (r.id_company != null && idCompanies.includes(r.id_company))),
     [allRequests, idCompanies],
+  );
+
+  const requests = useMemo(
+    () => companyFilteredRequests?.filter((r) => !idGroup || r.groups.some((g) => g.id_group === idGroup)),
+    [companyFilteredRequests, idGroup],
   );
 
   // Solo centros de las empresas seleccionadas (si no hay ninguna, todos).
@@ -70,6 +77,17 @@ function CourseRequestsListTab() {
     () => centers?.filter((c) => !idCompanies.length || idCompanies.includes(c.id_company)),
     [centers, idCompanies],
   );
+
+  // Grupos a los que pertenece alguna de las peticiones ya filtradas por
+  // empresa/curso/centro/estado (sin aplicar aún el propio filtro de grupo,
+  // para no autoexcluirse) — igual que companyColumns en el pivote "Por curso".
+  const groupOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const r of companyFilteredRequests ?? []) {
+      for (const g of r.groups) map.set(g.id_group, g.group_name);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [companyFilteredRequests]);
 
   const handleCompaniesChange = (values: number[]) => {
     setIdCompanies(values);
@@ -148,19 +166,56 @@ function CourseRequestsListTab() {
     },
     {
       title: "Alumnos",
-      dataIndex: "student_count",
-      width: 50,
+      key: "student_count",
+      width: 70,
       ellipsis: true,
-      sorter: (a, b) => a.student_count - b.student_count,
+      sorter: (a, b) => a.in_group_student_count - b.in_group_student_count,
+      render: (_: unknown, record: CourseRequest) => (
+        <Tooltip title="En grupo ahora mismo / total">
+          {record.in_group_student_count} / {record.student_count}
+        </Tooltip>
+      ),
     },
     {
       title: "Estado",
       dataIndex: "status",
       width: 100,
       sorter: (a, b) => a.status.localeCompare(b.status),
-      render: (v: CourseRequestStatus) => (
-        <Tag color={v === CourseRequestStatus.ABIERTA ? "processing" : "default"}>{v}</Tag>
-      ),
+      render: (v: CourseRequestStatus, record: CourseRequest) => {
+        const isPartial = record.in_group_student_count > 0 && record.in_group_student_count < record.student_count;
+        return (
+          <>
+            <Tag color={v === CourseRequestStatus.ABIERTA ? "processing" : "default"}>{v}</Tag>
+            {isPartial && (
+              <Tooltip title="No todos los alumnos de esta petición están (o siguen) en un grupo">
+                <Tag color="gold">Parcial</Tag>
+              </Tooltip>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      title: "Grupos",
+      dataIndex: "groups",
+      width: 110,
+      ellipsis: true,
+      sorter: (a, b) => a.groups.length - b.groups.length,
+      render: (groups: CourseRequest["groups"]) =>
+        groups.length
+          ? groups.map((g) => (
+              <Tag
+                key={g.id_group}
+                style={{ cursor: "pointer" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDetail(`/groups/${g.id_group}/edit`);
+                }}
+              >
+                {g.group_name}
+              </Tag>
+            ))
+          : "-",
     },
     ...(canEdit
       ? [
@@ -303,6 +358,16 @@ function CourseRequestsListTab() {
         onChange={setIdCenter}
         optionFilterProp="label"
         options={centerOptions?.map((c) => ({ value: c.id_center, label: c.center_name }))}
+      />
+      <Select
+        allowClear
+        showSearch
+        placeholder="Filtrar por grupo"
+        style={{ minWidth: 220 }}
+        value={idGroup}
+        onChange={setIdGroup}
+        optionFilterProp="label"
+        options={groupOptions.map(([id_group, group_name]) => ({ value: id_group, label: group_name }))}
       />
       <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/course-requests/create")}>

@@ -283,6 +283,21 @@ export class UserGroupRepository extends Repository {
      * Busca un role por su shortname en la tabla user_roles. Si no existe, lo crea.
      * Devuelve el id_role o undefined si no se pudo obtenerlo.
      */
+    /**
+     * DNI de cada miembro actualmente inscrito en los grupos indicados (para
+     * detectar, sin guardar ningún flag, si un alumno asignado desde una
+     * petición sigue realmente en su grupo o ya se le dio de baja — ver
+     * CourseRequestService).
+     */
+    async findActiveDnisByGroups(groupIds: number[], options?: QueryOptions): Promise<Array<{ id_group: number; dni: string }>> {
+        if (!groupIds.length) return [];
+        return this.query(options)
+            .select({ id_group: userGroupTable.id_group, dni: userTable.dni })
+            .from(userGroupTable)
+            .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
+            .where(inArray(userGroupTable.id_group, groupIds));
+    }
+
     async findOrCreateRoleByShortname(roleShortname: string, options?: QueryOptions) {
         const q = this.query(options);
         const existing = await q.select().from(userRolesTable).where(eq(userRolesTable.role_shortname, roleShortname));

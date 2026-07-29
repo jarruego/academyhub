@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { App, Button, Input, Modal, Table, Tooltip, Upload } from "antd";
+import { App, Button, Input, Modal, Popconfirm, Table, Tag, Tooltip, Upload } from "antd";
 import type { UploadRequestOption } from "rc-upload/lib/interface";
-import { DeleteOutlined, InboxOutlined, PlusOutlined, SaveOutlined, SnippetsOutlined } from "@ant-design/icons";
+import { DeleteOutlined, InboxOutlined, PlusOutlined, SaveOutlined, SnippetsOutlined, UnlockOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import {
   CourseRequestStudent,
@@ -36,10 +36,18 @@ const FIELD_SANITIZERS: Record<keyof CourseRequestStudentInput, (value: string) 
   phone_mobile: sanitizePhoneValue,
 };
 
-type Row = CourseRequestStudentInput & { key: string };
+type Row = CourseRequestStudentInput & {
+  key: string;
+  id: number;
+  id_group: number | null;
+  currently_in_group: boolean;
+};
 
 const EMPTY_ROW = (): Row => ({
   key: `new-${Math.random().toString(36).slice(2)}`,
+  id: 0,
+  id_group: null,
+  currently_in_group: false,
   name: "",
   first_surname: "",
   second_surname: "",
@@ -51,6 +59,9 @@ const EMPTY_ROW = (): Row => ({
 function toRows(students: CourseRequestStudent[]): Row[] {
   return students.map((s) => ({
     key: `id-${s.id}`,
+    id: s.id,
+    id_group: s.id_group,
+    currently_in_group: s.currently_in_group,
     name: s.name,
     first_surname: s.first_surname,
     second_surname: s.second_surname ?? "",
@@ -154,13 +165,25 @@ type Props = {
   onSave: (rows: CourseRequestStudentInput[]) => Promise<void>;
   onUploadExcel: (file: Blob) => Promise<{ inserted: number }>;
   scrollToStudentId?: number;
+  // Solo se pasa si el usuario puede editar (ADMIN/MANAGER); si falta, la
+  // columna "Grupo" se sigue mostrando (es informativa) pero sin botón. A
+  // diferencia del resto de acciones, funciona aunque `readOnly` sea true
+  // (petición cerrada) — liberar a un alumno no requiere reabrirla.
+  onReleaseGroup?: (studentId: number) => Promise<void>;
+  // Reabrir la petición (mismo botón que ya existe en la ficha). Solo hace
+  // falta si `onReleaseGroup` también está presente: tras liberar con la
+  // petición cerrada, se ofrece reabrirla — si no, el alumno liberado no
+  // aparecerá en el modal de importación de otro grupo (que solo lista
+  // peticiones ABIERTA), y liberarlo habría sido inútil sin recordarlo.
+  onReopen?: () => Promise<void>;
 };
 
-export function CourseRequestStudentsGrid({ students, readOnly, saving, uploading, onSave, onUploadExcel, scrollToStudentId }: Props) {
-  const { message: messageApi } = App.useApp();
+export function CourseRequestStudentsGrid({ students, readOnly, saving, uploading, onSave, onUploadExcel, scrollToStudentId, onReleaseGroup, onReopen }: Props) {
+  const { message: messageApi, modal } = App.useApp();
   const [rows, setRows] = useState<Row[]>(() => toRows(students));
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
+  const [releasingId, setReleasingId] = useState<number | null>(null);
   const scrolledRef = useRef(false);
 
   useEffect(() => {
@@ -238,8 +261,40 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
     if (invalidCount > 0) {
       messageApi.warning(`Guardado con ${invalidCount} fila(s) con datos incompletos o no válidos (revisa los campos en rojo)`);
     }
-    const payload = rows.map(({ key: _key, ...rest }) => rest);
+    const payload = rows.map(({ key: _key, id: _id, id_group: _id_group, currently_in_group: _cig, ...rest }) => rest);
     await onSave(payload);
+  };
+
+  const handleReleaseGroup = async (studentId: number) => {
+    if (!onReleaseGroup) return;
+    setReleasingId(studentId);
+    try {
+      await onReleaseGroup(studentId);
+      // El efecto que resincroniza `rows` desde `students` solo se dispara si
+      // cambia el CONJUNTO de ids (alta/baja de filas, ver studentsSignature)
+      // — liberar no añade ni quita filas, así que hay que actualizar el
+      // estado local a mano o la grid se queda con el estado "asignado" viejo.
+      setRows((prev) =>
+        prev.map((row) => (row.id === studentId ? { ...row, id_group: null, currently_in_group: false } : row)),
+      );
+      messageApi.success("Alumno liberado");
+      // La petición cerrada no se reabre sola al liberar (ver docs): si no se
+      // recuerda ahora, es fácil olvidar que hace falta reabrirla para poder
+      // usar de verdad al alumno liberado en otro grupo.
+      if (readOnly && onReopen) {
+        modal.confirm({
+          title: "¿Reabrir esta petición?",
+          content: "El alumno liberado (y cualquier otro que quede libre) solo se puede volver a matricular desde otro grupo si la petición está ABIERTA. Se puede reabrir más tarde igualmente desde el botón de la ficha.",
+          okText: "Reabrir ahora",
+          cancelText: "Dejarla cerrada",
+          onOk: onReopen,
+        });
+      }
+    } catch {
+      messageApi.error("No se pudo liberar al alumno (¿sigue en el grupo?)");
+    } finally {
+      setReleasingId(null);
+    }
   };
 
   const cellColumn = (
@@ -273,6 +328,31 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
     cellColumn("DNI*", "dni", 140),
     cellColumn("Correo*", "email"),
     cellColumn("Teléfono móvil", "phone_mobile", 140),
+    {
+      title: "Grupo",
+      key: "group_status",
+      width: 150,
+      render: (_: unknown, row: Row) => {
+        if (row.id_group == null) return null;
+        if (row.currently_in_group) return <Tag color="green">En grupo</Tag>;
+        return (
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <Tag color="orange">Dado de baja</Tag>
+            {onReleaseGroup && (
+              <Popconfirm
+                title="¿Liberar a este alumno?"
+                description="Volverá a estar seleccionable en el modal de importación de otro grupo."
+                okText="Liberar"
+                cancelText="Cancelar"
+                onConfirm={() => handleReleaseGroup(row.id)}
+              >
+                <Button size="small" icon={<UnlockOutlined />} loading={releasingId === row.id} title="Liberar alumno" />
+              </Popconfirm>
+            )}
+          </span>
+        );
+      },
+    },
     ...(readOnly
       ? []
       : [

@@ -27,6 +27,12 @@ import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality, courseClient } from "./schema/tables/course.table";
 import { groupActiveMode } from "./schema/tables/group.table";
 
+// drizzle-kit necesita que el propio objeto pgSchema() se reexporte desde el
+// entrypoint (no basta con las tablas/enums derivados) para reconocer
+// "academyhub" como schema declarado; sin esto, `generate` no lo ve en el
+// estado "nuevo" y propone un DROP SCHEMA erróneo.
+export { academyhubSchema } from "./schema/pg-schema";
+
 export const auth_users = authUserTable;
 export const companies = companyTable;
 export const centers = centerTable;

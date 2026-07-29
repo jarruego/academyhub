@@ -9,17 +9,23 @@ function buildService({ status = CourseRequestStatus.ABIERTA }: { status?: Cours
     update: jest.fn().mockResolvedValue({ ...header }),
     create: jest.fn(),
     delete: jest.fn().mockResolvedValue(undefined),
-    findAll: jest.fn(),
+    findAll: jest.fn().mockResolvedValue([]),
     reportRows: jest.fn().mockResolvedValue([]),
   } as any;
   const courseRequestStudentRepository = {
     replaceAll: jest.fn().mockResolvedValue([]),
     findByRequest: jest.fn().mockResolvedValue([]),
     appendRows: jest.fn().mockResolvedValue([{ id: 1 }]),
+    assignGroup: jest.fn().mockResolvedValue([]),
+    releaseGroup: jest.fn().mockResolvedValue({}),
+    findAssignedByRequests: jest.fn().mockResolvedValue([]),
+  } as any;
+  const userGroupRepository = {
+    findActiveDnisByGroups: jest.fn().mockResolvedValue([]),
   } as any;
 
-  const service = new CourseRequestService(courseRequestRepository, courseRequestStudentRepository);
-  return { service, courseRequestRepository, courseRequestStudentRepository };
+  const service = new CourseRequestService(courseRequestRepository, courseRequestStudentRepository, userGroupRepository);
+  return { service, courseRequestRepository, courseRequestStudentRepository, userGroupRepository };
 }
 
 describe("CourseRequestService", () => {
@@ -160,5 +166,117 @@ describe("CourseRequestService", () => {
     await service.uploadExcel(1, Buffer.from(buffer));
     expect(courseRequestStudentRepository.appendRows).toHaveBeenCalled();
     expect(courseRequestRepository.update).toHaveBeenCalledWith(1, { source: "EXCEL" });
+  });
+
+  it("asigna alumnos a un grupo sin cerrar la petición si quedan alumnos sin asignar", async () => {
+    const { service, courseRequestRepository, courseRequestStudentRepository } = buildService();
+    courseRequestStudentRepository.findByRequest.mockResolvedValue([
+      { id: 1, id_group: 10 },
+      { id: 2, id_group: null },
+    ]);
+
+    await service.assignStudentsToGroup(1, 10, [1]);
+
+    expect(courseRequestStudentRepository.assignGroup).toHaveBeenCalledWith(1, [1], 10);
+    expect(courseRequestRepository.update).not.toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ status: CourseRequestStatus.CERRADA }),
+    );
+  });
+
+  it("cierra automáticamente la petición cuando todos sus alumnos quedan asignados a un grupo", async () => {
+    const { service, courseRequestRepository, courseRequestStudentRepository } = buildService();
+    courseRequestStudentRepository.findByRequest.mockResolvedValue([
+      { id: 1, id_group: 10 },
+      { id: 2, id_group: 11 },
+    ]);
+
+    await service.assignStudentsToGroup(1, 11, [2]);
+
+    expect(courseRequestRepository.update).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ status: CourseRequestStatus.CERRADA }),
+    );
+  });
+
+  it("bloquea asignar alumnos a un grupo si la petición ya está cerrada", async () => {
+    const { service } = buildService({ status: CourseRequestStatus.CERRADA });
+    await expect(service.assignStudentsToGroup(1, 10, [1])).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("marca currently_in_group calculándolo al vuelo (sin flag guardado)", async () => {
+    const { service, courseRequestStudentRepository, userGroupRepository } = buildService();
+    courseRequestStudentRepository.findByRequest.mockResolvedValue([
+      { id: 1, id_request: 1, id_group: 10, dni: "12345678A" },
+      { id: 2, id_request: 1, id_group: 10, dni: "87654321B" },
+      { id: 3, id_request: 1, id_group: null, dni: "11111111C" },
+    ]);
+    userGroupRepository.findActiveDnisByGroups.mockResolvedValue([{ id_group: 10, dni: "12345678-A" }]);
+
+    const result = await service.findById(1);
+
+    expect(userGroupRepository.findActiveDnisByGroups).toHaveBeenCalledWith([10]);
+    expect(result.students.map((s: any) => s.currently_in_group)).toEqual([true, false, false]);
+    expect(result.in_group_student_count).toBe(1);
+  });
+
+  it("findAll calcula in_group_student_count por petición cruzando por DNI contra el grupo real", async () => {
+    const { service, courseRequestRepository, courseRequestStudentRepository, userGroupRepository } = buildService();
+    courseRequestRepository.findAll.mockResolvedValue([
+      { id_request: 1, status: CourseRequestStatus.ABIERTA, student_count: 4 },
+      { id_request: 2, status: CourseRequestStatus.CERRADA, student_count: 2 },
+    ]);
+    courseRequestStudentRepository.findAssignedByRequests.mockResolvedValue([
+      { id_request: 1, id_group: 10, dni: "12345678A" },
+      { id_request: 1, id_group: 10, dni: "87654321B" },
+      { id_request: 2, id_group: 20, dni: "11111111C" },
+    ]);
+    // Solo el primer alumno de la petición 1 sigue realmente en el grupo 10;
+    // el de la petición 2 ya no está en el 20 (dado de baja, sin liberar).
+    userGroupRepository.findActiveDnisByGroups.mockResolvedValue([{ id_group: 10, dni: "12345678A" }]);
+
+    const result = await service.findAll({});
+
+    expect(courseRequestStudentRepository.findAssignedByRequests).toHaveBeenCalledWith([1, 2]);
+    expect(result.map((r: any) => r.in_group_student_count)).toEqual([1, 0]);
+  });
+
+  it("findAll con listado vacío no llama a findAssignedByRequests", async () => {
+    const { service, courseRequestRepository, courseRequestStudentRepository } = buildService();
+    courseRequestRepository.findAll.mockResolvedValue([]);
+    const result = await service.findAll({});
+    expect(result).toEqual([]);
+    expect(courseRequestStudentRepository.findAssignedByRequests).not.toHaveBeenCalled();
+  });
+
+  it("libera a un alumno que ya no está en el grupo", async () => {
+    const { service, courseRequestStudentRepository, userGroupRepository } = buildService();
+    courseRequestStudentRepository.findByRequest.mockResolvedValue([
+      { id: 1, id_request: 1, id_group: 10, dni: "12345678A" },
+    ]);
+    userGroupRepository.findActiveDnisByGroups.mockResolvedValue([]);
+
+    await service.releaseStudentGroup(1, 1);
+
+    expect(courseRequestStudentRepository.releaseGroup).toHaveBeenCalledWith(1, 1);
+  });
+
+  it("bloquea liberar a un alumno que sigue realmente en el grupo", async () => {
+    const { service, courseRequestStudentRepository, userGroupRepository } = buildService();
+    courseRequestStudentRepository.findByRequest.mockResolvedValue([
+      { id: 1, id_request: 1, id_group: 10, dni: "12345678A" },
+    ]);
+    userGroupRepository.findActiveDnisByGroups.mockResolvedValue([{ id_group: 10, dni: "12345678A" }]);
+
+    await expect(service.releaseStudentGroup(1, 1)).rejects.toBeInstanceOf(ConflictException);
+    expect(courseRequestStudentRepository.releaseGroup).not.toHaveBeenCalled();
+  });
+
+  it("bloquea liberar a un alumno que no está asignado a ningún grupo", async () => {
+    const { service, courseRequestStudentRepository } = buildService();
+    courseRequestStudentRepository.findByRequest.mockResolvedValue([
+      { id: 1, id_request: 1, id_group: null, dni: "12345678A" },
+    ]);
+    await expect(service.releaseStudentGroup(1, 1)).rejects.toBeInstanceOf(ConflictException);
   });
 });

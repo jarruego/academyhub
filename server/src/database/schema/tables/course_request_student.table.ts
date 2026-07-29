@@ -2,6 +2,7 @@ import { serial, integer, text, index } from "drizzle-orm/pg-core";
 import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { courseRequestTable } from "./course_request.table";
+import { groupTable } from "./group.table";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 
 // Filas de alumnos de una petición ("hoja de cálculo"): texto en bruto, sin
@@ -16,11 +17,16 @@ export const courseRequestStudentTable = academyhubSchema.table('course_request_
   dni: text().notNull(),
   email: text().notNull(),
   phone_mobile: text(),
+  // Grupo al que se matriculó este alumno concreto desde la petición (null =
+  // aún sin matricular). Permite repartir los alumnos de una misma petición
+  // entre varios grupos: los ya asignados no se pueden volver a seleccionar.
+  id_group: integer().references(() => groupTable.id_group),
   ...TIMESTAMPS,
 }, (table) => {
   return {
     // Listado de filas de una petición (detalle) en orden.
     requestIdx: index("idx_course_request_students_id_request").on(table.id_request),
+    groupIdx: index("idx_course_request_students_id_group").on(table.id_group),
   };
 });
 

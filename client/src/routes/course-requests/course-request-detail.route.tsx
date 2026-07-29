@@ -11,6 +11,7 @@ import { useCloseCourseRequestMutation } from "../../hooks/api/course-requests/u
 import { useReopenCourseRequestMutation } from "../../hooks/api/course-requests/use-reopen-course-request.mutation";
 import { useDeleteCourseRequestMutation } from "../../hooks/api/course-requests/use-delete-course-request.mutation";
 import { useDuplicateCourseRequestMutation } from "../../hooks/api/course-requests/use-duplicate-course-request.mutation";
+import { useReleaseCourseRequestStudentGroupMutation } from "../../hooks/api/course-requests/use-release-course-request-student-group.mutation";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
@@ -50,6 +51,7 @@ export default function CourseRequestDetailRoute() {
   const reopenMutation = useReopenCourseRequestMutation(Number(id_request));
   const deleteMutation = useDeleteCourseRequestMutation(Number(id_request));
   const duplicateMutation = useDuplicateCourseRequestMutation();
+  const releaseGroupMutation = useReleaseCourseRequestStudentGroupMutation(Number(id_request));
 
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery();
@@ -272,6 +274,8 @@ export default function CourseRequestDetailRoute() {
               }
             }}
             onUploadExcel={(file) => uploadMutation.mutateAsync(file)}
+            onReleaseGroup={canEdit ? async (studentId) => { await releaseGroupMutation.mutateAsync(studentId); } : undefined}
+            onReopen={canEdit ? handleReopen : undefined}
           />
         </Card>
       ),

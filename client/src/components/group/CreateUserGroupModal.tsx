@@ -10,6 +10,12 @@ import { useDebounce } from '../../hooks/use-debounce';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { useRole } from '../../utils/permissions/use-role';
 import { User } from '../../shared/types/user/user';
+import { USERS_TABLE_COLUMNS } from '../../constants/tables/users-table-columns.constant';
+
+// Reutiliza exactamente la misma columna (y el mismo criterio de selección de
+// centro: is_enrollment_center > is_main_center > primero de la lista) que ya
+// usa GroupUsersManager, en vez de duplicar la lógica de picking.
+const centroColumn = USERS_TABLE_COLUMNS.find((c) => c.title === 'Centro')!;
 
 interface Props {
   open: boolean;
@@ -329,6 +335,7 @@ const CreateUserGroupModal: React.FC<Props> = ({ open, groupId, onClose }) => {
                 { title: 'Nombre', dataIndex: 'name', sorter: (a: User, b: User) => (a.name || '').localeCompare(b.name || '') },
                 { title: 'Apellidos', dataIndex: 'first_surname', sorter: (a: User, b: User) => (`${a.first_surname ?? ''} ${a.second_surname ?? ''}`).localeCompare(`${b.first_surname ?? ''} ${b.second_surname ?? ''}`), render: (_: unknown, user: User) => `${user.first_surname ?? ''} ${user.second_surname ?? ''}`.trim() },
                 { title: 'Email', dataIndex: 'email' },
+                centroColumn,
               ]}
               dataSource={filteredGroupUsersData}
               loading={isGroupUsersLoading}

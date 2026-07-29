@@ -23,6 +23,15 @@ export type CourseRequest = {
   company_name: string | null;
   course_name: string;
   student_count: number;
+  // Alumnos que siguen de verdad en un grupo ahora mismo (calculado al vuelo
+  // por DNI contra la matrícula real, no solo "tiene id_group" — un alumno
+  // dado de baja del grupo sin liberar todavía NO cuenta aquí). Distinto del
+  // total histórico (student_count); si no coinciden, la petición está
+  // "parcial" (algunos colocados, otros no o ya no), esté abierta o cerrada.
+  in_group_student_count: number;
+  // Grupos a los que ya se ha matriculado algún alumno de esta petición
+  // (derivado de course_request_students.id_group, ver assignStudentsToGroup).
+  groups: { id_group: number; group_name: string }[];
 };
 
 export type CourseRequestStudent = {
@@ -35,6 +44,11 @@ export type CourseRequestStudent = {
   dni: string;
   email: string;
   phone_mobile: string | null;
+  // Grupo al que se matriculó este alumno concreto (null = aún sin matricular).
+  id_group: number | null;
+  // Si tiene id_group: si sigue realmente en ese grupo ahora mismo (calculado
+  // al vuelo por DNI, no es un flag guardado — ver docs/course-requests.md).
+  currently_in_group: boolean;
 };
 
 export type CourseRequestDetail = CourseRequest & { students: CourseRequestStudent[] };

@@ -1,6 +1,6 @@
 {
-  "id": "3ce06b1c-0d27-41ee-8a35-a2ec4f190ce2",
-  "prevId": "80055e29-ffe2-4676-b573-23fe625a436f",
+  "id": "704ec15b-f3fd-4f49-b0db-52672b310e8a",
+  "prevId": "3ce06b1c-0d27-41ee-8a35-a2ec4f190ce2",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2109,6 +2109,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "id_group": {
+          "name": "id_group",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2117,6 +2123,22 @@
           "columns": [
             {
               "expression": "id_request",
+              "asc": true,
+              "nulls": "last",
+              "opclass": "int4_ops",
+              "isExpression": false
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_course_request_students_id_group": {
+          "name": "idx_course_request_students_id_group",
+          "columns": [
+            {
+              "expression": "id_group",
               "asc": true,
               "nulls": "last",
               "opclass": "int4_ops",
@@ -2142,6 +2164,20 @@
             "id_request"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "course_request_students_id_group_groups_id_group_fk": {
+          "name": "course_request_students_id_group_groups_id_group_fk",
+          "tableFrom": "course_request_students",
+          "tableTo": "groups",
+          "schemaTo": "academyhub",
+          "columnsFrom": [
+            "id_group"
+          ],
+          "columnsTo": [
+            "id_group"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },

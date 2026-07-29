@@ -26,6 +26,7 @@ import { CourseRequestPdfService } from "./course-request-pdf.service";
 import { CreateCourseRequestDto } from "./dto/create-course-request.dto";
 import { UpdateCourseRequestDto } from "./dto/update-course-request.dto";
 import { SaveCourseRequestStudentsDto } from "./dto/save-course-request-students.dto";
+import { AssignCourseRequestStudentsGroupDto } from "./dto/assign-course-request-students-group.dto";
 import { FilterCourseRequestDto } from "./dto/filter-course-request.dto";
 import { CourseRequestReportFilterDto } from "./dto/course-request-report-filter.dto";
 
@@ -100,6 +101,20 @@ export class CourseRequestController {
   @ApiOperation({ summary: "Guardar (sustituir) las filas de alumnos de la petición" })
   async saveStudents(@Param("id") id: string, @Body() dto: SaveCourseRequestStudentsDto) {
     return this.courseRequestService.saveStudents(parseId(id), dto.students);
+  }
+
+  @Put(":id/students/assign-group")
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @ApiOperation({ summary: "Asignar alumnos concretos de la petición a un grupo (matriculación)" })
+  async assignStudentsToGroup(@Param("id") id: string, @Body() dto: AssignCourseRequestStudentsGroupDto) {
+    return this.courseRequestService.assignStudentsToGroup(parseId(id), dto.id_group, dto.studentIds);
+  }
+
+  @Put(":id/students/:studentId/release-group")
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @ApiOperation({ summary: "Liberar a un alumno de su grupo asignado (ya no está realmente en el grupo)" })
+  async releaseStudentGroup(@Param("id") id: string, @Param("studentId") studentId: string) {
+    return this.courseRequestService.releaseStudentGroup(parseId(id), parseId(studentId));
   }
 
   @Post(":id/upload")

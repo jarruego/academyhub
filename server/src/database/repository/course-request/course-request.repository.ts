@@ -1,11 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { Repository, QueryOptions } from "../repository";
 import { courseRequestTable } from "src/database/schema/tables/course_request.table";
 import { courseRequestStudentTable } from "src/database/schema/tables/course_request_student.table";
 import { centerTable } from "src/database/schema/tables/center.table";
 import { companyTable } from "src/database/schema/tables/company.table";
 import { courseTable } from "src/database/schema/tables/course.table";
+import { groupTable } from "src/database/schema/tables/group.table";
 import { CourseRequestStatus } from "src/types/course-request/course-request-status.enum";
 import {
   CourseRequestInsertModel,
@@ -49,6 +50,14 @@ const HEADER_COLUMNS = {
     SELECT count(*) FROM ${courseRequestStudentTable} crs
     WHERE crs.id_request = ${courseRequestTable.id_request}
   )`.as("student_count"),
+  // Grupos a los que ya se ha matriculado algún alumno de esta petición
+  // (derivado de course_request_students.id_group, no de una tabla aparte).
+  groups: sql<Array<{ id_group: number; group_name: string }>>`(
+    SELECT COALESCE(json_agg(DISTINCT jsonb_build_object('id_group', g.id_group, 'group_name', g.group_name)), '[]'::json)
+    FROM ${courseRequestStudentTable} crs2
+    INNER JOIN ${groupTable} g ON g.id_group = crs2.id_group
+    WHERE crs2.id_request = ${courseRequestTable.id_request}
+  )`.as("groups"),
 };
 
 @Injectable()
@@ -166,6 +175,24 @@ export class CourseRequestStudentRepository extends Repository {
       .orderBy(courseRequestStudentTable.row_order, courseRequestStudentTable.id);
   }
 
+  /**
+   * Filas ya asignadas a un grupo (id_group IS NOT NULL) de varias peticiones
+   * a la vez — solo lo mínimo para cruzarlas contra la matrícula real
+   * (id_request/id_group/dni), usado por `findAll` para calcular cuántos
+   * alumnos de cada petición siguen de verdad en su grupo ahora mismo.
+   */
+  async findAssignedByRequests(id_requests: number[], options?: QueryOptions) {
+    if (!id_requests.length) return [];
+    return this.query(options)
+      .select({
+        id_request: courseRequestStudentTable.id_request,
+        id_group: courseRequestStudentTable.id_group,
+        dni: courseRequestStudentTable.dni,
+      })
+      .from(courseRequestStudentTable)
+      .where(and(inArray(courseRequestStudentTable.id_request, id_requests), isNotNull(courseRequestStudentTable.id_group)));
+  }
+
   /** Sustituye todas las filas de la petición (guardado desde la grid). */
   async replaceAll(
     id_request: number,
@@ -187,6 +214,36 @@ export class CourseRequestStudentRepository extends Repository {
       .insert(courseRequestStudentTable)
       .values(rows.map((row, index) => ({ ...row, id_request, row_order: index })))
       .returning();
+  }
+
+  /**
+   * Asigna un grupo a las filas indicadas de la petición, solo si aún no
+   * tenían grupo (protege de reasignar por una doble selección concurrente
+   * desde dos modales de importación).
+   */
+  async assignGroup(id_request: number, studentIds: number[], id_group: number, options?: QueryOptions) {
+    if (!studentIds.length) return [];
+    return this.query(options)
+      .update(courseRequestStudentTable)
+      .set({ id_group, updatedAt: new Date() })
+      .where(
+        and(
+          eq(courseRequestStudentTable.id_request, id_request),
+          inArray(courseRequestStudentTable.id, studentIds),
+          isNull(courseRequestStudentTable.id_group),
+        ),
+      )
+      .returning();
+  }
+
+  /** Libera a un alumno de su grupo asignado (vuelve a estar seleccionable). */
+  async releaseGroup(id_request: number, studentId: number, options?: QueryOptions) {
+    const rows = await this.query(options)
+      .update(courseRequestStudentTable)
+      .set({ id_group: null, updatedAt: new Date() })
+      .where(and(eq(courseRequestStudentTable.id_request, id_request), eq(courseRequestStudentTable.id, studentId)))
+      .returning();
+    return rows[0];
   }
 
   /** Añade filas al final (alta desde Excel), conservando las ya guardadas. */

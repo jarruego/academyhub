@@ -8,11 +8,19 @@ import {
   CourseRequestRepository,
   CourseRequestStudentRepository,
 } from "src/database/repository/course-request/course-request.repository";
+import { UserGroupRepository } from "src/database/repository/group/user-group.repository";
 
 @Module({
   imports: [DatabaseModule],
   controllers: [CourseRequestController],
-  providers: [CourseRequestService, CourseRequestPdfService, PdfService, CourseRequestRepository, CourseRequestStudentRepository],
+  providers: [
+    CourseRequestService,
+    CourseRequestPdfService,
+    PdfService,
+    CourseRequestRepository,
+    CourseRequestStudentRepository,
+    UserGroupRepository,
+  ],
   exports: [CourseRequestService],
 })
 export class CourseRequestModule {}

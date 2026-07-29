@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { App, Modal, Table, Button, Tag, Spin, theme } from 'antd';
+import { App, Modal, Table, Button, Tag, Spin, Tooltip, theme } from 'antd';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { getApiHost } from '../../utils/api/get-api-host.util';
@@ -8,6 +8,7 @@ import { useAllUsersLookupQuery } from '../../hooks/api/users/use-users.query';
 import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
 import { useBulkCreateAndAddToGroupMutation } from '../../hooks/api/users/use-bulk-create-and-add-to-group.mutation';
 import { useBulkAddUsersToGroupMutation } from '../../hooks/api/groups/use-bulk-add-users-to-group.mutation';
+import { useAssignCourseRequestStudentsGroupMutation } from '../../hooks/api/course-requests/use-assign-course-request-students-group.mutation';
 import { useRole } from '../../utils/permissions/use-role';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
 import { CourseRequestStatus } from '../../shared/types/course-request/course-request-status.enum';
@@ -26,9 +27,14 @@ interface Props {
 
 type LookupUser = Pick<User, 'id_user' | 'dni' | 'name' | 'first_surname' | 'second_surname'>;
 
-type EnrichedStudent = CourseRequestStudent & {
+// El centro es de la petición de origen, no de la fila de alumno — se propaga
+// al combinar los alumnos de las peticiones seleccionadas (ver handleSelectRequests).
+type StudentWithOrigin = CourseRequestStudent & { center_name: string | null };
+
+type EnrichedStudent = StudentWithOrigin & {
   existsInDB: boolean;
   dbUser: LookupUser | null;
+  alreadyAssigned: boolean;
 };
 
 const normalizeDni = (v: unknown) =>
@@ -56,6 +62,7 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
   const { data: groupData } = useGroupQuery(groupId ? String(groupId) : undefined);
   const { mutateAsync: bulkCreateAndAddToGroup } = useBulkCreateAndAddToGroupMutation();
   const { mutateAsync: bulkAddUsersToGroup } = useBulkAddUsersToGroupMutation();
+  const { mutateAsync: assignStudentsToGroup } = useAssignCourseRequestStudentsGroupMutation();
 
   const [selectedRequestIds, setSelectedRequestIds] = useState<number[]>([]);
   const [combinedStudents, setCombinedStudents] = useState<EnrichedStudent[]>([]);
@@ -70,10 +77,10 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
     }
   }, [open]);
 
-  const enrichStudents = (students: CourseRequestStudent[]): EnrichedStudent[] =>
+  const enrichStudents = (students: StudentWithOrigin[]): EnrichedStudent[] =>
     students.map((s) => {
       const dbUser = allUsers?.find((u) => normalizeDni(u.dni) === normalizeDni(s.dni)) ?? null;
-      return { ...s, existsInDB: !!dbUser, dbUser };
+      return { ...s, existsInDB: !!dbUser, dbUser, alreadyAssigned: s.id_group != null };
     });
 
   const handleSelectRequests = async (ids: number[]) => {
@@ -89,12 +96,12 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
         ),
       );
       const seen = new Set<string>();
-      const combined: CourseRequestStudent[] = [];
+      const combined: StudentWithOrigin[] = [];
       for (const resp of details) {
         const data = resp as { data: CourseRequestDetail };
         for (const s of data.data.students) {
           const key = normalizeDni(s.dni);
-          if (!seen.has(key)) { seen.add(key); combined.push(s); }
+          if (!seen.has(key)) { seen.add(key); combined.push({ ...s, center_name: data.data.center_name }); }
         }
       }
       setCombinedStudents(enrichStudents(combined));
@@ -184,15 +191,24 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
         }
       }
 
-      // Cerrar automáticamente las peticiones usadas
+      // Marca en cada petición de origen qué alumnos concretos se acaban de
+      // matricular en este grupo (para no poder volver a seleccionarlos si la
+      // petición se reutiliza en otro grupo). El backend cierra sola la
+      // petición cuando ya no le queda ningún alumno por asignar.
+      const studentIdsByRequest = new Map<number, number[]>();
+      for (const s of selected) {
+        const ids = studentIdsByRequest.get(s.id_request) ?? [];
+        ids.push(s.id);
+        studentIdsByRequest.set(s.id_request, ids);
+      }
       await Promise.all(
-        selectedRequestIds.map((id) =>
-          axiosRequest({ method: 'PUT', url: `${getApiHost()}/api/course-requests/${id}/close` }),
+        Array.from(studentIdsByRequest.entries()).map(([id_request, studentIds]) =>
+          assignStudentsToGroup({ id_request, id_group: id_group_num, studentIds }),
         ),
       );
       await queryClient.invalidateQueries({ queryKey: ['course-requests'] });
 
-      messageApi.success('Alumnos importados y peticiones cerradas correctamente');
+      messageApi.success('Alumnos importados correctamente');
       onSuccess?.();
     };
 
@@ -238,8 +254,13 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
     },
     {
       title: 'Alumnos',
-      dataIndex: 'student_count' as keyof CourseRequest,
+      key: 'student_count',
       align: 'right' as const,
+      render: (_: unknown, record: CourseRequest) => (
+        <Tooltip title="En grupo ahora mismo / total">
+          {record.in_group_student_count} / {record.student_count}
+        </Tooltip>
+      ),
     },
     {
       title: 'Urgente',
@@ -258,6 +279,12 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
         v
           ? <span style={{ color: '#52c41a', fontWeight: 700 }}>Sí</span>
           : <span style={{ color: '#ff4d4f', fontWeight: 700 }}>No</span>,
+    },
+    {
+      title: 'Grupo',
+      dataIndex: 'alreadyAssigned' as keyof EnrichedStudent,
+      width: 90,
+      render: (v: unknown) => (v ? <Tag>Ya asignado</Tag> : null),
     },
     {
       title: 'Nombre',
@@ -291,8 +318,8 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
       ),
     },
     {
-      title: 'Email',
-      dataIndex: 'email' as keyof EnrichedStudent,
+      title: 'Centro',
+      dataIndex: 'center_name' as keyof EnrichedStudent,
       render: (v: unknown) => (v as string) || '—',
     },
     {
@@ -373,6 +400,7 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
                 onChange: (keys) => setSelectedStudentDnis(keys as string[]),
                 getCheckboxProps: (r: EnrichedStudent) => ({
                   id: `student-cb-${normalizeDni(r.dni)}`,
+                  disabled: r.alreadyAssigned,
                 }),
               } : undefined}
               rowClassName={(r: EnrichedStudent) => r.existsInDB ? '' : 'import-row-not-found'}
