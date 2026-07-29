@@ -32,6 +32,11 @@ jobs:
 
     steps:
       - name: Instalar cliente PostgreSQL 17 y rclone
+        env:
+          # Evita que "needrestart" abra un diálogo interactivo (whiptail) preguntando
+          # qué servicios reiniciar: sin TTY se queda colgado hasta el timeout del job.
+          DEBIAN_FRONTEND: noninteractive
+          NEEDRESTART_MODE: a
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq curl ca-certificates rclone gnupg
