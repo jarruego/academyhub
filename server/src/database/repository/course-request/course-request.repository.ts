@@ -25,6 +25,7 @@ export type CourseRequestReportFilters = {
   id_course?: number;
   id_center?: number;
   id_company?: number[];
+  status?: CourseRequestStatus;
 };
 
 const HEADER_COLUMNS = {
@@ -132,6 +133,7 @@ export class CourseRequestRepository extends Repository {
     if (filters.id_course) conditions.push(eq(courseRequestTable.id_course, filters.id_course));
     if (filters.id_center) conditions.push(eq(courseRequestTable.id_center, filters.id_center));
     if (filters.id_company?.length) conditions.push(inArray(companyTable.id_company, filters.id_company));
+    if (filters.status) conditions.push(eq(courseRequestTable.status, filters.status));
     const where = conditions.length ? and(...conditions) : undefined;
 
     const rows = await this.query(options)

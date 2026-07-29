@@ -17,6 +17,10 @@ export interface SendCustomMailRequest {
   userId?: number;
   moodleSenderChoice?: MoodleSenderChoice;
   tutorUserId?: number;
+  applyVariables?: boolean;
+  courseName?: string;
+  courseStart?: string;
+  courseEnd?: string;
 }
 
 export function useSendCustomMailMutation() {

@@ -36,6 +36,13 @@ export interface SendMailOptions {
   actor?: EmailActor;
   templateId?: number;
   templateName?: string;
+  // Sustitución de variables tipo {NOMBRE_CURSO} en subject/html/text antes de
+  // enviar (usado por el correo personalizado; las plantillas ya llegan
+  // sustituidas desde sendMailFromTemplate, así que no se activa por defecto).
+  applyVariables?: boolean;
+  courseName?: string;
+  courseStart?: string;
+  courseEnd?: string;
 }
 
 export interface SendMailFromTemplateOptions {
@@ -137,20 +144,71 @@ export class MailService {
     return undefined;
   }
 
+  /** Arma el record de variables tipo {NOMBRE_CURSO} disponibles para plantillas y correo personalizado. */
+  private async buildTemplateVariables(
+    userId?: number,
+    courseName?: string,
+    courseStart?: string,
+    courseEnd?: string,
+  ): Promise<Record<string, string>> {
+    const variables: Record<string, string> = {
+      '{NOMBRE_CURSO}': courseName ?? '',
+      '{FECHA_INICIO}': courseStart ?? '',
+      '{FECHA_FIN}': courseEnd ?? '',
+      '{USUARIO_MOODLE}': '',
+      '{CLAVE_MOODLE}': '',
+    };
+
+    if (userId) {
+      const moodleUsers = await this.moodleUserRepository.findByUserId(userId);
+      const main = moodleUsers.find((mu) => mu.is_main_user) ?? moodleUsers[0];
+      if (main) {
+        variables['{USUARIO_MOODLE}'] = main.moodle_username ?? '';
+        variables['{CLAVE_MOODLE}'] = main.moodle_password ?? '';
+      }
+    }
+
+    return variables;
+  }
+
+  private applyVariables(input: string, variables: Record<string, string>): string {
+    return Object.entries(variables).reduce((acc, [key, value]) => acc.replaceAll(key, value ?? ''), input);
+  }
+
+  /** Sustituye variables en subject/html/text cuando options.applyVariables está activo. */
+  private async withAppliedVariables(options: SendMailOptions): Promise<SendMailOptions> {
+    if (!options.applyVariables) return options;
+
+    const variables = await this.buildTemplateVariables(
+      options.userId,
+      options.courseName,
+      options.courseStart,
+      options.courseEnd,
+    );
+
+    return {
+      ...options,
+      subject: this.applyVariables(options.subject, variables),
+      html: options.html !== undefined ? this.applyVariables(options.html, variables) : options.html,
+      text: options.text !== undefined ? this.applyVariables(options.text, variables) : options.text,
+    };
+  }
+
   async sendMail(options: SendMailOptions): Promise<void> {
-    const recipient = Array.isArray(options.to) ? options.to.join(', ') : String(options.to ?? '');
+    const resolvedOptions = await this.withAppliedVariables(options);
+    const recipient = Array.isArray(resolvedOptions.to) ? resolvedOptions.to.join(', ') : String(resolvedOptions.to ?? '');
     const logBase = {
-      actor: options.actor,
+      actor: resolvedOptions.actor,
       recipient,
-      subject: options.subject,
-      templateId: options.templateId ?? null,
-      templateName: options.templateName ?? null,
-      senderMode: options.moodleSenderChoice ?? 'default',
-      fromName: options.from_name ?? null,
-      viaMoodle: !!options.sendViaMoodle,
+      subject: resolvedOptions.subject,
+      templateId: resolvedOptions.templateId ?? null,
+      templateName: resolvedOptions.templateName ?? null,
+      senderMode: resolvedOptions.moodleSenderChoice ?? 'default',
+      fromName: resolvedOptions.from_name ?? null,
+      viaMoodle: !!resolvedOptions.sendViaMoodle,
     };
     try {
-      const sent = await this.deliverMail(options);
+      const sent = await this.deliverMail(resolvedOptions);
       await this.recordEmailLog({
         ...logBase,
         // Remitente real resuelto en el envío (lo que ve el destinatario)
@@ -256,28 +314,15 @@ export class MailService {
     const template = await this.mailTemplatesService.findById(options.templateId);
     if (!template) throw new Error('Template not found');
 
-    const variables: Record<string, string> = {
-      '{NOMBRE_CURSO}': options.courseName ?? '',
-      '{FECHA_INICIO}': options.courseStart ?? '',
-      '{FECHA_FIN}': options.courseEnd ?? '',
-      '{USUARIO_MOODLE}': '',
-      '{CLAVE_MOODLE}': '',
-    };
+    const variables = await this.buildTemplateVariables(
+      options.userId,
+      options.courseName,
+      options.courseStart,
+      options.courseEnd,
+    );
 
-    if (options.userId) {
-      const moodleUsers = await this.moodleUserRepository.findByUserId(options.userId);
-      const main = moodleUsers.find((mu) => mu.is_main_user) ?? moodleUsers[0];
-      if (main) {
-        variables['{USUARIO_MOODLE}'] = main.moodle_username ?? '';
-        variables['{CLAVE_MOODLE}'] = main.moodle_password ?? '';
-      }
-    }
-
-    const applyVariables = (input: string) =>
-      Object.entries(variables).reduce((acc, [key, value]) => acc.replaceAll(key, value ?? ''), input);
-
-    const subject = applyVariables(template.subject || template.name);
-    const content = applyVariables(template.content);
+    const subject = this.applyVariables(template.subject || template.name, variables);
+    const content = this.applyVariables(template.content, variables);
 
     await this.sendMail({
       to: options.to,

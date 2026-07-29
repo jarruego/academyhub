@@ -1,11 +1,14 @@
-import { App, Modal, Form, Select, Radio, Button, Typography, Input, Divider, Collapse, Checkbox, theme } from 'antd';
-import { useMailTemplatesQuery } from '../../hooks/api/mail/use-mail-templates';
+import { App, Modal, Form, Select, Radio, Button, Typography, Input, Divider, Collapse, Checkbox, Space, Tooltip, theme } from 'antd';
+import { useMailTemplatesQuery, useUploadMailTemplateImageMutation } from '../../hooks/api/mail/use-mail-templates';
 import { useSmtpSettingsQuery } from '../../hooks/api/mail/use-smtp-settings';
 import { useSendMailMutation } from '../../hooks/api/mail/use-send-mail.mutation';
 import { useSendCustomMailMutation } from '../../hooks/api/mail/use-send-custom-mail.mutation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAuthInfo } from '../../providers/auth/auth.context';
 import type { SmtpSettingsForm } from '../../shared/types/mail/smtp-settings.types';
+import { MAIL_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-variables';
+import MailTemplateHtmlEditor from './MailTemplateHtmlEditor';
+import type { Editor } from '@tiptap/react';
 
 interface SendMailModalProps {
   open: boolean;
@@ -20,6 +23,7 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
   const { data: smtpSettings } = useSmtpSettingsQuery();
   const { mutateAsync: sendMail, isPending } = useSendMailMutation();
   const { mutateAsync: sendCustomMail, isPending: isCustomPending } = useSendCustomMailMutation();
+  const { mutateAsync: uploadImage } = useUploadMailTemplateImageMutation();
   const { message: messageApi } = App.useApp();
   const { token } = theme.useToken();
   const { authInfo } = useAuthInfo();
@@ -33,6 +37,12 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
   const [sendViaMoodle, setSendViaMoodle] = useState(false);
   const smtp = smtpSettings as SmtpSettingsForm | undefined;
   const authEmail = authInfo?.user?.email || '';
+  const customContentRef = useRef<any>(null);
+  const htmlEditorRef = useRef<Editor | null>(null);
+
+  const [testModalOpen, setTestModalOpen] = useState(false);
+  const [testEmail, setTestEmail] = useState('');
+  const [isTestSending, setIsTestSending] = useState(false);
 
   const selectedTemplateData = templates?.find((t) => t.id === selectedTemplate);
 
@@ -52,31 +62,107 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
     );
   };
 
+  const handleCustomizeFromTemplate = () => {
+    if (!selectedTemplateData) return;
+    setCustomSubject(selectedTemplateData.subject || selectedTemplateData.name || '');
+    setCustomContent(selectedTemplateData.content || '');
+    setCustomIsHtml(!!selectedTemplateData.is_html);
+    setSendMode('custom');
+  };
+
+  const insertVariable = (variable: string) => {
+    if (customIsHtml && htmlEditorRef.current) {
+      htmlEditorRef.current.chain().focus().insertContent(variable).run();
+      return;
+    }
+    const textarea = customContentRef.current?.resizableTextArea?.textArea;
+    if (!textarea) {
+      setCustomContent((current) => `${current}${variable}`);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+    setCustomContent(value.slice(0, start) + variable + value.slice(end));
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+    }, 0);
+  };
+
+  const validateBeforeSend = (): boolean => {
+    if (fromChoice === 'auth' && !authEmail) {
+      messageApi.error('El usuario autenticado no tiene email');
+      return false;
+    }
+    if (sendMode === 'template') {
+      if (!selectedTemplate) {
+        messageApi.warning('Selecciona una plantilla');
+        return false;
+      }
+    } else {
+      if (!customSubject.trim()) {
+        messageApi.warning('El asunto es obligatorio');
+        return false;
+      }
+      if (!customContent.trim()) {
+        messageApi.warning('El contenido es obligatorio');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleSendTest = async () => {
+    if (!testEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmail.trim())) {
+      messageApi.warning('Introduce un email válido');
+      return;
+    }
+    if (!validateBeforeSend()) return;
+
+    const replyTo = fromChoice === 'auth' ? authEmail : smtp?.from_email;
+    const fromName = fromChoice === 'auth' ? authInfo?.user?.name : undefined;
+
+    setIsTestSending(true);
+    try {
+      if (sendMode === 'template') {
+        await sendMail({
+          templateId: selectedTemplate as number,
+          replyTo,
+          toEmail: testEmail.trim(),
+          sendViaMoodle: false,
+          authUserId: authInfo?.user?.id,
+          fromName,
+        });
+      } else {
+        await sendCustomMail({
+          to: testEmail.trim(),
+          subject: customSubject.trim(),
+          html: customIsHtml ? customContent : undefined,
+          text: !customIsHtml ? customContent : undefined,
+          reply_to: replyTo,
+          from_name: fromName,
+          sendViaMoodle: false,
+          authUserId: authInfo?.user?.id,
+          applyVariables: true,
+        });
+      }
+      messageApi.success(`Correo de prueba enviado a ${testEmail.trim()}`);
+      setTestModalOpen(false);
+      setTestEmail('');
+    } catch (err: any) {
+      messageApi.error(err?.message || 'Error al enviar el correo de prueba');
+    } finally {
+      setIsTestSending(false);
+    }
+  };
+
   const handleSend = async () => {
     if (!userEmail) {
       messageApi.error('El usuario no tiene email');
       return;
     }
-    if (fromChoice === 'auth' && !authEmail) {
-      messageApi.error('El usuario autenticado no tiene email');
-      return;
-    }
-
-    if (sendMode === 'template') {
-      if (!selectedTemplate) {
-        messageApi.warning('Selecciona una plantilla');
-        return;
-      }
-    } else {
-      if (!customSubject.trim()) {
-        messageApi.warning('El asunto es obligatorio');
-        return;
-      }
-      if (!customContent.trim()) {
-        messageApi.warning('El contenido es obligatorio');
-        return;
-      }
-    }
+    if (!validateBeforeSend()) return;
 
     try {
       if (sendMode === 'template') {
@@ -98,7 +184,10 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
           reply_to: fromChoice === 'auth' ? authEmail : smtp?.from_email,
           from_name: fromChoice === 'auth' ? authInfo?.user?.name : undefined,
           sendViaMoodle,
-          authUserId: authInfo?.user?.id,          userId,        });
+          authUserId: authInfo?.user?.id,
+          userId,
+          applyVariables: true,
+        });
       }
 
       messageApi.success('Correo enviado correctamente');
@@ -125,6 +214,9 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
         footer={[
           <Button key="cancel" onClick={onCancel}>
             Cancelar
+          </Button>,
+          <Button key="test" onClick={() => setTestModalOpen(true)}>
+            Enviar prueba
           </Button>,
           <Button key="submit" type="primary" loading={isPending || isCustomPending} onClick={handleSend}>
             Enviar
@@ -175,12 +267,41 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
                 </Radio.Group>
               </Form.Item>
               <Form.Item label="Contenido" required>
-                <Input.TextArea
-                  rows={6}
-                  placeholder="Escribe el contenido del correo"
-                  value={customContent}
-                  onChange={(e) => setCustomContent(e.target.value)}
-                />
+                <Space style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+                  {MAIL_TEMPLATE_VARIABLES.map((v) => (
+                    <Tooltip title={v.label} key={v.key}>
+                      <Button
+                        size="small"
+                        type="text"
+                        style={{ fontSize: 11, padding: '0 6px', height: 22, lineHeight: '20px' }}
+                        onClick={() => insertVariable(v.key)}
+                      >
+                        {v.key}
+                      </Button>
+                    </Tooltip>
+                  ))}
+                </Space>
+                {customIsHtml ? (
+                  <MailTemplateHtmlEditor
+                    value={customContent}
+                    onChange={setCustomContent}
+                    onReady={(editor) => {
+                      htmlEditorRef.current = editor;
+                    }}
+                    onUploadImage={async (file) => {
+                      const uploaded = await uploadImage(file);
+                      return uploaded.url;
+                    }}
+                  />
+                ) : (
+                  <Input.TextArea
+                    ref={customContentRef}
+                    rows={6}
+                    placeholder="Escribe el contenido del correo"
+                    value={customContent}
+                    onChange={(e) => setCustomContent(e.target.value)}
+                  />
+                )}
               </Form.Item>
             </>
           )}
@@ -214,6 +335,18 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
                   {
                     key: 'preview',
                     label: 'Vista previa',
+                    extra: (
+                      <Button
+                        size="small"
+                        disabled={!selectedTemplateData}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCustomizeFromTemplate();
+                        }}
+                      >
+                        Personalizar
+                      </Button>
+                    ),
                     children: renderPreview(
                       selectedTemplateData?.subject || selectedTemplateData?.name,
                       selectedTemplateData?.content,
@@ -225,6 +358,34 @@ export default function SendMailModal({ open, userId, userEmail, onOk, onCancel 
               />
             </>
           )}
+        </Form>
+      </Modal>
+
+      {/* Modal de envío de prueba */}
+      <Modal
+        title="Enviar correo de prueba"
+        open={testModalOpen}
+        onCancel={() => {
+          setTestModalOpen(false);
+          setTestEmail('');
+        }}
+        onOk={handleSendTest}
+        okText="Enviar"
+        confirmLoading={isTestSending}
+        width={420}
+      >
+        <Form layout="vertical">
+          <Form.Item label="Email de prueba" required>
+            <Input
+              placeholder="tucorreo@ejemplo.com"
+              value={testEmail}
+              onChange={(e) => setTestEmail(e.target.value)}
+              onPressEnter={handleSendTest}
+            />
+          </Form.Item>
+          <Typography.Text type="secondary">
+            Se enviará una única copia del correo actual (plantilla o personalizado) a esta dirección, sin notificación por Moodle.
+          </Typography.Text>
         </Form>
       </Modal>
     </>

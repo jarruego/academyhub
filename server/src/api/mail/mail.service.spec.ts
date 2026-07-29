@@ -74,4 +74,42 @@ describe('MailService — registro en email_log', () => {
     const svc = makeService(db);
     await expect((svc as any).recordEmailLog({ status: 'sent', recipient: 'a@b.c' })).resolves.toBeUndefined();
   });
+
+  it('con applyVariables sustituye {NOMBRE_CURSO} en subject/html antes de entregar (correo personalizado)', async () => {
+    const svc = makeService();
+    const deliverSpy = jest
+      .spyOn(svc as any, 'deliverMail')
+      .mockResolvedValue({ fromEmail: 'notif@centro.com', fromName: null });
+    jest.spyOn(svc as any, 'recordEmailLog').mockResolvedValue(undefined);
+
+    await svc.sendMail({
+      to: 'alumno@test.com',
+      subject: 'Bienvenido a {NOMBRE_CURSO}',
+      html: '<p>El curso {NOMBRE_CURSO} empieza el {FECHA_INICIO}</p>',
+      applyVariables: true,
+      courseName: 'Excel Avanzado',
+      courseStart: '01/09/2026',
+    });
+
+    const deliveredOptions = deliverSpy.mock.calls[0][0] as { subject: string; html?: string };
+    expect(deliveredOptions.subject).toBe('Bienvenido a Excel Avanzado');
+    expect(deliveredOptions.html).toBe('<p>El curso Excel Avanzado empieza el 01/09/2026</p>');
+  });
+
+  it('sin applyVariables NO sustituye nada (comportamiento por defecto sin cambios)', async () => {
+    const svc = makeService();
+    const deliverSpy = jest
+      .spyOn(svc as any, 'deliverMail')
+      .mockResolvedValue({ fromEmail: 'notif@centro.com', fromName: null });
+    jest.spyOn(svc as any, 'recordEmailLog').mockResolvedValue(undefined);
+
+    await svc.sendMail({
+      to: 'alumno@test.com',
+      subject: 'Bienvenido a {NOMBRE_CURSO}',
+      courseName: 'Excel Avanzado',
+    });
+
+    const deliveredOptions = deliverSpy.mock.calls[0][0] as { subject: string };
+    expect(deliveredOptions.subject).toBe('Bienvenido a {NOMBRE_CURSO}');
+  });
 });

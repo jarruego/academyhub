@@ -60,7 +60,7 @@ export class CourseRequestService {
     return headers.map((h) => ({ ...h, in_group_student_count: inGroupCountByRequest.get(h.id_request) ?? 0 }));
   }
 
-  /** Filas del informe empresa/centro/curso, filtrable por cualquier combinación de los tres (empresa admite varias). */
+  /** Filas del informe empresa/centro/curso, filtrable por cualquier combinación de empresa/centro/curso/status (empresa admite varias). */
   async report(filters: CourseRequestReportFilters) {
     return this.courseRequestRepository.reportRows(filters);
   }

@@ -1,5 +1,6 @@
 import { Transform, Type } from "class-transformer";
-import { IsArray, IsInt, IsNumber, IsOptional, IsPositive } from "class-validator";
+import { IsArray, IsIn, IsInt, IsNumber, IsOptional, IsPositive } from "class-validator";
+import { CourseRequestStatus } from "src/types/course-request/course-request-status.enum";
 
 /**
  * Convierte el valor de un query param a array de enteros positivos, admitiendo
@@ -33,4 +34,8 @@ export class CourseRequestReportFilterDto {
   @IsPositive()
   @IsOptional()
   id_course?: number;
+
+  @IsIn(Object.values(CourseRequestStatus))
+  @IsOptional()
+  status?: CourseRequestStatus;
 }

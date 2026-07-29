@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { App, Button, Card, Col, Row, Select, Statistic, Table } from "antd";
+import { App, Button, Card, Col, Row, Segmented, Select, Statistic, Table } from "antd";
 import { FilePdfOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
@@ -8,8 +8,18 @@ import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
 import { useCourseRequestReportQuery } from "../../hooks/api/course-requests/use-course-request-report.query";
 import { useCourseRequestReportPdfMutation } from "../../hooks/api/course-requests/use-course-request-report-pdf.mutation";
 import { CourseRequestReportRow } from "../../shared/types/course-request/course-request-report";
+import { CourseRequestStatus } from "../../shared/types/course-request/course-request-status.enum";
 
 type ReportRow = CourseRequestReportRow & { companyRowSpan: number; courseRowSpan: number };
+
+// Mismo patrón (tipo + opciones) que CourseRequestsListTab en course-requests.route.tsx.
+type StatusFilter = "abiertas" | "cerradas" | "todas";
+
+const STATUS_OPTIONS: { label: string; value: StatusFilter }[] = [
+  { label: "Abiertas", value: "abiertas" },
+  { label: "Cerradas", value: "cerradas" },
+  { label: "Todas", value: "todas" },
+];
 
 // Añade el nº de filas a fusionar (rowSpan) por empresa y por empresa+curso, para
 // que la tabla se lea como una jerarquía Empresa > Curso > Centro sin repetir
@@ -41,14 +51,19 @@ export function CourseRequestReportTab() {
   const [idCompanies, setIdCompanies] = useState<number[]>([]);
   const [idCenter, setIdCenter] = useState<number | undefined>();
   const [idCourse, setIdCourse] = useState<number | undefined>();
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("abiertas");
 
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery();
   const { data: courses } = useCoursesQuery();
+  const status = statusFilter === "abiertas" ? CourseRequestStatus.ABIERTA
+    : statusFilter === "cerradas" ? CourseRequestStatus.CERRADA
+    : undefined;
   const filters = {
     id_company: idCompanies.length ? idCompanies : undefined,
     id_center: idCenter,
     id_course: idCourse,
+    status,
   };
   const { data: rows, isLoading } = useCourseRequestReportQuery(filters);
   const pdfMutation = useCourseRequestReportPdfMutation();
@@ -108,6 +123,11 @@ export function CourseRequestReportTab() {
 
   return (
     <Card>
+      <Row style={{ marginBottom: 16 }}>
+        <Col>
+          <Segmented<StatusFilter> options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+        </Col>
+      </Row>
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
           <Select

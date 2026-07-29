@@ -1,3 +1,5 @@
+import { CourseRequestStatus } from "./course-request-status.enum";
+
 export type CourseRequestReportRow = {
   id_company: number | null;
   company_name: string | null;
@@ -14,4 +16,5 @@ export type CourseRequestReportFilters = {
   id_company?: number[];
   id_center?: number;
   id_course?: number;
+  status?: CourseRequestStatus;
 };

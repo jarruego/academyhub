@@ -5,6 +5,7 @@ import "reflect-metadata";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { CourseRequestReportFilterDto } from "./course-request-report-filter.dto";
+import { CourseRequestStatus } from "src/types/course-request/course-request-status.enum";
 
 describe("CourseRequestReportFilterDto (id_company multi-selección)", () => {
   it("acepta varios valores (repetición del query param, como los parsea qs)", async () => {
@@ -28,5 +29,23 @@ describe("CourseRequestReportFilterDto (id_company multi-selección)", () => {
   it("descarta valores no enteros/no positivos", async () => {
     const instance = plainToInstance(CourseRequestReportFilterDto, { id_company: ["3", "abc", "-1", "0"] });
     expect(instance.id_company).toEqual([3]);
+  });
+});
+
+describe("CourseRequestReportFilterDto (status)", () => {
+  it("acepta ABIERTA/CERRADA", async () => {
+    const instance = plainToInstance(CourseRequestReportFilterDto, { status: CourseRequestStatus.CERRADA });
+    expect(await validate(instance)).toHaveLength(0);
+  });
+
+  it("ausente -> undefined (no filtra por estado, incluye todas)", async () => {
+    const instance = plainToInstance(CourseRequestReportFilterDto, {});
+    expect(instance.status).toBeUndefined();
+    expect(await validate(instance)).toHaveLength(0);
+  });
+
+  it("rechaza un valor que no sea un estado válido", async () => {
+    const instance = plainToInstance(CourseRequestReportFilterDto, { status: "FOO" });
+    expect(await validate(instance)).not.toHaveLength(0);
   });
 });
