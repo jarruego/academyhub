@@ -68,7 +68,7 @@ export class MailController {
   }
 
   @Post('send')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   async sendTestMail(@Body() body: SendMailOptions & { smtp?: SmtpSettingsDto }, @Req() req: any) {
     // Si se pasa smtp, usarlo temporalmente para este envío
     if (body.smtp) {
@@ -118,7 +118,7 @@ export class MailController {
   }
 
   @Post('send-from-template')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   async sendMailFromTemplate(@Body() body: SendMailFromTemplateDto, @Req() req: any) {
     await this.mailService.sendMailFromTemplate({
       to: body.toEmail,
@@ -140,7 +140,7 @@ export class MailController {
   }
 
   @Get('tutor-moodle-token-status/:tutorUserId')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   async tutorMoodleTokenStatus(@Param('tutorUserId', ParseIntPipe) tutorUserId: number) {
     const hasToken = await this.mailService.tutorHasMoodleToken(tutorUserId);
     return { hasToken };

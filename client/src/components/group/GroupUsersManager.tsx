@@ -704,7 +704,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
             </Dropdown>
           </AuthzHide>
 
-          <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.VIEWER]}>
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]}>
             <Button
               type="default"
               icon={<MailOutlined />}

@@ -115,6 +115,7 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
                       <Select.Option value={Role.ADMIN}>Admin</Select.Option>
                       <Select.Option value={Role.MANAGER}>Manager</Select.Option>
                       <Select.Option value={Role.VIEWER}>Viewer</Select.Option>
+                      <Select.Option value={Role.TUTOR}>Tutor</Select.Option>
                     </Select>
                   </Form.Item>
                 </Form>

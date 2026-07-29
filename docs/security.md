@@ -2,6 +2,9 @@
 
 **Read before adding any controller/endpoint, or touching auth, guards, secrets, or settings.**
 
+## Roles
+`Role` enum (`src/guards/role.enum.ts`, mirrored in `client/src/hooks/api/auth/use-login.mutation.ts`): `ADMIN`, `MANAGER`, `VIEWER`, `TUTOR`. `TUTOR` currently has the exact same permissions as `VIEWER` (added as a distinct label for future differentiation) — every `RoleGuard([...])` list and `AuthzHide roles={[...]}` that includes `Role.VIEWER` also includes `Role.TUTOR`; adding a new capability to one without the other is a bug unless intentionally splitting them.
+
 ## Guards
 
 | Guard | File | Scope | Behavior |

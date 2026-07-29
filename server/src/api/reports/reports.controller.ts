@@ -15,29 +15,29 @@ export class ReportsController {
     private readonly reportsPdfService: ReportsPdfService,
   ) {}
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   @Get()
   async findAll(@Query() query: ReportFilterDTO) {
     return this.reportsService.findAll(query);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   @Get('roles')
   async getRoles() {
     return this.reportsService.getRoles();
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   @Get('facets')
   async getFacets(@Query() query: ReportFilterDTO) {
     return this.reportsService.getFacets(query);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   @Post('export')
   async exportPdf(@Body() body: ReportExportDTO, @Req() req: { user: JwtPayload }, @Res() res: Response) {
-    if (body.include_passwords && req.user?.role === Role.VIEWER) {
-      throw new ForbiddenException('El rol VIEWER no puede exportar informes con contraseñas.');
+    if (body.include_passwords && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR)) {
+      throw new ForbiddenException('Este rol no puede exportar informes con contraseñas.');
     }
     await this.reportsPdfService.exportPdfFromPayload(body, res);
   }

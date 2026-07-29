@@ -14,13 +14,13 @@ export class MailTemplatesController {
   ) {}
 
   @Get()
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   findAll() {
     return this.mailTemplatesService.findAll();
   }
 
   @Get(':id')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   findById(@Param('id') id: string) {
     return this.mailTemplatesService.findById(Number(id));
   }

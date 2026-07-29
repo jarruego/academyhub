@@ -43,7 +43,7 @@ function parseId(id: string): number {
 @ApiTags("Peticiones de centros")
 @ApiBearerAuth()
 @Controller("api/course-requests")
-@UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER]))
+@UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
 export class CourseRequestController {
   constructor(
     private readonly courseRequestService: CourseRequestService,

@@ -46,14 +46,14 @@ ExcelJS, primera hoja. Detección de columnas **por nombre de cabecera** (normal
 
 ## Endpoints (`api/course-requests`)
 
-Permisos: `RoleGuard([ADMIN, MANAGER, VIEWER])` a nivel de controlador (acceso de lectura para los tres roles), y **además** `RoleGuard([ADMIN, MANAGER])` a nivel de método en los endpoints de escritura (ambos guards se aplican, con lo que VIEWER pasa el primero pero no el segundo — mismo patrón que usa `import-inaem` para el `DELETE` solo-ADMIN). ADMIN y MANAGER tienen acceso total; VIEWER solo lectura (no puede crear, editar, cerrar/reabrir, subir Excel ni borrar).
+Permisos: `RoleGuard([ADMIN, MANAGER, VIEWER, TUTOR])` a nivel de controlador (acceso de lectura para los cuatro roles), y **además** `RoleGuard([ADMIN, MANAGER])` a nivel de método en los endpoints de escritura (ambos guards se aplican, con lo que VIEWER/TUTOR pasan el primero pero no el segundo — mismo patrón que usa `import-inaem` para el `DELETE` solo-ADMIN). ADMIN y MANAGER tienen acceso total; VIEWER y TUTOR (mismos permisos, ver `docs/security.md`) solo lectura (no pueden crear, editar, cerrar/reabrir, subir Excel ni borrar).
 
-- **Lectura** (ADMIN/MANAGER/VIEWER): `GET /` (filtros `id_course`/`id_center`/`id_company`/`status`), `GET /report` (filtros `id_company`/`id_center`/`id_course`/`status`), `GET /report/pdf` (mismos filtros, streama el PDF), `GET /:id`.
+- **Lectura** (ADMIN/MANAGER/VIEWER/TUTOR): `GET /` (filtros `id_course`/`id_center`/`id_company`/`status`), `GET /report` (filtros `id_company`/`id_center`/`id_course`/`status`), `GET /report/pdf` (mismos filtros, streama el PDF), `GET /:id`.
 - **Escritura** (solo ADMIN/MANAGER): `POST /`, `POST /:id/duplicate`, `PUT /:id`, `PUT /:id/students`, `PUT /:id/students/assign-group`, `PUT /:id/students/:studentId/release-group`, `POST /:id/upload`, `PUT /:id/close`, `PUT /:id/reopen`, `DELETE /:id`.
 
 `report`/`report/pdf` están declarados **antes** de `GET /:id` en el controlador para que Nest no intente parsear "report" como un ID.
 
-En el cliente, VIEWER ve la sección `/course-requests` en el menú (igual que ADMIN/MANAGER) y las mismas pantallas, pero con todo en modo lectura: el `canEdit = [ADMIN, MANAGER].includes(role)` ya existente (listado, detalle, grid de alumnos) deja `readOnly`/deshabilitado todo lo que no sea ver, y los botones de acción (Nueva petición, Guardar, Cerrar/Reabrir, Eliminar) siguen ocultos vía `AuthzHide roles={[ADMIN, MANAGER]}` — no hizo falta tocar esos componentes, solo el guard del backend y la visibilidad del menú (`router.tsx`).
+En el cliente, VIEWER y TUTOR ven la sección `/course-requests` en el menú (igual que ADMIN/MANAGER) y las mismas pantallas, pero con todo en modo lectura: el `canEdit = [ADMIN, MANAGER].includes(role)` ya existente (listado, detalle, grid de alumnos) deja `readOnly`/deshabilitado todo lo que no sea ver, y los botones de acción (Nueva petición, Guardar, Cerrar/Reabrir, Eliminar) siguen ocultos vía `AuthzHide roles={[ADMIN, MANAGER]}` — no hizo falta tocar esos componentes, solo el guard del backend y la visibilidad del menú (`router.tsx`).
 
 ## Cliente
 
