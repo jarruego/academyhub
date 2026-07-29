@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { App, Modal, Button, Upload, Table } from 'antd';
+import { App, Modal, Button, Upload, Table, theme } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import { UserImportTemplate } from '../../shared/types/user/user-import-template';
@@ -28,6 +28,7 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
   const { mutateAsync: bulkAddUsersToGroup } = useBulkAddUsersToGroupMutation();
   const { mutateAsync: bulkUpdateUsers } = useBulkUpdateUsersMutation();
   const { message: messageApi, modal } = App.useApp();
+  const { token } = theme.useToken();
   const { data: existingUsers } = useAllUsersLookupQuery();
   const { data: groupData } = useGroupQuery(groupId ? String(groupId) : undefined);
   const role = useRole();
@@ -259,6 +260,24 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
     return (aFound ? 1 : 0) - (bFound ? 1 : 0);
   });
 
+  // Tinta + separador para las columnas "* BD" (datos ya guardados), frente a
+  // las columnas del Excel — para distinguir de un vistazo qué se va a
+  // importar/sobrescribir y qué hay actualmente en la BD.
+  const dbCellProps = (isFirst = false) => ({
+    onCell: () => ({
+      style: {
+        background: token.colorFillAlter,
+        ...(isFirst ? { borderLeft: `2px solid ${token.colorBorderSecondary}` } : {}),
+      },
+    }),
+    onHeaderCell: () => ({
+      style: {
+        background: token.colorFillAlter,
+        ...(isFirst ? { borderLeft: `2px solid ${token.colorBorderSecondary}` } : {}),
+      },
+    }),
+  });
+
   return (
     <Modal
       centered
@@ -285,10 +304,10 @@ const ImportUsersToGroupModal: React.FC<Props> = ({ open, groupId, onClose, onSu
             { title: 'Apellido 1', dataIndex: 'AP1', align: 'left', render: (value: EnrichedUserImport['AP1'], record: EnrichedUserImport) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{value || '-'}</span> },
             { title: 'Apellido 2', dataIndex: 'AP2', align: 'left', render: (value: EnrichedUserImport['AP2'], record: EnrichedUserImport) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{value || '-'}</span> },
             { title: 'DNI', dataIndex: 'DNI', align: 'left', render: (value: EnrichedUserImport['DNI'], record: EnrichedUserImport) => <span style={{ color: record.existsInDB ? undefined : 'red', display: 'block', textAlign: 'left' }}>{value || '-'}</span> },
-            { title: 'DNI BD', dataIndex: ['dbUser', 'dni'], render: (value: User['dni']) => value || '-', align: 'left' },
-            { title: 'Nombre BD', dataIndex: ['dbUser', 'name'], render: (value: User['name']) => value || '-', align: 'left' },
-            { title: 'Apellido 1 BD', dataIndex: ['dbUser', 'first_surname'], render: (value: User['first_surname']) => value || '-', align: 'left' },
-            { title: 'Apellido 2 BD', dataIndex: ['dbUser', 'second_surname'], render: (value: User['second_surname']) => value || '-', align: 'left' },
+            { title: 'DNI BD', dataIndex: ['dbUser', 'dni'], render: (value: User['dni']) => value || '-', align: 'left', ...dbCellProps(true) },
+            { title: 'Nombre BD', dataIndex: ['dbUser', 'name'], render: (value: User['name']) => value || '-', align: 'left', ...dbCellProps() },
+            { title: 'Apellido 1 BD', dataIndex: ['dbUser', 'first_surname'], render: (value: User['first_surname']) => value || '-', align: 'left', ...dbCellProps() },
+            { title: 'Apellido 2 BD', dataIndex: ['dbUser', 'second_surname'], render: (value: User['second_surname']) => value || '-', align: 'left', ...dbCellProps() },
           ]}
           dataSource={displayedUsers}
           rowSelection={canEdit ? {

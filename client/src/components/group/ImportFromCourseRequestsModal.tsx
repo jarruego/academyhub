@@ -8,6 +8,7 @@ import { useAllUsersLookupQuery } from '../../hooks/api/users/use-users.query';
 import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
 import { useBulkCreateAndAddToGroupMutation } from '../../hooks/api/users/use-bulk-create-and-add-to-group.mutation';
 import { useBulkAddUsersToGroupMutation } from '../../hooks/api/groups/use-bulk-add-users-to-group.mutation';
+import { useBulkUpdateUsersMutation } from '../../hooks/api/users/use-bulk-update-users.mutation';
 import { useAssignCourseRequestStudentsGroupMutation } from '../../hooks/api/course-requests/use-assign-course-request-students-group.mutation';
 import { useRole } from '../../utils/permissions/use-role';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
@@ -63,6 +64,7 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
   const { mutateAsync: bulkCreateAndAddToGroup } = useBulkCreateAndAddToGroupMutation();
   const { mutateAsync: bulkAddUsersToGroup } = useBulkAddUsersToGroupMutation();
   const { mutateAsync: assignStudentsToGroup } = useAssignCourseRequestStudentsGroupMutation();
+  const { mutateAsync: bulkUpdateUsers } = useBulkUpdateUsersMutation();
 
   const [selectedRequestIds, setSelectedRequestIds] = useState<number[]>([]);
   const [combinedStudents, setCombinedStudents] = useState<EnrichedStudent[]>([]);
@@ -82,6 +84,18 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
       const dbUser = allUsers?.find((u) => normalizeDni(u.dni) === normalizeDni(s.dni)) ?? null;
       return { ...s, existsInDB: !!dbUser, dbUser, alreadyAssigned: s.id_group != null };
     });
+
+  // Re-deriva existsInDB/dbUser cuando cambia `allUsers` (p. ej. tras
+  // "Actualizar BD", que invalida ['users','lookup']) — igual que
+  // ImportUsersToGroupModal. Sin esto, la tabla de alumnos combinados se
+  // queda con los datos "BD" antiguos hasta cerrar y reabrir el modal.
+  useEffect(() => {
+    if (!allUsers || combinedStudents.length === 0) return;
+    const updated = enrichStudents(combinedStudents);
+    const isDifferent = JSON.stringify(updated) !== JSON.stringify(combinedStudents);
+    if (isDifferent) setCombinedStudents(updated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allUsers, combinedStudents]);
 
   const handleSelectRequests = async (ids: number[]) => {
     setSelectedRequestIds(ids);
@@ -236,6 +250,46 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
     }
   };
 
+  // Sobrescribe en la BD los datos (nombre/apellidos/email/teléfono) de los
+  // alumnos seleccionados que ya existen, con los de la petición — igual que
+  // el botón "Actualizar BD" de ImportUsersToGroupModal (importación por XLS).
+  // No crea usuarios ni los añade al grupo, solo actualiza los ya existentes.
+  const handleUpdateSelected = async () => {
+    const selected = selectedStudentDnis
+      .map((dni) => combinedStudents.find((s) => normalizeDni(s.dni) === normalizeDni(dni)))
+      .filter((s): s is EnrichedStudent => !!s);
+
+    const updates = selected
+      .filter((s) => s.existsInDB && s.dbUser)
+      .map((s) => ({
+        id_user: s.dbUser!.id_user,
+        data: {
+          name: s.name || undefined,
+          first_surname: s.first_surname || undefined,
+          second_surname: s.second_surname || undefined,
+          email: s.email ?? '',
+          phone: s.phone_mobile ?? '',
+        },
+      }));
+
+    if (updates.length === 0) {
+      messageApi.info('No hay alumnos seleccionados que existan en la BD para actualizar.');
+      return;
+    }
+
+    try {
+      const resp = await bulkUpdateUsers(updates);
+      const failed = (resp as { failedIds?: number[] })?.failedIds ?? [];
+      if (failed.length === 0) {
+        messageApi.success('Alumnos actualizados correctamente en la BD');
+      } else {
+        messageApi.warning(`Actualizado parcialmente: ${failed.length} alumno(s) no se pudieron actualizar. IDs: ${failed.join(', ')}`);
+      }
+    } catch {
+      messageApi.error('No se pudieron actualizar los alumnos');
+    }
+  };
+
   const requestColumns = [
     {
       title: 'Centro',
@@ -269,6 +323,24 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
         v ? <Tag color="red">Sí</Tag> : null,
     },
   ];
+
+  // Tinta + separador para las columnas "* BD" (datos ya guardados), frente a
+  // las columnas de la petición — para distinguir de un vistazo qué se va a
+  // importar/sobrescribir y qué hay actualmente en la BD.
+  const dbCellProps = (isFirst = false) => ({
+    onCell: () => ({
+      style: {
+        background: token.colorFillAlter,
+        ...(isFirst ? { borderLeft: `2px solid ${token.colorBorderSecondary}` } : {}),
+      },
+    }),
+    onHeaderCell: () => ({
+      style: {
+        background: token.colorFillAlter,
+        ...(isFirst ? { borderLeft: `2px solid ${token.colorBorderSecondary}` } : {}),
+      },
+    }),
+  });
 
   const studentColumns = [
     {
@@ -324,18 +396,22 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
     },
     {
       title: 'DNI BD',
+      ...dbCellProps(true),
       render: (_: unknown, r: EnrichedStudent) => r.dbUser?.dni || '—',
     },
     {
       title: 'Nombre BD',
+      ...dbCellProps(),
       render: (_: unknown, r: EnrichedStudent) => r.dbUser?.name || '—',
     },
     {
       title: 'Apellido 1 BD',
+      ...dbCellProps(),
       render: (_: unknown, r: EnrichedStudent) => r.dbUser?.first_surname || '—',
     },
     {
       title: 'Apellido 2 BD',
+      ...dbCellProps(),
       render: (_: unknown, r: EnrichedStudent) => r.dbUser?.second_surname || '—',
     },
   ];
@@ -417,6 +493,13 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
               >
                 Importar al grupo ({selectedStudentDnis.length} alumno
                 {selectedStudentDnis.length !== 1 ? 's' : ''})
+              </Button>
+              <Button
+                style={{ marginLeft: 12 }}
+                onClick={() => void handleUpdateSelected()}
+                disabled={selectedStudentDnis.length === 0 || isLoadingStudents}
+              >
+                Actualizar BD
               </Button>
             </div>
           )}
