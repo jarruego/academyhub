@@ -17,6 +17,8 @@ import { PaginationResult } from '../../shared/types/pagination';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { getApiHost } from '../../utils/api/get-api-host.util';
 import { PageHeader } from '../../components/common/PageHeader';
+import { AuthzHide } from '../../components/permissions/authz-hide';
+import { Role } from '../../hooks/api/auth/use-login.mutation';
 
 const formatTimeSpent = (value?: number | null) => {
   if (value === null || value === undefined) return '-';
@@ -825,15 +827,17 @@ export default function ReportsRoute() {
 
 
 
-            {/* Show the include passwords checkbox only for dedication reports */}
-            {exportReportType !== 'certification' && exportReportType !== 'bonification' && (
-              <div>
-                <label>
-                  <Checkbox checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} /> Incluir contraseñas en el PDF
-                </label>
-                <div style={{ fontSize: 12, color: token.colorTextSecondary }}>Aviso: incluir contraseñas es una acción sensible y debe registrarse en auditoría.</div>
-              </div>
-            )}
+            {/* Show the include passwords checkbox only for dedication reports, and only to ADMIN/MANAGER */}
+            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+              {exportReportType !== 'certification' && exportReportType !== 'bonification' && (
+                <div>
+                  <label>
+                    <Checkbox checked={includePasswords} onChange={(e) => setIncludePasswords(e.target.checked)} /> Incluir contraseñas en el PDF
+                  </label>
+                  <div style={{ fontSize: 12, color: token.colorTextSecondary }}>Aviso: incluir contraseñas es una acción sensible y debe registrarse en auditoría.</div>
+                </div>
+              )}
+            </AuthzHide>
           </div>
         </Modal>
       </div>

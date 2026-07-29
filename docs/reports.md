@@ -6,6 +6,8 @@ PDF generation uses `ReportsPdfService` backed by `ReportRenderer` (`src/api/rep
 
 Report rows are built in `ReportsRepository.getReportRows` (`src/database/repository/reports/reports.repository.ts`): parameterized Drizzle SQL (no injection), with sortable columns whitelisted. `time_spent` is only populated when `plugins.itop_training` is enabled (see `docs/mail-moodle.md`). The `moodle_password` column shown in some templates (e.g. `dedication-v1.json`) is read plaintext (intentionally — see `docs/security.md`).
 
+`POST /reports/export`'s `include_passwords` flag is restricted to ADMIN/MANAGER: `ReportsController.exportPdf` throws `ForbiddenException` if a VIEWER or TUTOR requests it (checked server-side, not just hidden client-side, since the endpoint itself is open to all four roles). The client also hides the "Incluir contraseñas" checkbox from non-ADMIN/MANAGER via `AuthzHide` (`reports.route.tsx`).
+
 Filters are declared in `ReportFilterDTO` (`src/dto/reports/report-filter.dto.ts`). The WHERE clauses are built in `ReportsRepository.buildWhereConditions(filter, exclude?)` — a **pure** method (no DB access, unit-tested in `reports.repository.spec.ts`) shared by both the row listing and the facets. Among the filters, `bonified?: boolean` (UI checkbox "Solo bonificados" in `reports.route.tsx`) restricts rows to enrolments with `user_group.bonified = true` (the FUNDAE bonification flag — see `docs/user-merge.md`/`group-bonification.service`). Like the other filters, it is carried inside the export payload's nested filter, so it also constrains the generated PDF/Excel.
 
 ## Faceted filters (interdependent dropdowns)
