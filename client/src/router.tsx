@@ -41,6 +41,9 @@ import UserManagementRoute from './routes/auth-users/auth-user-management.route'
 import ReportsRoute from './routes/reports/reports.route';
 import OrganizationSettingsPage from './routes/organization/OrganizationSettingsPage';
 import SmtpSettingsPage from './routes/mail/smtp-settings.route';
+import HelpRoute from './routes/help/help.route';
+import TourProvider from './providers/tour/tour.context';
+import SidebarTour from './components/tour/SidebarTour';
 import { useRole } from './utils/permissions/use-role';
 import { Role } from './hooks/api/auth/use-login.mutation';
 import {
@@ -59,6 +62,7 @@ import {
   SafetyCertificateOutlined,
   PoweroffOutlined,
   SolutionOutlined,
+  QuestionCircleOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content, Header } = Layout;
@@ -109,6 +113,9 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
     <>
       <Menu theme="dark" mode="inline" items={menuItems} />
       <div className="app-sider-footer">
+        <Link to="/help" onClick={onClose}>
+          <Button icon={<QuestionCircleOutlined />} block>Ayuda</Button>
+        </Link>
         <UiPreferencesControl />
         <Button danger icon={<PoweroffOutlined />} onClick={logout} block>
           Cerrar sesión
@@ -146,7 +153,9 @@ export default function AppRouter() {
 
   return (
     <Router>
+      <TourProvider>
       <Layout style={{ minHeight: '100vh' }}>
+        <SidebarTour />
         <Sidebar
           isMobile={isMobile}
           drawerOpen={drawerOpen}
@@ -203,10 +212,12 @@ export default function AppRouter() {
               <Route path="/tools/forum-duplicator" element={<ForumDuplicatorRoute />} />
               <Route path="/tools/backups" element={<BackupsRoute />} />
               <Route path="/organization/smtp" element={<SmtpSettingsPage />} />
+              <Route path="/help" element={<HelpRoute />} />
             </Routes>
           </Content>
         </Layout>
       </Layout>
+      </TourProvider>
     </Router>
   );
 }

@@ -706,6 +706,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
           <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]}>
             <Button
+              id="group-mail-button"
               type="default"
               icon={<MailOutlined />}
               onClick={() => {
@@ -739,6 +740,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       </div>
 
       <Table<User>
+        id="group-users-table"
         rowKey="id_user"
         dataSource={sortedUsers}
         columns={columns}

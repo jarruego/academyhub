@@ -293,7 +293,7 @@ export default function CourseRequestDetailRoute() {
         }
         subtitle={data.course_name}
       />
-      <RouteTabs items={items} />
+      <RouteTabs id="course-request-detail-tabs" items={items} />
     </>
   );
 }

@@ -554,6 +554,7 @@ export default function ReportsRoute() {
         <PageHeader title="Informes" />
         <div style={{ marginBottom: 12 }}>
           <Input.Search
+            id="reports-search"
             placeholder="Buscar por nombre, apellidos, email, dni, nss o teléfono"
             allowClear
             enterButton={false}
@@ -565,7 +566,7 @@ export default function ReportsRoute() {
         <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* First row: Course & Groups */}
         <Space>
-          <div>
+          <div data-tour="reports-curso">
             <div style={{ marginBottom: 4 }}>Curso</div>
             <Select
               allowClear
@@ -640,7 +641,7 @@ export default function ReportsRoute() {
               options={(facets?.fundings ?? []).map(v => ({ label: v, value: v }))}
             />
           </div>
-          <div>
+          <div data-tour="reports-grupo">
             <div style={{ marginBottom: 4 }}>Grupo</div>
             <Select<number[]>
               allowClear
@@ -691,7 +692,7 @@ export default function ReportsRoute() {
               options={(facets?.centers ?? []).map(c => ({ label: c.center_name ?? String(c.id_center), value: c.id_center }))}
             />
           </div>
-          <div>
+          <div data-tour="reports-rol">
             <div style={{ marginBottom: 4 }}>Rol</div>
             <Select<number[]>
               allowClear
@@ -750,7 +751,7 @@ export default function ReportsRoute() {
         </Space>
 
         {/* Acción de exportación, separada de los filtros */}
-        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
+        <div data-tour="reports-exportar" style={{ borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
           <Space>
             <span>Exportar</span>
             <Select

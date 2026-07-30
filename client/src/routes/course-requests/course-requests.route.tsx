@@ -326,7 +326,7 @@ function CourseRequestsListTab() {
 
   const toolbar = (
     <>
-      <Segmented<StatusFilter> options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+      <Segmented<StatusFilter> data-tour="course-requests-status" options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
       <Select
         mode="multiple"
         allowClear
@@ -397,6 +397,7 @@ function CourseRequestsListTab() {
         />
       </Card>
       <DataTable<CourseRequest>
+        id="course-requests-table"
         size="small"
         tableLayout={isMobile ? undefined : "fixed"}
         rowKey="id_request"

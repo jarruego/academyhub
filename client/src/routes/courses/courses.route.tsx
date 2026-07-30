@@ -196,6 +196,7 @@ export default function CoursesRoute() {
   const toolbar = (
     <>
       <Segmented<CourseTab>
+        id="courses-type-segmented"
         options={TAB_OPTIONS.map(o => ({ label: `${o.label} (${tabCounts[o.value] ?? 0})`, value: o.value }))}
         value={activeTab}
         onChange={setActiveTab}

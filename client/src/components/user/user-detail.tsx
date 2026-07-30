@@ -842,7 +842,7 @@ const navigate = useNavigate();
 
   return (
     <>
-      <RouteTabs defaultTabKey="datos" items={items} syncUrl={syncTabsToUrl} />
+      <RouteTabs id="user-detail-tabs" defaultTabKey="datos" items={items} syncUrl={syncTabsToUrl} />
       <SendMailModal
         open={sendMailModalOpen}
         userId={userId}

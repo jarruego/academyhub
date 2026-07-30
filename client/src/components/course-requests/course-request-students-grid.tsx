@@ -382,6 +382,7 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
         </div>
       )}
       <Table<Row>
+        id="course-request-students-table"
         size="small"
         rowKey="key"
         columns={columns}
