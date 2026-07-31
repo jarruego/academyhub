@@ -41,6 +41,7 @@ import UserManagementRoute from './routes/auth-users/auth-user-management.route'
 import ReportsRoute from './routes/reports/reports.route';
 import OrganizationSettingsPage from './routes/organization/OrganizationSettingsPage';
 import SmtpSettingsPage from './routes/mail/smtp-settings.route';
+import MailTemplatesPage from './routes/mail/mail-templates.route';
 import HelpRoute from './routes/help/help.route';
 import TourProvider from './providers/tour/tour.context';
 import SidebarTour from './components/tour/SidebarTour';
@@ -212,6 +213,7 @@ export default function AppRouter() {
               <Route path="/tools/forum-duplicator" element={<ForumDuplicatorRoute />} />
               <Route path="/tools/backups" element={<BackupsRoute />} />
               <Route path="/organization/smtp" element={<SmtpSettingsPage />} />
+              <Route path="/organization/mail-templates" element={<MailTemplatesPage />} />
               <Route path="/help" element={<HelpRoute />} />
             </Routes>
           </Content>

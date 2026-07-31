@@ -85,6 +85,13 @@ export const toolCategories: ToolCategory[] = [
         linkTo: "/organization/smtp",
       },
       {
+        key: "mail-templates",
+        label: "Gestor de plantillas",
+        description: "Crea y gestiona las plantillas de correo con variables dinámicas.",
+        icon: <FileTextOutlined style={{ fontSize: 20 }} />,
+        linkTo: "/organization/mail-templates",
+      },
+      {
         key: "email-log",
         label: "Registro de envíos de correo",
         description: "Consulta los correos enviados: quién, cuándo, destinatario, plantilla y estado.",
