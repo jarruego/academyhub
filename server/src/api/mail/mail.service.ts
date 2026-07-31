@@ -19,6 +19,12 @@ export interface EmailActor {
   role?: string;
 }
 
+export interface SendMailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
 export interface SendMailOptions {
   to: string | string[];
   subject: string;
@@ -27,6 +33,10 @@ export interface SendMailOptions {
   from_email?: string;
   from_name?: string;
   reply_to?: string;
+  // Adjuntos binarios (p. ej. PDFs de informes). Solo viajan por SMTP: la
+  // notificación por Moodle (sendViaMoodle) no admite adjuntos, se envía como
+  // texto igualmente.
+  attachments?: SendMailAttachment[];
   sendViaMoodle?: boolean;
   authUserId?: number;
   userId?: number;
@@ -303,6 +313,14 @@ export class MailService {
 
     if (safeReplyTo) {
       mailOptions.replyTo = safeReplyTo;
+    }
+
+    if (options.attachments?.length) {
+      mailOptions.attachments = options.attachments.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType,
+      }));
     }
 
     await transporter.sendMail(mailOptions);

@@ -104,8 +104,11 @@ Si sale "Dado de baja", hay un botón **Liberar alumno** (`PUT /:id/students/:st
 - El estado de la petición **no cambia solo**: liberar a un alumno no la reabre automáticamente. Pero si la petición estaba `CERRADA` en el momento de liberar, el cliente (`CourseRequestStudentsGrid`) lanza un `modal.confirm` preguntando si se quiere reabrir ahora — es fácil olvidarlo, y una petición `CERRADA` no aparece en el modal de importación de otro grupo (que solo lista `ABIERTA`), así que un alumno liberado sin reabrir la petición queda liberado "de mentira" (no reutilizable en la práctica hasta que alguien la reabra). El aviso solo sale una vez por liberación, no se "recuerda" entre sesiones ni bloquea nada si se dice que no — se puede reabrir más tarde a mano igualmente.
 - Se rechaza (`ConflictException`) si el alumno sigue realmente en el grupo (por si acaso se pulsa por error) o si no tiene ningún grupo asignado.
 
+## Uso por el envío de informes a centros (`docs/reports.md`)
+
+`CourseRequestStudentRepository.findAssignedByGroups(id_groups)` (mirror de `findAssignedByRequests`, indexado al revés) y `CourseRequestRepository.findByIds(id_requests)` son usados por `ReportsMailService.buildSendGroups` (`docs/reports.md`, "Sending Dedicación/Certificado by mail to a center") para agrupar el envío de PDFs **por la petición que matriculó a cada alumno** (cruzando por DNI normalizado + `id_group`, igual que el resto de este módulo calcula "en grupo/total") y prellenar el destinatario con el `contact_email` de esa petición. Los alumnos que no vengan de ninguna petición caen en un grupo de fallback por centro, sin destinatario sugerido.
+
 ## Fuera de alcance (diferido a propósito)
 
 - Vincular petición ↔ matrícula/usuario.
-- Envío de informes de seguimiento por correo al `contact_email`.
 - Grid tipo Excel avanzada (multi-selección de celdas, pegado de rangos parciales).

@@ -3,7 +3,7 @@ import { App, Table, Button, Modal, Dropdown, Spin, Typography, theme } from 'an
 import { BRAND_COLORS } from '../../theme/semantic-colors';
 import type { MenuProps } from 'antd';
 import { Tooltip } from 'antd';
-import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, FileTextOutlined, MailOutlined, MergeCellsOutlined, MobileOutlined, DownOutlined } from '@ant-design/icons';
+import { SaveOutlined, TeamOutlined, CloudDownloadOutlined, FileExcelOutlined, FileTextOutlined, MailOutlined, SendOutlined, MergeCellsOutlined, MobileOutlined, DownOutlined } from '@ant-design/icons';
 import { AuthzHide } from '../permissions/authz-hide';
 import CreateUserGroupModal from './CreateUserGroupModal';
 import ImportUsersToGroupModal from './ImportUsersToGroupModal';
@@ -24,6 +24,7 @@ import useMoodleGroupMembersApi from '../../hooks/api/moodle/use-moodle-group-me
 import useExportUsersToMailCsv from '../../hooks/api/groups/use-export-users-mail-csv';
 import useExportUsersToSmsCsv from '../../hooks/api/groups/use-export-users-sms-csv';
 import SendMailToGroupModal from '../mail/SendMailToGroupModal';
+import SendReportMailModal from '../mail/SendReportMailModal';
 import { getCourseProfile } from '../../utils/course-profile';
 
 interface Props {
@@ -113,6 +114,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isImportFromRequestsModalOpen, setIsImportFromRequestsModalOpen] = useState(false);
   const [isSendMailOpen, setIsSendMailOpen] = useState(false);
+  const [isSendReportOpen, setIsSendReportOpen] = useState(false);
 
   const createBonificationFile = useCreateBonificationFileMutation();
   const updateUserEnrollmentCenterMutation = useUpdateUserEnrollmentCenterMutation();
@@ -720,6 +722,24 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
               Correo
             </Button>
           </AuthzHide>
+
+          {/* Envío de informes a centros: solo ADMIN/MANAGER/TUTOR, sin acceso para VIEWER. */}
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.TUTOR]}>
+            <Button
+              id="group-send-report-button"
+              type="default"
+              icon={<SendOutlined />}
+              onClick={() => {
+                if (!selectedUserIds || selectedUserIds.length === 0) {
+                  messageApi.warning('Selecciona al menos un usuario');
+                  return;
+                }
+                setIsSendReportOpen(true);
+              }}
+            >
+              Enviar informe
+            </Button>
+          </AuthzHide>
         </div>
 
         {/* Derecha: selección rápida + bonificación */}
@@ -824,6 +844,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         groupEnd={groupEnd}
         onOk={() => setIsSendMailOpen(false)}
         onCancel={() => setIsSendMailOpen(false)}
+      />
+
+      <SendReportMailModal
+        open={isSendReportOpen}
+        selection={{ selected_keys: groupId ? selectedUserIds.map((id) => `${id}-${groupId}`) : [] }}
+        onOk={() => setIsSendReportOpen(false)}
+        onCancel={() => setIsSendReportOpen(false)}
       />
 
       <BonificationModal

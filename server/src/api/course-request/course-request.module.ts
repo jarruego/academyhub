@@ -21,6 +21,6 @@ import { UserGroupRepository } from "src/database/repository/group/user-group.re
     CourseRequestStudentRepository,
     UserGroupRepository,
   ],
-  exports: [CourseRequestService],
+  exports: [CourseRequestService, CourseRequestRepository, CourseRequestStudentRepository],
 })
 export class CourseRequestModule {}

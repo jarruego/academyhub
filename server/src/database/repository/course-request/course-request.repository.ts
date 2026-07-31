@@ -165,6 +165,18 @@ export class CourseRequestRepository extends Repository {
     // count()/count(distinct) llegan como bigint (string) — cast a number, ver castStudentCount.
     return rows.map((r) => ({ ...r, request_count: Number(r.request_count), student_count: Number(r.student_count) }));
   }
+
+  /**
+   * Cabeceras de varias peticiones a la vez (por id), con los mismos campos que
+   * `findById`/`findAll` (incluye `contact_email`, `center_name`, `course_name`).
+   * Usado por `ReportsMailService` para resolver el email de contacto de las
+   * peticiones que originaron cada grupo de alumnos al enviar informes.
+   */
+  async findByIds(id_requests: number[], options?: QueryOptions) {
+    if (!id_requests.length) return [];
+    const rows = await this.baseQuery(options).where(inArray(courseRequestTable.id_request, id_requests));
+    return rows.map((r) => this.castStudentCount(r));
+  }
 }
 
 @Injectable()
@@ -193,6 +205,30 @@ export class CourseRequestStudentRepository extends Repository {
       })
       .from(courseRequestStudentTable)
       .where(and(inArray(courseRequestStudentTable.id_request, id_requests), isNotNull(courseRequestStudentTable.id_group)));
+  }
+
+  /**
+   * El mismo cruce que `findAssignedByRequests` pero indexado al revés: dados
+   * unos grupos, qué petición asignó (por DNI) a cada alumno que sigue en ellos.
+   * Usado por `ReportsMailService` para saber a qué petición pertenece cada
+   * alumno de un informe y así enviarle el correo a su `contact_email`.
+   * Ordenado ascendente por `id_request`: en el caso raro de que dos peticiones
+   * distintas hayan asignado el mismo DNI al mismo grupo (ver
+   * docs/course-requests.md, "limitación conocida" del dedupe), el servicio
+   * construye un mapa con estas filas y el último `set()` gana — así prevalece
+   * la petición más reciente (mayor id_request).
+   */
+  async findAssignedByGroups(id_groups: number[], options?: QueryOptions) {
+    if (!id_groups.length) return [];
+    return this.query(options)
+      .select({
+        id_request: courseRequestStudentTable.id_request,
+        id_group: courseRequestStudentTable.id_group,
+        dni: courseRequestStudentTable.dni,
+      })
+      .from(courseRequestStudentTable)
+      .where(and(inArray(courseRequestStudentTable.id_group, id_groups), isNotNull(courseRequestStudentTable.id_group)))
+      .orderBy(courseRequestStudentTable.id_request);
   }
 
   /** Sustituye todas las filas de la petición (guardado desde la grid). */

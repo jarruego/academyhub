@@ -1,8 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CourseService } from '../course/course.service';
-import { ReportsRepository } from 'src/database/repository/reports/reports.repository';
 import { ReportsService } from './reports.service';
-import type { ReportFilterDTO } from 'src/dto/reports/report-filter.dto';
 import type { ReportRowDTO } from 'src/dto/reports/report-row.dto';
 import type { ReportExportDTO } from 'src/dto/reports/report-export.dto';
 import type { Response } from 'express';
@@ -19,7 +17,6 @@ import * as fs from 'fs/promises';
 export class ReportsPdfService {
   private readonly logger = new Logger(ReportsPdfService.name);
   constructor(
-    private readonly reportsRepository: ReportsRepository,
     private readonly pdfService: PdfService,
     private readonly reportsService: ReportsService,
     private readonly organizationRepository: OrganizationRepository,
@@ -229,7 +226,7 @@ export class ReportsPdfService {
     }
   }
 
-  private async buildDedicationPdfBuffer(
+  async buildDedicationPdfBuffer(
     rows: ReportRowDTO[],
     opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string },
   ): Promise<Buffer> {
@@ -364,7 +361,7 @@ export class ReportsPdfService {
     }
   }
 
-  private async buildCertificationPdfBuffer(
+  async buildCertificationPdfBuffer(
     rows: ReportRowDTO[],
     opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string },
   ): Promise<Buffer> {
@@ -450,6 +447,42 @@ export class ReportsPdfService {
   }
 
   /**
+   * Carga logo/firma/emisor/ciudad de la organización para incrustar en los PDFs
+   * de informe. Compartido por la exportación y por el envío por correo.
+   */
+  async loadOrganizationAssets(): Promise<{ logoBuffer?: Buffer; signatureBuffer?: Buffer; issuerName?: string; companyCity?: string }> {
+    let orgRow: OrganizationSettingsSelectModel | null = null;
+    try {
+      orgRow = await this.organizationRepository.findFirst();
+    } catch (e) {
+      this.logger.warn({ e }, 'Could not load organization settings for report header');
+    }
+
+    if (!orgRow) return {};
+
+    let logoBuffer: Buffer | undefined;
+    let signatureBuffer: Buffer | undefined;
+    let issuerName: string | undefined;
+    let companyCity: string | undefined;
+
+    try {
+      const { company } = normalizeOrganizationSettings(orgRow.settings);
+      if (company.ciudad) companyCity = company.ciudad;
+      const issuer = buildIssuerLine(company);
+      if (issuer) issuerName = issuer;
+
+      const lp = orgRow.logo_path as string | undefined;
+      const sp = orgRow.signature_path as string | undefined;
+      if (lp) logoBuffer = await this.loadAssetBuffer(lp);
+      if (sp) signatureBuffer = await this.loadAssetBuffer(sp);
+    } catch (e) {
+      this.logger.warn({ e }, 'Error while preparing organization assets for report');
+    }
+
+    return { logoBuffer, signatureBuffer, issuerName, companyCity };
+  }
+
+  /**
    * Reports may include time_spent only when itop_training is enabled in organization settings.
    */
   private async isItopTrainingEnabled(): Promise<boolean> {
@@ -464,65 +497,9 @@ export class ReportsPdfService {
   }
 
   /**
-   * Stream a simple tabular 'dedication' PDF grouped by center -> course using the shared PdfService
-   */
-  async streamDedicationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string }) {
-    // Fetch all rows and delegate to the "fromRows" variant which groups by center/course
-    const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
-    const data = await this.reportsRepository.getReportRows(requestFilter);
-    const rows: ReportRowDTO[] = data?.data ?? [];
-    return await this.streamDedicationPdfFromRows(rows, res, { includePasswords: opts?.includePasswords, logoBuffer: opts?.logoBuffer, signatureBuffer: opts?.signatureBuffer, issuerName: opts?.issuerName });
-  }
-
-  async streamDedicationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { includePasswords?: boolean, logoBuffer?: Buffer, signatureBuffer?: Buffer, issuerName?: string }) {
-    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
-    this.pdfService.streamDocumentToResponse(doc, res, 'report-dedication.pdf');
-
-    await this.renderDedicationIntoDocument(doc, rows, opts);
-
-    this.pdfService.endDocument(doc);
-  }
-
-  /**
-   * Stream a certification-style PDF grouped by center -> course -> group.
-   * For each group we render a short paragraph certifying attendance and a
-   * simple table with Nombre, Apellidos y DNI. Pages break by center, course and group.
-   */
-  async streamCertificationPdf(filter: ReportFilterDTO | undefined, res: Response, opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string }) {
-    const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
-    const data = await this.reportsRepository.getReportRows(requestFilter);
-    const rows: ReportRowDTO[] = data?.data ?? [];
-
-    // Create a single PDF document and stream it once
-    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
-    this.pdfService.streamDocumentToResponse(doc, res, 'report-certification.pdf');
-
-    await this.renderCertificationIntoDocument(doc, rows, opts);
-
-    // Ensure we end the doc
-    this.pdfService.endDocument(doc);
-  }
-
-  async streamCertificationPdfFromRows(rows: ReportRowDTO[], res: Response, opts?: { issuerName?: string, logoBuffer?: Buffer, signatureBuffer?: Buffer, companyCity?: string }) {
-    const doc = this.pdfService.createDocument({ size: 'A4', margin: 40 });
-    this.pdfService.streamDocumentToResponse(doc, res, 'report-certification.pdf');
-
-    await this.renderCertificationIntoDocument(doc, rows, opts);
-
-    this.pdfService.endDocument(doc);
-  }
-
-  /**
    * Stream a bonification-style PDF grouped by group -> company -> center.
    * Shows totals by company and center without individual student names.
    */
-  async streamBonificationPdf(filter: ReportFilterDTO | undefined, res: Response) {
-    const requestFilter = { ...(filter ?? {}), page: 1, limit: Number(filter?.limit ?? 100000) } as ReportFilterDTO;
-    const data = await this.reportsRepository.getReportRows(requestFilter);
-    const rows: ReportRowDTO[] = data?.data ?? [];
-    return await this.streamBonificationPdfFromRows(rows, res);
-  }
-
   async streamBonificationPdfFromRows(rows: ReportRowDTO[], res: Response) {
     // Group rows by group -> company -> center to count students
     // Structure: { group_name -> { company_name -> { center_name -> Set<student_id> } } }
@@ -629,101 +606,14 @@ export class ReportsPdfService {
     const { filter, include_passwords, selected_keys, select_all_matching, deselected_keys, report_type } = body;
     const includePasswords = Boolean(include_passwords);
 
-    // Pick the appropriate renderer depending on report_type
-    const rowsRendererFromRows = report_type === 'certification' 
-      ? this.streamCertificationPdfFromRows.bind(this) 
-      : report_type === 'bonification'
-      ? this.streamBonificationPdfFromRows.bind(this)
-      : this.streamDedicationPdfFromRows.bind(this);
-    
-    const rendererFromFilter = report_type === 'certification' 
-      ? this.streamCertificationPdf.bind(this) 
-      : report_type === 'bonification'
-      ? this.streamBonificationPdf.bind(this)
-      : this.streamDedicationPdf.bind(this);
+    const { logoBuffer, signatureBuffer, issuerName, companyCity } = await this.loadOrganizationAssets();
+    const rows = await this.reportsService.resolveRows({ filter, selected_keys, select_all_matching, deselected_keys });
 
-    // Load organization settings and assets to include in the PDF (logo/signature and company info)
-    let orgRow: OrganizationSettingsSelectModel | null = null;
-    try {
-      orgRow = await this.organizationRepository.findFirst();
-    } catch (e) {
-      this.logger.warn({ e }, 'Could not load organization settings for report header');
-    }
-
-    let logoBuffer: Buffer | undefined = undefined;
-    let signatureBuffer: Buffer | undefined = undefined;
-    let issuerName: string | undefined = undefined;
-
-    let companyCity: string | undefined = undefined;
-    if (orgRow) {
-      try {
-        const { company } = normalizeOrganizationSettings(orgRow.settings);
-        if (company.ciudad) companyCity = company.ciudad;
-        const issuer = buildIssuerLine(company);
-        if (issuer) issuerName = issuer;
-
-        const lp = orgRow.logo_path as string | undefined;
-        const sp = orgRow.signature_path as string | undefined;
-        if (lp) {
-          logoBuffer = await this.loadAssetBuffer(lp);
-        }
-        if (sp) {
-          signatureBuffer = await this.loadAssetBuffer(sp);
-        }
-      } catch (e) {
-        this.logger.warn({ e }, 'Error while preparing organization assets for report');
-      }
-    }
-
-    // If client supplied explicit selected keys, generate report for those rows only
-    if (Array.isArray(selected_keys) && selected_keys.length) {
-      const keys: string[] = selected_keys;
-      const data = await this.reportsService.getRowsByKeys(keys);
-      const rows: ReportRowDTO[] = Array.isArray(data) ? data : (data?.data ?? []);
-      if (report_type === 'bonification') {
-        await rowsRendererFromRows(rows, res);
-      } else if (report_type === 'certification') {
-        await this.streamCertificationZipByCenterFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
-      } else {
-        await this.streamDedicationZipByCenterFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
-      }
-      return;
-    }
-
-    // Prepare an export filter that forces no pagination so exports include all matching rows
-    const exportFilter = { ...(filter ?? {}), page: 1, limit: 100000 } as ReportFilterDTO;
-
-    // If client requested select-all-matching with deselections, fetch by filter and remove deselected keys
-    if (select_all_matching) {
-      const data = await this.reportsService.findAll(exportFilter);
-      let rows: ReportRowDTO[] = data?.data ?? [];
-      const deselected: string[] = Array.isArray(deselected_keys) ? deselected_keys : [];
-      if (deselected.length) {
-        rows = rows.filter((r) => {
-          const key = (r.id_user != null && r.id_group != null) ? `${r.id_user}-${r.id_group}` : `${r.dni ?? ''}-${r.moodle_id ?? ''}`;
-          return !deselected.includes(key);
-        });
-      }
-      if (report_type === 'bonification') {
-        await rowsRendererFromRows(rows, res);
-      } else if (report_type === 'certification') {
-        await this.streamCertificationZipByCenterFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
-      } else {
-        await this.streamDedicationZipByCenterFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
-      }
-      return;
-    }
-
-    // Default: generate report by applying the filter server-side (force no pagination)
     if (report_type === 'bonification') {
-      await rendererFromFilter(exportFilter, res);
+      await this.streamBonificationPdfFromRows(rows, res);
     } else if (report_type === 'certification') {
-      const data = await this.reportsService.findAll(exportFilter);
-      const rows: ReportRowDTO[] = data?.data ?? [];
       await this.streamCertificationZipByCenterFromRows(rows, res, { issuerName, logoBuffer, signatureBuffer, companyCity });
     } else {
-      const data = await this.reportsService.findAll(exportFilter);
-      const rows: ReportRowDTO[] = data?.data ?? [];
       await this.streamDedicationZipByCenterFromRows(rows, res, { includePasswords, logoBuffer, signatureBuffer, issuerName });
     }
   }

@@ -65,6 +65,8 @@ export const BRAND_COLORS = {
   moodle: "#f56b00",
   /** Verde de Excel: exportaciones a hoja de cálculo. */
   excel: "#008000",
+  /** Rojo de PDF: icono de acciones sobre documentos PDF (ver/generar). */
+  pdf: "#e53935",
 } as const;
 
 /** Flags puntuales reutilizables. */

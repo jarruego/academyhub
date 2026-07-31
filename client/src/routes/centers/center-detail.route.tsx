@@ -20,6 +20,7 @@ import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { User } from "../../shared/types/user/user";
 import { BajaTag } from "../../components/common/tags";
+import CenterTrainingTab from "../../components/centers/CenterTrainingTab";
 
 const CENTER_FORM_SCHEMA = z.object({
   id_center: z.number(),
@@ -280,6 +281,10 @@ export default function EditCenterRoute() {
     </ListPageLayout>
   );
 
+  // El envío de informes a centros (pestaña "Formación en el centro") es solo
+  // para ADMIN/MANAGER/TUTOR, sin acceso para VIEWER.
+  const canAccessTraining = [Role.ADMIN, Role.MANAGER, Role.TUTOR].includes(role);
+
   return (
     <div>
       <RouteTabs
@@ -294,6 +299,11 @@ export default function EditCenterRoute() {
             label: "Usuarios",
             children: usersTab,
           },
+          ...(canAccessTraining ? [{
+            key: "formacion",
+            label: "Formación en el centro",
+            children: centerData ? <CenterTrainingTab centerId={centerData.id_center} /> : null,
+          }] : []),
         ]}
       />
     </div>

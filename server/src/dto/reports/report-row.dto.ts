@@ -6,6 +6,16 @@ export class ReportRowDTO {
 
   @ApiPropertyOptional()
   id_group?: number;
+
+  @ApiPropertyOptional()
+  id_center?: number | null;
+
+  @ApiPropertyOptional()
+  id_company?: number | null;
+
+  @ApiPropertyOptional()
+  id_course?: number | null;
+
   @ApiPropertyOptional()
   name?: string;
 

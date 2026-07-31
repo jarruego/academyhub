@@ -3,7 +3,9 @@
 **Read before adding any controller/endpoint, or touching auth, guards, secrets, or settings.**
 
 ## Roles
-`Role` enum (`src/guards/role.enum.ts`, mirrored in `client/src/hooks/api/auth/use-login.mutation.ts`): `ADMIN`, `MANAGER`, `VIEWER`, `TUTOR`. `TUTOR` currently has the exact same permissions as `VIEWER` (added as a distinct label for future differentiation) — every `RoleGuard([...])` list and `AuthzHide roles={[...]}` that includes `Role.VIEWER` also includes `Role.TUTOR`; adding a new capability to one without the other is a bug unless intentionally splitting them.
+`Role` enum (`src/guards/role.enum.ts`, mirrored in `client/src/hooks/api/auth/use-login.mutation.ts`): `ADMIN`, `MANAGER`, `VIEWER`, `TUTOR`. `TUTOR` has the exact same permissions as `VIEWER` (added as a distinct label for future differentiation) — every `RoleGuard([...])` list and `AuthzHide roles={[...]}` that includes `Role.VIEWER` also includes `Role.TUTOR`, **except** the one intentional split below; adding a new capability to one without the other is otherwise a bug.
+
+**Split: sending report attachments to centers (`docs/reports.md`'s "Sending Dedicación/Certificado by mail to a center").** `POST /reports/send/groups`, `POST /reports/send`, `POST /reports/send/test` are `RoleGuard([ADMIN, MANAGER, TUTOR])` — **no `VIEWER`**. The client mirrors it: `GroupUsersManager`'s "Enviar informe" button is `AuthzHide roles={[ADMIN, MANAGER, TUTOR]}` (separate from "Correo", which stays open to all four), and the center detail's "Formación en el centro" tab is omitted from `RouteTabs` items entirely for `VIEWER` (`canAccessTraining` check in `center-detail.route.tsx`). `dedication_passwords` inside that flow is further restricted to `ADMIN`/`MANAGER` only (not `TUTOR` either), same pattern as `/reports/export`'s `include_passwords`.
 
 ## Guards
 
