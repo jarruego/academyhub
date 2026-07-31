@@ -172,18 +172,28 @@ export class ReportsMailService {
 
   private buildVariables(group: SendGroup): Record<string, string> {
     const courseNames = [...new Set(group.rows.map((r) => r.course_name).filter((v): v is string => !!v))];
-    const startDates = [...new Set(group.rows.map((r) => r.group_start_date).filter(Boolean))];
-    const endDates = [...new Set(group.rows.map((r) => r.group_end_date).filter(Boolean))];
-    const formatDate = (v: unknown) => {
+
+    // `group_start_date`/`group_end_date` llegan como `Date` (una instancia
+    // distinta por fila, aunque representen el mismo día): deduplicar con
+    // `Set` directamente sobre esos valores compara por referencia, no por
+    // valor, así que con 2+ alumnos casi nunca detectaba "una sola fecha" y
+    // {FECHA_INICIO}/{FECHA_FIN} salían siempre vacías. Se normaliza a una
+    // clave de fecha (YYYY-MM-DD) antes de deduplicar.
+    const toDateKey = (v: unknown): string | undefined => {
+      if (!v) return undefined;
       const d = v instanceof Date ? v : new Date(String(v));
-      return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('es-ES');
+      return Number.isNaN(d.getTime()) ? undefined : d.toISOString().slice(0, 10);
     };
+    const formatDateKey = (key: string) => new Date(`${key}T00:00:00Z`).toLocaleDateString('es-ES', { timeZone: 'UTC' });
+
+    const startKeys = [...new Set(group.rows.map((r) => toDateKey(r.group_start_date)).filter((v): v is string => !!v))];
+    const endKeys = [...new Set(group.rows.map((r) => toDateKey(r.group_end_date)).filter((v): v is string => !!v))];
 
     return {
       '{NOMBRE_CENTRO}': group.center_name,
       '{NOMBRE_CURSO}': courseNames.join(', '),
-      '{FECHA_INICIO}': startDates.length === 1 ? formatDate(startDates[0]) : '',
-      '{FECHA_FIN}': endDates.length === 1 ? formatDate(endDates[0]) : '',
+      '{FECHA_INICIO}': startKeys.length === 1 ? formatDateKey(startKeys[0]) : '',
+      '{FECHA_FIN}': endKeys.length === 1 ? formatDateKey(endKeys[0]) : '',
       '{USUARIO_MOODLE}': '',
       '{CLAVE_MOODLE}': '',
     };

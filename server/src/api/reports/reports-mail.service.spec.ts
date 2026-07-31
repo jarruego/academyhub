@@ -180,6 +180,30 @@ describe('ReportsMailService', () => {
     expect(call.templateName).toBe('Plantilla X');
   });
 
+  it('{FECHA_INICIO}/{FECHA_FIN} se sustituyen aunque haya varios alumnos (instancias de Date distintas para el mismo día)', async () => {
+    const { service, mailService } = makeService([
+      makeRow({ id_user: 1, dni: '11111111A', group_start_date: new Date('2026-09-01T00:00:00Z'), group_end_date: new Date('2026-12-01T00:00:00Z') }),
+      makeRow({ id_user: 2, dni: '22222222B', group_start_date: new Date('2026-09-01T00:00:00Z'), group_end_date: new Date('2026-12-01T00:00:00Z') }),
+    ]);
+
+    await service.sendReportMail({ ...baseBody, html: '<p>Del {FECHA_INICIO} al {FECHA_FIN}</p>' });
+
+    const call = mailService.sendMail.mock.calls[0][0];
+    expect(call.html).toBe('<p>Del 1/9/2026 al 1/12/2026</p>');
+  });
+
+  it('deja {FECHA_INICIO}/{FECHA_FIN} vacías cuando el grupo mezcla fechas distintas de verdad', async () => {
+    const { service, mailService } = makeService([
+      makeRow({ id_user: 1, dni: '11111111A', group_start_date: new Date('2026-09-01T00:00:00Z') }),
+      makeRow({ id_user: 2, dni: '22222222B', group_start_date: new Date('2026-10-01T00:00:00Z') }),
+    ]);
+
+    await service.sendReportMail({ ...baseBody, html: '<p>Inicio: {FECHA_INICIO}</p>' });
+
+    const call = mailService.sendMail.mock.calls[0][0];
+    expect(call.html).toBe('<p>Inicio: </p>');
+  });
+
   it('sendTestReportMail envía una única copia al email de prueba usando el primer grupo', async () => {
     const { service, mailService } = makeService([makeRow()]);
     const result = await service.sendTestReportMail({ ...baseBody, test_email: 'prueba@test.com' });
