@@ -743,20 +743,22 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         </div>
 
         {/* Derecha: selección rápida + bonificación */}
-        <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.TUTOR]}>
             <Dropdown menu={{ items: seleccionMenuItems, onClick: handleSeleccionMenuClick }}>
               <Button disabled={!usersData || usersData.length === 0}>
                 Selección <DownOutlined />
               </Button>
             </Dropdown>
+          </AuthzHide>
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
             {profile.showBonificationButton && (
               <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
                 Bonificar
               </Button>
             )}
-          </div>
-        </AuthzHide>
+          </AuthzHide>
+        </div>
       </div>
 
       <Table<User>

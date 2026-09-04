@@ -70,12 +70,13 @@ El nombre/DNI/teléfono/email mostrados vienen de `users` (join), no de esta tab
 
 ### API (`@Controller("course-candidates")`)
 
-`RoleGuard([ADMIN, MANAGER, VIEWER, TUTOR])` para lectura; `[ADMIN, MANAGER]` para escritura.
+`RoleGuard([ADMIN, MANAGER, VIEWER, TUTOR])` para lectura; escritura `[ADMIN, MANAGER, TUTOR]` (la pestaña Candidatos de una edición es la única excepción a "TUTOR = solo lectura": tiene las mismas funciones que MANAGER, incluida la edición inline de DNI/teléfono/email vía `PUT /user/:id`, que por tanto también admite TUTOR — ver "Cliente" más abajo).
 - `GET ?id_course=` — listado unido con `users` y `user_preinscription` para la edición.
 - `POST` — alta manual: `{ id_user, id_course, source? }` con un usuario existente, **o** `{ id_course, new_user: { name, first_surname?, second_surname?, dni?, phone?, email? } }` para crear el usuario y la candidatura a la vez (`CourseCandidateService.create` crea primero el `users` mínimo — `name` obligatorio, `phone` o `email` obligatorio para poder contactar, el resto opcional — vía `UserRepository.create`, valida con `BadRequestException` si falta alguno). Devuelve la fila unida (igual forma que `GET`) para que el cliente pueda enfocar la fila recién creada sin un segundo round-trip.
 - `PUT /bulk` — edición masiva en transacción (`{ candidates: [{ id_candidate, ...campos }] }`); el cliente la usa para autoguardar cada cambio de celda (un elemento en el array), no como guardado por lote.
 - `DELETE /:id?force=true` — solo si **no** existe `user_preinscription` asociada (409 en caso contrario: no se puede borrar constancia de preinscripción oficial); `force=true` la salta **y borra también la preinscripción oficial** (`UserPreinscriptionRepository.deleteByUserCourse`, en la misma transacción — no tendría sentido dejar una constancia INAEM huérfana sin candidatura detrás).
-- DNI/teléfono/email se editan reutilizando `PUT /user/:id` (`api/user/`) — no hay endpoint propio; el cliente siempre incluye `name` en el body (el DTO lo exige) aunque solo cambie otro campo.
+- DNI/teléfono/email se editan reutilizando `PUT /user/:id` (`api/user/`) — no hay endpoint propio; el cliente siempre incluye `name` en el body (el DTO lo exige) aunque solo cambie otro campo. Este endpoint es genérico (edita cualquier usuario desde cualquier punto de la app), así que admitir TUTOR ahí le da también permiso para editar esos mismos campos de cualquier usuario fuera de esta pestaña, no solo desde Candidatos — decisión asumida al extender el rol.
+- `POST /course-interests/incorporate` (botón "Desde interesados", ver más abajo) también admite TUTOR por el mismo motivo.
 
 ### Borrado de la edición
 
@@ -107,7 +108,9 @@ Columnas de check: **DARDE**/**DNI-NIE**/**Titulación** usan el azul/gris por d
 
 El botón de eliminar en **Acciones** se muestra siempre que `canEdit` (antes también exigía `!r.inaem_status`, ocultándolo sin explicación para cualquier candidato con preinscripción INAEM registrada — probablemente la mayoría en datos reales). Si la persona consta preinscrita en INAEM, la modal de confirmación muestra un aviso y un checkbox **"Forzar borrado (también borra la preinscripción oficial INAEM)"** (`removeCandidate` en el componente: `force` se captura en una variable local del closure desde el `onChange` del `Checkbox` y se lee en `onOk` — `Modal.confirm` es imperativo, no hay estado React vivo al que enlazar directamente). Sin marcarlo, el servidor sigue bloqueando (409) y el mensaje de error se muestra tal cual en el toast.
 
-**Importar Excel** solo es visible para `ADMIN` (antes cualquiera con `canEdit`, que incluía `MANAGER`); solo empareja por DNI contra usuarios **ya existentes** (no crea usuarios nuevos desde el Excel, a diferencia del alta manual).
+**Importar Excel** solo es visible para `ADMIN` (antes cualquiera con `canEdit`, que incluía `MANAGER`; TUTOR tampoco lo ve, igual que MANAGER); solo empareja por DNI contra usuarios **ya existentes** (no crea usuarios nuevos desde el Excel, a diferencia del alta manual).
+
+`canEdit` que recibe `CourseCandidatesSection` se fija en `CourseDetailRoute` como `canEditCandidates = [ADMIN, MANAGER, TUTOR].includes(role)` — variable propia de esta pestaña, distinta del `canEdit` general de la ficha del curso (`[ADMIN, MANAGER]`, usado en el resto de pestañas: Ficha, Planificación, Contenidos, Grupos).
 
 ## Intereses formativos (fase 3)
 
@@ -138,12 +141,12 @@ Cuando `PUT /course-candidates/bulk` cambia `process_status` de una candidatura,
 
 ### API (`@Controller("course-interests")`)
 
-`RoleGuard([ADMIN, MANAGER, VIEWER, TUTOR])` para lectura; `[ADMIN, MANAGER]` para escritura.
+`RoleGuard([ADMIN, MANAGER, VIEWER, TUTOR])` para lectura; escritura `[ADMIN, MANAGER]`, salvo `POST` (alta) y `DELETE` (baja) que también admiten `TUTOR` — los tutores pueden dar de alta y eliminar interesados, pero no editar los campos de uno existente (`PUT /bulk`) ni incorporarlos a una edición (`POST /incorporate`).
 - `GET ?id_catalog_course=` — listado de un curso de catálogo (pestaña Interesados). `GET ?status=&assigned_to=` (con o sin `id_catalog_course`) — listado global filtrable.
-- `POST` — alta manual; 409 si ya hay un interés abierto para esa persona+curso.
+- `POST` — alta manual (`ADMIN`/`MANAGER`/`TUTOR`); 409 si ya hay un interés abierto para esa persona+curso.
 - `PUT /bulk` — edición masiva en transacción (`{ interests: [{ id_interest, ...campos }] }`).
 - `POST /incorporate` — `{ id_course, interest_ids }`, ver arriba.
-- `DELETE /:id` — 409 si el interés ya está `CONVOCADO`/`MATRICULADO` (ya se usó en una convocatoria).
+- `DELETE /:id` (`ADMIN`/`MANAGER`/`TUTOR`) — 409 si el interés ya está `CONVOCADO`/`MATRICULADO` (ya se usó en una convocatoria).
 
 ### Fusión de cursos de catálogo
 
@@ -156,5 +159,6 @@ Cuando `PUT /course-candidates/bulk` cambia `process_status` de una candidatura,
 ### Cliente
 
 - Pestaña **Interesados** en la ficha del curso de catálogo (`course-interests-section.tsx`): misma filosofía tipo hoja de cálculo que Candidatos, incluido el **autoguardado** (sin botón "Guardar cambios", sin borrador local): Estado/Origen/Modalidad preferida guardan al cambiar de valor (`Select` → `onChange`) y Disponibilidad/Notas guardan al perder el foco vía el mismo `AutoSaveText` compartido que usa Candidatos. `useUpdateCourseInterestsMutation(catalogCourseId)` es **optimista** igual que en Candidatos: aplica el patch a la caché (`onMutate`, clave `["course-interests","catalog",id]`) antes de que responda el servidor, revierte en `onError` y siempre invalida en `onSettled`. "Añadir interesado" usa el mismo `PersonSearchOrCreateModal` compartido que Candidatos (`components/common/`) — buscar existente o dar de alta a alguien nuevo en el mismo formulario. `POST /course-interests` acepta `{ id_user, id_catalog_course, ... }` o `{ id_catalog_course, new_user: {...}, ... }`, igual patrón que `POST /course-candidates`.
+  - `CourseInterestsSection` distingue `canEdit` (ADMIN/MANAGER: editar campos de una fila existente, importar/exportar Excel) de `canAdd` (ADMIN/MANAGER/TUTOR: botón "Añadir interesado" + modal, **y** el botón de eliminar en Acciones — alta/baja del listado), fijado en `CatalogCourseDetailRoute` (`canAddInterests`). Sin `canAdd` explícito el prop hace de alias de `canEdit` (mismo comportamiento en cualquier otro consumidor del componente).
 - Listado global **Personas interesadas** (`/course-catalog/interests`, botón desde `/course-catalog`): filtra por curso de catálogo, estado y búsqueda por nombre/DNI.
 - Botón **"Desde interesados"** en la pestaña Candidatos de una edición: modal con los intereses disponibles (`INTERESADO`/`CONTACTADO`) del curso de catálogo de esa edición, selección múltiple, incorpora en bloque.

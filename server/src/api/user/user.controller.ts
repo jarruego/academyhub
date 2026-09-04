@@ -24,7 +24,7 @@ export class UserController {
     return this.userService.create(createUserDTO);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateUserDTO: UpdateUserDTO) {
     const numericId = parseInt(id, 10);

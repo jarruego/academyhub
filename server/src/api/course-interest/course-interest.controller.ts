@@ -30,7 +30,7 @@ export class CourseInterestController {
   }
 
   @Post()
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   create(@Body() dto: CreateCourseInterestDto, @Req() req: { user: JwtPayload }) {
     return this.service.create(dto, req.user?.id);
   }
@@ -42,13 +42,13 @@ export class CourseInterestController {
   }
 
   @Post("incorporate")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   incorporate(@Body() dto: IncorporateInterestsDto, @Req() req: { user: JwtPayload }) {
     return this.service.incorporate(dto, req.user?.id);
   }
 
   @Delete(":id")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   delete(@Param("id", ParseIntPipe) id: number) {
     return this.service.delete(id);
   }

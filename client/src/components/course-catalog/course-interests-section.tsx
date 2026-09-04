@@ -35,9 +35,11 @@ const label = (value: string) => value.toLowerCase().replace(/_/g, " ").replace(
 const fullName = (r: CourseInterest) => [r.name, r.first_surname, r.second_surname].filter(Boolean).join(" ");
 const normalizeDni = (value: unknown) => String(value ?? "").toUpperCase().replace(/[^0-9A-Z]/g, "");
 
-interface Props { catalogCourseId: number; canEdit: boolean; }
+// canAdd también habilita eliminar (alta/baja del listado); canEdit cubre además
+// editar los campos de una fila existente e importar/exportar Excel.
+interface Props { catalogCourseId: number; canEdit: boolean; canAdd?: boolean; }
 
-export function CourseInterestsSection({ catalogCourseId, canEdit }: Props) {
+export function CourseInterestsSection({ catalogCourseId, canEdit, canAdd = canEdit }: Props) {
   const { message, modal } = App.useApp();
   const { data = [], isLoading } = useCourseInterestsByCatalogQuery(catalogCourseId);
   const { data: users = [] } = useAllUsersLookupQuery();
@@ -143,19 +145,19 @@ export function CourseInterestsSection({ catalogCourseId, canEdit }: Props) {
     selectColumn("Modalidad preferida", "preferred_modality", MODALITIES, 150, true),
     { title: "Disponibilidad", width: 170, render: (_, r) => <AutoSaveText value={r.availability ?? ""} disabled={!canEdit} onSave={value => saveField(r.id_interest, "availability", value)} /> },
     { title: "Notas", width: 240, render: (_, r) => <AutoSaveText textarea value={r.notes ?? ""} disabled={!canEdit} onSave={value => saveField(r.id_interest, "notes", value)} /> },
-    { title: "Acciones", fixed: "right", width: 90, render: (_, r) => canEdit && !SYSTEM_MANAGED_STATUSES.includes(r.status)
+    { title: "Acciones", fixed: "right", width: 90, render: (_, r) => canAdd && !SYSTEM_MANAGED_STATUSES.includes(r.status)
       ? <Button danger size="small" aria-label="Eliminar interés" icon={<DeleteOutlined />} onClick={() => remove(r)} /> : null },
   ];
 
   if (isLoading) return <div style={{ textAlign: "center", padding: 48 }}><Spin /></div>;
   return <>
     <Space wrap style={{ marginBottom: 12 }}>
-      {canEdit && <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>Añadir interesado</Button>}
+      {canAdd && <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>Añadir interesado</Button>}
       {canEdit && <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={importExcel}><Button icon={<FileExcelOutlined />}>Importar Excel</Button></Upload>}
       <Button icon={<FileExcelOutlined />} onClick={exportExcel} disabled={!rows.length}>Exportar Excel</Button>
     </Space>
     {!rows.length ? <Empty description="Todavía no hay nadie interesado en este curso." /> :
       <Table<CourseInterest> rowKey="id_interest" columns={columns} dataSource={rows} pagination={{ pageSize: 50 }} scroll={{ x: 1400 }} size="small" />}
-    <PersonSearchOrCreateModal title="Añadir interesado" open={addOpen} onClose={() => setAddOpen(false)} availableUsers={availableUsersForAdd} submitting={createInterest.isPending} onSubmit={handleAdd} />
+    {canAdd && <PersonSearchOrCreateModal title="Añadir interesado" open={addOpen} onClose={() => setAddOpen(false)} availableUsers={availableUsersForAdd} submitting={createInterest.isPending} onSubmit={handleAdd} />}
   </>;
 }

@@ -17,19 +17,19 @@ export class CourseCandidateController {
   }
 
   @Post()
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   create(@Body() dto: CreateCourseCandidateDto, @Req() req: { user: JwtPayload }) {
     return this.service.create(dto, req.user?.id);
   }
 
   @Delete(":id")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   delete(@Param("id", ParseIntPipe) id: number, @Query("force") force?: string) {
     return this.service.delete(id, force === "true");
   }
 
   @Put("bulk")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   updateMany(@Body() dto: UpdateCourseCandidatesDto) {
     return this.service.updateMany(dto);
   }

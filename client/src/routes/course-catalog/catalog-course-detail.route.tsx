@@ -22,6 +22,7 @@ export default function CatalogCourseDetailRoute() {
   const role = useRole();
   const canEdit = role === Role.ADMIN;
   const canEditInterests = role === Role.ADMIN || role === Role.MANAGER;
+  const canAddInterests = canEditInterests || role === Role.TUTOR;
   const { data, isLoading } = useCatalogCourseQuery(id);
   const { data: all = [] } = useCourseCatalogQuery();
   const { data: interests = [] } = useCourseInterestsByCatalogQuery(id, Boolean(id));
@@ -43,7 +44,7 @@ export default function CatalogCourseDetailRoute() {
     <RouteTabs defaultTabKey="datos" items={[
       { key:"datos", label:"Datos generales", children:<CatalogCourseForm initial={data} readOnly={!canEdit} saving={update.isPending} onSubmit={async values => { try { await update.mutateAsync(values); message.success("Curso de catálogo actualizado"); } catch (error) { message.error((error as {response?:{data?:{message?:string}}})?.response?.data?.message ?? "No se pudo guardar"); } }} /> },
       { key:"ediciones", label:`Ediciones (${editions.length})`, children:<DataTable rowKey="id_course" dataSource={editions} getRowUrl={row => `/courses/${row.id_course}`} columns={[{title:"Edición",dataIndex:"course_name"},{title:"Expediente",dataIndex:"file_number",render:value=>value||"-"},{title:"Inicio",dataIndex:"start_date",render:value=>value?new Date(value).toLocaleDateString("es-ES"):"-"},{title:"Modalidad",dataIndex:"modality"}]} /> },
-      { key:"interesados", label:`Interesados (${interests.length})`, children:<CourseInterestsSection catalogCourseId={id} canEdit={canEditInterests} /> },
+      { key:"interesados", label:`Interesados (${interests.length})`, children:<CourseInterestsSection catalogCourseId={id} canEdit={canEditInterests} canAdd={canAddInterests} /> },
     ]} />
     <Modal title="Fusionar curso de catálogo" open={mergeOpen} onCancel={() => setMergeOpen(false)} onOk={async () => { if (!target) return; await merge.mutateAsync(target); message.success("Cursos fusionados"); navigate(`/course-catalog/${target}`); }} okButtonProps={{disabled:!target}} okText="Fusionar" cancelText="Cancelar">
       <Space direction="vertical" style={{width:"100%"}}><span>Todas las ediciones se trasladarán al curso seleccionado.</span><Select showSearch optionFilterProp="label" style={{width:"100%"}} value={target} onChange={setTarget} options={all.filter(item=>item.id_catalog_course!==id).map(item=>({value:item.id_catalog_course,label:item.name}))} /></Space>

@@ -64,6 +64,10 @@ export default function CourseDetailRoute() {
   const { token } = theme.useToken();
   const role = useRole();
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
+  // La pestaña Candidatos es una excepción: TUTOR tiene las mismas funciones que MANAGER
+  // ahí (alta/baja, edición de campos, incorporar desde interesados), a diferencia del
+  // resto de la ficha del curso donde solo ADMIN/MANAGER pueden editar.
+  const canEditCandidates = [Role.ADMIN, Role.MANAGER, Role.TUTOR].includes(role);
   const navigate = useNavigate();
   const { id_course } = useParams();
   const [searchParams] = useSearchParams();
@@ -771,7 +775,7 @@ export default function CourseDetailRoute() {
       }, {
         key: 'candidatos',
         label: 'Candidatos',
-        children: <CourseCandidatesSection courseId={Number(id_course)} catalogCourseId={courseData?.id_catalog_course ?? 0} canEdit={canEdit} />,
+        children: <CourseCandidatesSection courseId={Number(id_course)} catalogCourseId={courseData?.id_catalog_course ?? 0} canEdit={canEditCandidates} />,
       }]} />
       <Modal width={'80%'} destroyOnClose open={Boolean(userToLookup)} onCancel={() => {
         refetchUsersByGroup();
