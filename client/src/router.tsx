@@ -5,6 +5,10 @@ import UsersRoute from './routes/users/users.route';
 import GroupsRoute from './routes/groups/groups.route';
 import CoursesRoute from './routes/courses/courses.route';
 import CourseDetailRoute from './routes/courses/course-detail.route';
+import CourseCatalogRoute from './routes/course-catalog/course-catalog.route';
+import CreateCatalogCourseRoute from './routes/course-catalog/create-catalog-course.route';
+import CatalogCourseDetailRoute from './routes/course-catalog/catalog-course-detail.route';
+import CourseInterestsRoute from './routes/course-catalog/course-interests.route';
 import CreateUserRoute from './routes/users/create-user.route';
 import CreateCourseRoute from './routes/courses/create-course.route';
 import UserDetailRoute from './routes/users/user-detail.route';
@@ -63,6 +67,7 @@ import {
   SafetyCertificateOutlined,
   PoweroffOutlined,
   SolutionOutlined,
+  ReadOutlined,
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 
@@ -87,13 +92,26 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
   const menuItems: NonNullable<MenuProps['items']> = [
     { key: '/', icon: <HomeOutlined />, label: <Link to="/" onClick={onClose}>Home</Link> },
     { key: '/users', icon: <UserOutlined />, label: <Link to="/users" onClick={onClose}>Usuarios</Link> },
-    { key: '/groups', icon: <TeamOutlined />, label: <Link to="/groups" onClick={onClose}>Grupos</Link> },
-    { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses" onClick={onClose}>Cursos</Link> },
-    { key: '/companies', icon: <BankOutlined />, label: <Link to="/companies" onClick={onClose}>Empresas</Link> },
-    { key: '/centers', icon: <ApartmentOutlined />, label: <Link to="/centers" onClick={onClose}>Centros</Link> },
-    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER || role?.toLowerCase() === Role.TUTOR
-      ? [{ key: '/course-requests', icon: <SolutionOutlined />, label: <Link to="/course-requests" onClick={onClose}>Peticiones</Link> }]
-      : []),
+    {
+      type: 'group',
+      key: 'cursos-group',
+      label: <Link to="/course-catalog" onClick={onClose} className="app-sider-group-title"><ReadOutlined /><span>Cursos</span></Link>,
+      children: [
+        { key: '/courses', icon: <BookOutlined />, className: 'app-sider-child-item', label: <Link to="/courses" onClick={onClose}>Ediciones</Link> },
+        { key: '/groups', icon: <TeamOutlined />, className: 'app-sider-child-item', label: <Link to="/groups" onClick={onClose}>Grupos</Link> },
+        ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER || role?.toLowerCase() === Role.TUTOR
+          ? [{ key: '/course-requests', icon: <SolutionOutlined />, className: 'app-sider-child-item', label: <Link to="/course-requests" onClick={onClose}>Peticiones</Link> }]
+          : []),
+      ],
+    },
+    {
+      type: 'group',
+      key: 'empresas-group',
+      label: <Link to="/companies" onClick={onClose} className="app-sider-group-title"><BankOutlined /><span>Empresas</span></Link>,
+      children: [
+        { key: '/centers', icon: <ApartmentOutlined />, className: 'app-sider-child-item', label: <Link to="/centers" onClick={onClose}>Centros</Link> },
+      ],
+    },
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER || role?.toLowerCase() === Role.TUTOR
       ? [{ key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports" onClick={onClose}>Informes</Link> }]
       : []),
@@ -179,6 +197,10 @@ export default function AppRouter() {
               <Route path="/users/:id_user" element={<UserDetailRoute />} />
               <Route path="/groups" element={<GroupsRoute />} />
               <Route path="/courses" element={<CoursesRoute />} />
+              <Route path="/course-catalog" element={<CourseCatalogRoute />} />
+              <Route path="/course-catalog/create" element={<CreateCatalogCourseRoute />} />
+              <Route path="/course-catalog/interests" element={<CourseInterestsRoute />} />
+              <Route path="/course-catalog/:id_catalog_course" element={<CatalogCourseDetailRoute />} />
               <Route path="/courses/:id_course" element={<CourseDetailRoute />} />
               <Route path="/courses/:id_course/add-group" element={<CreateGroupRoute />} />
               <Route path="/users/create" element={<CreateUserRoute />} />

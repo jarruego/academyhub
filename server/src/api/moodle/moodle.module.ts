@@ -12,12 +12,14 @@ import { UserGroupRepository } from 'src/database/repository/group/user-group.re
 import { MoodleUserService } from '../moodle-user/moodle-user.service';
 import { MoodleUserRepository } from 'src/database/repository/moodle-user/moodle-user.repository';
 import { GroupModule } from '../group/group.module';
+import { CatalogCourseRepository } from 'src/database/repository/course/catalog-course.repository';
 
 @Module({
   imports: [DatabaseModule, GroupModule],
   providers: [
     MoodleService,
     CourseRepository,
+    CatalogCourseRepository,
     GroupRepository,
   OrganizationRepository,
     UserCourseRepository,

@@ -70,12 +70,8 @@ export default function CoursesRoute() {
 
   const filteredCourses = coursesData?.filter(course =>
     TAB_PREDICATE[activeTab](course) &&
-    matchesLoose(normalizedSearch, [course.course_name, course.short_name, course.file_number, course.moodle_id])
-  )?.slice().sort((a, b) => {
-    const aDate = a.end_date ? new Date(a.end_date).getTime() : 0;
-    const bDate = b.end_date ? new Date(b.end_date).getTime() : 0;
-    return bDate - aDate; // Descendente: más recientes primero
-  });
+    matchesLoose(normalizedSearch, [course.catalog_course_name, course.course_name, course.short_name, course.file_number, course.moodle_id])
+  )?.slice().sort((a, b) => b.id_course - a.id_course); // Id descendente: las ediciones más nuevas primero
 
   // Map course id -> latest group end timestamp
   const latestGroupEndByCourse = useMemo(() => {
@@ -131,10 +127,7 @@ export default function CoursesRoute() {
   // filtran por ella (redundante); el Nº Exp. y la columna Cliente acompañan a
   // las pestañas donde aparecen cursos INAEM/clasificados.
   const columns = useMemo<ColumnsType<CourseRow>>(() => {
-    const idCol = { title: 'ID', dataIndex: 'id_course', sorter: (a: CourseRow, b: CourseRow) => a.id_course - b.id_course };
-    const moodleCol = { title: 'ID Moodle', dataIndex: 'moodle_id', sorter: (a: CourseRow, b: CourseRow) => (a.moodle_id ?? 0) - (b.moodle_id ?? 0) };
-    const nameCol = { title: 'Nombre', dataIndex: 'course_name', sorter: (a: CourseRow, b: CourseRow) => (a.course_name ?? '').localeCompare(b.course_name ?? '') };
-    const shortCol = { title: 'Nombre Corto', dataIndex: 'short_name', sorter: (a: CourseRow, b: CourseRow) => (a.short_name ?? '').localeCompare(b.short_name ?? '') };
+    const catalogCol = { title: 'Curso', dataIndex: 'catalog_course_name', sorter: (a: CourseRow, b: CourseRow) => (a.catalog_course_name ?? '').localeCompare(b.catalog_course_name ?? '') };
 
     const expedienteCol = {
       title: 'Nº Exp.',
@@ -170,7 +163,6 @@ export default function CoursesRoute() {
       key: 'group_end_date',
       render: (ts: number | null) => formatDate(ts),
       sorter: (a: CourseRow, b: CourseRow) => ((b.latest_group_end_date ?? 0) - (a.latest_group_end_date ?? 0)),
-      defaultSortOrder: 'ascend' as const,
     };
 
     const stateCol = {
@@ -181,7 +173,7 @@ export default function CoursesRoute() {
       sorter: (a: CourseRow, b: CourseRow) => Number(a.is_active) - Number(b.is_active),
     };
 
-    const cols: ColumnsType<CourseRow> = [idCol, moodleCol, nameCol, shortCol];
+    const cols: ColumnsType<CourseRow> = [catalogCol];
     // Nº Exp. donde puede haber cursos INAEM (públicos / sin clasificar / todos).
     if (activeTab === 'publica' || activeTab === 'todos' || activeTab === 'sin_clasificar') cols.push(expedienteCol);
     cols.push(clientCol);
@@ -215,7 +207,7 @@ export default function CoursesRoute() {
     </>
   );
 
-  return <ListPageLayout title="Cursos" toolbar={toolbar}>
+  return <ListPageLayout title="Ediciones" toolbar={toolbar}>
     <DataTable<CourseRow>
       rowKey="id_course"
       columns={columns}

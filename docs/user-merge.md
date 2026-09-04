@@ -5,7 +5,9 @@
 Herramienta admin para fusionar **fichas duplicadas de la misma persona** en `users`. Caso típico: la misma persona con dos registros (uno con NIE, otro con DNI) y/o NSS con/sin ceros a la izquierda. Como `dni` y `nss` son `UNIQUE`, esos duplicados rompen `import-sage` `update_and_link` (colisión 23505 → ver `docs/import.md`) y ensucian matrículas/preinscripciones/reports.
 
 ## Detección
-Por **NSS normalizado**: `normalizeNss` quita no-dígitos y ceros a la izquierda (`081358086457` == `81358086457`). `getCandidates()` agrupa `users` por ese valor (`HAVING count(*)>1`, clave `<>''`) y devuelve, por miembro, datos clave + recuentos de relaciones (`user_course`/`user_group`/`user_center`/`user_preinscription`/`moodle_users`). Marca `nameMatch=false` si los nombres normalizados del grupo no coinciden (posible falso positivo — solo aviso visual; NSS puede colisionar por error de tecleo).
+Por **NSS normalizado**: `normalizeNss` quita no-dígitos y ceros a la izquierda (`081358086457` == `81358086457`). `getCandidates()` agrupa `users` por ese valor (`HAVING count(*)>1`, clave `<>''`) y devuelve, por miembro, datos clave + recuentos de relaciones (`user_course`/`user_group`/`user_center`/`user_preinscription`/`course_candidates`/`course_interests`/`moodle_users`). Marca `nameMatch=false` si los nombres normalizados del grupo no coinciden (posible falso positivo — solo aviso visual; NSS puede colisionar por error de tecleo).
+
+> Nota de nomenclatura: `MergeCandidateGroup`/`getCandidates()` aquí son "candidatos a fusión de usuarios" — no tiene relación con `course_candidates` (candidaturas de una persona a una edición, ver `docs/course-catalog.md`). Coincidencia de nombre, conceptos distintos.
 
 ## Endpoints (`@Controller("api/user-merge")`, `RoleGuard([ADMIN])`)
 El prefijo `api/` va **en el decorador** (no hay prefijo global; el cliente llama vía `getApiHost()` directo, saltándose el proxy de Vite — misma convención que `api/import`, `api/import-inaem`, `api/forum`).
@@ -19,6 +21,8 @@ El prefijo `api/` va **en el decorador** (no hay prefijo global; el cliente llam
    - `user_course`: mayor `completion_percentage`/`time_spent`, `enrollment_date` más antigua, `id_moodle_user` si falta.
    - `user_group`: `finalized`/`is_tutor` = OR, `id_role`/`id_center` = coalesce, mayor progreso, `last_access` más reciente, `join_date` más antigua.
    - `user_preinscription`: estado más fuerte (MATRICULADO > PREINSCRITO > BAJA > DESCARTADO), `prioritaria` = OR, fecha más antigua.
+   - `course_candidates`: si el ganador ya tiene candidatura para el mismo curso, se fusionan los campos (conserva el estado de proceso/asistencia más avanzado, los 3 booleanos de documentación se combinan con OR, y las notas) y se borra la fila del perdedor. Si no colisiona, se mueve la fila completa.
+   - `course_interests`: mismo patrón, colisión por `id_catalog_course`. Antes de fusionar/borrar el interés del perdedor, repunta las `course_candidates.id_interest` que lo referenciaban al interés del ganador (si no, se perdería la trazabilidad al aplicarse el `SET NULL` de la FK).
    - `user_center`: sin merge de campos (se conserva la fila del ganador); luego `recalcMainCenter` deja **un solo** `is_main_center` (activo con `start_date` más antiguo; si no, `end_date` más reciente).
    - `moodle_users`: mueve los mapeos del perdedor al ganador (un solo `is_main_user`); marca `dualMoodle` si ambos tenían cuenta (aviso en UI — la fusión NO toca Moodle).
    - `import_decisions.selected_user_id`: repunta perdedor → ganador (coherente con el borrado de usuarios).

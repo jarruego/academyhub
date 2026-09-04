@@ -9,9 +9,11 @@ import { MoodleUserModule } from '../moodle-user/moodle-user.module';
 import { MoodleModule } from '../moodle/moodle.module';
 import { UserCourseRepository } from 'src/database/repository/course/user-course.repository';
 import { UserPreinscriptionRepository } from 'src/database/repository/preinscription/user-preinscription.repository';
+import { CatalogCourseRepository } from 'src/database/repository/course/catalog-course.repository';
+import { CourseCandidateRepository } from 'src/database/repository/course-candidate/course-candidate.repository';
 
 @Module({
-  providers: [CourseService, CourseRepository, GroupRepository, UserCourseRepository, UserPreinscriptionRepository],
+  providers: [CourseService, CourseRepository, CatalogCourseRepository, CourseCandidateRepository, GroupRepository, UserCourseRepository, UserPreinscriptionRepository],
   controllers: [CourseController],
   exports: [CourseService, CourseRepository],
   imports: [UserModule, MoodleUserModule, MoodleModule]

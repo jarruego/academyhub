@@ -4,6 +4,8 @@ import { CourseFunding } from "./course-funding.enum";
 
 export type Course = {
     id_course: number;
+    id_catalog_course: number;
+    catalog_course_name?: string;
     course_name: string;
     moodle_id?: number | null;
     category?: string | null;
@@ -25,4 +27,14 @@ export type Course = {
     is_provisional?: boolean | null;
     active?: boolean | null;
     moodle_synced_at?: Date | null;
+    capacity?: number | null;
+    selection_at?: Date | null;
+    selection_place?: string | null;
+    training_place?: string | null;
+    target_audience?: string | null;
+    admission_requirements?: string | null;
+    required_documentation?: string | null;
+    planned_schedule?: string | null;
+    coordinator?: string | null;
+    organization_notes?: string | null;
 }

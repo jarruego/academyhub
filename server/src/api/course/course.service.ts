@@ -15,16 +15,19 @@ import { UserService } from "../user/user.service";
 import { CourseInsertModel, CourseSelectModel, CourseUpdateModel } from "src/database/schema/tables/course.table";
 import { UserCourseInsertModel, UserCourseUpdateModel } from "src/database/schema/tables/user_course.table";
 import { UserPreinscriptionRepository } from "src/database/repository/preinscription/user-preinscription.repository";
+import { CatalogCourseRepository } from "src/database/repository/course/catalog-course.repository";
+import { CourseCandidateRepository } from "src/database/repository/course-candidate/course-candidate.repository";
 
 /**
- * Dependencias que retienen un curso (las 3 FKs que apuntan a `courses`).
- * `groups` y `preinscriptions` bloquean el borrado; `enrollments` sólo avisa
+ * Dependencias que retienen un curso.
+ * `groups`, `preinscriptions` y `candidates` bloquean el borrado; `enrollments` sólo avisa
  * y puede arrastrarse con `deleteEnrollments`.
  */
 export interface CourseDeletionCheck {
   groups: number;
   enrollments: number;
   preinscriptions: number;
+  candidates: number;
   /** true si el curso se puede borrar sin arrastrar nada. */
   canDelete: boolean;
   /** true si sólo faltan las matrículas por confirmar (aviso + cascada opcional). */
@@ -35,8 +38,10 @@ export interface CourseDeletionCheck {
 export class CourseService {
   constructor(
     private readonly courseRepository: CourseRepository,
+    private readonly catalogCourseRepository: CatalogCourseRepository,
     private readonly userCourseRepository: UserCourseRepository,
     private readonly userPreinscriptionRepository: UserPreinscriptionRepository,
+    private readonly courseCandidateRepository: CourseCandidateRepository,
     private readonly groupRepository: GroupRepository,
     private readonly MoodleService: MoodleService,
     private readonly moodleUserService: MoodleUserService,
@@ -75,6 +80,10 @@ export class CourseService {
           ...courseInsertModel,
           contents: courseInsertModel.contents ?? null,
         });
+        if (!data.id_catalog_course) {
+          const catalogCourse = await this.catalogCourseRepository.ensurePendingByName(data.course_name, { transaction });
+          data.id_catalog_course = catalogCourse.id_catalog_course;
+        }
         return await this.courseRepository.create(data, { transaction });
       });
     } catch (error) {
@@ -138,11 +147,13 @@ export class CourseService {
     const groups = await this.groupRepository.countByCourse(id, options);
     const enrollments = await this.userCourseRepository.countByCourse(id, options);
     const preinscriptions = await this.userPreinscriptionRepository.countByCourse(id, options);
-    const blocked = groups > 0 || preinscriptions > 0;
+    const candidates = await this.courseCandidateRepository.countByCourse(id, options);
+    const blocked = groups > 0 || preinscriptions > 0 || candidates > 0;
     return {
       groups,
       enrollments,
       preinscriptions,
+      candidates,
       canDelete: !blocked && enrollments === 0,
       requiresEnrollmentDeletion: !blocked && enrollments > 0,
     };
@@ -168,6 +179,11 @@ export class CourseService {
         if (check.preinscriptions > 0) {
           throw new ConflictException(
             `No se puede eliminar el curso: tiene ${check.preinscriptions} preinscripción(es) asociada(s). Bórralas primero desde la pestaña Preinscripciones.`,
+          );
+        }
+        if (check.candidates > 0) {
+          throw new ConflictException(
+            `No se puede eliminar el curso: tiene ${check.candidates} candidatura(s) asociada(s).`,
           );
         }
         if (check.groups > 0) {
@@ -235,6 +251,10 @@ export class CourseService {
       }
 
       try {
+        if (!data.id_catalog_course) {
+          const catalogCourse = await this.catalogCourseRepository.ensurePendingByName(data.course_name!, { transaction });
+          data.id_catalog_course = catalogCourse.id_catalog_course;
+        }
         const created = await this.courseRepository.create(data as CourseInsertModel, { transaction });
         // Use shared util to resolve inserted id
   const newId = resolveInsertId(created as unknown);
@@ -268,6 +288,10 @@ export class CourseService {
 
       // Try create and resolve persisted row
       try {
+        if (!payload.id_catalog_course && payload.course_name) {
+          const catalogCourse = await this.catalogCourseRepository.ensurePendingByName(payload.course_name, { transaction });
+          payload = { ...payload, id_catalog_course: catalogCourse.id_catalog_course };
+        }
         const created = await this.courseRepository.create(payload as CourseInsertModel, { transaction });
         const newId = resolveInsertId(created as unknown);
         if (newId) return await this.courseRepository.findById(Number(newId), { transaction });

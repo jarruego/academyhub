@@ -72,6 +72,8 @@ The center-detail Usuarios tab also has a **"Solo centro principal"** checkbox (
 ## Course typology (UI)
 Data model / enums → `docs/architecture.md`. UI consumption of the axes (modality / `client` / `funding`; ámbito público-privado is derived from `funding`):
 
+The sidebar separates **Cursos** (`/course-catalog`, stable catalog identities) from **Ediciones** (`/courses`, concrete executions); Ediciones and Peticiones hang under the Cursos group, and Centros under Empresas — as non-collapsible `type: 'group'` menu headers (not submenus) whose title is itself a navigable link (`router.tsx`, `.app-sider-group-title` in `index.css`). Course create/detail requires a catalog selection and detail has a `planificacion` tab for optional capacity, selection, audience, requirements, documentation, schedule and coordinator fields. Full domain rules → `docs/course-catalog.md`.
+
 `utils/course-profile.ts` (`getCourseProfile({ modality, client, funding })`) is the **single source of truth** for type-driven UI — returns axis flags (`isInaem` from `client`; `isPublic`/`isPrivate` derived from `funding`) and capability flags (`showMoodleSync`, `showProgressColumn`, `showFinalizedColumn`, `showBonificationButton`, `showExpediente`, `showPreinscripciones`). Use it instead of scattering `modality === 'presencial'` checks. `showBonificationButton` is permissive (hidden only for explicit non-FUNDAE funding, matching the server guard).
 
 - **Group members table** (`GroupUsersManager`, the main `getCourseProfile` consumer): columns adapt to the course type.

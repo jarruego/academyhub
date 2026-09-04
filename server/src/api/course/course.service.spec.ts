@@ -3,7 +3,7 @@ import { CourseService } from './course.service';
 
 // Construye el servicio con repos mockeados y una transacción que ejecuta el callback.
 // Sólo se mockean las dependencias que toca el borrado; el resto van vacías.
-function buildService({ groups = 0, enrollments = 0, preinscriptions = 0 }) {
+function buildService({ groups = 0, enrollments = 0, preinscriptions = 0, candidates = 0 }) {
   const databaseService = { db: { transaction: (cb: any) => cb({}) } } as any;
   const courseRepository = { deleteById: jest.fn().mockResolvedValue({}) } as any;
   const userCourseRepository = {
@@ -13,12 +13,17 @@ function buildService({ groups = 0, enrollments = 0, preinscriptions = 0 }) {
   const userPreinscriptionRepository = {
     countByCourse: jest.fn().mockResolvedValue(preinscriptions),
   } as any;
+  const courseCandidateRepository = {
+    countByCourse: jest.fn().mockResolvedValue(candidates),
+  } as any;
   const groupRepository = { countByCourse: jest.fn().mockResolvedValue(groups) } as any;
 
   const service = new CourseService(
     courseRepository,
+    {} as any,
     userCourseRepository,
     userPreinscriptionRepository,
+    courseCandidateRepository,
     groupRepository,
     {} as any,
     {} as any,
@@ -48,6 +53,14 @@ describe('CourseService.deleteById — dependencias que retienen el curso', () =
     const { service, courseRepository } = buildService({ groups: 1 });
     await expect(service.deleteById(10, true)).rejects.toMatchObject({
       message: expect.stringContaining('grupo'),
+    });
+    expect(courseRepository.deleteById).not.toHaveBeenCalled();
+  });
+
+  it('bloquea si hay candidatos operativos aunque no haya preinscripción oficial', async () => {
+    const { service, courseRepository } = buildService({ candidates: 2 });
+    await expect(service.deleteById(10, true)).rejects.toMatchObject({
+      message: expect.stringContaining('2 candidatura(s)'),
     });
     expect(courseRepository.deleteById).not.toHaveBeenCalled();
   });

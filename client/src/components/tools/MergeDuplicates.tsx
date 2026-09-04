@@ -144,10 +144,10 @@ export const MergeModal: React.FC<{
             }
           />
 
-          {(preview.collisions.courses + preview.collisions.groups + preview.collisions.centers + preview.collisions.preinscriptions) > 0 && (
+          {(preview.collisions.courses + preview.collisions.groups + preview.collisions.centers + preview.collisions.preinscriptions + preview.collisions.candidates) > 0 && (
             <Text type="secondary">
               Relaciones compartidas que se fusionarán: {preview.collisions.courses} cursos, {preview.collisions.groups} grupos,
-              {" "}{preview.collisions.centers} centros, {preview.collisions.preinscriptions} preinscripciones.
+              {" "}{preview.collisions.centers} centros, {preview.collisions.preinscriptions} preinscripciones y {preview.collisions.candidates} candidaturas.
             </Text>
           )}
 
@@ -196,7 +196,7 @@ const CandidateGroup: React.FC<{ group: MergeCandidateGroup }> = ({ group }) => 
       key: "rel",
       render: (_v, r) => (
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {r.courses_count}c · {r.groups_count}g · {r.centers_count}ce · {r.preinscriptions_count}p · {r.moodle_count}m
+          {r.courses_count}c · {r.groups_count}g · {r.centers_count}ce · {r.preinscriptions_count}p · {r.candidates_count}ca · {r.interests_count}i · {r.moodle_count}m
         </Text>
       ),
     },

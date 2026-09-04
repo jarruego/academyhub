@@ -1,5 +1,5 @@
 import { useCreateCourseMutation } from "../../hooks/api/courses/use-create-course.mutation";
-import { App, Button, DatePicker, Form, Input, Select, Row, Col } from "antd";
+import { App, Button, DatePicker, Form, Input, Select, Row, Col, Divider } from "antd";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
 import { CourseClient } from "../../shared/types/course/course-client.enum";
@@ -12,8 +12,10 @@ import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course-catalog.query";
 
 const CREATE_COURSE_FORM = z.object({
+  id_catalog_course: z.coerce.number().int().positive("Selecciona un curso del catálogo"),
   course_name: z.string({ required_error: "El nombre del curso es obligatorio" }).min(2, "El nombre es demasiado corto"),
   short_name: z.string({ required_error: "El nombre corto es obligatorio" }).min(2, "El nombre corto es demasiado corto"),
   start_date: z.date().nullable().optional(),
@@ -27,11 +29,22 @@ const CREATE_COURSE_FORM = z.object({
   funding: z.nativeEnum(CourseFunding).optional(),
   moodle_id: z.coerce.number().optional(),
   category: z.string().optional(),
+  capacity: z.coerce.number().int().min(0).optional(),
+  selection_at: z.date().nullable().optional(),
+  selection_place: z.string().optional(),
+  training_place: z.string().optional(),
+  target_audience: z.string().optional(),
+  admission_requirements: z.string().optional(),
+  required_documentation: z.string().optional(),
+  planned_schedule: z.string().optional(),
+  coordinator: z.string().optional(),
+  organization_notes: z.string().optional(),
 });
 
 export default function CreateCourseRoute() {
   const { message } = App.useApp();
   const { mutateAsync: createCourse } = useCreateCourseMutation();
+  const { data: catalogCourses = [] } = useCourseCatalogQuery();
   const { handleSubmit, control, watch, formState: { errors } } = useForm<z.infer<typeof CREATE_COURSE_FORM>>({
     resolver: zodResolver(CREATE_COURSE_FORM),
   });
@@ -58,6 +71,7 @@ export default function CreateCourseRoute() {
         ...data,
         start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
         end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
+        selection_at: data.selection_at ? dayjs(data.selection_at).utc().toDate() : null,
       });
       navigate('/courses');
     } catch (error) {
@@ -74,6 +88,14 @@ export default function CreateCourseRoute() {
   return (
     <div>
       <Form layout="vertical" onFinish={handleSubmit(submit)}>
+        <Divider orientation="left">Datos generales</Divider>
+        <Row gutter={[16, 0]}>
+          <Col xs={24} md={16}>
+            <Form.Item label="Curso de catálogo" name="id_catalog_course" required help={errors.id_catalog_course?.message} validateStatus={errors.id_catalog_course ? "error" : undefined}>
+              <Controller name="id_catalog_course" control={control} render={({ field }) => <Select {...field} id="id_catalog_course" showSearch optionFilterProp="label" placeholder="Selecciona la formación" options={catalogCourses.map(c => ({value:c.id_catalog_course,label:c.name}))} />} />
+            </Form.Item>
+          </Col>
+        </Row>
         <Row gutter={[16, 0]}>
           <Col xs={24} sm={8} md={6}>
             <Form.Item label="ID Moodle" name="moodle_id">
@@ -262,6 +284,21 @@ export default function CreateCourseRoute() {
               </Form.Item>
             </Col>
           )}
+        </Row>
+        <Divider orientation="left">Planificación y selección</Divider>
+        <Row gutter={[16, 0]}>
+          <Col xs={24} sm={8} md={4}><Form.Item label="Plazas"><Controller name="capacity" control={control} render={({field}) => <Input type="number" min={0} {...field} />} /></Form.Item></Col>
+          <Col xs={24} sm={8} md={6}><Form.Item label="Fecha de selección"><Controller name="selection_at" control={control} render={({field}) => <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{width:'100%'}} value={field.value ? dayjs(field.value) : null} onChange={value => field.onChange(value?.toDate() ?? null)} />} /></Form.Item></Col>
+          <Col xs={24} sm={8} md={7}><Form.Item label="Lugar de selección"><Controller name="selection_place" control={control} render={({field}) => <Input {...field} />} /></Form.Item></Col>
+          <Col xs={24} sm={12} md={7}><Form.Item label="Lugar de impartición"><Controller name="training_place" control={control} render={({field}) => <Input {...field} />} /></Form.Item></Col>
+        </Row>
+        <Row gutter={[16, 0]}>
+          <Col xs={24} md={12}><Form.Item label="Destinatarios"><Controller name="target_audience" control={control} render={({field}) => <Input.TextArea rows={2} {...field} />} /></Form.Item></Col>
+          <Col xs={24} md={12}><Form.Item label="Requisitos de acceso"><Controller name="admission_requirements" control={control} render={({field}) => <Input.TextArea rows={2} {...field} />} /></Form.Item></Col>
+          <Col xs={24} md={12}><Form.Item label="Documentación solicitada"><Controller name="required_documentation" control={control} render={({field}) => <Input.TextArea rows={2} {...field} />} /></Form.Item></Col>
+          <Col xs={24} sm={12} md={6}><Form.Item label="Horario previsto"><Controller name="planned_schedule" control={control} render={({field}) => <Input {...field} />} /></Form.Item></Col>
+          <Col xs={24} sm={12} md={6}><Form.Item label="Responsable / gestor"><Controller name="coordinator" control={control} render={({field}) => <Input {...field} />} /></Form.Item></Col>
+          <Col xs={24}><Form.Item label="Observaciones organizativas"><Controller name="organization_notes" control={control} render={({field}) => <Input.TextArea rows={2} {...field} />} /></Form.Item></Col>
         </Row>
         <div className="form-actions">
           <AuthzHide roles={[Role.ADMIN]}>

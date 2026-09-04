@@ -14,6 +14,8 @@ export interface MergeCandidateMember {
   groups_count: number;
   centers_count: number;
   preinscriptions_count: number;
+  candidates_count: number;
+  interests_count: number;
   moodle_count: number;
 }
 
@@ -44,7 +46,7 @@ export interface MergePreview {
   loser: { id_user: number; name: string; first_surname: string | null; second_surname: string | null; dni: string | null; nss: string | null };
   fields: MergeFieldDiff[];
   resolvedNss: MergeResolvedNss;
-  collisions: { courses: number; groups: number; centers: number; preinscriptions: number };
+  collisions: { courses: number; groups: number; centers: number; preinscriptions: number; candidates: number };
   dualMoodle: boolean;
 }
 

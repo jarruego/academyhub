@@ -7,9 +7,19 @@ import { courseTable } from "src/database/schema/tables/course.table";
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { groupTable } from "src/database/schema/tables/group.table";
 import { PreinscriptionStatus } from "src/types/preinscription/preinscription-status.enum";
+import { PreinscriptionRegistrationSource } from "src/types/preinscription/preinscription-registration-source.enum";
 
 @Injectable()
 export class UserPreinscriptionRepository extends Repository {
+  async findByUserCourse(id_user: number, id_course: number, options?: QueryOptions) {
+    const [row] = await this.query(options)
+      .select()
+      .from(userPreinscriptionTable)
+      .where(and(eq(userPreinscriptionTable.id_user, id_user), eq(userPreinscriptionTable.id_course, id_course)))
+      .limit(1);
+    return row;
+  }
+
   /** Preinscripciones de un curso/expediente, con datos básicos del usuario. */
   async findByCourse(id_course: number, options?: QueryOptions) {
     return this.query(options)
@@ -74,6 +84,15 @@ export class UserPreinscriptionRepository extends Repository {
       .returning({ id_user: userPreinscriptionTable.id_user });
   }
 
+  /** Borra la preinscripción de una persona en un curso concreto, si existe. */
+  async deleteByUserCourse(id_user: number, id_course: number, options?: QueryOptions) {
+    const [row] = await this.query(options)
+      .delete(userPreinscriptionTable)
+      .where(and(eq(userPreinscriptionTable.id_user, id_user), eq(userPreinscriptionTable.id_course, id_course)))
+      .returning();
+    return row;
+  }
+
   /** Inserta o actualiza una preinscripción (clave id_user+id_course). */
   async upsert(
     data: {
@@ -82,12 +101,21 @@ export class UserPreinscriptionRepository extends Repository {
       status?: PreinscriptionStatus;
       prioritaria?: boolean;
       preinscription_date?: Date | null;
+      registration_source?: PreinscriptionRegistrationSource;
+      registered_at?: Date;
+      verified_at?: Date | null;
+      verified_by?: number | null;
+      last_imported_at?: Date | null;
     },
     options?: QueryOptions,
   ) {
     const set: Record<string, unknown> = {};
     if (data.prioritaria !== undefined) set.prioritaria = data.prioritaria;
     if (data.preinscription_date !== undefined) set.preinscription_date = data.preinscription_date;
+    if (data.registration_source !== undefined) set.registration_source = data.registration_source;
+    if (data.verified_at !== undefined) set.verified_at = data.verified_at;
+    if (data.verified_by !== undefined) set.verified_by = data.verified_by;
+    if (data.last_imported_at !== undefined) set.last_imported_at = data.last_imported_at;
     // El estado NO se degrada en conflicto (preserva MATRICULADO); sólo se fuerza
     // explícitamente desde el servicio cuando procede (ver markEnrolled).
     return this.query(options)
@@ -98,6 +126,11 @@ export class UserPreinscriptionRepository extends Repository {
         status: data.status ?? PreinscriptionStatus.PREINSCRITO,
         prioritaria: data.prioritaria ?? false,
         preinscription_date: data.preinscription_date ?? null,
+        registration_source: data.registration_source ?? PreinscriptionRegistrationSource.INAEM_IMPORT,
+        registered_at: data.registered_at ?? new Date(),
+        verified_at: data.verified_at ?? null,
+        verified_by: data.verified_by ?? null,
+        last_imported_at: data.last_imported_at ?? null,
       })
       .onConflictDoUpdate({
         target: [userPreinscriptionTable.id_user, userPreinscriptionTable.id_course],
@@ -106,13 +139,31 @@ export class UserPreinscriptionRepository extends Repository {
   }
 
   /** Marca como MATRICULADO (crea la fila si no existía). */
-  async markEnrolled(id_user: number, id_course: number, options?: QueryOptions) {
+  async markEnrolled(
+    id_user: number,
+    id_course: number,
+    metadata?: {
+      registration_source?: PreinscriptionRegistrationSource;
+      last_imported_at?: Date | null;
+    },
+    options?: QueryOptions,
+  ) {
     return this.query(options)
       .insert(userPreinscriptionTable)
-      .values({ id_user, id_course, status: PreinscriptionStatus.MATRICULADO })
+      .values({
+        id_user,
+        id_course,
+        status: PreinscriptionStatus.MATRICULADO,
+        registration_source: metadata?.registration_source ?? PreinscriptionRegistrationSource.INAEM_IMPORT,
+        last_imported_at: metadata?.last_imported_at ?? null,
+      })
       .onConflictDoUpdate({
         target: [userPreinscriptionTable.id_user, userPreinscriptionTable.id_course],
-        set: { status: PreinscriptionStatus.MATRICULADO },
+        set: {
+          status: PreinscriptionStatus.MATRICULADO,
+          ...(metadata?.registration_source !== undefined ? { registration_source: metadata.registration_source } : {}),
+          ...(metadata?.last_imported_at !== undefined ? { last_imported_at: metadata.last_imported_at } : {}),
+        },
       });
   }
 

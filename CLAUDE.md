@@ -2,18 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. It is a lean index: deep detail per subsystem lives in `docs/*.md`, loaded on demand (see the map at the bottom).
 
+## 🤖 AI Agent Routing Rules (CRITICAL)
+- **Claude Code (Target):** Eagerly leverage this file as an index. Read full `docs/*.md` sub-systems on-demand as per the documentation map below.
+- **OpenAI / Codex / Custom Agents (Target):** DO NOT automatically scan or read the `docs/` directory. Stop. Wait for explicit user instructions specifying which exact file path to read. Avoid massive multi-file token ingestion.
+
 ## Project Overview
 
 AcademyHub is a full-stack monorepo for training management in SMEs integrating Moodle. It handles courses, users, groups, companies, and centers, and generates regulatory compliance reports (SEPE/FUNDAE).
-
-## Repository Structure
-
-```
-academyhub/
-├── client/          # React + Vite frontend
-├── server/          # NestJS backend
-└── docs/            # per-subsystem documentation (read on demand)
-```
 
 ## Commands
 
@@ -60,31 +55,13 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 
 ## Environment Variables
 
-### Server (`server/.env`)
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection URL |
-| `JWT_SECRET` | Yes | JWT signing secret |
-| `JWT_EXPIRES_IN` | No | Token expiry (default `7d`) |
-| `MOODLE_TOKEN` | No | Legacy fallback Moodle token (may not be set in production) |
-| `MOODLE_URL` | Yes | Moodle API base URL |
-| `PORT` | No | HTTP port (default `3000`) |
-| `DB_SSL` | No | Set `true` for SSL (auto-enabled in production) |
-| `DB_POOL_MAX` | No | PG pool size (default `10`) |
-| `ENABLE_CRON_SCHEDULER` | No | `true` to enable internal cron |
-| `SAGE_IMPORT_ENABLED` / `SAGE_IMPORT_CRON` | No | SAGE auto-import toggle/schedule (defaults `true` / `30 5 * * *`) |
-| `MOODLE_ACTIVE_SYNC_ENABLED` / `MOODLE_ACTIVE_SYNC_CRON` | No | Moodle progress sync toggle/schedule (defaults `false` / `0 4 * * *`) |
-| `SCHEDULER_TIMEZONE` | No | Timezone for **all** cron exprs (code default `UTC`; repo `.env`/`.env.example` set `Europe/Madrid` → times are Spanish local). Prod (Render): set this + `SAGE_IMPORT_CRON` in the dashboard, they override code. |
-| `APP_MASTER_KEY` | Yes | Base64 AES-256 key for encrypting secrets at rest. Generate with `openssl rand -base64 32`. |
-| `SFTP_SAGE_*` | No | SFTP credentials for SAGE import |
-| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_STORAGE_BUCKET` | No | Supabase Storage for mail template images |
-| `GITHUB_BACKUP_TOKEN` / `GITHUB_BACKUP_REPO` | No | GitHub PAT (Actions read+write) + repo for the backups admin panel (`api/backups`) |
-| `BACKUP_S3_*` (`ENDPOINT`/`REGION`/`ACCESS_KEY_ID`/`SECRET_KEY`/`BUCKET`) | No | Read-only S3 credentials of the backup bucket for the panel (list + presigned downloads) |
+Full variable list with descriptions lives in `server/.env.example` and `client/.env.example` (each var is commented there). Vars required at boot are already listed under Critical conventions above.
 
-### Client (`client/.env`)
-| Variable | Description |
-|---|---|
-| `VITE_API_URL` | Backend URL for local development (defaults to `http://localhost:3000`) |
+Two vars aren't documented in `.env.example` (code defaults only):
+- `DB_SSL` — set `true` for SSL (auto-enabled in production).
+- `DB_POOL_MAX` — PG pool size (default `10`).
+
+Prod gotcha (Render): `SCHEDULER_TIMEZONE` + `SAGE_IMPORT_CRON` must be set in the dashboard — they override the code defaults.
 
 ## Documentation map — READ the relevant doc before working in that area
 
@@ -101,6 +78,7 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 | `docs/user-sanitization.md` | **touching `api/user-sanitization/`** (Sanitización de datos). Covers the "present-but-invalid" detection of phone/email/dni/nss reusing the existing validators (`email/phone/nss/dni .util`), the pure `detectUserIssues`/`suggestFix` helpers, server-authoritative auto-fix endpoint, unique-collision handling, and the admin tool. |
 | `docs/moodle-audit.md` | **touching `api/moodle-audit/`** (Auditoría de Moodle). Covers the single-snapshot cost model (one `getAllUsers` download, everything else local), the link classification (incorrect/unverifiable/orphans/no-courses/unlinked), the shared DNI-matching util (`moodle-user-matching.util.ts`), orphan cleanup, and the admin tool (repairs via user-merge). |
 | `docs/course-requests.md` | **touching `api/course-request/`** (Peticiones de centros). Covers the request header + editable student-row model (no `users`/enrollment link yet — deferred), the alias-based Excel column matching, open/closed lifecycle, endpoints, and the `/course-requests` client section (search-by-center with derived company, simple editable grid with Excel paste/upload). |
+| `docs/course-catalog.md` | **touching course catalog, course creation/imports, `catalog_courses`, `course_candidates`/`course_interests`, or catalog/candidates/interests UI**. Covers catalog course → edition → group, mandatory association, automatic pending catalog entries, planning fields, candidates vs. official INAEM preinscription, the interest pool and its "incorporate to edition" flow, endpoints and migrations. |
 | `docs/reports.md` | touching `api/reports/` (PDF templating, report rows). |
 | `docs/backups.md` | **touching `api/backups/`** (admin panel: status/list/run/download), `.github/workflows/backup.yml`, or anything about copias de seguridad (nightly pg_dump + Storage mirror to external S3 via GitHub Actions; secrets list, restore procedure, local dev copy). |
 | `docs/client.md` | frontend work under `client/` (API hooks, auth flow, routing, responsive conventions, type sharing, tests). |

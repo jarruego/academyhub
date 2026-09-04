@@ -19,7 +19,14 @@ import { UserGroupRepository } from "src/database/repository/group/user-group.re
 import { CourseModality } from "src/types/course/course-modality.enum";
 import { CourseClient } from "src/types/course/course-client.enum";
 import { CourseFunding } from "src/types/course/course-funding.enum";
+import { CatalogCourseRepository } from "src/database/repository/course/catalog-course.repository";
 import { PreinscriptionStatus } from "src/types/preinscription/preinscription-status.enum";
+import { PreinscriptionRegistrationSource } from "src/types/preinscription/preinscription-registration-source.enum";
+import { CourseCandidateRepository } from "src/database/repository/course-candidate/course-candidate.repository";
+import { CourseInterestRepository } from "src/database/repository/course-interest/course-interest.repository";
+import { CourseCandidateSelectModel } from "src/database/schema/tables/course_candidate.table";
+import { CandidateSource } from "src/types/course-candidate/course-candidate.enums";
+import { InterestStatus } from "src/types/course-interest/course-interest.enums";
 import { parseInaemFile } from "./inaem-file.parser";
 import { ParsedTable } from "./inaem-html-table.parser";
 import { cleanText, parseInaemDate, parseSiNo, sanitizeDni, upsertObservationBlock } from "./inaem-normalize.util";
@@ -73,6 +80,9 @@ export class InaemImportService {
     private readonly preinscriptionRepo: UserPreinscriptionRepository,
     private readonly groupService: GroupService,
     private readonly userGroupRepo: UserGroupRepository,
+    private readonly catalogCourseRepo: CatalogCourseRepository,
+    private readonly courseCandidateRepo: CourseCandidateRepository,
+    private readonly interestRepo: CourseInterestRepository,
   ) {}
 
   private get db() {
@@ -217,9 +227,11 @@ export class InaemImportService {
           // a mano). Idempotente: ensureGroup devuelve el grupo existente si lo hay.
           await this.ensureGroup(ctx, ctx.coursesByFile.get(fileNumber) ?? existing);
         } else {
+          const catalogCourse = await this.catalogCourseRepo.ensurePendingByName(courseName);
           const inserted = await this.db
             .insert(courses)
             .values({
+              id_catalog_course: catalogCourse.id_catalog_course,
               course_name: courseName,
               short_name: fileNumber,
               file_number: fileNumber,
@@ -305,7 +317,18 @@ export class InaemImportService {
         }
         ctx.summary.enrollments++;
 
-        await this.preinscriptionRepo.markEnrolled(userId, course.id_course);
+        const candidate = await this.courseCandidateRepo.upsert({
+          id_user: userId,
+          id_course: course.id_course,
+          source: CandidateSource.INAEM_IMPORT,
+        });
+        if (candidate) {
+          await this.linkOpenInterest(candidate, course, InterestStatus.ENROLLED);
+        }
+        await this.preinscriptionRepo.markEnrolled(userId, course.id_course, {
+          registration_source: PreinscriptionRegistrationSource.INAEM_IMPORT,
+          last_imported_at: new Date(),
+        });
       } catch (e: any) {
         await this.fail(row, undefined, `Error en alumno: ${e?.message || e}`);
         ctx.summary.failed++;
@@ -334,11 +357,19 @@ export class InaemImportService {
           continue;
         }
         const userId = await this.upsertUser(ctx, incoming, fileNumber!, row, "inaem-preinscripciones");
+        const candidate = await this.courseCandidateRepo.upsert({
+          id_user: userId,
+          id_course: course.id_course,
+          source: CandidateSource.INAEM_IMPORT,
+        });
+        if (candidate) await this.linkOpenInterest(candidate, course, InterestStatus.CALLED);
         await this.preinscriptionRepo.upsert({
           id_user: userId,
           id_course: course.id_course,
           prioritaria: parseSiNo(row[PREINSCRIPCIONES.PRIORITY]),
           status: PreinscriptionStatus.PREINSCRITO,
+          registration_source: PreinscriptionRegistrationSource.INAEM_IMPORT,
+          last_imported_at: new Date(),
         });
         ctx.summary.preinscriptions++;
       } catch (e: any) {
@@ -351,6 +382,35 @@ export class InaemImportService {
   }
 
   // ---------- Helpers ----------
+
+  private static readonly INTEREST_RANK: Record<string, number> = {
+    INTERESADO: 0, CONTACTADO: 1, CONVOCADO: 2, MATRICULADO: 3,
+  };
+
+  /**
+   * Si la persona tiene un interés abierto (fase 3) para el curso de catálogo
+   * de esta edición, lo vincula a la candidatura (igual que "Incorporar a
+   * edición") y avanza su estado a `targetStatus` — nunca lo retrocede: una
+   * reimportación de Preinscripciones tras un import de Alumnos no debe
+   * bajar un interés ya MATRICULADO de vuelta a CONVOCADO.
+   */
+  private async linkOpenInterest(candidate: CourseCandidateSelectModel, course: CourseRow, targetStatus: InterestStatus): Promise<void> {
+    let idInterest = candidate.id_interest;
+    if (!idInterest) {
+      const open = await this.interestRepo.findOpenByUserAndCatalogCourse(candidate.id_user, course.id_catalog_course);
+      if (!open) return;
+      idInterest = open.id_interest;
+      await this.courseCandidateRepo.update(candidate.id_candidate, { id_interest: idInterest });
+    }
+    const interest = await this.interestRepo.findById(idInterest);
+    // DESCARTADO es una decisión explícita del equipo: el import nunca la revierte.
+    if (!interest || interest.status === "DESCARTADO") return;
+    const currentRank = InaemImportService.INTEREST_RANK[interest.status] ?? 0;
+    const targetRank = InaemImportService.INTEREST_RANK[targetStatus] ?? 0;
+    if (targetRank > currentRank) {
+      await this.interestRepo.update(idInterest, { status: targetStatus });
+    }
+  }
 
   /** Busca el curso por expediente; si no existe y está permitido, crea uno provisional. */
   private async ensureCourse(ctx: ImportCtx, fileNumber?: string): Promise<CourseRow | null> {
@@ -375,9 +435,11 @@ export class InaemImportService {
       return existing;
     }
     if (!ctx.options.createMissingCourses) return null;
+    const catalogCourse = await this.catalogCourseRepo.ensurePendingByName(fileNumber);
     const inserted = await this.db
       .insert(courses)
       .values({
+        id_catalog_course: catalogCourse.id_catalog_course,
         course_name: fileNumber,
         short_name: fileNumber,
         file_number: fileNumber,

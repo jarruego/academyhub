@@ -18,6 +18,8 @@ Read before adding modules, tables, repositories, or scheduler tasks.
 A lookup catalog of role definitions (`role_shortname`, `role_description`) used to label roles within groups/courses. Not the same as `auth_user.role`.
 
 ## Course typology
+A stable formation lives in `catalog_courses`; each `courses` row is an edition/convocation and must reference it through `id_catalog_course`; groups remain below the edition. Catalog/import rules and planning fields → `docs/course-catalog.md`.
+
 A course is labelled by two stored **orthogonal** axes plus modality (enums mirrored client↔server). Tagged at course level, never on the student:
 - `modality` (`course_modality`: `Online`/`Presencial`/`Mixta`) — how it's delivered.
 - `client` (`course_client`: `INAEM`/`VITALIA`/`OTRO`) — who commissions it / who it's for. `INAEM` gates the INAEM-specific features (expediente, preinscripciones, finalización). Extensible: a new client (e.g. LANBIDE) is one more enum value. Empresa-vs-particular is derived from the student's `company`, not stored.

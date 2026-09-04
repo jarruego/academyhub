@@ -1,4 +1,4 @@
-import { serial, integer, text, date, boolean, decimal, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { serial, integer, text, boolean, decimal, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { CourseModality } from "../../../types/course/course-modality.enum";
@@ -10,8 +10,29 @@ export const courseModality = academyhubSchema.enum('course_modality', Object.va
 export const courseClient = academyhubSchema.enum('course_client', Object.values(CourseClient) as [string, ...string[]]);
 export const courseFunding = academyhubSchema.enum('course_funding', Object.values(CourseFunding) as [string, ...string[]]);
 
+export const catalogCourseTable = academyhubSchema.table('catalog_courses', {
+  id_catalog_course: serial().primaryKey(),
+  name: text().notNull(),
+  normalized_name: text().notNull(),
+  internal_code: text(),
+  description: text(),
+  objectives: text(),
+  base_contents: text(),
+  default_modality: courseModality(),
+  default_hours: integer(),
+  sepe_specialty_code: text(),
+  sepe_specialty_name: text(),
+  professional_family: text(),
+  professional_area: text(),
+  ...TIMESTAMPS,
+}, (table) => ({
+  normalizedNameIdx: uniqueIndex("idx_catalog_courses_normalized_name").on(table.normalized_name),
+  internalCodeIdx: uniqueIndex("idx_catalog_courses_internal_code").on(table.internal_code),
+}));
+
 export const courseTable = academyhubSchema.table('courses', {
   id_course: serial().primaryKey(),
+  id_catalog_course: integer().notNull().references(() => catalogCourseTable.id_catalog_course),
   moodle_id: integer(),
   course_name: text().notNull(),
   category: text(),
@@ -40,6 +61,16 @@ export const courseTable = academyhubSchema.table('courses', {
   // alumno/preinscrito de un expediente sin curso. Se completa al importar Acciones.
   is_provisional: boolean().notNull().default(false),
   contents: text(), // HTML largo
+  capacity: integer(),
+  selection_at: timestamp({withTimezone: true}),
+  selection_place: text(),
+  training_place: text(),
+  target_audience: text(),
+  admission_requirements: text(),
+  required_documentation: text(),
+  planned_schedule: text(),
+  coordinator: text(),
+  organization_notes: text(),
   moodle_synced_at: timestamp({withTimezone: true}),
   ...TIMESTAMPS,
 }, (table) => {
@@ -48,12 +79,15 @@ export const courseTable = academyhubSchema.table('courses', {
     // matching en la importación INAEM. Los NULL no colisionan entre sí en Postgres,
     // así que los cursos sin expediente conviven sin problema.
     fileNumberIdx: uniqueIndex("idx_courses_file_number").on(table.file_number),
+    catalogCourseIdx: index("idx_courses_id_catalog_course").on(table.id_catalog_course),
   };
 });
 
 export type CourseSelectModel = InferSelectModel<typeof courseTable>;
 export type CourseInsertModel = InferInsertModel<typeof courseTable>;
 export type CourseUpdateModel = Partial<CourseInsertModel>;
-
+export type CatalogCourseSelectModel = InferSelectModel<typeof catalogCourseTable>;
+export type CatalogCourseInsertModel = InferInsertModel<typeof catalogCourseTable>;
+export type CatalogCourseUpdateModel = Partial<CatalogCourseInsertModel>;
 
 

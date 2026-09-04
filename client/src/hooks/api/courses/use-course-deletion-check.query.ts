@@ -7,6 +7,7 @@ export interface CourseDeletionCheck {
     groups: number;
     enrollments: number;
     preinscriptions: number;
+    candidates: number;
     canDelete: boolean;
     requiresEnrollmentDeletion: boolean;
 }

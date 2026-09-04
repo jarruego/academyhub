@@ -15,6 +15,9 @@ vi.mock("../../hooks/api/courses/use-create-course.mutation", () => ({
         mutateAsync: create.mutate,
     }),
 }));
+vi.mock("../../hooks/api/course-catalog/use-course-catalog.query", () => ({
+    useCourseCatalogQuery: () => ({ data: [{ id_catalog_course: 1, name: "Curso base", status: "ACTIVO" }], isLoading: false }),
+}));
 
 // El contexto de auth (useRole/AuthzHide/useAuthenticatedAxios) no está envuelto en el test.
 vi.mock("../../providers/auth/auth.context", () => ({
@@ -37,8 +40,11 @@ describe("<CreateCourseRoute/>", () => {
             const courseName = await screen.findByTestId("course-name");
             const shortName = await screen.findByTestId("short-name");
             const modalityLabel = await screen.findByLabelText(/modalidad/i);
+            const catalogLabel = await screen.findByLabelText(/curso de cat/i);
             await userEvent.type(courseName, "Curso Test");
             await userEvent.type(shortName, "CT");
+            await userEvent.click(catalogLabel);
+            await userEvent.click(await screen.findByTitle("Curso base"));
             // Modalidad: simular el evento de cambio con el valor real del enum
             // Buscar el input oculto del Select y disparar el evento change
             const selectInput = modalityLabel.closest('div')?.querySelector('input');

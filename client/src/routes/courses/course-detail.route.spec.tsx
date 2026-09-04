@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 const updateCourse = { mutateAsync: vi.fn().mockResolvedValue({}), mutate: vi.fn().mockResolvedValue({}) };
 const courseData = {
   id_course: 1,
+  id_catalog_course: 1,
   course_name: "Curso Demo",
   short_name: "CD",
   modality: "Online",
@@ -21,6 +22,12 @@ const courseData = {
   moodle_id: 123,
   category: "Cat1"
 };
+vi.mock("../../hooks/api/course-catalog/use-course-catalog.query", () => ({
+  useCourseCatalogQuery: () => ({ data: [{ id_catalog_course: 1, name: "Curso base", status: "ACTIVO" }], isLoading: false }),
+}));
+vi.mock("../../components/course/course-candidates-section", () => ({
+  CourseCandidatesSection: () => <div data-testid="course-candidates-section">Candidatos</div>,
+}));
 
 vi.mock("../../hooks/api/courses/use-course.query", () => ({
   useCourseQuery: () => ({ data: courseData, isLoading: false }),
@@ -85,6 +92,7 @@ describe("<CourseDetailRoute />", () => {
     // El valor seleccionado se muestra en un div.ant-select-selector
     const selector = modalitySelect.querySelector('.ant-select-selection-item');
     expect(selector?.textContent).toBe("Online");
+    expect(screen.getByRole("tab", { name: "Candidatos" })).toBeTruthy();
   });
 
   // Este test de integración falla en entorno de test debido a incompatibilidades conocidas entre React Hook Form, Ant Design y Testing Library.

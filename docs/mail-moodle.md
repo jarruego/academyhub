@@ -5,6 +5,8 @@ Read before touching `api/moodle/`, `api/mail/`, or notification/token logic.
 ## Moodle integration
 `MoodleService` (`server/src/api/moodle/moodle.service.ts`) wraps all Moodle Web Services calls. The org-level Moodle token is stored encrypted in `organization_settings` (via `secrets.util.ts`); per-user tokens live only in the `moodle_user_auth_user` links. The optional custom plugin `block_advanced_reports_get_userstats` is gated by `organization_settings.settings.plugins.itop_training` — when enabled, it syncs `time_spent` and uses custom endpoints when creating users. The other plugin flags (`configurable_reports`, `certificates`, `progress_bar`) are declared in settings but currently unused by the code.
 
+Every Moodle-created local course is an edition and must reference `catalog_courses`. `upsertMoodleCourse` calls `CatalogCourseRepository.ensurePendingByName`: an exact normalized catalog name is reused; otherwise a `PENDIENTE_REVISION` catalog entry is created without blocking the import. See `docs/course-catalog.md`.
+
 `moodle_users.moodle_password` is stored in plaintext on purpose (shown to users) — see `docs/security.md`.
 
 ## Custom fields de perfil (usuarios subidos a Moodle)

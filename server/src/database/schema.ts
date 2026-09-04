@@ -1,7 +1,7 @@
 import { companyTable } from "./schema/tables/company.table";
 import { centerTable } from "./schema/tables/center.table";
 import { authUserTable } from "./schema/tables/auth_user.table";
-import { courseTable } from "./schema/tables/course.table";
+import { courseTable, catalogCourseTable, courseFunding } from "./schema/tables/course.table";
 import { groupTable } from "./schema/tables/group.table";
 import { userTable } from "./schema/tables/user.table";
 import { moodleUserTable } from "./schema/tables/moodle_user.table";
@@ -22,6 +22,9 @@ import { emailLogTable } from "./schema/tables/email_log.table";
 import { moodleAuditSnapshotTable, moodleProtectedUserTable } from "./schema/tables/moodle_audit.table";
 import { courseRequestTable, courseRequestStatus, courseRequestSource } from "./schema/tables/course_request.table";
 import { courseRequestStudentTable } from "./schema/tables/course_request_student.table";
+import { courseCandidateTable, candidateSource, candidateProcessStatus, candidateEmploymentStatus, candidateAttendanceStatus } from "./schema/tables/course_candidate.table";
+import { courseInterestTable, interestStatus, interestSource } from "./schema/tables/course_interest.table";
+import { preinscriptionRegistrationSource } from "./schema/tables/user_preinscription.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
 import { courseModality, courseClient } from "./schema/tables/course.table";
@@ -37,6 +40,7 @@ export const auth_users = authUserTable;
 export const companies = companyTable;
 export const centers = centerTable;
 export const courses = courseTable;
+export const catalog_courses = catalogCourseTable;
 export const groups = groupTable;
 export const users = userTable;
 export const moodle_users = moodleUserTable;
@@ -59,16 +63,26 @@ export const moodle_audit_snapshot = moodleAuditSnapshotTable;
 export const moodle_protected_users = moodleProtectedUserTable;
 export const course_requests = courseRequestTable;
 export const course_request_students = courseRequestStudentTable;
+export const course_candidates = courseCandidateTable;
+export const course_interests = courseInterestTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
 export const courseClientSchema = courseClient;
+export const courseFundingSchema = courseFunding;
 export const genderSchema = gender;
 export const document_type = documentType;
 export const group_active_mode = groupActiveMode;
 export const preinscription_status = preinscriptionStatus;
 export const course_request_status = courseRequestStatus;
 export const course_request_source = courseRequestSource;
+export const candidate_source = candidateSource;
+export const candidate_process_status = candidateProcessStatus;
+export const candidate_employment_status = candidateEmploymentStatus;
+export const candidate_attendance_status = candidateAttendanceStatus;
+export const preinscription_registration_source = preinscriptionRegistrationSource;
+export const interest_status = interestStatus;
+export const interest_source = interestSource;
 // export const enrollment_status = enrollmentStatus;
 
 // Re-export types for convenience

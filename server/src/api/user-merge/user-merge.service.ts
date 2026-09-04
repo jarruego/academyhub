@@ -9,6 +9,8 @@ import {
   user_preinscription,
   moodle_users,
   import_decisions,
+  course_candidates,
+  course_interests,
 } from "src/database/schema";
 import { and, eq, sql } from "drizzle-orm";
 import {
@@ -32,6 +34,8 @@ export interface MergeCandidateMember {
   groups_count: number;
   centers_count: number;
   preinscriptions_count: number;
+  candidates_count: number;
+  interests_count: number;
   moodle_count: number;
 }
 
@@ -73,6 +77,8 @@ export class UserMergeService {
         (SELECT count(*) FROM ${user_groups} ug WHERE ug.id_user = n.id_user) AS groups_count,
         (SELECT count(*) FROM ${user_center} ucn WHERE ucn.id_user = n.id_user) AS centers_count,
         (SELECT count(*) FROM ${user_preinscription} up WHERE up.id_user = n.id_user) AS preinscriptions_count,
+        (SELECT count(*) FROM ${course_candidates} cc WHERE cc.id_user = n.id_user) AS candidates_count,
+        (SELECT count(*) FROM ${course_interests} ci WHERE ci.id_user = n.id_user) AS interests_count,
         (SELECT count(*) FROM ${moodle_users} mu WHERE mu.id_user = n.id_user) AS moodle_count
       FROM norm n
       JOIN dups d ON d.nss_norm = n.nss_norm
@@ -94,6 +100,8 @@ export class UserMergeService {
         groups_count: Number(r.groups_count),
         centers_count: Number(r.centers_count),
         preinscriptions_count: Number(r.preinscriptions_count),
+        candidates_count: Number(r.candidates_count),
+        interests_count: Number(r.interests_count),
         moodle_count: Number(r.moodle_count),
       };
       const key = String(r.nss_norm);
@@ -149,6 +157,8 @@ export class UserMergeService {
     const sharedGroups = await this.sharedKeys(user_groups, "id_group", winnerId, loserId);
     const sharedCenters = await this.sharedKeys(user_center, "id_center", winnerId, loserId);
     const sharedPreinscriptions = await this.sharedKeys(user_preinscription, "id_course", winnerId, loserId);
+    const sharedCandidates = await this.sharedKeys(course_candidates, "id_course", winnerId, loserId);
+    const sharedInterests = await this.sharedKeys(course_interests, "id_catalog_course", winnerId, loserId);
 
     const winnerMoodle = await this.db.select().from(moodle_users).where(eq(moodle_users.id_user, winnerId));
     const loserMoodle = await this.db.select().from(moodle_users).where(eq(moodle_users.id_user, loserId));
@@ -163,6 +173,8 @@ export class UserMergeService {
         groups: sharedGroups.length,
         centers: sharedCenters.length,
         preinscriptions: sharedPreinscriptions.length,
+        candidates: sharedCandidates.length,
+        interests: sharedInterests.length,
       },
       dualMoodle: winnerMoodle.length > 0 && loserMoodle.length > 0,
     };
@@ -215,6 +227,8 @@ export class UserMergeService {
       reassigned.user_course = await this.reassignLinkTable(tx, user_course, "id_course", winnerId, loserId, mergeUserCourseRow);
       reassigned.user_group = await this.reassignLinkTable(tx, user_groups, "id_group", winnerId, loserId, mergeUserGroupRow);
       reassigned.user_preinscription = await this.reassignLinkTable(tx, user_preinscription, "id_course", winnerId, loserId, mergePreinscriptionRow);
+      reassigned.course_candidates = await this.reassignCandidates(tx, winnerId, loserId);
+      reassigned.course_interests = await this.reassignInterests(tx, winnerId, loserId);
       reassigned.user_center = await this.reassignLinkTable(tx, user_center, "id_center", winnerId, loserId, () => ({}));
 
       // Recalcular centro principal del ganador (un solo is_main_center).
@@ -284,6 +298,90 @@ export class UserMergeService {
         await tx.update(table).set({ id_user: winnerId }).where(and(eq(table.id_user, loserId), eq(col, keyVal)));
         moved++;
       }
+    }
+    return { moved, merged };
+  }
+
+  /** Reasigna candidaturas al colisionar en una edición. */
+  private async reassignCandidates(tx: any, winnerId: number, loserId: number): Promise<{ moved: number; merged: number }> {
+    const loserRows = await tx.select().from(course_candidates).where(eq(course_candidates.id_user, loserId));
+    let moved = 0;
+    let merged = 0;
+    const strongest = <T extends string>(winnerValue: T, loserValue: T, order: readonly T[]) =>
+      order.indexOf(loserValue) > order.indexOf(winnerValue) ? loserValue : winnerValue;
+
+    for (const loserRow of loserRows) {
+      const [winnerRow] = await tx.select().from(course_candidates).where(and(
+        eq(course_candidates.id_user, winnerId),
+        eq(course_candidates.id_course, loserRow.id_course),
+      )).limit(1);
+      if (!winnerRow) {
+        await tx.update(course_candidates).set({ id_user: winnerId }).where(eq(course_candidates.id_candidate, loserRow.id_candidate));
+        moved++;
+        continue;
+      }
+
+      const notes = [winnerRow.operational_notes, loserRow.operational_notes].filter(Boolean);
+      await tx.update(course_candidates).set({
+        source: winnerRow.source === "IMPORTACION_INAEM" || loserRow.source === "IMPORTACION_INAEM" ? "IMPORTACION_INAEM" : winnerRow.source,
+        process_status: strongest(winnerRow.process_status, loserRow.process_status, ["DESCARTADA", "BAJA", "PENDIENTE", "RESERVA", "SELECCIONADA"]),
+        attendance_status: strongest(winnerRow.attendance_status, loserRow.attendance_status, ["PENDIENTE", "NO", "SI"]),
+        has_darde: winnerRow.has_darde || loserRow.has_darde,
+        has_dni: winnerRow.has_dni || loserRow.has_dni,
+        has_titulacion: winnerRow.has_titulacion || loserRow.has_titulacion,
+        employment_status: winnerRow.employment_status ?? loserRow.employment_status,
+        meets_requirements: winnerRow.meets_requirements ?? loserRow.meets_requirements,
+        operational_notes: notes.length ? Array.from(new Set(notes)).join("\n") : null,
+        assigned_to: winnerRow.assigned_to ?? loserRow.assigned_to,
+        updatedAt: new Date(),
+      }).where(eq(course_candidates.id_candidate, winnerRow.id_candidate));
+      await tx.delete(course_candidates).where(eq(course_candidates.id_candidate, loserRow.id_candidate));
+      merged++;
+    }
+    return { moved, merged };
+  }
+
+  /**
+   * Reasigna intereses (fase 3) y, si colisionan en el mismo curso de
+   * catálogo, repunta primero las candidaturas que apuntaban al interés del
+   * perdedor (`course_candidates.id_interest`) antes de fusionarlo y
+   * borrarlo — si no, se perdería la trazabilidad al no quedar `SET NULL`
+   * silencioso sin registro.
+   */
+  private async reassignInterests(tx: any, winnerId: number, loserId: number): Promise<{ moved: number; merged: number }> {
+    const loserRows = await tx.select().from(course_interests).where(eq(course_interests.id_user, loserId));
+    let moved = 0;
+    let merged = 0;
+    const strongest = <T extends string>(winnerValue: T, loserValue: T, order: readonly T[]) =>
+      order.indexOf(loserValue) > order.indexOf(winnerValue) ? loserValue : winnerValue;
+
+    for (const loserRow of loserRows) {
+      const [winnerRow] = await tx.select().from(course_interests).where(and(
+        eq(course_interests.id_user, winnerId),
+        eq(course_interests.id_catalog_course, loserRow.id_catalog_course),
+      )).limit(1);
+      if (!winnerRow) {
+        await tx.update(course_interests).set({ id_user: winnerId }).where(eq(course_interests.id_interest, loserRow.id_interest));
+        moved++;
+        continue;
+      }
+
+      await tx.update(course_candidates)
+        .set({ id_interest: winnerRow.id_interest })
+        .where(eq(course_candidates.id_interest, loserRow.id_interest));
+      const notes = [winnerRow.notes, loserRow.notes].filter(Boolean);
+      await tx.update(course_interests).set({
+        status: strongest(winnerRow.status, loserRow.status, ["DESCARTADO", "INTERESADO", "CONTACTADO", "CONVOCADO", "MATRICULADO"]),
+        source: winnerRow.source ?? loserRow.source,
+        preferred_modality: winnerRow.preferred_modality ?? loserRow.preferred_modality,
+        availability: winnerRow.availability ?? loserRow.availability,
+        notes: notes.length ? Array.from(new Set(notes)).join("\n") : null,
+        assigned_to: winnerRow.assigned_to ?? loserRow.assigned_to,
+        interest_date: new Date(winnerRow.interest_date) <= new Date(loserRow.interest_date) ? winnerRow.interest_date : loserRow.interest_date,
+        updatedAt: new Date(),
+      }).where(eq(course_interests.id_interest, winnerRow.id_interest));
+      await tx.delete(course_interests).where(eq(course_interests.id_interest, loserRow.id_interest));
+      merged++;
     }
     return { moved, merged };
   }

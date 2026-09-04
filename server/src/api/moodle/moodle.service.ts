@@ -13,6 +13,7 @@ import { resolveInsertId } from 'src/utils/db';
 import { DATABASE_PROVIDER } from 'src/database/database.module';
 import { QueryOptions, Transaction } from 'src/database/repository/repository';
 import { CourseRepository } from 'src/database/repository/course/course.repository';
+import { CatalogCourseRepository } from 'src/database/repository/course/catalog-course.repository';
 import { GroupRepository } from 'src/database/repository/group/group.repository';
 import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
 import { MoodleCustomFieldConfig, normalizeOrganizationSettings } from '../organization/organization-settings.model';
@@ -22,6 +23,7 @@ import { UserGroupRepository } from 'src/database/repository/group/user-group.re
 import { MoodleUserService } from '../moodle-user/moodle-user.service';
 import { GroupService } from '../group/group.service';
 import { CourseModality } from 'src/types/course/course-modality.enum';
+import { CourseInsertModel } from 'src/database/schema/tables/course.table';
 import { UserCourseInsertModel, UserCourseUpdateModel } from 'src/database/schema/tables/user_course.table';
 import { UserInsertModel, UserUpdateModel, UserSelectModel } from 'src/database/schema/tables/user.table';
 import { MoodleUserInsertModel, MoodleUserSelectModel } from 'src/database/schema/tables/moodle_user.table';
@@ -118,6 +120,7 @@ export class MoodleService {
     constructor(
         @Inject(DATABASE_PROVIDER) private readonly databaseService: DatabaseService,
         private readonly courseRepository: CourseRepository,
+        private readonly catalogCourseRepository: CatalogCourseRepository,
         private readonly groupRepository: GroupRepository,
         private readonly organizationRepository: OrganizationRepository,
         private readonly userCourseRepository: UserCourseRepository,
@@ -1779,7 +1782,7 @@ export class MoodleService {
      */
     private async upsertMoodleCourse(moodleCourse: MoodleCourse, options?: QueryOptions) {
         const run = async (transaction: Transaction) => {
-            const data = {
+            const data: Partial<CourseInsertModel> = {
                 course_name: moodleCourse.fullname,
                 short_name: moodleCourse.shortname,
                 moodle_id: moodleCourse.id,
@@ -1800,7 +1803,9 @@ export class MoodleService {
                 await this.courseRepository.update(existingCourse.id_course, { ...data, updatedAt: new Date() }, { transaction });
                 return await this.courseRepository.findByMoodleId(moodleCourse.id, { transaction });
             } else {
-                const created = await this.courseRepository.create(data, { transaction });
+                const catalogCourse = await this.catalogCourseRepository.ensurePendingByName(data.course_name, { transaction });
+                data.id_catalog_course = catalogCourse.id_catalog_course;
+                const created = await this.courseRepository.create(data as CourseInsertModel, { transaction });
                 const newId = resolveInsertId(created as unknown);
                 if (!newId) throw new InternalServerErrorException('Failed to create course');
                 return await this.courseRepository.findById(newId, { transaction });

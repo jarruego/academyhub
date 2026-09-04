@@ -3,7 +3,7 @@ import { QueryOptions, Repository } from "../repository";
 import { UserCourseInsertModel, userCourseTable, UserCourseUpdateModel, UserCourseSelectModel } from "src/database/schema/tables/user_course.table";
 import { courseTable, CourseSelectModel } from "src/database/schema/tables/course.table";
 import { groupTable } from "src/database/schema/tables/group.table";
-import { and, count, eq, sql, desc } from "drizzle-orm";
+import { and, count, eq, sql, desc, getTableColumns } from "drizzle-orm";
 import type { InsertResult } from 'src/database/types/insert-result';
 import { groupActiveCondition } from "src/utils/group-active.util";
 
@@ -103,27 +103,9 @@ export class UserCourseRepository extends Repository {
                 completion_percentage: userCourseTable.completion_percentage,
                 time_spent: userCourseTable.time_spent,
                 course: {
-                    id_course: courseTable.id_course,
-                    moodle_id: courseTable.moodle_id,
-                    course_name: courseTable.course_name,
-                    category: courseTable.category,
-                    short_name: courseTable.short_name,
-                    start_date: courseTable.start_date,
-                    end_date: courseTable.end_date,
-                    modality: courseTable.modality,
-                    hours: courseTable.hours,
-                    price_per_hour: courseTable.price_per_hour,
+                    ...getTableColumns(courseTable),
                     // Derived: a course is active if it has at least one active group.
                     active: sql<boolean>`EXISTS (SELECT 1 FROM ${groupTable} WHERE ${groupTable.id_course} = ${courseTable.id_course} AND ${groupActiveCondition()})`,
-                    fundae_id: courseTable.fundae_id,
-                    file_number: courseTable.file_number,
-                    client: courseTable.client,
-                    funding: courseTable.funding,
-                    is_provisional: courseTable.is_provisional,
-                    contents: courseTable.contents,
-                    createdAt: courseTable.createdAt,
-                    updatedAt: courseTable.updatedAt,
-                    moodle_synced_at: courseTable.moodle_synced_at,
                 }
             })
             .from(userCourseTable)
@@ -145,27 +127,9 @@ export class UserCourseRepository extends Repository {
                 completion_percentage: userCourseTable.completion_percentage,
                 time_spent: userCourseTable.time_spent,
                 course: {
-                    id_course: courseTable.id_course,
-                    moodle_id: courseTable.moodle_id,
-                    course_name: courseTable.course_name,
-                    category: courseTable.category,
-                    short_name: courseTable.short_name,
-                    start_date: courseTable.start_date,
-                    end_date: courseTable.end_date,
-                    modality: courseTable.modality,
-                    hours: courseTable.hours,
-                    price_per_hour: courseTable.price_per_hour,
+                    ...getTableColumns(courseTable),
                     // Derived: a course is active if it has at least one active group.
                     active: sql<boolean>`EXISTS (SELECT 1 FROM ${groupTable} WHERE ${groupTable.id_course} = ${courseTable.id_course} AND ${groupActiveCondition()})`,
-                    fundae_id: courseTable.fundae_id,
-                    file_number: courseTable.file_number,
-                    client: courseTable.client,
-                    funding: courseTable.funding,
-                    is_provisional: courseTable.is_provisional,
-                    contents: courseTable.contents,
-                    createdAt: courseTable.createdAt,
-                    updatedAt: courseTable.updatedAt,
-                    moodle_synced_at: courseTable.moodle_synced_at,
                 }
             })
             .from(userCourseTable)

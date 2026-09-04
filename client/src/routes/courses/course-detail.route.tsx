@@ -26,12 +26,13 @@ import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { Group } from "../../shared/types/group/group";
 import { isGroupActive } from "../../utils/group-active.util";
-import { useCoursePreinscriptionsQuery } from "../../hooks/api/import-inaem/useInaemData";
-import { CoursePreinscriptionsSection } from "../../components/course/course-preinscriptions-section";
+import { CourseCandidatesSection } from "../../components/course/course-candidates-section";
 import { useOrganizationSettingsQuery } from "../../hooks/api/organization/use-organization-settings.query";
+import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course-catalog.query";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
+  id_catalog_course: z.coerce.number().int().positive("Selecciona un curso del catálogo"),
   course_name: z.string({ required_error: "El nombre del curso es obligatorio" }).min(2, "El nombre es demasiado corto"),
   short_name: z.string({ required_error: "El nombre corto es obligatorio" }).min(2, "El nombre corto es demasiado corto"),
   start_date: z.date().nullable().optional().nullish(),
@@ -46,6 +47,16 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
   moodle_id: z.number().optional().nullish(),
   category: z.string().optional().nullish(),
   contents: z.string().optional().nullish(),
+  capacity: z.coerce.number().int().min(0).optional().nullish(),
+  selection_at: z.date().optional().nullish(),
+  selection_place: z.string().optional().nullish(),
+  training_place: z.string().optional().nullish(),
+  target_audience: z.string().optional().nullish(),
+  admission_requirements: z.string().optional().nullish(),
+  required_documentation: z.string().optional().nullish(),
+  planned_schedule: z.string().optional().nullish(),
+  coordinator: z.string().optional().nullish(),
+  organization_notes: z.string().optional().nullish(),
 });
 
 export default function CourseDetailRoute() {
@@ -64,6 +75,7 @@ export default function CourseDetailRoute() {
   const appliedInitialGroupRef = useRef(false);
   const highlightUserId = searchParams.get('userId') ? Number(searchParams.get('userId')) : null;
   const { data: courseData, isLoading: isCourseLoading } = useCourseQuery(id_course || "");
+  const { data: catalogCourses = [] } = useCourseCatalogQuery();
   const { data: groupsData, isLoading: isGroupsLoading } = useGroupsQuery(id_course || "");
   const sortedGroups = useMemo(() => {
     const list = groupsData ?? [];
@@ -95,11 +107,6 @@ export default function CourseDetailRoute() {
   }, [orgSettings, courseData?.moodle_id]);
   // Preinscripciones del curso: solo ADMIN/MANAGER (el endpoint exige ese rol).
   // La pestaña solo aparece si el curso tiene preinscripciones asociadas.
-  const { data: coursePreinscriptions } = useCoursePreinscriptionsQuery(
-    id_course ? Number(id_course) : 0,
-    canEdit,
-  );
-  const showPreinscriptionsTab = canEdit && (coursePreinscriptions?.length ?? 0) > 0;
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const { refetch: refetchUsersByGroup } = useUsersByGroupQuery(selectedGroupId);
@@ -115,6 +122,7 @@ export default function CourseDetailRoute() {
     resolver: zodResolver(COURSE_DETAIL_FORM_SCHEMA),
     defaultValues: {
       id_course: id_course ? Number(id_course) : 0,
+      id_catalog_course: 0,
       course_name: '',
       short_name: '',
       start_date: null,
@@ -129,6 +137,16 @@ export default function CourseDetailRoute() {
       moodle_id: null,
       category: '',
       contents: '',
+      capacity: null,
+      selection_at: null,
+      selection_place: '',
+      training_place: '',
+      target_audience: '',
+      admission_requirements: '',
+      required_documentation: '',
+      planned_schedule: '',
+      coordinator: '',
+      organization_notes: '',
     },
   });
 
@@ -141,6 +159,7 @@ export default function CourseDetailRoute() {
         ...courseRest,
         start_date: courseData.start_date ? (dayjs.isDayjs(courseData.start_date) ? courseData.start_date.toDate() : courseData.start_date) : null,
         end_date: courseData.end_date ? (dayjs.isDayjs(courseData.end_date) ? courseData.end_date.toDate() : courseData.end_date) : null,
+        selection_at: courseData.selection_at ? (dayjs.isDayjs(courseData.selection_at) ? courseData.selection_at.toDate() : courseData.selection_at) : null,
         contents: courseData.contents ?? '',
       });
     }
@@ -207,6 +226,7 @@ export default function CourseDetailRoute() {
         ...data,
         start_date: data.start_date ? dayjs(data.start_date).utc().toDate() : null,
         end_date: data.end_date ? dayjs(data.end_date).utc().toDate() : null,
+        selection_at: data.selection_at ? dayjs(data.selection_at).utc().toDate() : null,
       });
       setShowSuccessModal(true);
     } catch (error) {
@@ -236,11 +256,18 @@ export default function CourseDetailRoute() {
       return;
     }
 
-    // Preinscripciones y grupos bloquean el borrado: no se arrastran nunca.
+    // Preinscripciones, candidaturas y grupos bloquean el borrado: no se arrastran nunca.
     if (check.preinscriptions > 0) {
       modal.error({
         title: "No se puede eliminar el curso",
         content: `Tiene ${check.preinscriptions} preinscripción(es) asociada(s). Bórralas primero desde la pestaña Preinscripciones.`,
+      });
+      return;
+    }
+    if (check.candidates > 0) {
+      modal.error({
+        title: "No se puede eliminar el curso",
+        content: `Tiene ${check.candidates} candidatura(s) asociada(s).`,
       });
       return;
     }
@@ -327,6 +354,14 @@ export default function CourseDetailRoute() {
         children: (
           <Form layout="vertical" onFinish={handleSubmit(submit)}>
             <Controller name="id_course" control={control} render={({ field }) => <input type="hidden" {...field} id="id_course" value={field.value ?? ''} />} />
+
+            <Row gutter={[16, 0]}>
+              <Col xs={24} md={16}>
+                <Form.Item label="Curso de catálogo" name="id_catalog_course" required help={errors.id_catalog_course?.message} validateStatus={errors.id_catalog_course ? "error" : undefined}>
+                  <Controller name="id_catalog_course" control={control} render={({field}) => <Select {...field} id="id_catalog_course" showSearch optionFilterProp="label" disabled={!canEdit} options={catalogCourses.map(item => ({value:item.id_catalog_course,label:item.name}))} />} />
+                </Form.Item>
+              </Col>
+            </Row>
 
             {/* Nombre del curso + fechas (a la derecha de los nombres) */}
             <Row gutter={[16, 0]}>
@@ -687,6 +722,28 @@ export default function CourseDetailRoute() {
           </Form>
         ),
       }, {
+        key: 'planificacion',
+        label: 'Planificación y selección',
+        children: (
+          <Form layout="vertical" onFinish={handleSubmit(submit)}>
+            <Row gutter={[16, 0]}>
+              <Col xs={24} sm={8} md={4}><Form.Item label="Plazas"><Controller name="capacity" control={control} render={({field}) => <Input type="number" min={0} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24} sm={8} md={6}><Form.Item label="Fecha de selección"><Controller name="selection_at" control={control} render={({field}) => <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{width:'100%'}} value={field.value ? dayjs(field.value) : null} onChange={value => canEdit && field.onChange(value?.toDate() ?? null)} disabled={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24} sm={8} md={7}><Form.Item label="Lugar de selección"><Controller name="selection_place" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24} sm={12} md={7}><Form.Item label="Lugar de impartición"><Controller name="training_place" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+            </Row>
+            <Row gutter={[16, 0]}>
+              <Col xs={24} md={12}><Form.Item label="Destinatarios"><Controller name="target_audience" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24} md={12}><Form.Item label="Requisitos de acceso"><Controller name="admission_requirements" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24} md={12}><Form.Item label="Documentación solicitada"><Controller name="required_documentation" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24} sm={12} md={6}><Form.Item label="Horario previsto"><Controller name="planned_schedule" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24} sm={12} md={6}><Form.Item label="Responsable / gestor"><Controller name="coordinator" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24}><Form.Item label="Observaciones organizativas"><Controller name="organization_notes" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+            </Row>
+            {canEdit && <div className="form-actions"><Button type="primary" icon={<SaveOutlined />} htmlType="submit">Guardar planificación</Button></div>}
+          </Form>
+        ),
+      }, {
         key: 'contenidos',
         label: 'Contenidos',
         children: canEdit ? (
@@ -711,11 +768,11 @@ export default function CourseDetailRoute() {
             <div dangerouslySetInnerHTML={{ __html: contentsValue || '<em>No hay contenidos</em>' }} />
           </div>
         ),
-      }, ...(showPreinscriptionsTab ? [{
-        key: 'preinscripciones',
-        label: `Preinscripciones (${coursePreinscriptions?.length ?? 0})`,
-        children: <CoursePreinscriptionsSection courseId={Number(id_course)} />,
-      }] : [])]} />
+      }, {
+        key: 'candidatos',
+        label: 'Candidatos',
+        children: <CourseCandidatesSection courseId={Number(id_course)} catalogCourseId={courseData?.id_catalog_course ?? 0} canEdit={canEdit} />,
+      }]} />
       <Modal width={'80%'} destroyOnClose open={Boolean(userToLookup)} onCancel={() => {
         refetchUsersByGroup();
         setUserToLookup(null);

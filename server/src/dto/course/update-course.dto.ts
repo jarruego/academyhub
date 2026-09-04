@@ -8,6 +8,12 @@ import { CourseFunding } from "src/types/course/course-funding.enum";
 export class UpdateCourseDTO {
   @ApiPropertyOptional()
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  id_catalog_course?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsInt()
   moodle_id: number;
 
@@ -86,4 +92,15 @@ export class UpdateCourseDTO {
   @IsOptional()
   @IsString()
   contents?: string;
+
+  @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() capacity?: number;
+  @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() selection_at?: Date;
+  @ApiPropertyOptional() @IsOptional() @IsString() selection_place?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() training_place?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() target_audience?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() admission_requirements?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() required_documentation?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() planned_schedule?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() coordinator?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() organization_notes?: string;
 }

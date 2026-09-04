@@ -71,6 +71,38 @@ ul, ol {
     overflow-y: auto;
 }
 
+/* "Cursos"/"Empresas" en el menú lateral: cabeceras de grupo (`type: 'group'`,
+   no desplegables) cuyo título es en realidad un enlace navegable. AntD las
+   pinta como una etiqueta de sección apagada por defecto; las reestilamos para
+   que se vean y se comporten como un ítem de menú normal, con Ediciones/
+   Peticiones (o Centros) colgando siempre visibles debajo, sin flecha de
+   expandir. */
+.ant-menu-item-group-title {
+    padding: 0 !important;
+}
+.app-sider-group-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    line-height: 40px;
+    padding: 0 24px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.65);
+    transition: color 0.2s;
+}
+.app-sider-group-title:hover {
+    color: #fff;
+}
+
+/* Sangría extra para que Ediciones/Peticiones/Centros se vean claramente hijos
+   de su cabecera de grupo (Cursos/Empresas) — antd no indenta más los ítems
+   dentro de un `type: 'group'`, así que se fuerza a mano (el padding-left es
+   inline en antd, hace falta !important para ganarlo). */
+.ant-menu-item.app-sider-child-item {
+    padding-left: 48px !important;
+}
+
 .app-sider-footer {
     margin-top: auto;
     display: flex;
@@ -160,4 +192,38 @@ ul, ol {
 .mail-template-editor-content .ProseMirror ol {
     list-style: decimal;
     padding-left: 22px;
+}
+
+/* Estado del proceso en la pestaña Candidatos (course-candidates-section.tsx):
+   colores suaves — gris/blanco pendiente, verde seleccionada, ámbar reserva,
+   rosa baja, rojo descartada. `!important` porque antd fija el fondo del
+   selector con estilo de mayor especificidad. */
+.process-select-pendiente .ant-select-selector {
+    background: #fafafa !important;
+    border-color: #d9d9d9 !important;
+}
+.process-select-seleccionada .ant-select-selector {
+    background: #f6ffed !important;
+    border-color: #b7eb8f !important;
+}
+.process-select-reserva .ant-select-selector {
+    background: #fffbe6 !important;
+    border-color: #ffe58f !important;
+}
+.process-select-baja .ant-select-selector {
+    background: #fff0f6 !important;
+    border-color: #ffadd2 !important;
+}
+.process-select-descartada .ant-select-selector {
+    background: #fff1f0 !important;
+    border-color: #ffa39e !important;
+}
+
+/* "Cumple Requisitos" en Candidatos: verde si cumple, rojo si no (DARDE/DNI-NIE/
+   Titulación se quedan con el azul/gris por defecto de antd). */
+.requirements-switch.ant-switch-checked {
+    background: #52c41a !important;
+}
+.requirements-switch:not(.ant-switch-checked) {
+    background: #ff4d4f !important;
 }

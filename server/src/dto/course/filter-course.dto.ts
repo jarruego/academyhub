@@ -6,6 +6,11 @@ import { CourseFunding } from "src/types/course/course-funding.enum";
 
 export class FilterCourseDTO {
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  id_catalog_course?: number;
+
+  @IsOptional()
   @IsInt()
   moodle_id?: number;
 

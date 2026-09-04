@@ -7,6 +7,7 @@ const makeService = (overrides: Partial<Record<string, unknown>> = {}) =>
   new MoodleService(
     { db: {} } as any,                          // databaseService
     {} as any,                                  // courseRepository
+    {} as any,                                  // catalogCourseRepository
     {} as any,                                  // groupRepository
     {} as any,                                  // organizationRepository
     {} as any,                                  // userCourseRepository

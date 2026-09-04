@@ -833,7 +833,7 @@ const navigate = useNavigate();
   if (canEdit && userPreinscriptions && userPreinscriptions.length > 0) {
     items.push({
       key: "preinscripciones",
-      label: "Preinscripciones",
+      label: "Preinscripciones INAEM",
       children: (
         <UserPreinscriptionsSection userId={userId} />
       ),

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { QueryOptions, Repository } from "../repository";
-import { CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
-import { eq, ilike, and, or } from "drizzle-orm";
+import { catalogCourseTable, CourseInsertModel, CourseSelectModel, courseTable, CourseUpdateModel } from "src/database/schema/tables/course.table";
+import { eq, ilike, and, or, getTableColumns } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
 import { InsertResult } from 'src/database/types/insert-result';
 // user_course_moodle_role removed: roles are now managed via user_roles + user_group.id_role
@@ -10,7 +10,11 @@ import { InsertResult } from 'src/database/types/insert-result';
 export class CourseRepository extends Repository {
 
   async findById(id: number, options?: QueryOptions) {
-    const rows = await this.query(options).select().from(courseTable).where(eq(courseTable.id_course, id));
+    const rows = await this.query(options)
+      .select({ ...getTableColumns(courseTable), catalog_course_name: catalogCourseTable.name })
+      .from(courseTable)
+      .innerJoin(catalogCourseTable, eq(courseTable.id_catalog_course, catalogCourseTable.id_catalog_course))
+      .where(eq(courseTable.id_course, id));
     return rows?.[0];
   }
 
@@ -44,6 +48,7 @@ export class CourseRepository extends Repository {
         // Ejes de tipología: cliente y financiación (el ámbito se deriva de funding).
         if (filter.client) where.push(eq(courseTable.client, filter.client));
         if (filter.funding) where.push(eq(courseTable.funding, filter.funding));
+        if (filter.id_catalog_course) where.push(eq(courseTable.id_catalog_course, filter.id_catalog_course));
         // Búsqueda libre sobre nombre / nombre corto / nº de expediente.
         if (filter.search) {
           const term = `%${filter.search}%`;
@@ -51,11 +56,16 @@ export class CourseRepository extends Repository {
             ilike(courseTable.course_name, term),
             ilike(courseTable.short_name, term),
             ilike(courseTable.file_number, term),
+            ilike(catalogCourseTable.name, term),
           );
           if (searchCond) where.push(searchCond);
         }
 
-        return await this.query(options).select().from(courseTable).where(and(...where));
+        return await this.query(options)
+          .select({ ...getTableColumns(courseTable), catalog_course_name: catalogCourseTable.name })
+          .from(courseTable)
+          .innerJoin(catalogCourseTable, eq(courseTable.id_catalog_course, catalogCourseTable.id_catalog_course))
+          .where(and(...where));
   }
 
   async deleteById(id: number, options?: QueryOptions) {
@@ -68,7 +78,11 @@ export class CourseRepository extends Repository {
   // Legacy per-course role storage removed. Role assignments are now stored at user_group.id_role
 
   async findByMoodleId(moodleId: number, options?: QueryOptions) {
-    const rows = await this.query(options).select().from(courseTable).where(eq(courseTable.moodle_id, moodleId));
+    const rows = await this.query(options)
+      .select({ ...getTableColumns(courseTable), catalog_course_name: catalogCourseTable.name })
+      .from(courseTable)
+      .innerJoin(catalogCourseTable, eq(courseTable.id_catalog_course, catalogCourseTable.id_catalog_course))
+      .where(eq(courseTable.moodle_id, moodleId));
     return rows?.[0];
   }
 }

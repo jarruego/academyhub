@@ -53,9 +53,9 @@ export const useAllUsersQuery = () => {
     });
 }
 
-// Hook rápido para devolver solo campos mínimos necesarios para lookup (dni, nombre, apellidos)
+// Hook rápido para devolver solo campos mínimos necesarios para lookup (dni, nombre, apellidos, teléfono, email)
 export const useAllUsersLookupQuery = () => {
-    const request = useAuthenticatedAxios<Array<Pick<User, 'id_user' | 'dni' | 'name' | 'first_surname' | 'second_surname'>>>();
+    const request = useAuthenticatedAxios<Array<Pick<User, 'id_user' | 'dni' | 'name' | 'first_surname' | 'second_surname' | 'phone' | 'email'>>>();
 
     return useQuery({
         queryKey: ['users', 'lookup'],

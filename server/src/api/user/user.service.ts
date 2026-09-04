@@ -194,7 +194,7 @@ export class UserService {
       const whereCondition = where.length > 0 ? and(...where) : undefined;
 
       const list = await transaction
-        .select({ id_user: users.id_user, dni: users.dni, name: users.name, first_surname: users.first_surname, second_surname: users.second_surname })
+        .select({ id_user: users.id_user, dni: users.dni, name: users.name, first_surname: users.first_surname, second_surname: users.second_surname, phone: users.phone, email: users.email })
         .from(users)
         .where(whereCondition)
         .orderBy(users.id_user);
