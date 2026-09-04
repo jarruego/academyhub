@@ -1,7 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { CourseCandidateRepository } from "src/database/repository/course-candidate/course-candidate.repository";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 import { CourseInterestFilters, CourseInterestRepository } from "src/database/repository/course-interest/course-interest.repository";
+import { UserRepository } from "src/database/repository/user/user.repository";
 import { CandidateProcessStatus, CandidateSource } from "src/types/course-candidate/course-candidate.enums";
 import { InterestStatus, SYSTEM_ONLY_INTEREST_STATUSES } from "src/types/course-interest/course-interest.enums";
 import { CreateCourseInterestDto } from "./dto/create-course-interest.dto";
@@ -14,6 +15,7 @@ export class CourseInterestService {
     private readonly repository: CourseInterestRepository,
     private readonly candidateRepository: CourseCandidateRepository,
     private readonly courseRepository: CourseRepository,
+    private readonly userRepository: UserRepository,
   ) {}
 
   findByCatalogCourse(idCatalogCourse: number) {
@@ -25,12 +27,30 @@ export class CourseInterestService {
   }
 
   async create(dto: CreateCourseInterestDto, actorId?: number) {
-    const open = await this.repository.findOpenByUserAndCatalogCourse(dto.id_user, dto.id_catalog_course);
+    let id_user = dto.id_user;
+    if (!id_user) {
+      const name = dto.new_user?.name?.trim();
+      const phone = dto.new_user?.phone?.trim();
+      const email = dto.new_user?.email?.trim();
+      if (!name) throw new BadRequestException("El nombre es obligatorio.");
+      if (!phone && !email) throw new BadRequestException("Indica un teléfono o un email de contacto.");
+      const created = await this.userRepository.create({
+        name,
+        first_surname: dto.new_user?.first_surname?.trim() || null,
+        second_surname: dto.new_user?.second_surname?.trim() || null,
+        dni: dto.new_user?.dni?.trim() || null,
+        phone: phone || null,
+        email: email || null,
+      });
+      if (!created.insertId) throw new BadRequestException("No se pudo crear el interesado.");
+      id_user = created.insertId;
+    }
+    const open = await this.repository.findOpenByUserAndCatalogCourse(id_user, dto.id_catalog_course);
     if (open) {
       throw new ConflictException("Esta persona ya tiene un interés abierto para este curso de catálogo.");
     }
     return this.repository.create({
-      id_user: dto.id_user,
+      id_user,
       id_catalog_course: dto.id_catalog_course,
       source: dto.source,
       preferred_modality: dto.preferred_modality,

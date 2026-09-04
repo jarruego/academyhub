@@ -28,8 +28,12 @@ export interface CourseInterest {
   assigned_to_username: string | null;
 }
 
-export type CreateCourseInterestInput = Pick<CourseInterest, "id_user" | "id_catalog_course"> &
-  Partial<Pick<CourseInterest, "source" | "preferred_modality" | "availability" | "notes" | "assigned_to">>;
+export type CreateCourseInterestInput = (
+  Pick<CourseInterest, "id_catalog_course"> & Partial<Pick<CourseInterest, "source" | "preferred_modality" | "availability" | "notes" | "assigned_to">>
+) & (
+  | { id_user: number; new_user?: undefined }
+  | { id_user?: undefined; new_user: { name: string; first_surname?: string; second_surname?: string; dni?: string; phone?: string; email?: string } }
+);
 
 export type CourseInterestPatch = Pick<CourseInterest, "id_interest"> &
   Partial<Pick<CourseInterest, "status" | "source" | "preferred_modality" | "availability" | "notes" | "assigned_to">>;

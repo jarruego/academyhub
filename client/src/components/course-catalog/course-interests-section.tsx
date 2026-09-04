@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { App, Button, Empty, Input, Modal, Select, Space, Spin, Table, Tag, Upload } from "antd";
+import { App, Button, Empty, Select, Space, Spin, Table, Tag, Upload } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, FileExcelOutlined, PlusOutlined, SaveOutlined } from "@ant-design/icons";
+import { DeleteOutlined, FileExcelOutlined, PlusOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import * as XLSX from "xlsx";
@@ -14,6 +14,8 @@ import {
 } from "../../hooks/api/course-interests/use-course-interests";
 import type { CourseInterest, CourseInterestPatch, InterestSource, InterestStatus } from "../../shared/types/course-interest/course-interest";
 import { CourseModality } from "../../shared/types/course/course-modality.enum";
+import { AutoSaveText } from "../common/AutoSaveText";
+import { PersonSearchOrCreateModal, type PersonSearchOrCreateInput } from "../common/PersonSearchOrCreateModal";
 
 // Estados que puede elegir el equipo desde el editor. CONVOCADO y MATRICULADO
 // quedan fuera a propósito: son derivados (existe una candidatura real
@@ -40,39 +42,25 @@ export function CourseInterestsSection({ catalogCourseId, canEdit }: Props) {
   const { data = [], isLoading } = useCourseInterestsByCatalogQuery(catalogCourseId);
   const { data: users = [] } = useAllUsersLookupQuery();
   const createInterest = useCreateCourseInterestMutation();
-  const updateInterests = useUpdateCourseInterestsMutation();
+  const updateInterests = useUpdateCourseInterestsMutation(catalogCourseId);
   const deleteInterest = useDeleteCourseInterestMutation();
-  const [drafts, setDrafts] = useState<Record<number, CourseInterestPatch>>({});
   const [addOpen, setAddOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<number>();
 
-  const rows = useMemo(() => data.map(row => ({ ...row, ...(drafts[row.id_interest] ?? {}) })), [data, drafts]);
+  const rows = data;
   const existingOpenUsers = useMemo(() => new Set(data.filter(row => !SYSTEM_MANAGED_STATUSES.includes(row.status) && row.status !== "DESCARTADO").map(row => row.id_user)), [data]);
-  const userOptions = useMemo(() => users.filter(u => !existingOpenUsers.has(u.id_user)).map(u => ({
-    value: u.id_user,
-    label: `${[u.name, u.first_surname, u.second_surname].filter(Boolean).join(" ")} · ${u.dni || "sin DNI"}`,
-  })), [users, existingOpenUsers]);
+  const availableUsersForAdd = useMemo(() => users.filter(u => !existingOpenUsers.has(u.id_user)), [users, existingOpenUsers]);
 
-  const patch = <K extends keyof CourseInterestPatch>(id: number, field: K, value: CourseInterestPatch[K]) =>
-    setDrafts(previous => ({ ...previous, [id]: { ...(previous[id] ?? { id_interest: id }), [field]: value } }));
-
-  const save = async () => {
-    const pending = Object.values(drafts);
-    if (!pending.length) return;
+  const saveField = async <K extends keyof CourseInterestPatch>(id: number, field: K, value: CourseInterestPatch[K]) => {
     try {
-      await updateInterests.mutateAsync(pending);
-      setDrafts({});
-      message.success("Cambios guardados.");
-    } catch {
-      message.error("No se pudieron guardar los cambios.");
+      await updateInterests.mutateAsync([{ id_interest: id, [field]: value } as CourseInterestPatch]);
+    } catch (error) {
+      message.error(errorMessage(error, "No se pudo guardar el cambio."));
     }
   };
 
-  const add = async () => {
-    if (!selectedUser) return;
+  const handleAdd = async (input: PersonSearchOrCreateInput) => {
     try {
-      await createInterest.mutateAsync({ id_user: selectedUser, id_catalog_course: catalogCourseId });
-      setSelectedUser(undefined);
+      await createInterest.mutateAsync({ ...input, id_catalog_course: catalogCourseId });
       setAddOpen(false);
       message.success("Interesado añadido.");
     } catch (error) {
@@ -136,7 +124,7 @@ export function CourseInterestsSection({ catalogCourseId, canEdit }: Props) {
     title, key: String(field), width,
     render: (_: unknown, r: CourseInterest) => <Select size="small" value={r[field as keyof CourseInterest] as T | null} allowClear={allowClear}
       disabled={!canEdit} style={{ width: "100%" }} options={values.map(v => ({ value: v, label: label(v) }))}
-      onChange={value => patch(r.id_interest, field, (value ?? null) as CourseInterestPatch[keyof CourseInterestPatch])} />,
+      onChange={value => saveField(r.id_interest, field, (value ?? null) as CourseInterestPatch[keyof CourseInterestPatch])} />,
   });
 
   const columns: ColumnsType<CourseInterest> = [
@@ -149,12 +137,12 @@ export function CourseInterestsSection({ catalogCourseId, canEdit }: Props) {
         ? <Tag color={STATUS_COLOR[r.status]} title="Lo asigna el sistema al incorporar a una edición o matricular la candidatura">{label(r.status)}</Tag>
         : <Select size="small" value={r.status} disabled={!canEdit} style={{ width: "100%" }}
             options={MANUAL_STATUSES.map(v => ({ value: v, label: label(v) }))}
-            onChange={value => patch(r.id_interest, "status", value)} />,
+            onChange={value => saveField(r.id_interest, "status", value)} />,
     },
     selectColumn("Origen", "source", SOURCES, 130, true),
     selectColumn("Modalidad preferida", "preferred_modality", MODALITIES, 150, true),
-    { title: "Disponibilidad", width: 170, render: (_, r) => <Input size="small" value={r.availability ?? ""} readOnly={!canEdit} onChange={e => patch(r.id_interest, "availability", e.target.value)} /> },
-    { title: "Notas", width: 240, render: (_, r) => <Input.TextArea autoSize={{ minRows: 1, maxRows: 3 }} value={r.notes ?? ""} readOnly={!canEdit} onChange={e => patch(r.id_interest, "notes", e.target.value)} /> },
+    { title: "Disponibilidad", width: 170, render: (_, r) => <AutoSaveText value={r.availability ?? ""} disabled={!canEdit} onSave={value => saveField(r.id_interest, "availability", value)} /> },
+    { title: "Notas", width: 240, render: (_, r) => <AutoSaveText textarea value={r.notes ?? ""} disabled={!canEdit} onSave={value => saveField(r.id_interest, "notes", value)} /> },
     { title: "Acciones", fixed: "right", width: 90, render: (_, r) => canEdit && !SYSTEM_MANAGED_STATUSES.includes(r.status)
       ? <Button danger size="small" aria-label="Eliminar interés" icon={<DeleteOutlined />} onClick={() => remove(r)} /> : null },
   ];
@@ -165,12 +153,9 @@ export function CourseInterestsSection({ catalogCourseId, canEdit }: Props) {
       {canEdit && <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>Añadir interesado</Button>}
       {canEdit && <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={importExcel}><Button icon={<FileExcelOutlined />}>Importar Excel</Button></Upload>}
       <Button icon={<FileExcelOutlined />} onClick={exportExcel} disabled={!rows.length}>Exportar Excel</Button>
-      {canEdit && <Button icon={<SaveOutlined />} onClick={save} loading={updateInterests.isPending} disabled={!Object.keys(drafts).length}>Guardar cambios ({Object.keys(drafts).length})</Button>}
     </Space>
     {!rows.length ? <Empty description="Todavía no hay nadie interesado en este curso." /> :
       <Table<CourseInterest> rowKey="id_interest" columns={columns} dataSource={rows} pagination={{ pageSize: 50 }} scroll={{ x: 1400 }} size="small" />}
-    <Modal title="Añadir interesado" open={addOpen} onCancel={() => setAddOpen(false)} onOk={add} okButtonProps={{ disabled: !selectedUser, loading: createInterest.isPending }} destroyOnClose>
-      <Select showSearch optionFilterProp="label" style={{ width: "100%" }} placeholder="Buscar por nombre o DNI" options={userOptions} value={selectedUser} onChange={setSelectedUser} />
-    </Modal>
+    <PersonSearchOrCreateModal title="Añadir interesado" open={addOpen} onClose={() => setAddOpen(false)} availableUsers={availableUsersForAdd} submitting={createInterest.isPending} onSubmit={handleAdd} />
   </>;
 }

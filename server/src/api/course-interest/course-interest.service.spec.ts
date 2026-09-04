@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { CourseInterestService } from "./course-interest.service";
 import { CandidateProcessStatus, CandidateSource } from "src/types/course-candidate/course-candidate.enums";
 import { InterestStatus } from "src/types/course-interest/course-interest.enums";
@@ -18,7 +18,8 @@ describe("CourseInterestService", () => {
     } as any;
     const candidateRepository = { upsert: jest.fn(), update: jest.fn() } as any;
     const courseRepository = { findById: jest.fn() } as any;
-    return { repository, candidateRepository, courseRepository, service: new CourseInterestService(repository, candidateRepository, courseRepository) };
+    const userRepository = { create: jest.fn() } as any;
+    return { repository, candidateRepository, courseRepository, userRepository, service: new CourseInterestService(repository, candidateRepository, courseRepository, userRepository) };
   };
 
   it("rechaza crear un interés cuando ya hay uno abierto para la misma persona y curso de catálogo", async () => {
@@ -34,6 +35,32 @@ describe("CourseInterestService", () => {
     repository.create.mockResolvedValue({ id_interest: 2 });
     await service.create({ id_user: 11, id_catalog_course: 21 }, 3);
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ id_user: 11, id_catalog_course: 21, created_by: 3 }));
+  });
+
+  describe("create con new_user (dar de alta sin usuario existente)", () => {
+    it("crea el usuario y el interés cuando no hay id_user", async () => {
+      const { repository, userRepository, service } = build();
+      userRepository.create.mockResolvedValue({ insertId: 55 });
+      repository.findOpenByUserAndCatalogCourse.mockResolvedValue(undefined);
+      repository.create.mockResolvedValue({ id_interest: 3 });
+
+      await service.create({ id_catalog_course: 21, new_user: { name: "María", phone: "600111222" } });
+
+      expect(userRepository.create).toHaveBeenCalledWith({ name: "María", first_surname: null, second_surname: null, dni: null, phone: "600111222", email: null });
+      expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ id_user: 55, id_catalog_course: 21 }));
+    });
+
+    it("rechaza dar de alta a alguien nuevo sin nombre", async () => {
+      const { userRepository, service } = build();
+      await expect(service.create({ id_catalog_course: 21, new_user: { phone: "600111222" } } as any)).rejects.toBeInstanceOf(BadRequestException);
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
+    it("rechaza dar de alta a alguien nuevo sin teléfono ni email", async () => {
+      const { userRepository, service } = build();
+      await expect(service.create({ id_catalog_course: 21, new_user: { name: "María" } })).rejects.toBeInstanceOf(BadRequestException);
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
   });
 
   it("impide borrar un interés ya incorporado a una edición", async () => {

@@ -41,13 +41,28 @@ export const useCreateCourseInterestMutation = () => {
   });
 };
 
-export const useUpdateCourseInterestsMutation = () => {
+/** Optimista: aplica cada patch al listado en caché al instante, sin esperar la respuesta ni recargar todo (evita el "salto" perceptible al editar una celda). */
+export const useUpdateCourseInterestsMutation = (catalogCourseId: number) => {
   const request = useAuthenticatedAxios<CourseInterest[]>();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (interests: CourseInterestPatch[]) =>
       (await request({ method: "PUT", url: `${getApiHost()}/course-interests/bulk`, data: { interests } })).data,
-    onSuccess: () => invalidateAll(queryClient),
+    onMutate: async (interests: CourseInterestPatch[]) => {
+      await queryClient.cancelQueries({ queryKey: catalogKey(catalogCourseId) });
+      const previous = queryClient.getQueryData<CourseInterest[]>(catalogKey(catalogCourseId));
+      if (previous) {
+        const patchById = new Map(interests.map(i => [i.id_interest, i]));
+        queryClient.setQueryData<CourseInterest[]>(catalogKey(catalogCourseId), previous.map(row =>
+          patchById.has(row.id_interest) ? { ...row, ...patchById.get(row.id_interest) } : row,
+        ));
+      }
+      return { previous };
+    },
+    onError: (_error, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(catalogKey(catalogCourseId), context.previous);
+    },
+    onSettled: () => invalidateAll(queryClient),
   });
 };
 
