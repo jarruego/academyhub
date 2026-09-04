@@ -31,9 +31,11 @@ const STATUS_OPTIONS: { label: string; value: StatusFilter }[] = [
   { label: "Todas", value: "todas" },
 ];
 
-// Altura fija (10 filas visibles con tablas de tamaño "small") en vez de
+// Altura fija (8 filas visibles con tablas de tamaño "small") en vez de
 // paginación: ambos listados de esta pestaña son pequeños, se cargan enteros.
-const FIXED_TABLE_HEIGHT = 400;
+const FIXED_TABLE_HEIGHT = 320;
+// El pivote "Por curso" va debajo del listado principal, con menos altura (5 filas).
+const BY_COURSE_TABLE_HEIGHT = 200;
 
 function CourseRequestsListTab() {
   const navigate = useNavigate();
@@ -379,23 +381,6 @@ function CourseRequestsListTab() {
 
   return (
     <ListPageLayout toolbar={toolbar}>
-      <Card
-        size="small"
-        title="Por curso"
-        style={{ marginBottom: 16 }}
-        extra={<span style={{ fontSize: 12, opacity: 0.6 }}>Columnas de empresa: alumnos (peticiones)</span>}
-      >
-        <Table
-          size="small"
-          tableLayout={isMobile ? undefined : "fixed"}
-          pagination={false}
-          sortDirections={["ascend", "descend"]}
-          rowKey="id_course"
-          dataSource={byCourse}
-          columns={byCourseColumns}
-          scroll={{ y: FIXED_TABLE_HEIGHT, x: isMobile ? "max-content" : undefined }}
-        />
-      </Card>
       <DataTable<CourseRequest>
         id="course-requests-table"
         size="small"
@@ -409,6 +394,23 @@ function CourseRequestsListTab() {
         pagination={false}
         scroll={{ y: FIXED_TABLE_HEIGHT, x: isMobile ? "max-content" : undefined }}
       />
+      <Card
+        size="small"
+        title="Por curso"
+        style={{ marginTop: 16 }}
+        extra={<span style={{ fontSize: 12, opacity: 0.6 }}>Columnas de empresa: alumnos (peticiones)</span>}
+      >
+        <Table
+          size="small"
+          tableLayout={isMobile ? undefined : "fixed"}
+          pagination={false}
+          sortDirections={["ascend", "descend"]}
+          rowKey="id_course"
+          dataSource={byCourse}
+          columns={byCourseColumns}
+          scroll={{ y: BY_COURSE_TABLE_HEIGHT, x: isMobile ? "max-content" : undefined }}
+        />
+      </Card>
     </ListPageLayout>
   );
 }
