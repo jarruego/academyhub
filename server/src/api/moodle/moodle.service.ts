@@ -2149,16 +2149,14 @@ export class MoodleService {
 
                 if (itopEnabled) {
                     // Prepare params for the custom block_gestion_grupos_create_group_custom1
+                    const MOODLE_TZ = 'Europe/Madrid';
                     const fmtDate = (d?: Date | string | null) => {
                         if (!d) return '';
-                        const dt = d instanceof Date ? d : new Date(String(d));
-                        // Use local date parts (getDate/getMonth/getFullYear) instead of
-                        // UTC getters to avoid timezone shifts that can subtract a day
-                        // when converting to UTC (which previously caused the -1 day bug).
-                        const day = String(dt.getDate()).padStart(2, '0');
-                        const month = String(dt.getMonth() + 1).padStart(2, '0');
-                        const year = String(dt.getFullYear());
-                        return `${day}/${month}/${year}`;
+                        // Interpret the calendar date in Moodle's timezone explicitly,
+                        // rather than the Node process's own local timezone (which on
+                        // prod is UTC): using local Date getters here previously
+                        // reproduced the -1 day bug whenever the process TZ != Europe/Madrid.
+                        return dayjs(d).tz(MOODLE_TZ).format('DD/MM/YYYY');
                     };
 
                     const hours = course.hours !== undefined && course.hours !== null ? String(course.hours) : '';
