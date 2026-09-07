@@ -5,7 +5,7 @@ import { courseRequestTable } from "src/database/schema/tables/course_request.ta
 import { courseRequestStudentTable } from "src/database/schema/tables/course_request_student.table";
 import { centerTable } from "src/database/schema/tables/center.table";
 import { companyTable } from "src/database/schema/tables/company.table";
-import { courseTable } from "src/database/schema/tables/course.table";
+import { catalogCourseTable } from "src/database/schema/tables/course.table";
 import { groupTable } from "src/database/schema/tables/group.table";
 import { CourseRequestStatus } from "src/types/course-request/course-request-status.enum";
 import {
@@ -14,7 +14,7 @@ import {
 } from "src/database/schema/tables/course_request.table";
 
 export type CourseRequestFilters = {
-  id_course?: number;
+  id_catalog_course?: number;
   id_center?: number;
   id_company?: number;
   status?: CourseRequestStatus;
@@ -22,7 +22,7 @@ export type CourseRequestFilters = {
 
 /** Filtros del informe empresa/centro/curso: empresa admite varias a la vez. */
 export type CourseRequestReportFilters = {
-  id_course?: number;
+  id_catalog_course?: number;
   id_center?: number;
   id_company?: number[];
   status?: CourseRequestStatus;
@@ -31,7 +31,7 @@ export type CourseRequestReportFilters = {
 const HEADER_COLUMNS = {
   id_request: courseRequestTable.id_request,
   id_center: courseRequestTable.id_center,
-  id_course: courseRequestTable.id_course,
+  id_catalog_course: courseRequestTable.id_catalog_course,
   request_date: courseRequestTable.request_date,
   contact_email: courseRequestTable.contact_email,
   is_urgent: courseRequestTable.is_urgent,
@@ -46,7 +46,7 @@ const HEADER_COLUMNS = {
   center_contact_email: centerTable.contact_email,
   id_company: companyTable.id_company,
   company_name: companyTable.company_name,
-  course_name: courseTable.course_name,
+  course_name: catalogCourseTable.name,
   student_count: sql<number>`(
     SELECT count(*) FROM ${courseRequestStudentTable} crs
     WHERE crs.id_request = ${courseRequestTable.id_request}
@@ -69,12 +69,12 @@ export class CourseRequestRepository extends Repository {
       .from(courseRequestTable)
       .leftJoin(centerTable, eq(courseRequestTable.id_center, centerTable.id_center))
       .leftJoin(companyTable, eq(centerTable.id_company, companyTable.id_company))
-      .innerJoin(courseTable, eq(courseRequestTable.id_course, courseTable.id_course));
+      .innerJoin(catalogCourseTable, eq(courseRequestTable.id_catalog_course, catalogCourseTable.id_catalog_course));
   }
 
   private buildFilters(filters?: CourseRequestFilters) {
     const conditions = [];
-    if (filters?.id_course) conditions.push(eq(courseRequestTable.id_course, filters.id_course));
+    if (filters?.id_catalog_course) conditions.push(eq(courseRequestTable.id_catalog_course, filters.id_catalog_course));
     if (filters?.id_center) conditions.push(eq(courseRequestTable.id_center, filters.id_center));
     if (filters?.id_company) conditions.push(eq(companyTable.id_company, filters.id_company));
     if (filters?.status) conditions.push(eq(courseRequestTable.status, filters.status));
@@ -130,7 +130,7 @@ export class CourseRequestRepository extends Repository {
    */
   async reportRows(filters: CourseRequestReportFilters, options?: QueryOptions) {
     const conditions = [];
-    if (filters.id_course) conditions.push(eq(courseRequestTable.id_course, filters.id_course));
+    if (filters.id_catalog_course) conditions.push(eq(courseRequestTable.id_catalog_course, filters.id_catalog_course));
     if (filters.id_center) conditions.push(eq(courseRequestTable.id_center, filters.id_center));
     if (filters.id_company?.length) conditions.push(inArray(companyTable.id_company, filters.id_company));
     if (filters.status) conditions.push(eq(courseRequestTable.status, filters.status));
@@ -142,13 +142,13 @@ export class CourseRequestRepository extends Repository {
         company_name: companyTable.company_name,
         id_center: courseRequestTable.id_center,
         center_name: centerTable.center_name,
-        id_course: courseRequestTable.id_course,
-        course_name: courseTable.course_name,
+        id_catalog_course: courseRequestTable.id_catalog_course,
+        course_name: catalogCourseTable.name,
         request_count: sql<number>`count(distinct ${courseRequestTable.id_request})`,
         student_count: count(courseRequestStudentTable.id),
       })
       .from(courseRequestTable)
-      .innerJoin(courseTable, eq(courseRequestTable.id_course, courseTable.id_course))
+      .innerJoin(catalogCourseTable, eq(courseRequestTable.id_catalog_course, catalogCourseTable.id_catalog_course))
       .leftJoin(centerTable, eq(courseRequestTable.id_center, centerTable.id_center))
       .leftJoin(companyTable, eq(centerTable.id_company, companyTable.id_company))
       .leftJoin(courseRequestStudentTable, eq(courseRequestStudentTable.id_request, courseRequestTable.id_request))
@@ -158,10 +158,10 @@ export class CourseRequestRepository extends Repository {
         companyTable.company_name,
         courseRequestTable.id_center,
         centerTable.center_name,
-        courseRequestTable.id_course,
-        courseTable.course_name,
+        courseRequestTable.id_catalog_course,
+        catalogCourseTable.name,
       )
-      .orderBy(companyTable.company_name, courseTable.course_name, centerTable.center_name);
+      .orderBy(companyTable.company_name, catalogCourseTable.name, centerTable.center_name);
     // count()/count(distinct) llegan como bigint (string) — cast a number, ver castStudentCount.
     return rows.map((r) => ({ ...r, request_count: Number(r.request_count), student_count: Number(r.student_count) }));
   }

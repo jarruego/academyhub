@@ -4,7 +4,7 @@ import { FilePdfOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
-import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
+import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course-catalog.query";
 import { useCourseRequestReportQuery } from "../../hooks/api/course-requests/use-course-request-report.query";
 import { useCourseRequestReportPdfMutation } from "../../hooks/api/course-requests/use-course-request-report-pdf.mutation";
 import { CourseRequestReportRow } from "../../shared/types/course-request/course-request-report";
@@ -29,7 +29,7 @@ function withRowSpans(rows: CourseRequestReportRow[]): ReportRow[] {
   const courseCounts = new Map<string, number>();
   for (const row of rows) {
     const companyKey = String(row.id_company ?? "none");
-    const courseKey = `${companyKey}::${row.id_course}`;
+    const courseKey = `${companyKey}::${row.id_catalog_course}`;
     companyCounts.set(companyKey, (companyCounts.get(companyKey) ?? 0) + 1);
     courseCounts.set(courseKey, (courseCounts.get(courseKey) ?? 0) + 1);
   }
@@ -37,7 +37,7 @@ function withRowSpans(rows: CourseRequestReportRow[]): ReportRow[] {
   const seenCourse = new Set<string>();
   return rows.map((row) => {
     const companyKey = String(row.id_company ?? "none");
-    const courseKey = `${companyKey}::${row.id_course}`;
+    const courseKey = `${companyKey}::${row.id_catalog_course}`;
     const companyRowSpan = seenCompany.has(companyKey) ? 0 : companyCounts.get(companyKey)!;
     const courseRowSpan = seenCourse.has(courseKey) ? 0 : courseCounts.get(courseKey)!;
     seenCompany.add(companyKey);
@@ -50,19 +50,19 @@ export function CourseRequestReportTab() {
   const { message: messageApi } = App.useApp();
   const [idCompanies, setIdCompanies] = useState<number[]>([]);
   const [idCenter, setIdCenter] = useState<number | undefined>();
-  const [idCourse, setIdCourse] = useState<number | undefined>();
+  const [idCatalogCourse, setIdCatalogCourse] = useState<number | undefined>();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("abiertas");
 
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery();
-  const { data: courses } = useCoursesQuery();
+  const { data: catalogCourses } = useCourseCatalogQuery();
   const status = statusFilter === "abiertas" ? CourseRequestStatus.ABIERTA
     : statusFilter === "cerradas" ? CourseRequestStatus.CERRADA
     : undefined;
   const filters = {
     id_company: idCompanies.length ? idCompanies : undefined,
     id_center: idCenter,
-    id_course: idCourse,
+    id_catalog_course: idCatalogCourse,
     status,
   };
   const { data: rows, isLoading } = useCourseRequestReportQuery(filters);
@@ -83,7 +83,7 @@ export function CourseRequestReportTab() {
     let requests = 0;
     for (const row of rows ?? []) {
       companiesSet.add(String(row.id_company ?? "none"));
-      coursesSet.add(String(row.id_course));
+      coursesSet.add(String(row.id_catalog_course));
       centersSet.add(String(row.id_center ?? "none"));
       students += row.student_count;
       requests += row.request_count;
@@ -159,12 +159,12 @@ export function CourseRequestReportTab() {
           <Select
             allowClear
             showSearch
-            placeholder="Filtrar por curso"
+            placeholder="Filtrar por curso de catálogo"
             style={{ width: "100%" }}
-            value={idCourse}
-            onChange={setIdCourse}
+            value={idCatalogCourse}
+            onChange={setIdCatalogCourse}
             optionFilterProp="label"
-            options={courses?.map((c) => ({ value: c.id_course, label: c.course_name }))}
+            options={catalogCourses?.map((c) => ({ value: c.id_catalog_course, label: c.name }))}
           />
         </Col>
       </Row>
@@ -186,7 +186,7 @@ export function CourseRequestReportTab() {
       <Table<ReportRow>
         size="small"
         bordered
-        rowKey={(r) => `${r.id_company ?? "none"}-${r.id_course}-${r.id_center ?? "none"}`}
+        rowKey={(r) => `${r.id_company ?? "none"}-${r.id_catalog_course}-${r.id_center ?? "none"}`}
         columns={columns}
         dataSource={tableRows}
         loading={isLoading}

@@ -5,7 +5,8 @@ export type CourseRequestSource = "EXCEL" | "MANUAL";
 export type CourseRequest = {
   id_request: number;
   id_center: number | null;
-  id_course: number;
+  // Curso de catálogo solicitado (no una edición concreta) — ver docs/course-requests.md.
+  id_catalog_course: number;
   // Fecha de la petición (yyyy-mm-dd). Por defecto la fecha de alta, editable.
   request_date: string;
   contact_email: string | null;
@@ -66,14 +67,14 @@ export type CourseRequestStudentInput = {
 // peticiones ya filtradas (curso/centro/estado/empresa) — así el pivote
 // siempre refleja los filtros activos en pantalla (ver course-requests.route.tsx).
 export type CourseRequestStatsByCourse = {
-  id_course: number;
+  id_catalog_course: number;
   course_name: string;
   request_count: number;
   student_count: number;
 };
 
 export type CourseRequestStatsByCourseCompany = {
-  id_course: number;
+  id_catalog_course: number;
   id_company: number;
   company_name: string;
   request_count: number;

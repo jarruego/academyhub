@@ -7,7 +7,7 @@ export type CourseRequestReportRow = {
   company_name: string | null;
   id_center: number | null;
   center_name: string | null;
-  id_course: number;
+  id_catalog_course: number;
   course_name: string;
   request_count: number;
   student_count: number;
@@ -37,7 +37,7 @@ export class CourseRequestPdfService {
       if (!byCompany.has(companyKey)) byCompany.set(companyKey, { name: companyName, courses: new Map() });
       const company = byCompany.get(companyKey)!;
 
-      const courseKey = String(row.id_course);
+      const courseKey = String(row.id_catalog_course);
       if (!company.courses.has(courseKey)) company.courses.set(courseKey, { name: row.course_name, rows: [] });
       company.courses.get(courseKey)!.rows.push(row);
     }

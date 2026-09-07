@@ -512,6 +512,27 @@
       "when": 1788504081636,
       "tag": "0072_luxuriant_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1788764594622,
+      "tag": "0073_rare_starfox",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1788764630613,
+      "tag": "0074_polite_killraven",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1788764660031,
+      "tag": "0075_serious_husk",
+      "breakpoints": true
     }
   ]
 }

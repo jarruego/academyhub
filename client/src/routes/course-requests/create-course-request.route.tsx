@@ -5,7 +5,7 @@ import { SaveOutlined, WarningFilled } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
-import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
+import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course-catalog.query";
 import { useCreateCourseRequestMutation } from "../../hooks/api/course-requests/use-create-course-request.mutation";
 import { PageHeader } from "../../components/common/PageHeader";
 
@@ -25,11 +25,11 @@ export default function CreateCourseRequestRoute() {
   const { message: messageApi } = App.useApp();
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery();
-  const { data: courses } = useCoursesQuery();
+  const { data: catalogCourses } = useCourseCatalogQuery();
   const { mutateAsync: createRequest, isPending } = useCreateCourseRequestMutation();
 
   const [idCenter, setIdCenter] = useState<number | undefined>();
-  const [idCourse, setIdCourse] = useState<number | undefined>();
+  const [idCatalogCourse, setIdCatalogCourse] = useState<number | undefined>();
   const [requestDate, setRequestDate] = useState<Dayjs>(dayjs());
   const [contactEmail, setContactEmail] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
@@ -48,14 +48,14 @@ export default function CreateCourseRequestRoute() {
   }, [idCenter]);
 
   const handleSubmit = async () => {
-    if (!idCourse) {
+    if (!idCatalogCourse) {
       messageApi.error("Selecciona un curso");
       return;
     }
     try {
       const created = await createRequest({
         id_center: idCenter,
-        id_course: idCourse,
+        id_catalog_course: idCatalogCourse,
         request_date: requestDate.format("YYYY-MM-DD"),
         contact_email: contactEmail || undefined,
         is_urgent: isUrgent,
@@ -106,14 +106,14 @@ export default function CreateCourseRequestRoute() {
           </Row>
           <Row gutter={16}>
             <Col xs={24} sm={16}>
-              <Form.Item label="Curso solicitado" required>
+              <Form.Item label="Curso de catálogo solicitado" required>
                 <Select
                   showSearch
-                  placeholder="Selecciona un curso"
-                  value={idCourse}
-                  onChange={setIdCourse}
+                  placeholder="Selecciona un curso de catálogo"
+                  value={idCatalogCourse}
+                  onChange={setIdCatalogCourse}
                   optionFilterProp="label"
-                  options={courses?.map((c) => ({ value: c.id_course, label: c.course_name }))}
+                  options={catalogCourses?.map((c) => ({ value: c.id_catalog_course, label: c.name }))}
                 />
               </Form.Item>
             </Col>

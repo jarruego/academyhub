@@ -7,7 +7,7 @@ export class FilterCourseRequestDto {
   @IsNumber()
   @IsPositive()
   @IsOptional()
-  id_course?: number;
+  id_catalog_course?: number;
 
   @Type(() => Number)
   @IsNumber()

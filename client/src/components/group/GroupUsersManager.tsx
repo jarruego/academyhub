@@ -33,6 +33,10 @@ interface Props {
   courseModality?: string | null;
   courseClient?: string | null;
   courseFunding?: string | null;
+  // Curso de catálogo padre de esta edición — para listar las peticiones de
+  // centros disponibles al matricular desde "Desde Peticiones" (ver
+  // ImportFromCourseRequestsModal / docs/course-requests.md).
+  catalogCourseId?: number | null;
   groupStart?: string | Date | null;
   groupEnd?: string | Date | null;
   highlightUserId?: number | null;
@@ -70,7 +74,7 @@ const isStudentUser = (user: User): boolean => {
   return typeof role === 'string' ? role.toLowerCase() === 'student' : false;
 };
 
-const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseClient, courseFunding, groupStart, groupEnd, highlightUserId }) => {
+const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseClient, courseFunding, catalogCourseId, groupStart, groupEnd, highlightUserId }) => {
   const { message: messageApi, modal, notification: notificationApi } = App.useApp();
   const { token } = theme.useToken();
 
@@ -826,7 +830,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       <ImportFromCourseRequestsModal
         open={isImportFromRequestsModalOpen}
         groupId={groupId}
-        courseId={groupData?.id_course}
+        catalogCourseId={catalogCourseId}
         onClose={() => setIsImportFromRequestsModalOpen(false)}
         onSuccess={() => { setIsImportFromRequestsModalOpen(false); void refetch(); }}
       />

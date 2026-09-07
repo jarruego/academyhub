@@ -6,7 +6,7 @@ export class CreateCourseRequestDto {
   id_center?: number;
 
   @IsInt()
-  id_course: number;
+  id_catalog_course: number;
 
   // Fecha de la petición (yyyy-mm-dd). Si se omite, el servidor usa la fecha de alta.
   @IsOptional()

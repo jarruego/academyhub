@@ -33,7 +33,7 @@ export class CourseRequestReportFilterDto {
   @IsNumber()
   @IsPositive()
   @IsOptional()
-  id_course?: number;
+  id_catalog_course?: number;
 
   @IsIn(Object.values(CourseRequestStatus))
   @IsOptional()

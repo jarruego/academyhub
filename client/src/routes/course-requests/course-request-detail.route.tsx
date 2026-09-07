@@ -14,7 +14,7 @@ import { useDuplicateCourseRequestMutation } from "../../hooks/api/course-reques
 import { useReleaseCourseRequestStudentGroupMutation } from "../../hooks/api/course-requests/use-release-course-request-student-group.mutation";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
-import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
+import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course-catalog.query";
 import { CourseRequestStudentsGrid } from "../../components/course-requests/course-request-students-grid";
 import { CourseRequestStatus } from "../../shared/types/course-request/course-request-status.enum";
 import { RouteTabs } from "../../components/common/RouteTabs";
@@ -55,10 +55,10 @@ export default function CourseRequestDetailRoute() {
 
   const { data: companies } = useCompaniesQuery();
   const { data: centers } = useCentersQuery();
-  const { data: courses } = useCoursesQuery();
+  const { data: catalogCourses } = useCourseCatalogQuery();
 
   const [idCenter, setIdCenter] = useState<number | undefined>();
-  const [idCourse, setIdCourse] = useState<number | undefined>();
+  const [idCatalogCourse, setIdCatalogCourse] = useState<number | undefined>();
   const [requestDate, setRequestDate] = useState<Dayjs>(dayjs());
   const [contactEmail, setContactEmail] = useState("");
   const [isUrgent, setIsUrgent] = useState(false);
@@ -73,7 +73,7 @@ export default function CourseRequestDetailRoute() {
   useEffect(() => {
     if (!data) return;
     setIdCenter(data.id_center ?? undefined);
-    setIdCourse(data.id_course);
+    setIdCatalogCourse(data.id_catalog_course);
     setRequestDate(data.request_date ? dayjs(data.request_date) : dayjs());
     setContactEmail(data.contact_email ?? "");
     setIsUrgent(data.is_urgent);
@@ -94,7 +94,7 @@ export default function CourseRequestDetailRoute() {
     try {
       await updateMutation.mutateAsync({
         id_center: idCenter ?? null,
-        id_course: idCourse,
+        id_catalog_course: idCatalogCourse,
         request_date: requestDate.format("YYYY-MM-DD"),
         contact_email: contactEmail || null,
         is_urgent: isUrgent,
@@ -190,14 +190,14 @@ export default function CourseRequestDetailRoute() {
             </Row>
             <Row gutter={16}>
               <Col xs={24} sm={16}>
-                <Form.Item label="Curso solicitado">
+                <Form.Item label="Curso de catálogo solicitado">
                   <Select
                     showSearch
                     disabled={readOnly}
-                    value={idCourse}
-                    onChange={setIdCourse}
+                    value={idCatalogCourse}
+                    onChange={setIdCatalogCourse}
                     optionFilterProp="label"
-                    options={courses?.map((c) => ({ value: c.id_course, label: c.course_name }))}
+                    options={catalogCourses?.map((c) => ({ value: c.id_catalog_course, label: c.name }))}
                   />
                 </Form.Item>
               </Col>

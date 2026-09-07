@@ -3,7 +3,7 @@ import { CourseRequestService } from "./course-request.service";
 import { CourseRequestStatus } from "src/types/course-request/course-request-status.enum";
 
 function buildService({ status = CourseRequestStatus.ABIERTA }: { status?: CourseRequestStatus } = {}) {
-  const header = { id_request: 1, status, id_course: 5, id_center: 2 };
+  const header = { id_request: 1, status, id_catalog_course: 5, id_center: 2 };
   const courseRequestRepository = {
     findById: jest.fn().mockResolvedValue(header),
     update: jest.fn().mockResolvedValue({ ...header }),
@@ -109,7 +109,7 @@ describe("CourseRequestService", () => {
       .mockResolvedValueOnce({
         id_request: 1,
         status: CourseRequestStatus.CERRADA,
-        id_course: 5,
+        id_catalog_course: 5,
         id_center: 2,
         contact_email: "a@b.com",
         notes: "nota",
@@ -118,7 +118,7 @@ describe("CourseRequestService", () => {
       .mockResolvedValueOnce({
         id_request: 9,
         status: CourseRequestStatus.ABIERTA,
-        id_course: 5,
+        id_catalog_course: 5,
         id_center: 2,
         contact_email: "a@b.com",
         notes: "nota",
@@ -135,7 +135,7 @@ describe("CourseRequestService", () => {
 
     expect(courseRequestRepository.create).toHaveBeenCalledWith({
       id_center: 2,
-      id_course: 5,
+      id_catalog_course: 5,
       contact_email: "a@b.com",
       notes: "nota",
       created_by: 42,

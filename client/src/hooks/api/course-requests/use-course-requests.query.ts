@@ -5,7 +5,7 @@ import { CourseRequest } from "../../../shared/types/course-request/course-reque
 import { CourseRequestStatus } from "../../../shared/types/course-request/course-request-status.enum";
 
 export type CourseRequestFilters = {
-  id_course?: number;
+  id_catalog_course?: number;
   id_center?: number;
   id_company?: number;
   status?: CourseRequestStatus;

@@ -6,7 +6,7 @@ import type { ColumnsType } from "antd/es/table";
 import { useCourseRequestsQuery } from "../../hooks/api/course-requests/use-course-requests.query";
 import { useToggleCourseRequestUrgentMutation } from "../../hooks/api/course-requests/use-toggle-course-request-urgent.mutation";
 import { useDuplicateCourseRequestMutation } from "../../hooks/api/course-requests/use-duplicate-course-request.mutation";
-import { useCoursesQuery } from "../../hooks/api/courses/use-courses.query";
+import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course-catalog.query";
 import { useCentersQuery } from "../../hooks/api/centers/use-centers.query";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
 import { CourseRequestStatus } from "../../shared/types/course-request/course-request-status.enum";
@@ -44,12 +44,12 @@ function CourseRequestsListTab() {
   const isMobile = useIsMobile();
   const { message: messageApi } = App.useApp();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("abiertas");
-  const [idCourse, setIdCourse] = useState<number | undefined>();
+  const [idCatalogCourse, setIdCatalogCourse] = useState<number | undefined>();
   const [idCenter, setIdCenter] = useState<number | undefined>();
   const [idCompanies, setIdCompanies] = useState<number[]>([]);
   const [idGroup, setIdGroup] = useState<number | undefined>();
 
-  const { data: courses } = useCoursesQuery();
+  const { data: catalogCourses } = useCourseCatalogQuery();
   const { data: centers } = useCentersQuery();
   const { data: companies } = useCompaniesQuery();
   const toggleUrgentMutation = useToggleCourseRequestUrgentMutation();
@@ -59,7 +59,7 @@ function CourseRequestsListTab() {
     : statusFilter === "cerradas" ? CourseRequestStatus.CERRADA
     : undefined;
 
-  const { data: allRequests, isLoading } = useCourseRequestsQuery({ id_course: idCourse, id_center: idCenter, status });
+  const { data: allRequests, isLoading } = useCourseRequestsQuery({ id_catalog_course: idCatalogCourse, id_center: idCenter, status });
 
   // La empresa y el grupo filtran en cliente (el endpoint ya devuelve
   // id_company y groups por fila); el centro y el curso, en cambio, se
@@ -248,12 +248,12 @@ function CourseRequestsListTab() {
   // filtros activos en pantalla — antes venía de un endpoint /stats aparte que
   // ignoraba estos filtros.
   const byCourse = useMemo(() => {
-    const map = new Map<number, { id_course: number; course_name: string; request_count: number; student_count: number }>();
+    const map = new Map<number, { id_catalog_course: number; course_name: string; request_count: number; student_count: number }>();
     for (const r of requests ?? []) {
-      const entry = map.get(r.id_course) ?? { id_course: r.id_course, course_name: r.course_name, request_count: 0, student_count: 0 };
+      const entry = map.get(r.id_catalog_course) ?? { id_catalog_course: r.id_catalog_course, course_name: r.course_name, request_count: 0, student_count: 0 };
       entry.request_count += 1;
       entry.student_count += r.student_count;
-      map.set(r.id_course, entry);
+      map.set(r.id_catalog_course, entry);
     }
     return Array.from(map.values()).sort((a, b) => b.student_count - a.student_count);
   }, [requests]);
@@ -264,7 +264,7 @@ function CourseRequestsListTab() {
     const map = new Map<string, { request_count: number; student_count: number }>();
     for (const r of requests ?? []) {
       if (r.id_company == null) continue;
-      const key = `${r.id_course}-${r.id_company}`;
+      const key = `${r.id_catalog_course}-${r.id_company}`;
       const entry = map.get(key) ?? { request_count: 0, student_count: 0 };
       entry.request_count += 1;
       entry.student_count += r.student_count;
@@ -291,7 +291,7 @@ function CourseRequestsListTab() {
       ellipsis: true,
       sorter: (a, b) => String(a.course_name).localeCompare(String(b.course_name)),
       render: (v: string, record: Record<string, unknown>) => (
-        <Typography.Link onClick={() => openDetail(`/courses/${record.id_course}`)}>{v}</Typography.Link>
+        <Typography.Link onClick={() => openDetail(`/course-catalog/${record.id_catalog_course}`)}>{v}</Typography.Link>
       ),
     },
     {
@@ -314,12 +314,12 @@ function CourseRequestsListTab() {
       width: 65,
       ellipsis: true,
       sorter: (a: Record<string, unknown>, b: Record<string, unknown>) => {
-        const av = statsByCourseCompanyKey.get(`${a.id_course}-${id_company}`)?.student_count ?? 0;
-        const bv = statsByCourseCompanyKey.get(`${b.id_course}-${id_company}`)?.student_count ?? 0;
+        const av = statsByCourseCompanyKey.get(`${a.id_catalog_course}-${id_company}`)?.student_count ?? 0;
+        const bv = statsByCourseCompanyKey.get(`${b.id_catalog_course}-${id_company}`)?.student_count ?? 0;
         return av - bv;
       },
       render: (_: unknown, record: Record<string, unknown>) => {
-        const cell = statsByCourseCompanyKey.get(`${record.id_course}-${id_company}`);
+        const cell = statsByCourseCompanyKey.get(`${record.id_catalog_course}-${id_company}`);
         if (!cell || cell.student_count === 0) return <span style={{ opacity: 0.4 }}>-</span>;
         return `${cell.student_count} (${cell.request_count})`;
       },
@@ -344,12 +344,12 @@ function CourseRequestsListTab() {
       <Select
         allowClear
         showSearch
-        placeholder="Filtrar por curso"
+        placeholder="Filtrar por curso de catálogo"
         style={{ minWidth: 220 }}
-        value={idCourse}
-        onChange={setIdCourse}
+        value={idCatalogCourse}
+        onChange={setIdCatalogCourse}
         optionFilterProp="label"
-        options={courses?.map((c) => ({ value: c.id_course, label: c.course_name }))}
+        options={catalogCourses?.map((c) => ({ value: c.id_catalog_course, label: c.name }))}
       />
       <Select
         allowClear
@@ -405,7 +405,7 @@ function CourseRequestsListTab() {
           tableLayout={isMobile ? undefined : "fixed"}
           pagination={false}
           sortDirections={["ascend", "descend"]}
-          rowKey="id_course"
+          rowKey="id_catalog_course"
           dataSource={byCourse}
           columns={byCourseColumns}
           scroll={{ y: BY_COURSE_TABLE_HEIGHT, x: isMobile ? "max-content" : undefined }}

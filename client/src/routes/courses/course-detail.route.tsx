@@ -708,6 +708,7 @@ export default function CourseDetailRoute() {
                   courseModality={courseData?.modality}
                   courseClient={courseData?.client}
                   courseFunding={courseData?.funding}
+                  catalogCourseId={courseData?.id_catalog_course}
                   groupStart={sortedGroups.find(g => g.id_group === selectedGroupId)?.start_date}
                   groupEnd={sortedGroups.find(g => g.id_group === selectedGroupId)?.end_date}
                   highlightUserId={highlightUserId}

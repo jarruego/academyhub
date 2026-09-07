@@ -21,7 +21,10 @@ import { openDetail } from '../../utils/open-detail';
 interface Props {
   open: boolean;
   groupId?: string | number | null;
-  courseId?: number | null;
+  // Curso de catálogo padre de la edición del grupo: las peticiones ya no van
+  // contra una edición concreta, así que se listan todas las ABIERTA de ese
+  // catálogo (pueden repartirse entre varias ediciones del mismo catálogo).
+  catalogCourseId?: number | null;
   onClose: () => void;
   onSuccess?: () => void;
 }
@@ -44,7 +47,7 @@ const normalizeDni = (v: unknown) =>
 const ImportFromCourseRequestsModal: React.FC<Props> = ({
   open,
   groupId,
-  courseId,
+  catalogCourseId,
   onClose,
   onSuccess,
 }) => {
@@ -56,8 +59,8 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
   const { token } = theme.useToken();
 
   const { data: requests, isLoading: isLoadingRequests } = useCourseRequestsQuery(
-    { id_course: courseId ?? undefined, status: CourseRequestStatus.ABIERTA },
-    { enabled: !!courseId },
+    { id_catalog_course: catalogCourseId ?? undefined, status: CourseRequestStatus.ABIERTA },
+    { enabled: !!catalogCourseId },
   );
   const { data: allUsers } = useAllUsersLookupQuery();
   const { data: groupData } = useGroupQuery(groupId ? String(groupId) : undefined);

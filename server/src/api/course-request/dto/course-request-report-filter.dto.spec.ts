@@ -1,4 +1,4 @@
-// El DTO usa @Type() (class-transformer) en id_center/id_course, que necesita el
+// El DTO usa @Type() (class-transformer) en id_center/id_catalog_course, que necesita el
 // polyfill de metadatos cargado antes de que se evalúen sus decoradores; en la
 // app real lo carga el bootstrap de Nest (main.ts), aquí hay que importarlo a mano.
 import "reflect-metadata";

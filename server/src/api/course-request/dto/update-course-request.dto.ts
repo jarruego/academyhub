@@ -7,7 +7,7 @@ export class UpdateCourseRequestDto {
 
   @IsOptional()
   @IsInt()
-  id_course?: number;
+  id_catalog_course?: number;
 
   // Fecha de la petición (yyyy-mm-dd). Editable a mano tras el alta.
   @IsOptional()

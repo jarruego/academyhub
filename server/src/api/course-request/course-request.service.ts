@@ -30,7 +30,7 @@ export class CourseRequestService {
     try {
       return await this.courseRequestRepository.create({
         id_center: dto.id_center ?? null,
-        id_course: dto.id_course,
+        id_catalog_course: dto.id_catalog_course,
         // Si no se indica, la columna usa su default (fecha de alta).
         ...(dto.request_date ? { request_date: new Date(dto.request_date) } : {}),
         contact_email: dto.contact_email ?? null,
@@ -130,7 +130,7 @@ export class CourseRequestService {
     const original = await this.findById(id_request);
     const created = await this.courseRequestRepository.create({
       id_center: original.id_center,
-      id_course: original.id_course,
+      id_catalog_course: original.id_catalog_course,
       contact_email: original.contact_email,
       notes: original.notes,
       created_by: createdBy ?? null,

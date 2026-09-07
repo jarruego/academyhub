@@ -1,0 +1,1 @@
+ALTER TABLE "academyhub"."course_requests" ALTER COLUMN "id_catalog_course" SET NOT NULL;
