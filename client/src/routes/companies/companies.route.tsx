@@ -40,11 +40,6 @@ export default function CompaniesRoute() {
       rowKey="id_company"
       columns={[
         {
-          title: 'ID',
-          dataIndex: 'id_company',
-          sorter: (a, b) => a.id_company - b.id_company,
-        },
-        {
           title: 'Nombre',
           dataIndex: 'company_name',
           sorter: (a, b) => (a.company_name ?? '').localeCompare(b.company_name ?? ''),

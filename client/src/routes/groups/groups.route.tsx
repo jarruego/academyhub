@@ -68,16 +68,6 @@ export default function GroupsRoute() {
         rowKey="id_group"
         columns={[
           {
-            title: 'ID',
-            dataIndex: 'id_group',
-            sorter: (a: Group, b: Group) => a.id_group - b.id_group,
-          },
-          {
-            title: 'ID Moodle',
-            dataIndex: 'moodle_id',
-            sorter: (a: Group, b: Group) => (a.moodle_id ?? 0) - (b.moodle_id ?? 0),
-          },
-          {
             title: 'Nombre',
             dataIndex: 'group_name',
             render: (text: string) => {

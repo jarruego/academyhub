@@ -82,7 +82,6 @@ export function CentersTable({
       <DataTable<Center>
         rowKey="id_center"
         columns={[
-          { title: 'ID', dataIndex: 'id_center', sorter: (a, b) => a.id_center - b.id_center },
           { title: 'Nombre del centro', dataIndex: 'center_name', sorter: (a, b) => (a.center_name ?? '').localeCompare(b.center_name ?? '') },
           { title: 'Número de patronal', dataIndex: 'employer_number', sorter: (a, b) => (a.employer_number ?? '').localeCompare(b.employer_number ?? '') },
           { title: 'Persona de contacto', dataIndex: 'contact_person', sorter: (a, b) => (a.contact_person ?? '').localeCompare(b.contact_person ?? '') },

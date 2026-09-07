@@ -133,12 +133,6 @@ function CourseRequestsListTab() {
       ),
     },
     {
-      title: "ID",
-      dataIndex: "id_request",
-      width: 60,
-      sorter: (a, b) => a.id_request - b.id_request,
-    },
-    {
       title: "Curso",
       dataIndex: "course_name",
       ellipsis: true,
