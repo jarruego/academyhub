@@ -79,6 +79,19 @@ export const FLAG_COLORS = {
   manual: "gold",
 } as const;
 
+/**
+ * Paleta pastel para el tag de año (p. ej. ediciones de curso). Son los presets
+ * de Ant Design, que por defecto ya se renderizan como fondo suave + texto/borde
+ * de color ("pastel"), rotando de forma determinista según el año.
+ */
+const YEAR_COLOR_PALETTE = ["blue", "green", "gold", "purple", "cyan", "magenta", "volcano", "geekblue", "lime", "orange"] as const;
+
+/** Devuelve un color pastel estable para un año dado (mismo año → mismo color siempre). */
+export function yearColor(year: number): string {
+  const index = ((year % YEAR_COLOR_PALETTE.length) + YEAR_COLOR_PALETTE.length) % YEAR_COLOR_PALETTE.length;
+  return YEAR_COLOR_PALETTE[index];
+}
+
 /** Devuelve el color de cliente, con fallback neutro para valores nulos/desconocidos. */
 export function clientColor(client?: string | null): string {
   if (!client) return STATUS_COLORS.neutral;

@@ -1,5 +1,5 @@
 import { Tag } from "antd";
-import { clientColor, fundingColor, modalityColor, STATUS_COLORS, FLAG_COLORS } from "../../../theme/semantic-colors";
+import { clientColor, fundingColor, modalityColor, yearColor, STATUS_COLORS, FLAG_COLORS } from "../../../theme/semantic-colors";
 
 /**
  * Tags semánticos compartidos. Centralizan el render `<Tag color=...>` para que
@@ -45,6 +45,12 @@ export function ActiveTag({
       {active ? activeLabel : inactiveLabel}
     </Tag>
   );
+}
+
+/** Tag pastel con el año (p. ej. delante del nombre de una edición). Sin valor, no renderiza nada. */
+export function YearTag({ year, style }: { year?: number | null; style?: React.CSSProperties }) {
+  if (!year) return null;
+  return <Tag color={yearColor(year)} style={style}>{year}</Tag>;
 }
 
 /** Tag "Provisional" para cursos autocreados pendientes de datos. */

@@ -71,7 +71,7 @@ export default function CoursesRoute() {
   const filteredCourses = coursesData?.filter(course =>
     TAB_PREDICATE[activeTab](course) &&
     matchesLoose(normalizedSearch, [course.catalog_course_name, course.course_name, course.short_name, course.file_number, course.moodle_id])
-  )?.slice().sort((a, b) => b.id_course - a.id_course); // Id descendente: las ediciones más nuevas primero
+  );
 
   // Map course id -> latest group end timestamp
   const latestGroupEndByCourse = useMemo(() => {
@@ -105,12 +105,21 @@ export default function CoursesRoute() {
   // Build dataSource enriched with latest_group_end_date for sorting and display
   type CourseRow = Course & { latest_group_end_date?: number | null; is_active?: boolean };
 
+  // Orden por defecto: fecha de fin de grupo descendente (sin fecha, al final);
+  // a igualdad (o sin fecha en ambos), id_course descendente.
   const dataSource = useMemo(() => {
-    return (filteredCourses || []).map(c => ({
-      ...c,
-      latest_group_end_date: latestGroupEndByCourse[c.id_course] ?? null,
-      is_active: activeByCourse[c.id_course] ?? false,
-    })) as CourseRow[];
+    return (filteredCourses || [])
+      .map(c => ({
+        ...c,
+        latest_group_end_date: latestGroupEndByCourse[c.id_course] ?? null,
+        is_active: activeByCourse[c.id_course] ?? false,
+      }))
+      .sort((a, b) => {
+        if (a.latest_group_end_date == null && b.latest_group_end_date == null) return b.id_course - a.id_course;
+        if (a.latest_group_end_date == null) return 1;
+        if (b.latest_group_end_date == null) return -1;
+        return b.latest_group_end_date - a.latest_group_end_date || b.id_course - a.id_course;
+      }) as CourseRow[];
   }, [filteredCourses, latestGroupEndByCourse, activeByCourse]);
 
   // Conteo por pestaña para mostrar el nº de cursos en cada una.
