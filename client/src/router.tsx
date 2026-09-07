@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import HomeRoute from './routes/home.route';
 import UsersRoute from './routes/users/users.route';
 import GroupsRoute from './routes/groups/groups.route';
@@ -23,7 +23,7 @@ import CentersRoute from './routes/centers/centers.route';
 import CourseRequestsRoute from './routes/course-requests/course-requests.route';
 import CreateCourseRequestRoute from './routes/course-requests/create-course-request.route';
 import CourseRequestDetailRoute from './routes/course-requests/course-request-detail.route';
-import { Layout, Menu, Button, Drawer } from 'antd';
+import { Layout, Menu, Button, Drawer, theme } from 'antd';
 import type { MenuProps } from 'antd';
 import { useAuthInfo } from './providers/auth/auth.context';
 import { useIsMobile } from './hooks/use-is-mobile';
@@ -81,11 +81,38 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+// Rutas de nivel superior que sí tienen un ítem de menú propio (hoja). Se usan
+// para calcular qué ítem debe quedar seleccionado según la URL actual — antes
+// la selección la llevaba el propio `Menu` de forma interna (uncontrolled) y
+// solo reaccionaba al click, así que se perdía al recargar o navegar por URL.
+const MENU_LEAF_KEYS = [
+  '/', '/users', '/courses', '/groups', '/course-requests', '/centers', '/reports', '/organization',
+  '/tools/importaciones', '/tools/gestion-acceso', '/tools/correo', '/tools/herramientas',
+];
+
+const selectedLeafKey = (pathname: string) => MENU_LEAF_KEYS
+  .filter(key => key === '/' ? pathname === '/' : (pathname === key || pathname.startsWith(`${key}/`)))
+  .sort((a, b) => b.length - a.length)[0];
+
 const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
   const { logout } = useAuthInfo();
   const role = useRole();
+  const { pathname } = useLocation();
+  const { token } = theme.useToken();
 
   type MenuItem = NonNullable<MenuProps['items']>[number];
+
+  // "Cursos"/"Empresas" son cabeceras de grupo (`type: 'group'`), no ítems
+  // seleccionables para antd, aunque su título enlaza a una página real
+  // (/course-catalog, /companies). Como el `Menu` nunca las puede marcar como
+  // seleccionadas por su cuenta, se calcula "a mano" y se replica el estilo del
+  // ítem seleccionado real (mismo verde de marca, mismo margen/radio — ver
+  // comprobación en devtools) solo mientras esa página esté activa.
+  const isCoursesGroupActive = pathname === '/course-catalog' || pathname.startsWith('/course-catalog/');
+  const isCompaniesGroupActive = pathname === '/companies' || pathname === '/add-company' || pathname.startsWith('/companies/');
+  const activeGroupLinkStyle = { backgroundColor: token.colorPrimary, color: '#fff', margin: 4, width: 'calc(100% - 8px)', borderRadius: 8 };
+
+  const selectedKeys = selectedLeafKey(pathname) ? [selectedLeafKey(pathname) as string] : [];
 
   // onClose is called on every leaf Link click so the drawer closes on navigation.
   // On desktop onClose is a no-op.
@@ -95,7 +122,7 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
     {
       type: 'group',
       key: 'cursos-group',
-      label: <Link to="/course-catalog" onClick={onClose} className="app-sider-group-title"><ReadOutlined /><span>Cursos</span></Link>,
+      label: <Link to="/course-catalog" onClick={onClose} className="app-sider-group-title" style={isCoursesGroupActive ? activeGroupLinkStyle : undefined}><ReadOutlined /><span>Cursos</span></Link>,
       children: [
         { key: '/courses', icon: <BookOutlined />, className: 'app-sider-child-item', label: <Link to="/courses" onClick={onClose}>Ediciones</Link> },
         { key: '/groups', icon: <TeamOutlined />, className: 'app-sider-child-item', label: <Link to="/groups" onClick={onClose}>Grupos</Link> },
@@ -107,7 +134,7 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
     {
       type: 'group',
       key: 'empresas-group',
-      label: <Link to="/companies" onClick={onClose} className="app-sider-group-title"><BankOutlined /><span>Empresas</span></Link>,
+      label: <Link to="/companies" onClick={onClose} className="app-sider-group-title" style={isCompaniesGroupActive ? activeGroupLinkStyle : undefined}><BankOutlined /><span>Empresas</span></Link>,
       children: [
         { key: '/centers', icon: <ApartmentOutlined />, className: 'app-sider-child-item', label: <Link to="/centers" onClick={onClose}>Centros</Link> },
       ],
@@ -130,7 +157,7 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
 
   const menuContent = (
     <>
-      <Menu theme="dark" mode="inline" items={menuItems} />
+      <Menu theme="dark" mode="inline" items={menuItems} selectedKeys={selectedKeys} />
       <div className="app-sider-footer">
         <Link to="/help" onClick={onClose}>
           <Button icon={<QuestionCircleOutlined />} block>Ayuda</Button>
