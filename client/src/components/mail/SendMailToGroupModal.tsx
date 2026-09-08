@@ -434,8 +434,8 @@ export default function SendMailToGroupModal({ open, users, tutors = [], courseN
                   value={customIsHtml ? 'html' : 'text'}
                   onChange={(e) => setCustomIsHtml(e.target.value === 'html')}
                 >
-                  <Radio value="text">Texto</Radio>
-                  <Radio value="html">HTML</Radio>
+                  <Radio value="text">Texto plano</Radio>
+                  <Radio value="html">Texto con formato</Radio>
                 </Radio.Group>
               </Form.Item>
               <Form.Item label="Contenido" required>

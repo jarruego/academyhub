@@ -62,7 +62,7 @@ export default function MailTemplatesTab() {
           columns={[
             { title: 'Nombre', dataIndex: 'name', key: 'name' },
             { title: 'Asunto', dataIndex: 'subject', key: 'subject' },
-            { title: 'Tipo', dataIndex: 'is_html', key: 'is_html', render: (v: boolean) => v ? 'HTML' : 'Texto' },
+            { title: 'Tipo', dataIndex: 'is_html', key: 'is_html', render: (v: boolean) => v ? 'Texto con formato' : 'Texto plano' },
             { title: 'Última modificación', dataIndex: 'updatedAt', key: 'updatedAt', render: (v: string) => new Date(v).toLocaleString() },
             {
               title: 'Acciones',

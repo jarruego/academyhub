@@ -139,7 +139,7 @@ export default function CreateMailTemplateModal({ open, onOk, onCancel }: Create
             }}
           />
         </Form.Item>
-        <Form.Item label="¿Formato HTML?" valuePropName="checked">
+        <Form.Item label="¿Texto con formato?" valuePropName="checked">
           <Controller
             name="is_html"
             control={control}
