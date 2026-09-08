@@ -47,6 +47,14 @@ export interface InaemImportFiles {
 export interface InaemImportOptions {
   /** Crear acciones formativas (curso provisional) cuando llega un expediente sin curso. */
   createMissingCourses: boolean;
+  /**
+   * Si se indica, solo se procesan filas de Preinscripciones cuyo Nº de
+   * Expediente coincide exactamente con este valor — el resto se marcan como
+   * fallidas sin tocar ningún otro curso. Lo usa quien accede solo por el
+   * permiso puntual `can_import_inaem` (no ADMIN/MANAGER), para acotar el
+   * import a la edición desde la que se lanzó — ver `InaemImportController.upload`.
+   */
+  restrictToFileNumber?: string;
 }
 
 interface InaemSummary {
@@ -89,6 +97,15 @@ export class InaemImportService {
     return this.dbService.db;
   }
 
+  /**
+   * Nº de expediente de una edición — usado por `InaemImportController.upload`
+   * para acotar el import a esta edición cuando el actor no es ADMIN/MANAGER.
+   */
+  async getCourseFileNumber(id_course: number): Promise<string | null> {
+    const rows = await this.db.select({ file_number: courses.file_number }).from(courses).where(eq(courses.id_course, id_course));
+    return rows[0]?.file_number ?? null;
+  }
+
   /** Inicia un import INAEM en segundo plano y devuelve el jobId. */
   async startImport(files: InaemImportFiles, options: InaemImportOptions): Promise<string> {
     if (!files.acciones && !files.alumnos && !files.preinscripciones) {
@@ -111,6 +128,18 @@ export class InaemImportService {
       alumnos: files.alumnos ? await parseInaemFile(files.alumnos) : undefined,
       preinscripciones: files.preinscripciones ? await parseInaemFile(files.preinscripciones) : undefined,
     };
+
+    // Validación real de formato: sin las columnas clave, cada fila fallaría
+    // en silencio una a una (0 preinscripciones, sin pista clara del motivo).
+    // Se rechaza el fichero entero de una vez con un mensaje explícito.
+    if (parsed.preinscripciones) {
+      const headers = new Set(parsed.preinscripciones.headers.map((h) => h.trim()));
+      if (!headers.has(COMMON.FILE_NUMBER) || !headers.has(COMMON.DNI)) {
+        throw new Error(
+          `El fichero de Preinscripciones no tiene el formato esperado (deben existir las columnas "${COMMON.FILE_NUMBER}" y "${COMMON.DNI}").`,
+        );
+      }
+    }
 
     const total =
       (parsed.acciones?.rows.length || 0) +
@@ -344,6 +373,11 @@ export class InaemImportService {
     for (const row of table.rows) {
       try {
         const fileNumber = cleanText(row[COMMON.FILE_NUMBER]);
+        if (ctx.options.restrictToFileNumber && fileNumber !== ctx.options.restrictToFileNumber) {
+          await this.fail(row, fileNumber, `Expediente ${fileNumber || "(vacío)"} distinto al de esta edición (${ctx.options.restrictToFileNumber}) — fila omitida`);
+          ctx.summary.failed++;
+          continue;
+        }
         const incoming = mapRowToUserFields(row);
         if (!incoming.dni) {
           await this.fail(row, fileNumber, "Preinscrito sin DNI/NIE");

@@ -1,0 +1,1 @@
+ALTER TABLE "academyhub"."auth_users" ADD COLUMN "can_import_inaem" boolean DEFAULT false NOT NULL;

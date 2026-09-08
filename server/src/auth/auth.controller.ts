@@ -1,8 +1,9 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { Public } from "src/guards/auth/public.guard";
 import { AuthService } from "./auth.service";
 import { LoginDTO } from "src/dto/auth/login.dto";
+import { VerifyPasswordDTO } from "src/dto/auth/verify-password.dto";
 import { CreateUserDTO } from "src/dto/auth/create-user.dto";
 import { RoleGuard } from "src/guards/role.guard";
 import { Role } from "src/guards/role.enum";
@@ -54,5 +55,23 @@ export class AuthController {
     if (req.user?.jti && req.user?.exp) {
       await this.authService.logout(req.user.jti, req.user.exp);
     }
+  }
+
+  /**
+   * Reautenticación puntual del usuario YA logueado (identificado por el
+   * JWT), para confirmar una acción sensible (p. ej. importar Preinscritos
+   * INAEM) sin volver a iniciar sesión. Mismo throttling estricto que login
+   * — es igual de sensible a fuerza bruta.
+   */
+  @Throttle({
+    default: { limit: 8, ttl: 60 * 1000 },
+  })
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @HttpCode(HttpStatus.OK)
+  @Post("verify-password")
+  async verifyPassword(@Body() dto: VerifyPasswordDTO, @Req() req: { user: JwtPayload }) {
+    const ok = await this.authService.verifyPassword(req.user.id, dto.password);
+    if (!ok) throw new UnauthorizedException("Contraseña incorrecta");
+    return { ok: true };
   }
 }

@@ -1,4 +1,4 @@
-import { IsString, IsEmail, MinLength, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsEmail, MinLength, IsEnum, IsOptional, IsBoolean } from 'class-validator';
 import { Role } from 'src/guards/role.enum';
 
 export class UpdateUserDTO {
@@ -27,4 +27,10 @@ export class UpdateUserDTO {
   @IsString()
   @IsEnum(Role)
   role?: Role;
+
+  // Permiso puntual, independiente del rol: importar Preinscritos INAEM
+  // acotado a una edición — ver auth_users.can_import_inaem.
+  @IsOptional()
+  @IsBoolean()
+  can_import_inaem?: boolean;
 }

@@ -554,6 +554,13 @@
       "when": 1788855451949,
       "tag": "0078_hard_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1788863177365,
+      "tag": "0079_tough_toad_men",
+      "breakpoints": true
     }
   ]
 }

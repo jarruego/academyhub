@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { App, Button, Checkbox, Empty, Modal, Select, Space, Spin, Switch, Table, Tag, Tooltip, Upload } from "antd";
+import { App, Button, Checkbox, Empty, Modal, Select, Space, Spin, Switch, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { DeleteOutlined, FileExcelOutlined, PlusOutlined, TeamOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
@@ -14,10 +14,11 @@ import {
 } from "../../hooks/api/course-candidates/use-course-candidates";
 import { useCourseInterestsByCatalogQuery, useIncorporateInterestsMutation } from "../../hooks/api/course-interests/use-course-interests";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
-import { useRole } from "../../utils/permissions/use-role";
+import { useRole, useCanImportInaem } from "../../utils/permissions/use-role";
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { AutoSaveText } from "../common/AutoSaveText";
 import { PersonSearchOrCreateModal, type PersonSearchOrCreateInput } from "../common/PersonSearchOrCreateModal";
+import { ImportInaemPreinscripcionesModal } from "./ImportInaemPreinscripcionesModal";
 import type {
   CandidateAttendanceStatus,
   CandidateEmploymentStatus,
@@ -61,7 +62,6 @@ const fullName = (r: { name: string; first_surname: string | null; second_surnam
   [r.name, r.first_surname, r.second_surname].filter(Boolean).join(" ");
 const errorMessage = (error: unknown, fallback: string) =>
   (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
-const normalizeDni = (value: unknown) => String(value ?? "").toUpperCase().replace(/[^0-9A-Z]/g, "");
 
 /** Modal "Incorporar interesados", separada por el mismo motivo (la selección de filas no debe re-renderizar la tabla de candidatos). */
 function IncorporateModal({ open, onClose, availableInterests, submitting, onSubmit }: {
@@ -96,6 +96,9 @@ interface Props { courseId: number; catalogCourseId: number; canEdit: boolean; }
 export function CourseCandidatesSection({ courseId, catalogCourseId, canEdit }: Props) {
   const { message, modal } = App.useApp();
   const role = useRole();
+  const canImportInaem = useCanImportInaem();
+  const hasFullInaemAccess = role === Role.ADMIN || role === Role.MANAGER;
+  const [importInaemOpen, setImportInaemOpen] = useState(false);
   const { data = [], isLoading } = useCourseCandidatesQuery(courseId);
   const { data: users = [] } = useAllUsersLookupQuery();
   const { data: catalogInterests = [] } = useCourseInterestsByCatalogQuery(catalogCourseId, Boolean(catalogCourseId));
@@ -205,27 +208,6 @@ export function CourseCandidatesSection({ courseId, catalogCourseId, canEdit }: 
     });
   };
 
-  const importExcel = async (file: File) => {
-    try {
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-      const byDni = new Map(users.map(u => [normalizeDni(u.dni), u.id_user]));
-      const ids = new Set<number>();
-      for (const row of raw) {
-        const entry = Object.entries(row).find(([header]) => /^(dni|nie|nif|documento)$/i.test(header.trim()));
-        const id = entry ? byDni.get(normalizeDni(entry[1])) : undefined;
-        if (id && !existingUsers.has(id)) ids.add(id);
-      }
-      for (const id_user of ids) await createCandidate.mutateAsync({ id_user, source: "EXCEL_OPERATIVO" });
-      const omitted = raw.length - ids.size;
-      message.success(`${ids.size} candidato(s) importado(s)${omitted > 0 ? `; ${omitted} fila(s) no vinculadas o ya existentes` : ""}.`);
-    } catch {
-      message.error("No se pudo leer el Excel. Debe incluir una columna DNI, NIE, NIF o Documento.");
-    }
-    return false;
-  };
-
   const exportExcel = () => {
     const sheet = XLSX.utils.json_to_sheet(rows.map(r => ({
       Nombre: fullName(r), DNI: r.dni, Teléfono: r.phone, Email: r.email,
@@ -289,12 +271,20 @@ export function CourseCandidatesSection({ courseId, catalogCourseId, canEdit }: 
     <Space wrap style={{ marginBottom: 12 }}>
       {canEdit && <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>Añadir candidato</Button>}
       {canEdit && Boolean(catalogCourseId) && <Button icon={<TeamOutlined />} onClick={() => setIncorporateOpen(true)}>Desde interesados{availableInterests.length ? ` (${availableInterests.length})` : ""}</Button>}
-      {role === Role.ADMIN && <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={importExcel}><Button icon={<FileExcelOutlined />}>Importar Excel</Button></Upload>}
+      {(hasFullInaemAccess || canImportInaem) && <Button icon={<FileExcelOutlined />} onClick={() => setImportInaemOpen(true)}>Importar Preinscritos INAEM</Button>}
       <Button icon={<FileExcelOutlined />} onClick={exportExcel} disabled={!rows.length}>Exportar Excel</Button>
     </Space>
     {!rows.length ? <Empty description="Aún no hay candidatos. Puedes añadirlos aunque todavía no estén preinscritos en INAEM." /> :
       <Table<CourseCandidate> rowKey="id_candidate" columns={columns} dataSource={rows} pagination={false} scroll={{ x: 1520 }} size="small" />}
     <PersonSearchOrCreateModal title="Añadir candidato" open={addOpen} onClose={() => setAddOpen(false)} availableUsers={availableUsersForAdd} submitting={createCandidate.isPending} onSubmit={handleAdd} />
     <IncorporateModal open={incorporateOpen} onClose={() => setIncorporateOpen(false)} availableInterests={availableInterests} submitting={incorporateInterests.isPending} onSubmit={handleIncorporate} />
+    {(hasFullInaemAccess || canImportInaem) && (
+      <ImportInaemPreinscripcionesModal
+        open={importInaemOpen}
+        onClose={() => setImportInaemOpen(false)}
+        courseId={courseId}
+        hasFullAccess={hasFullInaemAccess}
+      />
+    )}
   </>;
 }

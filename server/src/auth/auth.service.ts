@@ -13,6 +13,10 @@ export type JwtPayload = {
   id: number;
   username: string;
   role: Role;
+  // Permiso puntual, independiente del rol — ver auth_users.can_import_inaem.
+  // Como no hay refresh token, un cambio de flag no se aplica a una sesión ya
+  // emitida hasta que el usuario vuelva a iniciar sesión (igual que el rol).
+  can_import_inaem?: boolean;
   jti: string;
   exp?: number;
 }
@@ -34,6 +38,7 @@ export class AuthService {
       id: user.id,
       username: user.username,
       role: user.role,
+      can_import_inaem: user.can_import_inaem,
       jti: randomUUID(),
     };
 
@@ -46,6 +51,19 @@ export class AuthService {
 
   async logout(jti: string, exp: number): Promise<void> {
     await this.revokedTokenService.revoke(jti, exp);
+  }
+
+  /**
+   * Reautenticación puntual: comprueba la contraseña del usuario YA
+   * autenticado (identificado por el JWT, no por lo que mande el body) contra
+   * su hash almacenado — mismo mecanismo que `signIn`, sin emitir un token
+   * nuevo. Usado como paso de confirmación antes de acciones sensibles
+   * (p. ej. importar Preinscripciones INAEM).
+   */
+  async verifyPassword(userId: number, password: string): Promise<boolean> {
+    const user = await this.usersService.findById(userId);
+    if (!user?.password) return false;
+    return compareHashWithSalt(user.password, password);
   }
 
   async signUp(createUserDto: CreateUserDTO) {

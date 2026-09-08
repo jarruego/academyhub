@@ -22,6 +22,13 @@ export class AuthUserService {
     return await this.authUserRepository.findByUsername(username);
   }
 
+  // Fila completa (incluida la password hasheada) — uso interno, p. ej. para
+  // reverificar la contraseña del usuario ya autenticado. No exponer tal cual
+  // a un controller.
+  async findById(id: number): Promise<AuthUserSelectModel | undefined> {
+    return await this.authUserRepository.findById(id);
+  }
+
   async createUser(user: CreateUserDTO) {
     // Ensure password is stored hashed (salted) so authentication comparisons work
     const hashedPassword = hashWithSalt(user.password);
@@ -63,6 +70,7 @@ export class AuthUserService {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.lastName !== undefined) updateData.lastName = data.lastName ?? null;
     if (data.role !== undefined) updateData.role = data.role;
+    if (data.can_import_inaem !== undefined) updateData.can_import_inaem = data.can_import_inaem;
 
     // Only update password when a non-empty value is provided
     if (data.password !== undefined && data.password !== null && data.password !== '') {

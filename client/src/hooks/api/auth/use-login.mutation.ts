@@ -23,6 +23,9 @@ export type UserModel = {
         email: string;
         username: string;
         role: Role;
+        // Permiso puntual, independiente del rol: importar Preinscritos INAEM
+        // acotado a una edición — ver auth_users.can_import_inaem.
+        can_import_inaem: boolean;
 }
 
 type Response = {token: string, user: UserModel };

@@ -1,4 +1,4 @@
-import { serial, varchar } from "drizzle-orm/pg-core";
+import { serial, varchar, boolean } from "drizzle-orm/pg-core";
 import { academyhubSchema } from "../pg-schema";
 import { TIMESTAMPS } from "./timestamps";
 import { Role } from "src/guards/role.enum";
@@ -12,6 +12,10 @@ export const authUserTable = academyhubSchema.table('auth_users', {
     username: varchar({length: 32}).notNull().unique(),
     password: varchar({length: 256}).notNull(),
     role: varchar({ length: 16 }).notNull().default(Role.VIEWER),
+    // Permiso puntual independiente del rol: permite importar el fichero de
+    // Preinscripciones INAEM (acotado a la edición desde la que se lance) sin
+    // dar acceso a Acciones/Alumnos ni al resto de capacidades de ADMIN/MANAGER.
+    can_import_inaem: boolean().notNull().default(false),
     ...TIMESTAMPS,
 });
 

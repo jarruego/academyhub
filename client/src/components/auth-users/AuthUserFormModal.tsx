@@ -1,4 +1,4 @@
-import { App, Modal, Form, Input, Select, Tabs, Table, Button, Popconfirm } from 'antd';
+import { App, Modal, Form, Input, Select, Tabs, Table, Button, Popconfirm, Checkbox } from 'antd';
 import { getApiHost } from '../../utils/api/get-api-host.util';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
@@ -39,11 +39,12 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
         name: user.name,
         lastName: user.lastName ?? undefined,
         role: user.role,
+        can_import_inaem: user.can_import_inaem ?? false,
       });
     }
     if (mode === 'create') {
       form.resetFields();
-      form.setFieldsValue({ role: Role.VIEWER });
+      form.setFieldsValue({ role: Role.VIEWER, can_import_inaem: false });
     }
   }, [user, mode, form]);
 
@@ -110,13 +111,27 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
                   <Form.Item name="lastName" label="Apellidos"> 
                     <Input />
                   </Form.Item>
-                  <Form.Item name="role" label="Rol"> 
+                  <Form.Item name="role" label="Rol">
                     <Select>
                       <Select.Option value={Role.ADMIN}>Admin</Select.Option>
                       <Select.Option value={Role.MANAGER}>Manager</Select.Option>
                       <Select.Option value={Role.VIEWER}>Viewer</Select.Option>
                       <Select.Option value={Role.TUTOR}>Tutor</Select.Option>
                     </Select>
+                  </Form.Item>
+                </Form>
+              ),
+            },
+            {
+              key: 'permissions' as const,
+              label: 'Permisos',
+              children: (
+                // Mismo `form` que la pestaña "Datos usuario" (component={false}: no
+                // renderiza un segundo <form>), para que estos campos también viajen
+                // en el mismo onFinish/submit.
+                <Form form={form} component={false} layout="vertical">
+                  <Form.Item name="can_import_inaem" valuePropName="checked">
+                    <Checkbox>Puede importar Preinscritos INAEM (acotado a la edición desde la que lo lance, aunque su rol no sea ADMIN/MANAGER)</Checkbox>
                   </Form.Item>
                 </Form>
               ),
