@@ -2,7 +2,7 @@ import { ColumnProps } from "antd/es/table";
 import { User } from "../../shared/types/user/user";
 import { UserCenter } from "../../shared/types/center/user-center";
 import React from "react";
-import { Progress, Tag } from "antd";
+import { Progress, Tag, Tooltip } from "antd";
 import { BajaTag } from "../../components/users/baja-tag";
 
 // Diminutivos de los shortname de rol de Moodle más habituales (máx. 7
@@ -26,6 +26,14 @@ const roleLabel = (shortname?: string | null) => {
 // Use the existing `UserCenter` type (includes is_main_center) and add the
 // optional `is_enrollment_center` flag that the backend may include.
 type Center = UserCenter & { is_enrollment_center?: boolean };
+
+// Corta un texto largo a `max` caracteres, con el texto completo en un
+// tooltip al pasar el ratón por encima.
+const CENTER_COMPANY_MAX_LENGTH = 25;
+const truncateWithTooltip = (text: string, max: number) => {
+  if (text.length <= max) return text;
+  return React.createElement(Tooltip, { title: text }, React.createElement('span', null, `${text.slice(0, max)}…`));
+};
 
 const formatTimeSpent = (value?: number | null) => {
   if (value === null || value === undefined) return '-';
@@ -82,7 +90,8 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
       },
       render: (_, user) => {
         const center = user.centers?.find((c: Center) => c.is_enrollment_center) ?? user.centers?.find((c: Center) => c.is_main_center) ?? user.centers?.[0];
-        return center?.center_name ?? '-';
+        const name = center?.center_name;
+        return name ? truncateWithTooltip(name, CENTER_COMPANY_MAX_LENGTH) : '-';
       } },
     { title: 'Empresa',
       sorter: {
@@ -95,7 +104,8 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
       },
       render: (_, user) => {
         const center = user.centers?.find((c: Center) => c.is_enrollment_center) ?? user.centers?.find((c: Center) => c.is_main_center) ?? user.centers?.[0];
-        return center?.company_name ?? '-';
+        const name = center?.company_name;
+        return name ? truncateWithTooltip(name, CENTER_COMPANY_MAX_LENGTH) : '-';
       } },
     { title: 'Rol', dataIndex: ['role_shortname'], sorter: {
     compare: (a, b) => (a.role_shortname || '').localeCompare(b.role_shortname || ''),
