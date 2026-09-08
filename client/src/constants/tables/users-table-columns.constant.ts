@@ -5,20 +5,23 @@ import React from "react";
 import { Progress, Tag } from "antd";
 import { BajaTag } from "../../components/users/baja-tag";
 
-// Diminutivos de los shortname de rol de Moodle más habituales; cualquier
-// otro valor se muestra tal cual (fallback), para no dejar la celda vacía
-// ante un rol de Moodle no contemplado aquí.
+// Diminutivos de los shortname de rol de Moodle más habituales (máx. 7
+// caracteres); cualquier otro valor se muestra tal cual, cortado a 7
+// caracteres si hace falta (fallback), para no dejar la celda vacía ante un
+// rol de Moodle no contemplado aquí.
 const ROLE_SHORTNAME_LABELS: Record<string, string> = {
   student: 'Alumno',
   editingteacher: 'Tutor',
-  teacher: 'Profesor',
+  teacher: 'Profe',
   manager: 'Gestor',
   coursecreator: 'Creador',
 };
+const ROLE_LABEL_MAX_LENGTH = 7;
 
 const roleLabel = (shortname?: string | null) => {
   if (!shortname) return null;
-  return ROLE_SHORTNAME_LABELS[shortname.toLowerCase()] ?? shortname;
+  const label = ROLE_SHORTNAME_LABELS[shortname.toLowerCase()] ?? shortname;
+  return label.length > ROLE_LABEL_MAX_LENGTH ? label.slice(0, ROLE_LABEL_MAX_LENGTH) : label;
 };
 // Use the existing `UserCenter` type (includes is_main_center) and add the
 // optional `is_enrollment_center` flag that the backend may include.
