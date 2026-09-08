@@ -141,3 +141,10 @@ export class UpdateUserDTO {
   @IsString()
   accreditationDiploma: string;
 }
+
+// Campos de identidad — únicos que puede tocar un actor que solo tiene el
+// permiso puntual `can_manage_candidates` (sin ser ADMIN/MANAGER/TUTOR) al
+// llamar a PUT /user/:id (edición inline en Candidatos, o "combinar" tras
+// detectar un posible duplicado). Deja fuera campos sensibles (discapacidad,
+// víctima de violencia de género, NSS, nivel educativo, etc.). Ver UserController.update.
+export const USER_IDENTITY_FIELDS = ["name", "first_surname", "second_surname", "dni", "phone", "email"] as const;

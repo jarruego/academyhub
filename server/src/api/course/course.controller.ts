@@ -1,6 +1,6 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { CreateCourseDTO } from '../../dto/course/create-course.dto';
-import { UpdateCourseDTO } from '../../dto/course/update-course.dto';
+import { UpdateCourseDTO, COURSE_PLANNING_FIELDS } from '../../dto/course/update-course.dto';
 import { CourseService } from './course.service';
 import { FilterCourseDTO } from 'src/dto/course/filter-course.dto';
 import { CreateUserCourseDTO } from "src/dto/user-course/create-user-course.dto";
@@ -8,6 +8,8 @@ import { UpdateUserCourseDTO } from 'src/dto/user-course/update-user-course.dto'
 import { DeleteCourseDTO } from 'src/dto/course/delete-course.dto';
 import { RoleGuard } from 'src/guards/role.guard';
 import { Role } from 'src/guards/role.enum';
+import { JwtPayload } from 'src/auth/auth.service';
+import { pick } from 'src/utils/pick.util';
 
 @Controller('course')
 export class CourseController {
@@ -19,11 +21,24 @@ export class CourseController {
     return this.courseService.create(createCourseDTO);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN]))
+  // Guard ampliado a propósito: ADMIN/MANAGER tienen acceso completo (Ficha +
+  // Planificación); quien no sea ninguno de los dos solo entra si tiene el
+  // permiso puntual `can_manage_candidates`, y en ese caso queda restringido a
+  // los campos de la pestaña Planificación y selección (COURSE_PLANNING_FIELDS)
+  // — el resto se descarta en silencio, no se lanza error, porque el
+  // formulario del cliente es compartido entre pestañas y siempre envía el
+  // curso completo. Ver docs/security.md.
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateCourseDTO: UpdateCourseDTO) {
+  async update(@Param('id') id: string, @Body() updateCourseDTO: UpdateCourseDTO, @Req() req: { user: JwtPayload }) {
     const numericId = parseInt(id, 10);
-    return this.courseService.update(numericId, updateCourseDTO);
+    const hasFullAccess = req.user.role === Role.ADMIN || req.user.role === Role.MANAGER;
+    let data: Partial<UpdateCourseDTO> = updateCourseDTO;
+    if (!hasFullAccess) {
+      if (!req.user.can_manage_candidates) throw new ForbiddenException('No tienes permiso para editar este curso.');
+      data = pick(updateCourseDTO, COURSE_PLANNING_FIELDS);
+    }
+    return this.courseService.update(numericId, data);
   }
 
   @Get(':id')

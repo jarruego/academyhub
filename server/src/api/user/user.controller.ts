@@ -1,6 +1,6 @@
-import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards, ParseIntPipe, BadRequestException, Res } from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Get, Query, Delete, UseGuards, ParseIntPipe, BadRequestException, ForbiddenException, Req, Res } from '@nestjs/common';
 import { CreateUserDTO } from '../../dto/user/create-user.dto';
-import { UpdateUserDTO } from '../../dto/user/update-user.dto';
+import { UpdateUserDTO, USER_IDENTITY_FIELDS } from '../../dto/user/update-user.dto';
 import { UserService } from './user.service';
 import { MoodleService } from '../moodle/moodle.service';
 import { FilterUserDTO } from 'src/dto/user/filter-user.dto';
@@ -9,6 +9,8 @@ import { Role } from 'src/guards/role.enum';
 import { PaginatedUsersResult, UserWithCenters } from 'src/types/user/paginated-users.interface';
 import type { Response } from 'express';
 import { UserCoursesCertificateService } from './user-courses-certificate.service';
+import { JwtPayload } from 'src/auth/auth.service';
+import { pick } from 'src/utils/pick.util';
 
 @Controller('user')
 export class UserController {
@@ -24,11 +26,23 @@ export class UserController {
     return this.userService.create(createUserDTO);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
+  // Guard ampliado a propósito: ADMIN/MANAGER/TUTOR tienen acceso completo;
+  // quien no sea ninguno de los tres solo entra si tiene el permiso puntual
+  // `can_manage_candidates` (edición inline en Candidatos, o "combinar" tras
+  // detectar un posible duplicado al añadir a mano), y en ese caso queda
+  // restringido a USER_IDENTITY_FIELDS — el resto se descarta en silencio.
+  // Ver docs/security.md.
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
   @Put(':id')
-  async update(@Param('id') id: string, @Body() updateUserDTO: UpdateUserDTO) {
+  async update(@Param('id') id: string, @Body() updateUserDTO: UpdateUserDTO, @Req() req: { user: JwtPayload }) {
     const numericId = parseInt(id, 10);
-    return this.userService.update(numericId, updateUserDTO);
+    const hasFullAccess = [Role.ADMIN, Role.MANAGER, Role.TUTOR].includes(req.user.role);
+    let data: Partial<UpdateUserDTO> = updateUserDTO;
+    if (!hasFullAccess) {
+      if (!req.user.can_manage_candidates) throw new ForbiddenException('No tienes permiso para editar este usuario.');
+      data = pick(updateUserDTO, USER_IDENTITY_FIELDS);
+    }
+    return this.userService.update(numericId, data);
   }
 
   @Get()

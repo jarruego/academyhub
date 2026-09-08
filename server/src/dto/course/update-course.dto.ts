@@ -99,3 +99,19 @@ export class UpdateCourseDTO {
   @ApiPropertyOptional() @IsOptional() @IsString() coordinator?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() organization_notes?: string;
 }
+
+// Campos de la pestaña "Planificación y selección" — únicos que puede tocar un
+// actor que solo tiene el permiso puntual `can_manage_candidates` (sin ser
+// ADMIN/MANAGER) al llamar a PUT /course/:id. Ver CourseController.update.
+export const COURSE_PLANNING_FIELDS = [
+  "capacity",
+  "selection_at",
+  "selection_place",
+  "training_place",
+  "target_audience",
+  "admission_requirements",
+  "required_documentation",
+  "planned_schedule",
+  "coordinator",
+  "organization_notes",
+] as const;

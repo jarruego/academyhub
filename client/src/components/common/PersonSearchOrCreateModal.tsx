@@ -1,6 +1,13 @@
 import { useMemo, useState } from "react";
-import { Input, Modal, Select, Space, theme } from "antd";
+import { App, Input, Modal, Select, Space, theme } from "antd";
 import { normalizeLoose } from "../../utils/normalize-search";
+import { findPotentialDuplicate, type DuplicateMatch } from "../../utils/duplicate-match.util";
+import { DuplicateMatchModal, type DuplicateResolution } from "./DuplicateMatchModal";
+import { getApiHost } from "../../utils/api/get-api-host.util";
+import { useAuthenticatedAxios } from "../../utils/api/use-authenticated-axios.util";
+
+const errorMessage = (error: unknown, fallback: string) =>
+  (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 
 export type PersonLookup = {
   id_user: number;
@@ -39,6 +46,8 @@ export function PersonSearchOrCreateModal({ title, open, onClose, availableUsers
   onSubmit: (input: PersonSearchOrCreateInput) => void;
 }) {
   const { token } = theme.useToken();
+  const { message } = App.useApp();
+  const request = useAuthenticatedAxios();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<PersonLookup | null>(null);
   const [name, setName] = useState("");
@@ -47,6 +56,8 @@ export function PersonSearchOrCreateModal({ title, open, onClose, availableUsers
   const [dni, setDni] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [duplicate, setDuplicate] = useState<DuplicateMatch | null>(null);
+  const [merging, setMerging] = useState(false);
 
   const options = useMemo(() => {
     const words = normalizeLoose(search).split(/\s+/).filter(Boolean);
@@ -76,18 +87,43 @@ export function PersonSearchOrCreateModal({ title, open, onClose, availableUsers
   const createOk = !selected && Boolean(name.trim()) && (Boolean(phone.trim()) || Boolean(email.trim()));
   const canSubmit = Boolean(selected) || createOk;
 
+  const buildNewUser = () => ({
+    name: name.trim(),
+    first_surname: firstSurname.trim() || undefined,
+    second_surname: secondSurname.trim() || undefined,
+    dni: dni.trim() || undefined,
+    phone: phone.trim() || undefined,
+    email: email.trim() || undefined,
+  });
+
   const handleOk = () => {
-    if (selected) onSubmit({ id_user: selected.id_user });
-    else if (createOk) onSubmit({
-      new_user: {
-        name: name.trim(),
-        first_surname: firstSurname.trim() || undefined,
-        second_surname: secondSurname.trim() || undefined,
-        dni: dni.trim() || undefined,
-        phone: phone.trim() || undefined,
-        email: email.trim() || undefined,
-      },
-    });
+    if (selected) return onSubmit({ id_user: selected.id_user });
+    if (!createOk) return;
+    const newUser = buildNewUser();
+    const match = findPotentialDuplicate(newUser, availableUsers);
+    if (match) setDuplicate(match);
+    else onSubmit({ new_user: newUser });
+  };
+
+  const resolveDuplicate = async (resolution: DuplicateResolution) => {
+    if (!duplicate) return;
+    if (resolution.action === "use_existing") {
+      onSubmit({ id_user: duplicate.person.id_user });
+    } else if (resolution.action === "create_new") {
+      onSubmit({ new_user: buildNewUser() });
+    } else {
+      setMerging(true);
+      try {
+        await request({ method: "PUT", url: `${getApiHost()}/user/${duplicate.person.id_user}`, data: resolution.values });
+        onSubmit({ id_user: duplicate.person.id_user });
+      } catch (error) {
+        message.error(errorMessage(error, "No se pudieron combinar los datos."));
+        return;
+      } finally {
+        setMerging(false);
+      }
+    }
+    setDuplicate(null);
   };
 
   return <Modal title={title} open={open} onCancel={onClose} onOk={handleOk} okButtonProps={{ disabled: !canSubmit, loading: submitting }} destroyOnClose>
@@ -99,6 +135,7 @@ export function PersonSearchOrCreateModal({ title, open, onClose, availableUsers
       onChange={value => { if (value != null) selectExisting(value); }}
       onClear={clearSelection} />
     {selected && <div style={{ marginBottom: 8, fontSize: 12, color: token.colorTextSecondary }}>Persona existente seleccionada — estos datos no se editan aquí (usa su ficha). Pulsa la X del buscador para dar de alta a alguien nuevo en su lugar.</div>}
+    {duplicate && <DuplicateMatchModal open={Boolean(duplicate)} onClose={() => setDuplicate(null)} submitting={merging} newData={buildNewUser()} match={duplicate} onResolve={resolveDuplicate} />}
     <Space direction="vertical" style={{ width: "100%" }}>
       <Input placeholder="Nombre (obligatorio)" value={name} disabled={!!selected} onChange={e => setName(e.target.value)} />
       <Space.Compact style={{ width: "100%" }}>
