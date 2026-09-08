@@ -402,12 +402,14 @@ const navigate = useNavigate();
                       <Input {...field} id="email" autoComplete="email" data-testid="user-email" readOnly={!canEdit} style={{ flex: 1 }} />
                     )}
                   />
-                  <Button
-                    icon={<MailOutlined />}
-                    onClick={() => setSendMailModalOpen(true)}
-                    title="Enviar correo"
-                    disabled={!userData?.email}
-                  />
+                  <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.TUTOR]}>
+                    <Button
+                      icon={<MailOutlined />}
+                      onClick={() => setSendMailModalOpen(true)}
+                      title="Enviar correo"
+                      disabled={!userData?.email}
+                    />
+                  </AuthzHide>
                 </div>
               </Form.Item>
             </Col>

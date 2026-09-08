@@ -68,7 +68,7 @@ export class MailController {
   }
 
   @Post('send')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   async sendTestMail(@Body() body: SendMailOptions & { smtp?: SmtpSettingsDto }, @Req() req: any) {
     // Si se pasa smtp, usarlo temporalmente para este envío
     if (body.smtp) {
@@ -118,7 +118,7 @@ export class MailController {
   }
 
   @Post('send-from-template')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   async sendMailFromTemplate(@Body() body: SendMailFromTemplateDto, @Req() req: any) {
     await this.mailService.sendMailFromTemplate({
       to: body.toEmail,
