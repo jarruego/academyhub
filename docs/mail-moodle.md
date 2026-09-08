@@ -70,6 +70,9 @@ Both send modals also have a **"Personalizar"** button on the template preview (
 ### Attachments (`SendMailOptions.attachments`)
 `MailService.deliverMail` accepts `attachments?: { filename, content: Buffer, contentType? }[]`, forwarded as-is to nodemailer's `sendMail`. **SMTP only** — the Moodle-notification path (`sendViaMoodle`) sends plain text and never carries attachments, so any flow needing an attachment (currently only `docs/reports.md`'s `/reports/send`, the center-report mailer) shouldn't offer a "vía Moodle" option. `email_log` doesn't record attachment metadata (it never stores the body either).
 
+### Cc/Bcc (`SendMailOptions.cc`/`.bcc`)
+Optional `string[]`, **SMTP only** (same restriction as attachments — not sent through the Moodle-notification path). `deliverMail` dedupes them against `to` (and `bcc` against `cc` too) so the same address never appears twice across headers. Currently only wired up in `/reports/send` (`ReportSendDTO.cc`/`.bcc`, free-text tag inputs in `SendReportMailModal`) — deliberately **not** applied to `/reports/send/test`, which must stay a single copy to the test address without touching any real recipient.
+
 ## Admin failure notifications (`AdminNotificationService`)
 `server/src/notifications/` (`NotificationsModule` → `AdminNotificationService`) sends an SMTP email (via `MailService.sendMail`, no Moodle) to **every `auth_user` with role `admin`** when an unattended job fails. Recipients come from `authUserRepository.findAll({ role: 'admin' })` (empty/blank emails filtered). `notifyScheduledJobFailure({ source, error, jobId?, details? })` is **best-effort**: it never throws (missing SMTP, no admins, send error → logged only), so it can't affect the calling flow. Error text is HTML-escaped. Timestamp uses `SCHEDULER_TIMEZONE`. The send is recorded in `email_log` with actor `system`.
 

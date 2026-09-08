@@ -317,6 +317,8 @@ export class ReportsMailService {
           from_email: body.from_email,
           from_name: body.from_name,
           reply_to: body.reply_to,
+          cc: body.cc,
+          bcc: body.bcc,
           attachments,
           actor,
           templateId: body.send_mode === 'template' ? body.template_id : undefined,
@@ -342,7 +344,11 @@ export class ReportsMailService {
     return results;
   }
 
-  /** Envía una única copia de prueba (el primer grupo de la selección) a una dirección indicada, sin tocar los destinatarios reales. */
+  /**
+   * Envía una única copia de prueba (el primer grupo de la selección) a una
+   * dirección indicada, sin tocar los destinatarios reales — por eso ignora
+   * deliberadamente `body.cc`/`body.bcc`, para no enviarles también una copia.
+   */
   async sendTestReportMail(body: ReportSendDTO, actor?: EmailActor): Promise<{ center_name: string }> {
     if (!body.test_email) throw new BadRequestException('Falta el email de prueba');
 

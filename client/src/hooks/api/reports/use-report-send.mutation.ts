@@ -29,6 +29,10 @@ export interface ReportSendRequest {
   from_email?: string;
   from_name?: string;
   reply_to?: string;
+  /** Copia (Cc), aplicada a todos los correos enviados — no al de prueba. */
+  cc?: string[];
+  /** Copia oculta (Bcc), aplicada a todos los correos enviados — no al de prueba. */
+  bcc?: string[];
   test_email?: string;
 }
 

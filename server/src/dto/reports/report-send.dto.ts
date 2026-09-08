@@ -106,6 +106,18 @@ export class ReportSendDTO {
   @IsString()
   reply_to?: string;
 
+  @ApiPropertyOptional({ type: [String], description: 'Copia (Cc), aplicada a todos los correos enviados (no al de prueba)' })
+  @IsOptional()
+  @IsArray()
+  @IsEmail({}, { each: true })
+  cc?: string[];
+
+  @ApiPropertyOptional({ type: [String], description: 'Copia oculta (Bcc), aplicada a todos los correos enviados (no al de prueba)' })
+  @IsOptional()
+  @IsArray()
+  @IsEmail({}, { each: true })
+  bcc?: string[];
+
   @ApiPropertyOptional({ description: 'Solo para /reports/send/test: envía una única copia a esta dirección' })
   @IsOptional()
   @IsEmail()

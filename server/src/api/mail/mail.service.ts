@@ -33,6 +33,8 @@ export interface SendMailOptions {
   from_email?: string;
   from_name?: string;
   reply_to?: string;
+  cc?: string[];
+  bcc?: string[];
   // Adjuntos binarios (p. ej. PDFs de informes). Solo viajan por SMTP: la
   // notificación por Moodle (sendViaMoodle) no admite adjuntos, se envía como
   // texto igualmente.
@@ -313,6 +315,19 @@ export class MailService {
 
     if (safeReplyTo) {
       mailOptions.replyTo = safeReplyTo;
+    }
+
+    // Cc/Bcc: se filtran duplicados con "to" (y entre sí) para no repetir al
+    // mismo destinatario en dos cabeceras distintas.
+    const normalize = (v: string) => v.trim().toLowerCase();
+    if (options.cc?.length) {
+      const cc = [...new Set(options.cc.map(normalize).filter(Boolean))].filter((v) => !recipients.includes(v));
+      if (cc.length) mailOptions.cc = cc;
+    }
+    if (options.bcc?.length) {
+      const ccSet = new Set((Array.isArray(mailOptions.cc) ? mailOptions.cc as string[] : []).map(normalize));
+      const bcc = [...new Set(options.bcc.map(normalize).filter(Boolean))].filter((v) => !recipients.includes(v) && !ccSet.has(v));
+      if (bcc.length) mailOptions.bcc = bcc;
     }
 
     if (options.attachments?.length) {

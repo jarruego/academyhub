@@ -117,6 +117,8 @@ export default function SendReportMailModal({ open, selection, onOk, onCancel }:
   const [attachDedicationPasswords, setAttachDedicationPasswords] = useState(false);
   const [attachCertification, setAttachCertification] = useState(false);
   const [recipientsByGroup, setRecipientsByGroup] = useState<Record<string, string[]>>({});
+  const [ccEmails, setCcEmails] = useState<string[]>([]);
+  const [bccEmails, setBccEmails] = useState<string[]>([]);
   const [testModalOpen, setTestModalOpen] = useState(false);
   const [testEmail, setTestEmail] = useState('');
   const [resultModalOpen, setResultModalOpen] = useState(false);
@@ -158,6 +160,8 @@ export default function SendReportMailModal({ open, selection, onOk, onCancel }:
     text: sendMode === 'custom' && !customIsHtml ? customContent : undefined,
     from_name: fromChoice === 'auth' ? authInfo?.user?.name : fromChoice === 'manual' ? manualFromName.trim() || undefined : undefined,
     reply_to: fromChoice === 'auth' ? authEmail : fromChoice === 'manual' ? manualReplyTo.trim() || undefined : smtp?.from_email,
+    cc: ccEmails.length ? ccEmails : undefined,
+    bcc: bccEmails.length ? bccEmails : undefined,
   });
 
   const handleCustomizeFromTemplate = () => {
@@ -180,6 +184,8 @@ export default function SendReportMailModal({ open, selection, onOk, onCancel }:
     setAttachDedicationPasswords(false);
     setAttachCertification(false);
     setRecipientsByGroup({});
+    setCcEmails([]);
+    setBccEmails([]);
   };
 
   const validate = (): boolean => {
@@ -299,6 +305,35 @@ export default function SendReportMailModal({ open, selection, onOk, onCancel }:
                 onPreview={(type) => handlePreview(g, type)}
               />
             ))}
+          </Form.Item>
+
+          <Form.Item>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Typography.Text style={{ width: 32, flexShrink: 0 }}>Cc</Typography.Text>
+                <Select
+                  mode="tags"
+                  style={{ flex: 1 }}
+                  placeholder="Añade emails en copia"
+                  value={ccEmails}
+                  onChange={setCcEmails}
+                  tokenSeparators={[',', ' ', ';']}
+                  notFoundContent={null}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Typography.Text style={{ width: 32, flexShrink: 0 }}>Cco</Typography.Text>
+                <Select
+                  mode="tags"
+                  style={{ flex: 1 }}
+                  placeholder="Añade emails en copia oculta"
+                  value={bccEmails}
+                  onChange={setBccEmails}
+                  tokenSeparators={[',', ' ', ';']}
+                  notFoundContent={null}
+                />
+              </div>
+            </div>
           </Form.Item>
 
           <Form.Item label="Remitente" required>
