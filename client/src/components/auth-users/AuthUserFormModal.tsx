@@ -69,74 +69,71 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
         confirmLoading={loading}
         width={700}
       >
-        <Tabs
-          defaultActiveKey="main"
-          items={[
-            {
-              key: 'main' as const,
-              label: 'Datos usuario',
-              children: (
-                <Form form={form} layout="vertical" onFinish={async (values) => {
-                  setLoading(true);
-                  try {
-                    if (mode === 'create') {
-                      const res = await authRequest({ url: `${getApiHost()}/auth/users`, method: 'POST', data: values as unknown as AuthUser });
-                      const created = res?.data;
-                      onSaved && onSaved(created ?? (values as unknown as AuthUser));
-                    } else {
-                      if (!user) return;
-                      await authRequest({ url: `${getApiHost()}/auth/users/${user.id}`, method: 'PUT', data: values as unknown as AuthUser });
-                      onSaved && onSaved({ ...user, ...values } as AuthUser);
-                    }
-                    form.resetFields();
-                  } catch (err) {
-                    modal.error({ title: 'Error', content: mode === 'create' ? 'No se pudo crear el usuario.' : 'No se pudo actualizar el usuario.' });
-                  } finally {
-                    setLoading(false);
-                  }
-                }}>
-                  <button type="submit" style={{ display: 'none' }} aria-hidden />
-                  <Form.Item name="username" label="Usuario" rules={[{ required: true, message: 'El nombre de usuario es obligatorio' }]}> 
-                    <Input autoComplete="username" />
-                  </Form.Item>
-                  <Form.Item name="password" label="Contraseña" rules={mode === 'create' ? [{ required: true, message: 'La contraseña es obligatoria' }, { min: 8, message: 'La contraseña debe tener al menos 8 caracteres' }] : [{ min: 8, message: 'La contraseña debe tener al menos 8 caracteres' }]}>
-                    <Input.Password autoComplete="new-password" placeholder={mode === 'edit' ? 'Dejar en blanco para no cambiar' : undefined} />
-                  </Form.Item>
-                  <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email no válido' }, { required: true, message: 'El email es obligatorio' }]}> 
-                    <Input autoComplete="email" />
-                  </Form.Item>
-                  <Form.Item name="name" label="Nombre" rules={[{ required: true, message: 'El nombre es obligatorio' }]}> 
-                    <Input />
-                  </Form.Item>
-                  <Form.Item name="lastName" label="Apellidos"> 
-                    <Input />
-                  </Form.Item>
-                  <Form.Item name="role" label="Rol">
-                    <Select>
-                      <Select.Option value={Role.ADMIN}>Admin</Select.Option>
-                      <Select.Option value={Role.MANAGER}>Manager</Select.Option>
-                      <Select.Option value={Role.VIEWER}>Viewer</Select.Option>
-                      <Select.Option value={Role.TUTOR}>Tutor</Select.Option>
-                    </Select>
-                  </Form.Item>
-                </Form>
-              ),
-            },
-            {
-              key: 'permissions' as const,
-              label: 'Permisos',
-              children: (
-                // Mismo `form` que la pestaña "Datos usuario" (component={false}: no
-                // renderiza un segundo <form>), para que estos campos también viajen
-                // en el mismo onFinish/submit.
-                <Form form={form} component={false} layout="vertical">
+        {/* component={false}: no renderiza <form> propio — evita anidar un <form> HTML dentro
+            de este cuando la pestaña "Vínculos Moodle" monta su propio Form (moodleForm). */}
+        <Form form={form} component={false} layout="vertical" onFinish={async (values) => {
+          setLoading(true);
+          try {
+            if (mode === 'create') {
+              const res = await authRequest({ url: `${getApiHost()}/auth/users`, method: 'POST', data: values as unknown as AuthUser });
+              const created = res?.data;
+              onSaved && onSaved(created ?? (values as unknown as AuthUser));
+            } else {
+              if (!user) return;
+              await authRequest({ url: `${getApiHost()}/auth/users/${user.id}`, method: 'PUT', data: values as unknown as AuthUser });
+              onSaved && onSaved({ ...user, ...values } as AuthUser);
+            }
+            form.resetFields();
+          } catch (err) {
+            modal.error({ title: 'Error', content: mode === 'create' ? 'No se pudo crear el usuario.' : 'No se pudo actualizar el usuario.' });
+          } finally {
+            setLoading(false);
+          }
+        }}>
+          <Tabs
+            defaultActiveKey="main"
+            items={[
+              {
+                key: 'main' as const,
+                label: 'Datos usuario',
+                children: (
+                  <>
+                    <Form.Item name="username" label="Usuario" rules={[{ required: true, message: 'El nombre de usuario es obligatorio' }]}>
+                      <Input autoComplete="username" />
+                    </Form.Item>
+                    <Form.Item name="password" label="Contraseña" rules={mode === 'create' ? [{ required: true, message: 'La contraseña es obligatoria' }, { min: 8, message: 'La contraseña debe tener al menos 8 caracteres' }] : [{ min: 8, message: 'La contraseña debe tener al menos 8 caracteres' }]}>
+                      <Input.Password autoComplete="new-password" placeholder={mode === 'edit' ? 'Dejar en blanco para no cambiar' : undefined} />
+                    </Form.Item>
+                    <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email no válido' }, { required: true, message: 'El email es obligatorio' }]}>
+                      <Input autoComplete="email" />
+                    </Form.Item>
+                    <Form.Item name="name" label="Nombre" rules={[{ required: true, message: 'El nombre es obligatorio' }]}>
+                      <Input />
+                    </Form.Item>
+                    <Form.Item name="lastName" label="Apellidos">
+                      <Input />
+                    </Form.Item>
+                    <Form.Item name="role" label="Rol">
+                      <Select>
+                        <Select.Option value={Role.ADMIN}>Admin</Select.Option>
+                        <Select.Option value={Role.MANAGER}>Manager</Select.Option>
+                        <Select.Option value={Role.VIEWER}>Viewer</Select.Option>
+                        <Select.Option value={Role.TUTOR}>Tutor</Select.Option>
+                      </Select>
+                    </Form.Item>
+                  </>
+                ),
+              },
+              {
+                key: 'permissions' as const,
+                label: 'Permisos',
+                children: (
                   <Form.Item name="can_import_inaem" valuePropName="checked">
                     <Checkbox>Puede importar Preinscritos INAEM (acotado a la edición desde la que lo lance, aunque su rol no sea ADMIN/MANAGER)</Checkbox>
                   </Form.Item>
-                </Form>
-              ),
-            },
-            mode === 'edit' && user && {
+                ),
+              },
+              mode === 'edit' && user && {
               key: 'moodle-links',
               label: 'Vínculos Moodle',
               children: (
@@ -238,7 +235,8 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
               ),
             },
           ].filter((item): item is Exclude<typeof item, false | null> => Boolean(item))}
-        />
+          />
+        </Form>
       </Modal>
     </>
   );
