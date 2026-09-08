@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Input, Modal, Select, Space } from "antd";
+import { Input, Modal, Select, Space, theme } from "antd";
 import { normalizeLoose } from "../../utils/normalize-search";
 
 export type PersonLookup = {
@@ -38,6 +38,7 @@ export function PersonSearchOrCreateModal({ title, open, onClose, availableUsers
   submitting: boolean;
   onSubmit: (input: PersonSearchOrCreateInput) => void;
 }) {
+  const { token } = theme.useToken();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<PersonLookup | null>(null);
   const [name, setName] = useState("");
@@ -97,7 +98,7 @@ export function PersonSearchOrCreateModal({ title, open, onClose, availableUsers
       notFoundContent={search.trim() ? "Sin coincidencias: se creará una persona nueva" : null}
       onChange={value => { if (value != null) selectExisting(value); }}
       onClear={clearSelection} />
-    {selected && <div style={{ marginBottom: 8, fontSize: 12, color: "rgba(0,0,0,.45)" }}>Persona existente seleccionada — estos datos no se editan aquí (usa su ficha). Pulsa la X del buscador para dar de alta a alguien nuevo en su lugar.</div>}
+    {selected && <div style={{ marginBottom: 8, fontSize: 12, color: token.colorTextSecondary }}>Persona existente seleccionada — estos datos no se editan aquí (usa su ficha). Pulsa la X del buscador para dar de alta a alguien nuevo en su lugar.</div>}
     <Space direction="vertical" style={{ width: "100%" }}>
       <Input placeholder="Nombre (obligatorio)" value={name} disabled={!!selected} onChange={e => setName(e.target.value)} />
       <Space.Compact style={{ width: "100%" }}>
@@ -107,7 +108,7 @@ export function PersonSearchOrCreateModal({ title, open, onClose, availableUsers
       <Input placeholder="DNI/NIE" value={dni} disabled={!!selected} onChange={e => setDni(e.target.value)} />
       <Input placeholder="Teléfono" value={phone} disabled={!!selected} onChange={e => setPhone(e.target.value)} />
       <Input placeholder="Email" value={email} disabled={!!selected} onChange={e => setEmail(e.target.value)} />
-      {!selected && <span style={{ fontSize: 12, color: "rgba(0,0,0,.45)" }}>Indica al menos un teléfono o un email para poder contactar.</span>}
+      {!selected && <span style={{ fontSize: 12, color: token.colorTextSecondary }}>Indica al menos un teléfono o un email para poder contactar.</span>}
     </Space>
   </Modal>;
 }
