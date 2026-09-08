@@ -2,8 +2,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
-import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Row, Col, Space, theme } from "antd";
-import { Link } from "react-router-dom";
+import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Row, Col, Space, Tooltip, theme } from "antd";
 import { RouteTabs } from "../../components/common/RouteTabs";
 import { ActiveTag } from "../../components/common/tags";
 import { DeleteOutlined, SaveOutlined, TeamOutlined, CommentOutlined, FileTextOutlined } from "@ant-design/icons";
@@ -30,6 +29,7 @@ import { CourseCandidatesSection } from "../../components/course/course-candidat
 import { useOrganizationSettingsQuery } from "../../hooks/api/organization/use-organization-settings.query";
 import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course-catalog.query";
 import { useLinkNavigation } from "../../utils/click-navigation";
+import { openDetail } from "../../utils/open-detail";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -367,9 +367,14 @@ export default function CourseDetailRoute() {
               </Col>
               {courseData?.id_catalog_course && (
                 <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'center' }}>
-                  <Link to={`/course-catalog/${courseData.id_catalog_course}?tab=contenidos`} {...linkTo(`/course-catalog/${courseData.id_catalog_course}?tab=contenidos`)}>
-                    <FileTextOutlined /> Ver contenidos del curso de catálogo
-                  </Link>
+                  <Tooltip title="Ver contenidos del curso de catálogo">
+                    <Button
+                      icon={<FileTextOutlined />}
+                      onClick={() => openDetail(`/course-catalog/${courseData.id_catalog_course}?tab=contenidos`)}
+                    >
+                      Ver
+                    </Button>
+                  </Tooltip>
                 </Col>
               )}
             </Row>

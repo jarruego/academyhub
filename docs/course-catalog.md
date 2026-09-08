@@ -114,7 +114,7 @@ El botón de eliminar en **Acciones** se muestra siempre que `canEdit` (antes ta
 
 **Importar Excel** solo es visible para `ADMIN` (antes cualquiera con `canEdit`, que incluía `MANAGER`; TUTOR tampoco lo ve, igual que MANAGER); solo empareja por DNI contra usuarios **ya existentes** (no crea usuarios nuevos desde el Excel, a diferencia del alta manual).
 
-`canEdit` que recibe `CourseCandidatesSection` se fija en `CourseDetailRoute` como `canEditCandidates = [ADMIN, MANAGER, TUTOR].includes(role)` — variable propia de esta pestaña, distinta del `canEdit` general de la ficha del curso (`[ADMIN, MANAGER]`, usado en el resto de pestañas: Ficha, Planificación). La Ficha incluye un enlace de solo lectura a los Contenidos del curso de catálogo (pestaña propia en `catalog-course-detail.route.tsx`, ver "Datos del catálogo" arriba) — la edición ya no tiene contenidos propios.
+`canEdit` que recibe `CourseCandidatesSection` se fija en `CourseDetailRoute` como `canEditCandidates = [ADMIN, MANAGER, TUTOR].includes(role)` — variable propia de esta pestaña, distinta del `canEdit` general de la ficha del curso (`[ADMIN, MANAGER]`, usado en el resto de pestañas: Ficha, Planificación). La Ficha incluye un botón "Ver" (icono, con tooltip "Ver contenidos del curso de catálogo") que abre en pestaña nueva la pestaña Contenidos del curso de catálogo (`catalog-course-detail.route.tsx`, ver "Datos del catálogo" arriba) — la edición ya no tiene contenidos propios. Es una excepción deliberada a la convención de clic simple = misma pestaña (`openDetail` directo, no `useLinkNavigation`) — ver `docs/client.md` "Table navigation (click convention)".
 
 ## Intereses formativos (fase 3)
 
