@@ -75,11 +75,7 @@ export class CourseService {
   async create(courseInsertModel: CourseInsertModel, options?: QueryOptions) {
     try {
       return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-        // Asegura que el campo contents estÃ© presente aunque sea undefined
-        const data: CourseInsertModel = this.normalizeFileNumber({
-          ...courseInsertModel,
-          contents: courseInsertModel.contents ?? null,
-        });
+        const data: CourseInsertModel = this.normalizeFileNumber({ ...courseInsertModel });
         if (!data.id_catalog_course) {
           const catalogCourse = await this.catalogCourseRepository.ensurePendingByName(data.course_name, { transaction });
           data.id_catalog_course = catalogCourse.id_catalog_course;
@@ -97,11 +93,7 @@ export class CourseService {
   async update(id: number, courseUpdateModel: CourseUpdateModel, options?: QueryOptions) {
     try {
       return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
-        // Asegura que el campo contents estÃ© presente aunque sea undefined
-        const data: CourseUpdateModel = this.normalizeFileNumber({
-          ...courseUpdateModel,
-          contents: courseUpdateModel.contents ?? null,
-        });
+        const data: CourseUpdateModel = this.normalizeFileNumber({ ...courseUpdateModel });
         await this.courseRepository.update(id, data, { transaction });
         return await this.courseRepository.findById(id, { transaction });
       });

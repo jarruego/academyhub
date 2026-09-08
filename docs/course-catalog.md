@@ -18,11 +18,13 @@ AcademyHub separa la identidad estable de una formación de cada ejecución conc
 
 Nombre, código interno opcional, descripción, objetivos, contenidos base, modalidad/horas habituales, referencia de especialidad SEPE y familia/área profesional. Los valores habituales son informativos: no reescriben ediciones existentes.
 
+`catalog_courses.contents` (HTML largo, pestaña propia **Contenidos** en la ficha del catálogo) es el temario real de la formación, compartido por todas sus ediciones — antes vivía duplicado en `courses.contents` por cada edición; la migración `0076` lo trasladó (backfill desde la edición con `start_date` más reciente que tuviera contenido, a igualdad `id_course` más alto) y `0077` borró la columna de `courses`. Es un campo distinto de `base_contents` (plantilla informativa de "contenidos habituales", sin editor HTML). Editable por ADMIN y MANAGER (el resto de la ficha del catálogo es solo-ADMIN, ver "API y permisos").
+
 No tiene campo de estado/revisión: se eliminó (`catalog_courses.status`, enum `course_catalog_status`, migración `0067`) por no tener ningún consumidor real — nada lo filtraba salvo el selector de curso de catálogo al crear una edición, que ocultaba las entradas `INACTIVO` (también eliminado). El único estado "activo/inactivo" que existe ahora es el derivado por edición/grupo, ver "Cliente" más abajo.
 
 ## Datos de planificación de la edición
 
-`courses` guarda campos comunes a cualquier cliente: `capacity`, `selection_at`, `selection_place`, `training_place`, `target_audience`, `admission_requirements`, `required_documentation`, `planned_schedule`, `coordinator` y `organization_notes`. No viven en una tabla INAEM separada porque también son útiles para FUNDAE/privada.
+`courses` guarda campos comunes a cualquier cliente: `capacity`, `selection_at`, `selection_place`, `training_place`, `target_audience`, `admission_requirements`, `required_documentation`, `planned_schedule`, `coordinator` y `organization_notes`. No viven en una tabla INAEM separada por si en el futuro hiciera falta también para FUNDAE/privada, pero de momento **solo se usan para financiación pública** (INAEM): la pestaña «Planificación y selección» de la edición solo se muestra si `funding = PUBLICA`, igual que «Candidatos».
 
 ## API y permisos
 
@@ -35,9 +37,9 @@ Fusionar mueve todas las ediciones al destino y elimina el registro origen dentr
 
 - Menú lateral (`router.tsx`): «Cursos» (enlace directo a `/course-catalog`) es una cabecera de grupo (`type: 'group'`, no desplegable, sin flecha) de la que cuelgan siempre visibles «Ediciones» (`/courses`), «Grupos» (`/groups`) y «Peticiones» (`/course-requests`), en ese orden; «Empresas» (enlace directo a `/companies`) agrupa igual a «Centros» (`/centers`). El título del grupo es un `<Link>` reestilado (`.app-sider-group-title` en `index.css`) para que se vea y navegue como un ítem de menú normal, no como una etiqueta de sección apagada; los hijos llevan `className: 'app-sider-child-item'` (sangría extra vía `!important`, antd no los indenta más por defecto dentro de un grupo) para que se vean claramente colgando de su cabecera.
 - Listado `/course-catalog` (`course-catalog.route.tsx`): como el catálogo no tiene fechas propias, su columna **Activo** y el orden (`Fecha Fin Grupo` descendente, más recientes primero) se derivan agregando `id_catalog_course → courses → groups` en el cliente (mismo criterio — `isGroupActive`/fecha de fin de grupo más reciente — que usaba el listado de Ediciones). No hay columna de revisión (campo eliminado, ver arriba).
-- Listado `/courses` (`courses.route.tsx`, «Ediciones»): orden por defecto por `id_course` descendente (las ediciones más nuevas primero), no por fecha. Columnas reducidas a lo esencial (Curso de catálogo, Nº Exp./Cliente/Financiación según pestaña, Fecha Fin Grupo, Estado) — sin ID, ID Moodle, Nombre ni Nombre Corto (siguen siendo consultables desde la ficha de la edición).
-- Ficha del catálogo: datos generales y ediciones navegables, ordenadas por fecha de inicio descendente y, a igualdad, por `id_course` descendente (las más recientes primero).
-- Alta/edición de una edición: curso de catálogo obligatorio; campos requeridos en la ficha general y opcionales en «Planificación y selección».
+- Listado `/courses` (`courses.route.tsx`, «Ediciones»): orden por defecto por `Fecha Fin Grupo` descendente (sin fecha al final) y, a igualdad, `id_course` descendente. Columnas reducidas a lo esencial (Curso de catálogo, Nº Exp./Cliente/Financiación según pestaña, Fecha Fin Grupo, Estado) — sin ID, ID Moodle, Nombre ni Nombre Corto (siguen siendo consultables desde la ficha de la edición).
+- Ficha del catálogo (`catalog-course-detail.route.tsx`): pestañas Datos generales, Ediciones (navegables, ordenadas por fecha de inicio del grupo más reciente de cada edición descendente y, a igualdad, por `id_course` descendente), Interesados y **Contenidos** (última) — se abre directamente en Ediciones (`defaultTabKey`).
+- Alta/edición de una edición: curso de catálogo obligatorio; campos requeridos en la ficha general. «Planificación y selección» y «Candidatos» solo aparecen como pestañas si `funding = PUBLICA`.
 
 ## Migración inicial
 
@@ -110,7 +112,7 @@ El botón de eliminar en **Acciones** se muestra siempre que `canEdit` (antes ta
 
 **Importar Excel** solo es visible para `ADMIN` (antes cualquiera con `canEdit`, que incluía `MANAGER`; TUTOR tampoco lo ve, igual que MANAGER); solo empareja por DNI contra usuarios **ya existentes** (no crea usuarios nuevos desde el Excel, a diferencia del alta manual).
 
-`canEdit` que recibe `CourseCandidatesSection` se fija en `CourseDetailRoute` como `canEditCandidates = [ADMIN, MANAGER, TUTOR].includes(role)` — variable propia de esta pestaña, distinta del `canEdit` general de la ficha del curso (`[ADMIN, MANAGER]`, usado en el resto de pestañas: Ficha, Planificación, Contenidos, Grupos).
+`canEdit` que recibe `CourseCandidatesSection` se fija en `CourseDetailRoute` como `canEditCandidates = [ADMIN, MANAGER, TUTOR].includes(role)` — variable propia de esta pestaña, distinta del `canEdit` general de la ficha del curso (`[ADMIN, MANAGER]`, usado en el resto de pestañas: Ficha, Planificación). La Ficha incluye un enlace de solo lectura a los Contenidos del curso de catálogo (pestaña propia en `catalog-course-detail.route.tsx`, ver "Datos del catálogo" arriba) — la edición ya no tiene contenidos propios.
 
 ## Intereses formativos (fase 3)
 

@@ -1,0 +1,1 @@
+ALTER TABLE "academyhub"."courses" DROP COLUMN "contents";

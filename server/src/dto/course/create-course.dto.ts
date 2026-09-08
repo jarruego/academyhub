@@ -90,11 +90,6 @@ export class CreateCourseDTO {
   @IsIn(Object.values(CourseFunding))
   funding?: CourseFunding;
 
-  @ApiPropertyOptional({ description: 'Contenidos del curso en HTML', type: String })
-  @IsOptional()
-  @IsString()
-  contents?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @Type(() => Number)

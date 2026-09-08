@@ -28,6 +28,7 @@ export class CatalogCourseRepository extends Repository {
         description: catalogCourseTable.description,
         objectives: catalogCourseTable.objectives,
         base_contents: catalogCourseTable.base_contents,
+        contents: catalogCourseTable.contents,
         default_modality: catalogCourseTable.default_modality,
         default_hours: catalogCourseTable.default_hours,
         sepe_specialty_code: catalogCourseTable.sepe_specialty_code,

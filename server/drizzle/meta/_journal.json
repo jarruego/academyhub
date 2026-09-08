@@ -533,6 +533,20 @@
       "when": 1788764660031,
       "tag": "0075_serious_husk",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1788850699369,
+      "tag": "0076_blue_mantis",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1788850718520,
+      "tag": "0077_slimy_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ import type { Response } from 'express';
 import { PdfService } from 'src/common/pdf/pdf.service';
 import { ReportRenderer } from './report-renderer.service';
 import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
+import { CatalogCourseRepository } from 'src/database/repository/course/catalog-course.repository';
 import { buildIssuerLine, normalizeOrganizationSettings } from 'src/api/organization/organization-settings.model';
 import { OrganizationSettingsSelectModel } from 'src/database/schema/tables/organization_settings.table';
 import axios from 'axios';
@@ -22,6 +23,7 @@ export class ReportsPdfService {
     private readonly organizationRepository: OrganizationRepository,
     private readonly reportRenderer: ReportRenderer,
     private readonly courseService: CourseService,
+    private readonly catalogCourseRepository: CatalogCourseRepository,
   ) { }
 
   private async appendCourseContentsPage(
@@ -32,7 +34,9 @@ export class ReportsPdfService {
 
     try {
       const course = await this.courseService.findByMoodleId(Number(moodleId));
-      const contents = course?.contents;
+      if (!course?.id_catalog_course) return;
+      const catalogCourse = await this.catalogCourseRepository.findById(course.id_catalog_course);
+      const contents = catalogCourse?.contents;
       if (contents && typeof contents === 'string' && contents.trim().length > 0) {
         doc.addPage();
         doc.fontSize(16).fillColor('#0033CC').text('Contenidos del curso', { align: 'left' });

@@ -24,6 +24,10 @@ export const catalogCourseTable = academyhubSchema.table('catalog_courses', {
   sepe_specialty_name: text(),
   professional_family: text(),
   professional_area: text(),
+  // Contenidos HTML de la formación, compartidos por todas las ediciones (antes
+  // vivían duplicados en cada edición, en `courses.contents` — migración 0076
+  // hizo el backfill desde la edición más reciente con datos y borró esa columna).
+  contents: text(),
   ...TIMESTAMPS,
 }, (table) => ({
   normalizedNameIdx: uniqueIndex("idx_catalog_courses_normalized_name").on(table.normalized_name),
@@ -60,7 +64,6 @@ export const courseTable = academyhubSchema.table('courses', {
   // Curso provisional autocreado durante la importación INAEM cuando llegó un
   // alumno/preinscrito de un expediente sin curso. Se completa al importar Acciones.
   is_provisional: boolean().notNull().default(false),
-  contents: text(), // HTML largo
   capacity: integer(),
   selection_at: timestamp({withTimezone: true}),
   selection_place: text(),

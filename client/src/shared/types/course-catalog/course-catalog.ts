@@ -9,6 +9,8 @@ export type CatalogCourse = {
   description?: string | null;
   objectives?: string | null;
   base_contents?: string | null;
+  // Contenidos HTML de la formación, compartidos por todas las ediciones.
+  contents?: string | null;
   default_modality?: CourseModality | null;
   default_hours?: number | null;
   sepe_specialty_code?: string | null;

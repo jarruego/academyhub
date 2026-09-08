@@ -29,6 +29,11 @@ export class CreateCatalogCourseDto {
   @IsString()
   base_contents?: string;
 
+  @ApiPropertyOptional({ description: 'Contenidos HTML de la formación (compartidos por todas las ediciones)', type: String })
+  @IsOptional()
+  @IsString()
+  contents?: string;
+
   @ApiPropertyOptional({ enum: CourseModality })
   @IsOptional()
   @IsEnum(CourseModality)

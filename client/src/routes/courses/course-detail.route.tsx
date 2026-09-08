@@ -3,10 +3,10 @@ import { useCourseQuery } from "../../hooks/api/courses/use-course.query";
 import { useGroupsQuery } from "../../hooks/api/groups/use-groups.query";
 import { useUpdateCourseMutation } from "../../hooks/api/courses/use-update-course.mutation";
 import { Button, DatePicker, Form, Input, Table, Select, Tag, Modal, App, Row, Col, Space, theme } from "antd";
+import { Link } from "react-router-dom";
 import { RouteTabs } from "../../components/common/RouteTabs";
 import { ActiveTag } from "../../components/common/tags";
-import HtmlEditor from '../../components/courses/HtmlEditor';
-import { DeleteOutlined, SaveOutlined, TeamOutlined, CommentOutlined } from "@ant-design/icons";
+import { DeleteOutlined, SaveOutlined, TeamOutlined, CommentOutlined, FileTextOutlined } from "@ant-design/icons";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useUsersByGroupQuery } from "../../hooks/api/users/use-users-by-group.query";
@@ -46,7 +46,6 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
   funding: z.nativeEnum(CourseFunding).optional().nullish(),
   moodle_id: z.number().optional().nullish(),
   category: z.string().optional().nullish(),
-  contents: z.string().optional().nullish(),
   capacity: z.coerce.number().int().min(0).optional().nullish(),
   selection_at: z.date().optional().nullish(),
   selection_place: z.string().optional().nullish(),
@@ -140,7 +139,6 @@ export default function CourseDetailRoute() {
       funding: null,
       moodle_id: null,
       category: '',
-      contents: '',
       capacity: null,
       selection_at: null,
       selection_place: '',
@@ -164,7 +162,6 @@ export default function CourseDetailRoute() {
         start_date: courseData.start_date ? (dayjs.isDayjs(courseData.start_date) ? courseData.start_date.toDate() : courseData.start_date) : null,
         end_date: courseData.end_date ? (dayjs.isDayjs(courseData.end_date) ? courseData.end_date.toDate() : courseData.end_date) : null,
         selection_at: courseData.selection_at ? (dayjs.isDayjs(courseData.selection_at) ? courseData.selection_at.toDate() : courseData.selection_at) : null,
-        contents: courseData.contents ?? '',
       });
     }
   }, [courseData, reset]);
@@ -223,7 +220,6 @@ export default function CourseDetailRoute() {
       ...info,
       hours: info.hours !== undefined && info.hours !== null ? Number(info.hours) : 0,
       price_per_hour: info.price_per_hour !== undefined && info.price_per_hour !== null ? Number(info.price_per_hour) : 0,
-      contents: info.contents ?? '',
     };
     try {
       await updateCourse({
@@ -314,7 +310,6 @@ export default function CourseDetailRoute() {
     setSelectedRowKeys([record.id_group]);
   };
 
-  const contentsValue = watch('contents');
   const hasMoodleId = Boolean(courseData?.moodle_id);
   // Visibilidad condicional de los campos de clasificación. Se muestran cuando el
   // eje correspondiente lo justifica O cuando ya hay dato (para no ocultar valores
@@ -325,6 +320,9 @@ export default function CourseDetailRoute() {
   const showFileNumber = clientValue === CourseClient.INAEM || Boolean(courseData?.file_number);
   // El botón de Foros solo tiene sentido para cursos online vinculados a Moodle.
   const showForumButton = courseData?.modality === CourseModality.ONLINE && hasMoodleId;
+  // Planificación y Candidatos solo tienen uso real en cursos de financiación
+  // pública (INAEM); en FUNDAE/privada esos datos no se rellenan.
+  const isPublicFunding = courseData?.funding === CourseFunding.PUBLICA;
 
   return (
     <div>
@@ -365,6 +363,13 @@ export default function CourseDetailRoute() {
                   <Controller name="id_catalog_course" control={control} render={({field}) => <Select {...field} id="id_catalog_course" showSearch optionFilterProp="label" disabled={!canEdit} options={catalogCourses.map(item => ({value:item.id_catalog_course,label:item.name}))} />} />
                 </Form.Item>
               </Col>
+              {courseData?.id_catalog_course && (
+                <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Link to={`/course-catalog/${courseData.id_catalog_course}?tab=contenidos`} target="_blank" rel="noopener noreferrer">
+                    <FileTextOutlined /> Ver contenidos del curso de catálogo
+                  </Link>
+                </Col>
+              )}
             </Row>
 
             {/* Nombre del curso + fechas (a la derecha de los nombres) */}
@@ -726,7 +731,7 @@ export default function CourseDetailRoute() {
             </div>
           </Form>
         ),
-      }, {
+      }, ...(isPublicFunding ? [{
         key: 'planificacion',
         label: 'Planificación y selección',
         children: (
@@ -748,36 +753,11 @@ export default function CourseDetailRoute() {
             {canEdit && <div className="form-actions"><Button type="primary" icon={<SaveOutlined />} htmlType="submit">Guardar planificación</Button></div>}
           </Form>
         ),
-      }, {
-        key: 'contenidos',
-        label: 'Contenidos',
-        children: canEdit ? (
-          <Form layout="vertical" onFinish={handleSubmit(submit)}>
-            <Form.Item label="Contenidos HTML" name="contents">
-              <Controller
-                name="contents"
-                control={control}
-                render={({ field }) => (
-                  <HtmlEditor {...field} value={field.value ?? ''} readOnly={!canEdit} />
-                )}
-              />
-            </Form.Item>
-            <div style={{ display: 'flex', gap: '16px', marginTop: 8 }}>
-              <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-                <Button type="primary" icon={<SaveOutlined />} htmlType="submit" data-testid="save-contents">Guardar Contenidos</Button>
-              </AuthzHide>
-            </div>
-          </Form>
-        ) : (
-          <div style={{ padding: 16, background: token.colorBgContainer, minHeight: 200 }}>
-            <div dangerouslySetInnerHTML={{ __html: contentsValue || '<em>No hay contenidos</em>' }} />
-          </div>
-        ),
-      }, {
+      }] : []), ...(isPublicFunding ? [{
         key: 'candidatos',
         label: 'Candidatos',
         children: <CourseCandidatesSection courseId={Number(id_course)} catalogCourseId={courseData?.id_catalog_course ?? 0} canEdit={canEditCandidates} />,
-      }]} />
+      }] : [])]} />
       <Modal width={'80%'} destroyOnClose open={Boolean(userToLookup)} onCancel={() => {
         refetchUsersByGroup();
         setUserToLookup(null);

@@ -88,11 +88,6 @@ export class UpdateCourseDTO {
   @IsIn(Object.values(CourseFunding))
   funding?: CourseFunding;
 
-  @ApiPropertyOptional({ description: 'Contenidos del curso en HTML', type: String })
-  @IsOptional()
-  @IsString()
-  contents?: string;
-
   @ApiPropertyOptional() @IsOptional() @Type(() => Number) @IsInt() capacity?: number;
   @ApiPropertyOptional() @IsOptional() @Type(() => Date) @IsDate() selection_at?: Date;
   @ApiPropertyOptional() @IsOptional() @IsString() selection_place?: string;

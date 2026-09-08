@@ -6,6 +6,7 @@ import { ReportsPdfService } from './reports-pdf.service';
 import { ReportsMailService } from './reports-mail.service';
 import { PdfService } from 'src/common/pdf/pdf.service';
 import { OrganizationRepository } from 'src/database/repository/organization/organization.repository';
+import { CatalogCourseRepository } from 'src/database/repository/course/catalog-course.repository';
 import { ReportRenderer } from './report-renderer.service';
 import { CourseModule } from '../course/course.module';
 import { MailModule } from '../mail/mail.module';
@@ -13,7 +14,7 @@ import { CourseRequestModule } from '../course-request/course-request.module';
 
 @Module({
   imports: [CourseModule, MailModule, CourseRequestModule],
-  providers: [ReportsService, ReportsRepository, ReportsPdfService, ReportsMailService, PdfService, OrganizationRepository, ReportRenderer],
+  providers: [ReportsService, ReportsRepository, ReportsPdfService, ReportsMailService, PdfService, OrganizationRepository, CatalogCourseRepository, ReportRenderer],
   controllers: [ReportsController],
   exports: [ReportsService, ReportsRepository, ReportsPdfService, PdfService, ReportRenderer],
 })

@@ -9,7 +9,6 @@ export type Course = {
     course_name: string;
     moodle_id?: number | null;
     category?: string | null;
-    contents?: string | null;
     short_name: string;
     start_date?: Date | null;
     end_date?: Date | null;

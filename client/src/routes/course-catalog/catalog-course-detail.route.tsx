@@ -3,6 +3,7 @@ import { MergeCellsOutlined } from "@ant-design/icons";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CatalogCourseForm } from "../../components/course-catalog/catalog-course-form";
+import { CatalogCourseContentsTab } from "../../components/course-catalog/catalog-course-contents-tab";
 import { CourseInterestsSection } from "../../components/course-catalog/course-interests-section";
 import { DataTable } from "../../components/common/DataTable";
 import { PageHeader } from "../../components/common/PageHeader";
@@ -24,6 +25,9 @@ export default function CatalogCourseDetailRoute() {
   const navigate = useNavigate();
   const role = useRole();
   const canEdit = role === Role.ADMIN;
+  // Contenidos, a diferencia del resto de la ficha (solo ADMIN), lo pueden editar
+  // también MANAGER — igual que podían antes en la ficha de la edición.
+  const canEditContents = role === Role.ADMIN || role === Role.MANAGER;
   const canEditInterests = role === Role.ADMIN || role === Role.MANAGER;
   const canAddInterests = canEditInterests || role === Role.TUTOR;
   const { data, isLoading } = useCatalogCourseQuery(id);
@@ -66,6 +70,7 @@ export default function CatalogCourseDetailRoute() {
       { key:"datos", label:"Datos generales", children:<CatalogCourseForm initial={data} readOnly={!canEdit} saving={update.isPending} onSubmit={async values => { try { await update.mutateAsync(values); message.success("Curso de catálogo actualizado"); } catch (error) { message.error((error as {response?:{data?:{message?:string}}})?.response?.data?.message ?? "No se pudo guardar"); } }} /> },
       { key:"ediciones", label:`Ediciones (${editions.length})`, children:<DataTable rowKey="id_course" dataSource={editions} getRowUrl={row => `/courses/${row.id_course}`} columns={[{title:"Edición",dataIndex:"course_name",render:(value,row)=>{const start=latestGroupByCourse.get(row.id_course)?.start_date;const year=start?new Date(start).getFullYear():null;return <><YearTag year={year} style={{marginRight:6}} />{value}</>;}},{title:"Expediente",dataIndex:"file_number",render:value=>value||"-"},{title:"Inicio",key:"start_date",render:(_,row)=>formatDate(latestGroupByCourse.get(row.id_course)?.start_date,"-")},{title:"Fin",key:"end_date",render:(_,row)=>formatDate(latestGroupByCourse.get(row.id_course)?.end_date,"-")},{title:"Modalidad",dataIndex:"modality"}]} /> },
       { key:"interesados", label:`Interesados (${interests.length})`, children:<CourseInterestsSection catalogCourseId={id} canEdit={canEditInterests} canAdd={canAddInterests} /> },
+      { key:"contenidos", label:"Contenidos", children:<CatalogCourseContentsTab catalogCourseId={id} initialContents={data.contents} canEdit={canEditContents} /> },
     ]} />
     <Modal title="Fusionar curso de catálogo" open={mergeOpen} onCancel={() => setMergeOpen(false)} onOk={async () => { if (!target) return; await merge.mutateAsync(target); message.success("Cursos fusionados"); navigate(`/course-catalog/${target}`); }} okButtonProps={{disabled:!target}} okText="Fusionar" cancelText="Cancelar">
       <Space direction="vertical" style={{width:"100%"}}><span>Todas las ediciones se trasladarán al curso seleccionado.</span><Select showSearch optionFilterProp="label" style={{width:"100%"}} value={target} onChange={setTarget} options={all.filter(item=>item.id_catalog_course!==id).map(item=>({value:item.id_catalog_course,label:item.name}))} /></Space>
