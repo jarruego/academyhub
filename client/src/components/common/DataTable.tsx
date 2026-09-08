@@ -11,6 +11,13 @@ export interface DataTableProps<T> extends TableProps<T> {
    * la deja sin enlace.
    */
   getRowUrl?: (record: T) => string | undefined;
+  /**
+   * Si es `true`, el clic simple de fila NO navega — solo el doble clic abre
+   * el detalle (en pestaña nueva). Excepción puntual al gesto estándar
+   * (clic = misma pestaña, doble clic = pestaña nueva) para listados donde un
+   * clic simple no debe disparar ninguna navegación.
+   */
+  dblClickOnly?: boolean;
   /** Altura del cuerpo para scroll vertical interno (listados con altura fija). */
   scrollY?: number;
 }
@@ -27,6 +34,7 @@ export interface DataTableProps<T> extends TableProps<T> {
  */
 export function DataTable<T extends object>({
   getRowUrl,
+  dblClickOnly,
   scrollY,
   onRow,
   scroll,
@@ -53,7 +61,7 @@ export function DataTable<T extends object>({
           ...base,
           onClick: (event) => {
             base.onClick?.(event);
-            onClick?.(event);
+            if (!dblClickOnly) onClick?.(event);
           },
           onDoubleClick: (event) => {
             base.onDoubleClick?.(event);

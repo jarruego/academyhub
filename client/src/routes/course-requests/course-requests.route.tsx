@@ -432,6 +432,7 @@ function CourseRequestsListTab() {
         dataSource={requests}
         loading={isLoading}
         getRowUrl={(record) => `/course-requests/${record.id_request}`}
+        dblClickOnly
         rowClassName={(record) => (record.is_urgent ? "course-request-urgent-row" : "")}
         pagination={false}
         scroll={{ y: FIXED_TABLE_HEIGHT, x: isMobile ? "max-content" : undefined }}
@@ -450,6 +451,7 @@ function CourseRequestsListTab() {
           dataSource={byCourse}
           columns={byCourseColumns}
           getRowUrl={(record) => `/course-catalog/${record.id_catalog_course}`}
+          dblClickOnly
           scrollY={BY_COURSE_TABLE_HEIGHT}
           scroll={{ x: isMobile ? "max-content" : undefined }}
         />
