@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { App, Button, Empty, Select, Space, Spin, Table, Tag, Upload } from "antd";
+import { App, Button, Empty, Select, Space, Spin, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { DeleteOutlined, FileExcelOutlined, PlusOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
@@ -33,10 +33,9 @@ const errorMessage = (error: unknown, fallback: string) =>
 
 const label = (value: string) => value.toLowerCase().replace(/_/g, " ").replace(/^./, (c: string) => c.toUpperCase());
 const fullName = (r: CourseInterest) => [r.name, r.first_surname, r.second_surname].filter(Boolean).join(" ");
-const normalizeDni = (value: unknown) => String(value ?? "").toUpperCase().replace(/[^0-9A-Z]/g, "");
 
 // canAdd también habilita eliminar (alta/baja del listado); canEdit cubre además
-// editar los campos de una fila existente e importar/exportar Excel.
+// editar los campos de una fila existente y exportar Excel.
 interface Props { catalogCourseId: number; canEdit: boolean; canAdd?: boolean; }
 
 export function CourseInterestsSection({ catalogCourseId, canEdit, canAdd = canEdit }: Props) {
@@ -86,30 +85,6 @@ export function CourseInterestsSection({ catalogCourseId, canEdit, canAdd = canE
     },
   });
 
-  const importExcel = async (file: File) => {
-    try {
-      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-      const byDni = new Map(users.map(u => [normalizeDni(u.dni), u.id_user]));
-      const ids = new Set<number>();
-      for (const row of raw) {
-        const entry = Object.entries(row).find(([header]) => /^(dni|nie|nif|documento)$/i.test(header.trim()));
-        const id = entry ? byDni.get(normalizeDni(entry[1])) : undefined;
-        if (id && !existingOpenUsers.has(id)) ids.add(id);
-      }
-      let created = 0;
-      for (const id_user of ids) {
-        try { await createInterest.mutateAsync({ id_user, id_catalog_course: catalogCourseId }); created++; } catch { /* duplicado u otro conflicto: se omite */ }
-      }
-      const omitted = raw.length - created;
-      message.success(`${created} interesado(s) importado(s)${omitted > 0 ? `; ${omitted} fila(s) no vinculadas o ya existentes` : ""}.`);
-    } catch {
-      message.error("No se pudo leer el Excel. Debe incluir una columna DNI, NIE, NIF o Documento.");
-    }
-    return false;
-  };
-
   const exportExcel = () => {
     const sheet = XLSX.utils.json_to_sheet(rows.map(r => ({
       Nombre: fullName(r), DNI: r.dni, Email: r.email, Teléfono: r.phone,
@@ -153,7 +128,6 @@ export function CourseInterestsSection({ catalogCourseId, canEdit, canAdd = canE
   return <>
     <Space wrap style={{ marginBottom: 12 }}>
       {canAdd && <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>Añadir interesado</Button>}
-      {canEdit && <Upload accept=".xlsx,.xls" showUploadList={false} beforeUpload={importExcel}><Button icon={<FileExcelOutlined />}>Importar Excel</Button></Upload>}
       <Button icon={<FileExcelOutlined />} onClick={exportExcel} disabled={!rows.length}>Exportar Excel</Button>
     </Space>
     {!rows.length ? <Empty description="Todavía no hay nadie interesado en este curso." /> :
