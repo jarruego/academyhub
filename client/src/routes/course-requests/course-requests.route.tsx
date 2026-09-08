@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { App, Button, Card, DatePicker, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
+import { App, Button, Card, DatePicker, Segmented, Select, Switch, Tag, Tooltip } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { CopyOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
@@ -64,23 +64,36 @@ function CourseRequestsListTab() {
 
   const { data: allRequests, isLoading } = useCourseRequestsQuery({ id_catalog_course: idCatalogCourse, id_center: idCenter, status });
 
-  // Peticiones sin ningún filtro (todas, cualquier estado): sirve solo para
-  // calcular qué cursos/empresas/centros tienen alguna petición asociada, de
-  // modo que los desplegables de filtro no ofrezcan opciones vacías — no
-  // afecta al listado principal ni se filtra por los filtros activos (a
-  // diferencia de `groupOptions`, que si se restringe con ellos más abajo).
+  // Predicado de fecha compartido: sin rango elegido, no filtra nada.
+  const matchesDateRange = (r: CourseRequest) => {
+    if (!dateRange) return true;
+    const requestDate = dayjs(r.request_date);
+    return !requestDate.isBefore(dateRange[0], "day") && !requestDate.isAfter(dateRange[1], "day");
+  };
+
+  // Peticiones sin filtro de curso/centro/empresa/grupo/estado (solo el rango
+  // de fechas, si hay uno elegido): sirve para calcular qué cursos/empresas/
+  // centros tienen alguna petición asociada dentro de ese rango, de modo que
+  // los desplegables de filtro no ofrezcan opciones vacías — no afecta al
+  // listado principal ni se restringe por el resto de filtros (a diferencia
+  // de `groupOptions`, que sí se restringe con ellos más abajo).
   const { data: allRequestsForFacets } = useCourseRequestsQuery({});
+  const dateFilteredRequestsForFacets = useMemo(
+    () => (allRequestsForFacets ?? []).filter(matchesDateRange),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allRequestsForFacets, dateRange],
+  );
   const catalogCoursesWithRequests = useMemo(
-    () => new Set((allRequestsForFacets ?? []).map((r) => r.id_catalog_course)),
-    [allRequestsForFacets],
+    () => new Set(dateFilteredRequestsForFacets.map((r) => r.id_catalog_course)),
+    [dateFilteredRequestsForFacets],
   );
   const companiesWithRequests = useMemo(
-    () => new Set((allRequestsForFacets ?? []).filter((r) => r.id_company != null).map((r) => r.id_company)),
-    [allRequestsForFacets],
+    () => new Set(dateFilteredRequestsForFacets.filter((r) => r.id_company != null).map((r) => r.id_company)),
+    [dateFilteredRequestsForFacets],
   );
   const centersWithRequests = useMemo(
-    () => new Set((allRequestsForFacets ?? []).filter((r) => r.id_center != null).map((r) => r.id_center)),
-    [allRequestsForFacets],
+    () => new Set(dateFilteredRequestsForFacets.filter((r) => r.id_center != null).map((r) => r.id_center)),
+    [dateFilteredRequestsForFacets],
   );
 
   // La empresa, el rango de fechas y el grupo filtran en cliente (el endpoint
@@ -89,12 +102,9 @@ function CourseRequestsListTab() {
   const companyFilteredRequests = useMemo(
     () => allRequests?.filter((r) => {
       if (idCompanies.length && !(r.id_company != null && idCompanies.includes(r.id_company))) return false;
-      if (dateRange) {
-        const requestDate = dayjs(r.request_date);
-        if (requestDate.isBefore(dateRange[0], "day") || requestDate.isAfter(dateRange[1], "day")) return false;
-      }
-      return true;
+      return matchesDateRange(r);
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [allRequests, idCompanies, dateRange],
   );
 
@@ -315,9 +325,6 @@ function CourseRequestsListTab() {
       width: 200,
       ellipsis: true,
       sorter: (a, b) => String(a.course_name).localeCompare(String(b.course_name)),
-      render: (v: string, record: Record<string, unknown>) => (
-        <Typography.Link {...linkTo(`/course-catalog/${record.id_catalog_course}`)}>{v}</Typography.Link>
-      ),
     },
     {
       title: "Peticiones",
@@ -349,7 +356,7 @@ function CourseRequestsListTab() {
         return `${cell.student_count} (${cell.request_count})`;
       },
     })),
-  ], [companyColumns, statsByCourseCompanyKey, linkTo]);
+  ], [companyColumns, statsByCourseCompanyKey]);
 
   const toolbar = (
     <>
@@ -396,6 +403,16 @@ function CourseRequestsListTab() {
         optionFilterProp="label"
         options={groupOptions.map(([id_group, group_name]) => ({ value: id_group, label: group_name }))}
       />
+      <DatePicker.RangePicker
+        allowClear
+        format="DD/MM/YYYY"
+        placeholder={["Fecha petición desde", "hasta"]}
+        value={dateRange}
+        onChange={(range) => setDateRange(range && range[0] && range[1] ? [range[0], range[1]] : null)}
+      />
+      <Button onClick={() => setDateRange([dayjs().subtract(90, "day"), dayjs()])}>
+        Últimos 90 días
+      </Button>
       <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate("/course-requests/create")}>
           Nueva petición
@@ -425,15 +442,16 @@ function CourseRequestsListTab() {
         style={{ marginTop: 16 }}
         extra={<span style={{ fontSize: 12, opacity: 0.6 }}>Columnas de empresa: alumnos (peticiones)</span>}
       >
-        <Table
+        <DataTable
           size="small"
           tableLayout={isMobile ? undefined : "fixed"}
           pagination={false}
-          sortDirections={["ascend", "descend"]}
           rowKey="id_catalog_course"
           dataSource={byCourse}
           columns={byCourseColumns}
-          scroll={{ y: BY_COURSE_TABLE_HEIGHT, x: isMobile ? "max-content" : undefined }}
+          getRowUrl={(record) => `/course-catalog/${record.id_catalog_course}`}
+          scrollY={BY_COURSE_TABLE_HEIGHT}
+          scroll={{ x: isMobile ? "max-content" : undefined }}
         />
       </Card>
     </ListPageLayout>
