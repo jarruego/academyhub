@@ -6,15 +6,15 @@ import { MoodleService } from './moodle.service';
 const makeService = (overrides: Partial<Record<string, unknown>> = {}) =>
   new MoodleService(
     { db: {} } as any,                          // databaseService
-    {} as any,                                  // courseRepository
+    (overrides.courseRepository ?? {}) as any,  // courseRepository
     {} as any,                                  // catalogCourseRepository
-    {} as any,                                  // groupRepository
+    (overrides.groupRepository ?? {}) as any,   // groupRepository
     {} as any,                                  // organizationRepository
-    {} as any,                                  // userCourseRepository
+    (overrides.userCourseRepository ?? {}) as any, // userCourseRepository
     (overrides.userRepository ?? {}) as any,    // userRepository
-    {} as any,                                  // userGroupRepository
+    (overrides.userGroupRepository ?? {}) as any, // userGroupRepository
     (overrides.moodleUserService ?? {}) as any, // moodleUserService
-    {} as any,                                  // groupService
+    (overrides.groupService ?? {}) as any,      // groupService
   );
 
 describe('MoodleService — parsing de block_advanced_reports', () => {
@@ -186,5 +186,74 @@ describe('MoodleService — emparejamiento de usuarios de Moodle con usuarios lo
       expect(userRepository.findByDniAny).not.toHaveBeenCalled();
       expect(userRepository.create).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('MoodleService.unenrollUserFromGroupAndCourse', () => {
+  const group = { id_group: 1, id_course: 10, moodle_id: 501 };
+  const course = { id_course: 10, moodle_id: 900 };
+  const userCourse = { id_moodle_user: 7 };
+  const moodleUser = { id_moodle_user: 7, moodle_id: 12345 };
+
+  const makeDeps = (overrides: Partial<Record<string, unknown>> = {}) => ({
+    groupRepository: { findById: jest.fn().mockResolvedValue(group) },
+    courseRepository: { findById: jest.fn().mockResolvedValue(course) },
+    userCourseRepository: { findByCourseAndUserId: jest.fn().mockResolvedValue(userCourse) },
+    userGroupRepository: { isUserEnrolledInOtherGroups: jest.fn().mockResolvedValue(false) },
+    moodleUserService: { findById: jest.fn().mockResolvedValue(moodleUser) },
+    groupService: { deleteUserFromGroup: jest.fn().mockResolvedValue(undefined) },
+    ...overrides,
+  });
+
+  it('desmatricula del grupo y del curso en Moodle cuando no está en otro grupo del curso, y borra local', async () => {
+    const deps = makeDeps();
+    const svc = makeService(deps);
+    const reqSpy = jest.spyOn(svc as any, 'request').mockResolvedValue(true);
+
+    const result = await svc.unenrollUserFromGroupAndCourse(1, 100);
+
+    expect(reqSpy).toHaveBeenNthCalledWith(1, 'core_group_delete_group_members', {
+      method: 'post',
+      params: { members: [{ groupid: 501, userid: 12345 }] },
+    });
+    expect(reqSpy).toHaveBeenNthCalledWith(2, 'enrol_manual_unenrol_users', {
+      method: 'post',
+      params: { enrolments: [{ userid: 12345, courseid: 900 }] },
+    });
+    expect(deps.groupService.deleteUserFromGroup).toHaveBeenCalledWith(1, 100);
+    expect(result.success).toBe(true);
+  });
+
+  it('solo saca del grupo (no desmatricula del curso) si sigue en otro grupo del mismo curso', async () => {
+    const deps = makeDeps({ userGroupRepository: { isUserEnrolledInOtherGroups: jest.fn().mockResolvedValue(true) } });
+    const svc = makeService(deps);
+    const reqSpy = jest.spyOn(svc as any, 'request').mockResolvedValue(true);
+
+    await svc.unenrollUserFromGroupAndCourse(1, 100);
+
+    expect(reqSpy).toHaveBeenCalledTimes(1);
+    expect(reqSpy).toHaveBeenCalledWith('core_group_delete_group_members', expect.anything());
+    expect(deps.groupService.deleteUserFromGroup).toHaveBeenCalledWith(1, 100);
+  });
+
+  it('omite las llamadas a Moodle si el usuario no está vinculado (sin moodle_id) y solo borra local', async () => {
+    const deps = makeDeps({ moodleUserService: { findById: jest.fn().mockResolvedValue(null) } });
+    const svc = makeService(deps);
+    const reqSpy = jest.spyOn(svc as any, 'request');
+
+    const result = await svc.unenrollUserFromGroupAndCourse(1, 100);
+
+    expect(reqSpy).not.toHaveBeenCalled();
+    expect(deps.groupService.deleteUserFromGroup).toHaveBeenCalledWith(1, 100);
+    expect(result.success).toBe(true);
+  });
+
+  it('si Moodle falla, no borra nada en local (aborta sin tocar la BD)', async () => {
+    const deps = makeDeps();
+    const svc = makeService(deps);
+    jest.spyOn(svc as any, 'request').mockRejectedValue(new Error('Moodle WS error'));
+
+    await expect(svc.unenrollUserFromGroupAndCourse(1, 100)).rejects.toThrow();
+    expect(deps.groupService.deleteUserFromGroup).not.toHaveBeenCalled();
   });
 });

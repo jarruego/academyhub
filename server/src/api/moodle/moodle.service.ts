@@ -3001,6 +3001,62 @@ export class MoodleService {
     }
 
     /**
+     * Da de baja a un usuario de un grupo/curso concreto, tanto en Moodle como en BD.
+     *
+     * Si el grupo/curso/usuario están vinculados a Moodle, primero se le saca del
+     * grupo remoto (`core_group_delete_group_members`) y, si tras eso no queda
+     * matriculado en ningún otro grupo local del mismo curso, se le desmatricula
+     * también del curso completo en Moodle (`enrol_manual_unenrol_users`). Si algo
+     * falla en Moodle se aborta sin tocar la BD, para evitar desincronizaciones.
+     * Si no hay vínculo con Moodle (usuario/grupo/curso sin moodle_id), se hace
+     * solo la baja local.
+     */
+    async unenrollUserFromGroupAndCourse(id_group: number, id_user: number): Promise<{ success: boolean; message: string }> {
+        const group = await this.groupRepository.findById(id_group);
+        if (!group) throw new InternalServerErrorException(`Grupo ${id_group} no encontrado`);
+
+        const course = await this.courseRepository.findById(group.id_course);
+        if (!course) throw new InternalServerErrorException(`Curso ${group.id_course} no encontrado`);
+
+        const userCourse = await this.userCourseRepository.findByCourseAndUserId(group.id_course, id_user);
+        const remoteMoodleUserId = userCourse?.id_moodle_user
+            ? (await this.moodleUserService.findById(userCourse.id_moodle_user))?.moodle_id
+            : null;
+
+        const isLinkedToMoodle = Boolean(group.moodle_id && course.moodle_id && remoteMoodleUserId);
+
+        if (isLinkedToMoodle) {
+            try {
+                await this.request<boolean>('core_group_delete_group_members', {
+                    method: 'post',
+                    params: { members: [{ groupid: group.moodle_id, userid: remoteMoodleUserId }] },
+                });
+
+                const isEnrolledInOtherGroups = await this.userGroupRepository.isUserEnrolledInOtherGroups(id_group, id_user);
+                if (!isEnrolledInOtherGroups) {
+                    await this.request<boolean>('enrol_manual_unenrol_users', {
+                        method: 'post',
+                        params: { enrolments: [{ userid: remoteMoodleUserId, courseid: course.moodle_id }] },
+                    });
+                }
+            } catch (moodleErr: unknown) {
+                const merr = moodleErr instanceof Error ? { message: moodleErr.message, stack: moodleErr.stack } : String(moodleErr);
+                Logger.error({ merr, id_group, id_user }, 'MoodleService:unenrollUserFromGroupAndCourse - fallo desmatriculando en Moodle, no se toca la BD');
+                throw new InternalServerErrorException(`No se pudo dar de baja en Moodle: ${moodleErr instanceof Error ? moodleErr.message : String(moodleErr)}`);
+            }
+        }
+
+        await this.groupService.deleteUserFromGroup(id_group, id_user);
+
+        return {
+            success: true,
+            message: isLinkedToMoodle
+                ? 'Usuario dado de baja del grupo/curso en Moodle y en la base de datos'
+                : 'Usuario dado de baja del grupo/curso en la base de datos (sin vínculo con Moodle)',
+        };
+    }
+
+    /**
      * IMPORTA TODOS LOS CURSOS DE MOODLE Y SUS DATOS RELACIONADOS
      * 
      * Este método hace una sincronización completa entre Moodle y nuestra base de datos:

@@ -123,6 +123,15 @@ export class MoodleController {
     }
 
     @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+    @Post('groups/:groupId/users/:userId/unenroll')
+    /**
+     * Dar de baja a un usuario de un grupo/curso, tanto en Moodle como en BD.
+     */
+    async unenrollUserFromGroup(@Param('groupId', ParseIntPipe) groupId: number, @Param('userId', ParseIntPipe) userId: number) {
+        return await this.moodleService.unenrollUserFromGroupAndCourse(groupId, userId);
+    }
+
+    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
     @Post('groups/:groupId/add-members/preview')
     /**
      * Preview which users would be created in Moodle for the provided local userIds.

@@ -39,6 +39,16 @@ The daily progress sync acts **only on active groups**: `MoodleActiveProgressTas
 
 `addLocalUsersToMoodleGroup` (same push flow, re-enrolling every selected user in the parent course) resolves enrolment start/end from `localGroup.start_date`/`end_date` (falling back to `course.start_date`/`end_date`, same priority as above) via `toUnixSeconds(d, endOfDay)`: start = `00:00:01`, end = `23:59:59`, both computed in `MOODLE_TZ` ('Europe/Madrid') then converted to a UTC unix timestamp — this path was already timezone-safe before the group-push fix above, and is what the fix was modeled on.
 
+## Unenrolling a user from a group/course (`POST /moodle/groups/:groupId/users/:userId/unenroll`)
+`unenrollUserFromGroupAndCourse` is the only place that removes a Moodle enrolment (everything else in this file only adds). Client entry point: the "Dar de baja" button per group tag in the user's "Cursos" tab (`UserCoursesSection`), gated to ADMIN/MANAGER and requiring the user's own app password (`ConfirmPasswordModal` → `POST /auth/verify-password`) before calling this endpoint.
+
+Flow, scoped to one group/course pair (other enrolments of the same user are untouched):
+1. If the group/course/user are all linked to Moodle (`groups.moodle_id`, `courses.moodle_id`, and the `moodle_users.moodle_id` resolved from `user_course.id_moodle_user`): `core_group_delete_group_members` removes them from the Moodle group; if `isUserEnrolledInOtherGroups` then says they're in no other local group of that course, `enrol_manual_unenrol_users` also unenrols them from the course entirely in Moodle.
+2. **Any Moodle failure aborts the whole operation — the DB is left untouched** (deliberate choice: never let local and Moodle state diverge silently). If the user/group/course simply isn't linked to Moodle, the Moodle step is skipped (not an error) and only the local removal runs.
+3. On success (or skip), reuses `GroupService.deleteUserFromGroup` — same local cleanup as the admin group-membership screen (`DELETE /group/:id/users/:userId`, ADMIN-only, DB-only, unrelated code path — deliberately not touched by this feature so its existing callers keep their pure-local behavior).
+
+`core_group_delete_group_members` and `enrol_manual_unenrol_users` must be enabled on the org's Moodle WS token — neither was used anywhere before this feature (everything else in this service only enrols/adds).
+
 ## User matching on import (Moodle → local user)
 All three import paths (`upsertMoodleUserAndEnrollToCourse`, `upsertMoodleUserByGroup`, `importMoodleUsers`) resolve the local user through the single helper **`linkOrCreateLocalUserForMoodleUser`**, which also guarantees the `moodle_user` link. The DNI-variant logic lives in `moodle-user-matching.util.ts` (shared with the link audit, `docs/moodle-audit.md`; the service's private methods just delegate). Match order:
 

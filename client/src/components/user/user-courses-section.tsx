@@ -1,11 +1,12 @@
 import React from 'react';
-import { App, Tag, Spin, Empty, Button } from 'antd';
+import { App, Tag, Spin, Empty, Button, Popconfirm } from 'antd';
+import { DeleteOutlined } from '@ant-design/icons';
 import { DataTable } from '../common/DataTable';
 import { ModalityTag, ActiveTag, FinalizedTag } from '../common/tags';
 import type { ColumnType } from 'antd/es/table';
 import { useUserCoursesQuery } from '../../hooks/api/users/use-user-courses.query';
 import { useUserQuery } from '../../hooks/api/users/use-user.query';
-import { UserCourseWithCourse } from '../../shared/types/user-course/user-course.types';
+import { UserCourseWithCourse, CourseGroupSummary } from '../../shared/types/user-course/user-course.types';
 import { CourseClient } from '../../shared/types/course/course-client.enum';
 import { CourseModality } from '../../shared/types/course/course-modality.enum';
 import { useOrganizationSettingsQuery } from '../../hooks/api/organization/use-organization-settings.query';
@@ -13,6 +14,11 @@ import { useMoodleUsersByUserIdQuery } from '../../hooks/api/moodle-users/use-mo
 import * as XLSX from 'xlsx';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
 import { getApiHost } from '../../utils/api/get-api-host.util';
+import { AuthzHide } from '../permissions/authz-hide';
+import { Role } from '../../hooks/api/auth/use-login.mutation';
+import { ConfirmPasswordModal } from '../common/ConfirmPasswordModal';
+import { useVerifyPasswordMutation } from '../../hooks/api/auth/use-verify-password.mutation';
+import { useUnenrollUserFromGroupMutation } from '../../hooks/api/groups/use-unenroll-user-from-group.mutation';
 
 interface UserCoursesSectionProps {
   userId: number;
@@ -47,6 +53,28 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
   const request = useAuthenticatedAxios<Blob>();
   const { message: messageApi } = App.useApp();
   const [isCertificateLoading, setIsCertificateLoading] = React.useState(false);
+  const [pendingUnenroll, setPendingUnenroll] = React.useState<{ id_group: number; group_name: string; course_name: string } | null>(null);
+  const [unenrollError, setUnenrollError] = React.useState<string | null>(null);
+  const verifyPassword = useVerifyPasswordMutation();
+  const unenrollMutation = useUnenrollUserFromGroupMutation();
+
+  const handleConfirmUnenroll = async (password: string) => {
+    if (!pendingUnenroll) return;
+    setUnenrollError(null);
+    try {
+      await verifyPassword.mutateAsync(password);
+    } catch {
+      setUnenrollError('Contraseña incorrecta.');
+      return;
+    }
+    try {
+      await unenrollMutation.mutateAsync({ id_group: pendingUnenroll.id_group, id_user: userId });
+      messageApi.success('Usuario dado de baja del grupo/curso correctamente');
+      setPendingUnenroll(null);
+    } catch (error: unknown) {
+      setUnenrollError(error instanceof Error ? error.message : 'No se pudo dar de baja al usuario');
+    }
+  };
   const moodleUserId = React.useMemo(() => {
     if (!moodleUsers || !moodleUsers.length) return undefined;
     const main = moodleUsers.find((mu) => mu.is_main_user) || moodleUsers[0];
@@ -84,12 +112,44 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
       title: 'Grupos',
       key: 'groups',
       render: (_value, record: UserCourseWithCourse) => {
-        const groups = record.groups ?? [];
+        const groups: CourseGroupSummary[] = record.groups ?? [];
         if (groups.length === 0) return '-';
         return (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             {groups.map((g) => (
-              <Tag key={g.id_group} color="blue">{g.group_name}</Tag>
+              <span key={g.id_group} style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                <Tag color="blue">{g.group_name}</Tag>
+                <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+                  <Popconfirm
+                    title="¿Dar de baja a este usuario?"
+                    description={
+                      <div style={{ fontSize: 12, maxWidth: 260 }}>
+                        Se le va a desmatricular del grupo <strong>{g.group_name}</strong> del curso{' '}
+                        <strong>{record.course?.course_name}</strong>, tanto en la base de datos como en Moodle.
+                        <br />
+                        Esta acción no se puede deshacer.
+                      </div>
+                    }
+                    okText="Continuar"
+                    cancelText="Cancelar"
+                    onConfirm={(e) => {
+                      e?.stopPropagation();
+                      setUnenrollError(null);
+                      setPendingUnenroll({ id_group: g.id_group, group_name: g.group_name, course_name: record.course?.course_name ?? '' });
+                    }}
+                    onCancel={(e) => e?.stopPropagation()}
+                  >
+                    <Button
+                      type="text"
+                      danger
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      title="Dar de baja"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Popconfirm>
+                </AuthzHide>
+              </span>
             ))}
           </div>
         );
@@ -254,6 +314,20 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
         params.set('userId', String(record.id_user));
         return `/courses/${courseId}?${params.toString()}`;
       }}
+    />
+    <ConfirmPasswordModal
+      open={pendingUnenroll !== null}
+      title="Confirma tu contraseña"
+      description={
+        <>
+          Vas a dar de baja a este usuario del grupo <strong>{pendingUnenroll?.group_name}</strong> del curso{' '}
+          <strong>{pendingUnenroll?.course_name}</strong> (base de datos y Moodle). Introduce tu contraseña para confirmarlo.
+        </>
+      }
+      confirmLoading={verifyPassword.isPending || unenrollMutation.isPending}
+      error={unenrollError}
+      onConfirm={handleConfirmUnenroll}
+      onCancel={() => { setPendingUnenroll(null); setUnenrollError(null); }}
     />
     </>
   );
