@@ -52,6 +52,7 @@ npx ts-node seed-auth-users.ts  # Populate only auth users
 - **Tests**: server = Jest (run from `server/`; `src/*` alias resolved via jest `moduleNameMapper`). client = Vitest (`*.spec.tsx`). Add tests for new logic; type-check both sides before declaring done.
 - **Swagger**: only active when `NODE_ENV !== 'production'` (`/documentation` in dev).
 - **Static files**: server serves `server/public/` at root; uploads go to `server/public/uploads/`.
+- **Table/link navigation**: any new list row or detail link goes through `useLinkNavigation()`/`DataTable`'s `getRowUrl` (click = same tab, double-click = new tab) — never wire `window.open`/`target="_blank"` by hand for an internal route. → `docs/client.md`
 
 ## Environment Variables
 
