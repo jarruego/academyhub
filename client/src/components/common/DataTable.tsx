@@ -1,12 +1,14 @@
 import { Table } from "antd";
 import type { TableProps } from "antd";
-import { openDetail } from "../../utils/open-detail";
+import { useLinkNavigation } from "../../utils/click-navigation";
 
 export interface DataTableProps<T> extends TableProps<T> {
   /**
    * Devuelve la URL de detalle de una fila. Si se indica, un clic simple en la
-   * fila abre esa URL en una pestaña nueva (gesto de navegación único de los
-   * listados). Devolver `undefined` para una fila concreta la deja sin enlace.
+   * fila navega ahí en la misma pestaña, y un doble clic la abre en una
+   * pestaña nueva (convención de navegación de la app, ver
+   * `utils/click-navigation.ts`). Devolver `undefined` para una fila concreta
+   * la deja sin enlace.
    */
   getRowUrl?: (record: T) => string | undefined;
   /** Altura del cuerpo para scroll vertical interno (listados con altura fija). */
@@ -19,8 +21,9 @@ export interface DataTableProps<T> extends TableProps<T> {
  *  - scroll horizontal (`x: 'max-content'`) para que las tablas anchas funcionen
  *    en móvil (decisión de diseño: scroll horizontal, no tarjetas);
  *  - densidad y orden de sort estándar;
- *  - navegación por fila con clic simple → pestaña nueva vía `getRowUrl`,
- *    fusionando cualquier `onRow` que pase el llamante (estilos, selección…).
+ *  - navegación por fila vía `getRowUrl` (clic = misma pestaña, doble clic =
+ *    pestaña nueva), fusionando cualquier `onRow` que pase el llamante
+ *    (estilos, selección…).
  */
 export function DataTable<T extends object>({
   getRowUrl,
@@ -29,6 +32,7 @@ export function DataTable<T extends object>({
   scroll,
   ...rest
 }: DataTableProps<T>) {
+  const linkTo = useLinkNavigation();
   const mergedScroll: TableProps<T>["scroll"] = {
     x: "max-content",
     ...(scrollY ? { y: scrollY } : {}),
@@ -44,11 +48,16 @@ export function DataTable<T extends object>({
         if (!getRowUrl) return base;
         const url = getRowUrl(record);
         if (!url) return base;
+        const { onClick, onDoubleClick } = linkTo(url);
         return {
           ...base,
           onClick: (event) => {
             base.onClick?.(event);
-            openDetail(url);
+            onClick?.(event);
+          },
+          onDoubleClick: (event) => {
+            base.onDoubleClick?.(event);
+            onDoubleClick?.(event);
           },
           style: { cursor: "pointer", ...(base.style ?? {}) },
         };

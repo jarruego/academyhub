@@ -1,4 +1,4 @@
-import { Button, Col, Form, Input, InputNumber, Row, Select } from "antd";
+import { Button, Checkbox, Col, Form, Input, InputNumber, Row, Select } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +18,7 @@ const schema = z.object({
   sepe_specialty_name: z.string().optional().nullable(),
   professional_family: z.string().optional().nullable(),
   professional_area: z.string().optional().nullable(),
+  hidden_from_filters: z.boolean().optional(),
 });
 
 type Values = z.infer<typeof schema>;
@@ -42,6 +43,7 @@ export function CatalogCourseForm({ initial, readOnly = false, saving = false, o
       sepe_specialty_name: initial?.sepe_specialty_name ?? "",
       professional_family: initial?.professional_family ?? "",
       professional_area: initial?.professional_area ?? "",
+      hidden_from_filters: initial?.hidden_from_filters ?? false,
     },
   });
   const input = (name: keyof Values, multiline = false) => (
@@ -70,6 +72,17 @@ export function CatalogCourseForm({ initial, readOnly = false, saving = false, o
       <Col xs={24} md={12}><Form.Item label="Área profesional">{input("professional_area")}</Form.Item></Col>
     </Row>
     <Form.Item label="Contenidos base">{input("base_contents", true)}</Form.Item>
+    <Form.Item>
+      <Controller
+        name="hidden_from_filters"
+        control={control}
+        render={({ field }) => (
+          <Checkbox checked={field.value ?? false} onChange={(e) => field.onChange(e.target.checked)} disabled={readOnly}>
+            Ocultar de los selects de filtro/búsqueda (Peticiones, Interesados). Sigue apareciendo en los listados y al asignar edición.
+          </Checkbox>
+        )}
+      />
+    </Form.Item>
     {!readOnly && <div className="form-actions"><Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving}>Guardar</Button></div>}
   </Form>;
 }

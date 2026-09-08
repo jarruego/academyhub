@@ -1,5 +1,5 @@
 import { PlusOutlined, TeamOutlined } from "@ant-design/icons";
-import { Button, Input } from "antd";
+import { Button, Input, Tag } from "antd";
 import { ColumnsType } from "antd/es/table";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -70,7 +70,21 @@ export default function CourseCatalogRoute() {
   }, [data, latestGroupEndByCatalog, activeByCatalog]);
 
   const columns = useMemo<ColumnsType<CatalogCourseRow>>(() => [
-    { title: "Curso", dataIndex: "name", sorter: (a, b) => a.name.localeCompare(b.name) },
+    {
+      title: "Curso",
+      dataIndex: "name",
+      sorter: (a, b) => a.name.localeCompare(b.name),
+      render: (name: string, record) => (
+        <>
+          {name}
+          {record.hidden_from_filters && (
+            <Tag color="default" style={{ marginLeft: 8 }} title="No aparece en los selects de filtro/búsqueda (Peticiones, Interesados)">
+              Oculto de filtros
+            </Tag>
+          )}
+        </>
+      ),
+    },
     { title: "Código", dataIndex: "internal_code", render: value => value || "-" },
     { title: "Especialidad SEPE", dataIndex: "sepe_specialty_code", render: value => value || "-" },
     { title: "Familia profesional", dataIndex: "professional_family", render: value => value || "-" },

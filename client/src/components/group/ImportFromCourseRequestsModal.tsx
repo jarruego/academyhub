@@ -16,7 +16,7 @@ import { CourseRequestStatus } from '../../shared/types/course-request/course-re
 import type { CourseRequest, CourseRequestDetail, CourseRequestStudent } from '../../shared/types/course-request/course-request';
 import type { User } from '../../shared/types/user/user';
 import { formatDate } from '../../utils/format';
-import { openDetail } from '../../utils/open-detail';
+import { useLinkNavigation } from '../../utils/click-navigation';
 
 interface Props {
   open: boolean;
@@ -54,6 +54,7 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
   const { message: messageApi, modal } = App.useApp();
   const queryClient = useQueryClient();
   const axiosRequest = useAuthenticatedAxios<unknown>();
+  const linkTo = useLinkNavigation();
   const role = useRole();
   const canEdit = role === Role.ADMIN || role === Role.MANAGER;
   const { token } = theme.useToken();
@@ -364,14 +365,18 @@ const ImportFromCourseRequestsModal: React.FC<Props> = ({
     {
       title: 'Nombre',
       dataIndex: 'name' as keyof EnrichedStudent,
-      render: (v: unknown, r: EnrichedStudent) => (
-        <span
-          style={{ color: r.existsInDB ? token.colorPrimary : '#ff4d4f', cursor: 'pointer', textDecoration: 'underline' }}
-          onClick={(e) => { e.stopPropagation(); openDetail(`/course-requests/${r.id_request}?tab=alumnos&studentId=${r.id}`); }}
-        >
-          {(v as string) || '—'}
-        </span>
-      ),
+      render: (v: unknown, r: EnrichedStudent) => {
+        const handlers = linkTo(`/course-requests/${r.id_request}?tab=alumnos&studentId=${r.id}`);
+        return (
+          <span
+            style={{ color: r.existsInDB ? token.colorPrimary : '#ff4d4f', cursor: 'pointer', textDecoration: 'underline' }}
+            onClick={(e) => { e.stopPropagation(); handlers.onClick?.(e); }}
+            onDoubleClick={(e) => { e.stopPropagation(); handlers.onDoubleClick?.(e); }}
+          >
+            {(v as string) || '—'}
+          </span>
+        );
+      },
     },
     {
       title: 'Apellido 1',

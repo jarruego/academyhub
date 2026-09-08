@@ -12,6 +12,7 @@ import { useUpdateUserMainCenterMutation } from '../../hooks/api/centers/use-upd
 import type { UserCenter } from '../../shared/types/center/user-center';
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { useLinkNavigation } from "../../utils/click-navigation";
 
 interface AddUserToCenterSectionProps {
   id_user: number;
@@ -27,6 +28,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
   const { mutateAsync: deleteUsersFromCenters, status: deleteStatus } = useDeleteUsersFromCentersMutation();
   const updateUserMainCenterMutation = useUpdateUserMainCenterMutation();
   const { message: messageApi, modal } = App.useApp();
+  const linkTo = useLinkNavigation();
 
   const handleAdd = async () => {
     if (!id_user || !selectedCenter) return;
@@ -75,11 +77,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
             dataIndex: "center_name",
             key: "center_name",
             render: (name: string | null, record: UserCenter) => (
-              <Link
-                to={`/centers/${record.id_center}/edit`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <Link to={`/centers/${record.id_center}/edit`} {...linkTo(`/centers/${record.id_center}/edit`)}>
                 {name}
               </Link>
             ),
@@ -89,11 +87,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
             dataIndex: "employer_number",
             key: "employer_number",
             render: (employerNumber: string | null, record: UserCenter) => (
-              <Link
-                to={`/centers/${record.id_center}/edit`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <Link to={`/centers/${record.id_center}/edit`} {...linkTo(`/centers/${record.id_center}/edit`)}>
                 {employerNumber}
               </Link>
             ),
@@ -103,11 +97,7 @@ export function AddUserToCenterSection({ id_user }: AddUserToCenterSectionProps)
             dataIndex: "company_name",
             key: "company_name",
             render: (companyName: string | null, record: UserCenter) => (
-              <Link
-                to={`/companies/${record.id_company}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
+              <Link to={`/companies/${record.id_company}`} {...linkTo(`/companies/${record.id_company}`)}>
                 {companyName}
               </Link>
             ),

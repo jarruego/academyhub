@@ -8,6 +8,7 @@ import type { UpdateUserEnrollmentCenterPayload } from '../../hooks/api/groups/u
 import { useRole } from "../../utils/permissions/use-role";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { detectDocumentType } from "../../utils/detect-document-type";
+import { useLinkNavigation } from "../../utils/click-navigation";
 
 interface BonificationModalProps {
   // Additional props
@@ -46,6 +47,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
   const { token } = theme.useToken();
   const role = useRole();
   const canEdit = role === Role.ADMIN || role === Role.MANAGER;
+  const linkTo = useLinkNavigation();
 
   // Validate selected users for export errors
   // Validation logic
@@ -323,7 +325,7 @@ export const BonificationModal: React.FC<BonificationModalProps> = ({
                       <Button
                         size="small"
                         type="primary"
-                        onClick={() => window.open(`/users/${error.userId}`, '_blank', 'noopener')}
+                        {...linkTo(`/users/${error.userId}`)}
                       >
                         Corregir
                       </Button>

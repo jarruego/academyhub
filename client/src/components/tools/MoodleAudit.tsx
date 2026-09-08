@@ -6,7 +6,7 @@ import { STATUS_COLORS } from "../../theme/semantic-colors";
 import { RouteTabs } from "../common/RouteTabs";
 import { PageHeader } from "../common/PageHeader";
 import { formatDate, formatDateTime } from "../../utils/format";
-import { openDetail } from "../../utils/open-detail";
+import { useLinkNavigation } from "../../utils/click-navigation";
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { MergeModal } from "./MergeDuplicates";
 import {
@@ -49,12 +49,13 @@ const DniText: React.FC<{ value: string | null }> = ({ value }) => {
   return <Text strong type="danger" style={{ fontSize: "inherit" }}>{value}</Text>;
 };
 
-// Usuario local como enlace a su ficha (nueva pestaña, gesto estándar de la app)
+// Usuario local como enlace a su ficha (clic = misma pestaña, doble clic = pestaña nueva)
 const LocalUserCell: React.FC<{ user: AuditUserRef | null }> = ({ user }) => {
+  const linkTo = useLinkNavigation();
   if (!user) return <Text type="secondary">—</Text>;
   return (
     <Space direction="vertical" size={0}>
-      <Typography.Link onClick={() => openDetail(`/users/${user.id_user}`)}>
+      <Typography.Link {...linkTo(`/users/${user.id_user}`)}>
         #{user.id_user} {fullName(user)}
       </Typography.Link>
       <Text type="secondary" style={{ fontSize: 12 }}>
@@ -663,6 +664,7 @@ const CoursesTab: React.FC<{
   isDownloading: boolean;
 }> = ({ items, enrolments, onDownloadEnrolments, isDownloading }) => {
   const nowEpoch = Math.floor(Date.now() / 1000);
+  const linkTo = useLinkNavigation();
 
   if (!enrolments) {
     return (
@@ -738,7 +740,7 @@ const CoursesTab: React.FC<{
       key: "local",
       render: (_v, r) =>
         r.localCourse ? (
-          <Typography.Link onClick={() => openDetail(`/courses/${r.localCourse!.id_course}`)}>
+          <Typography.Link {...linkTo(`/courses/${r.localCourse!.id_course}`)}>
             #{r.localCourse.id_course} {r.localCourse.course_name}
           </Typography.Link>
         ) : (

@@ -1,9 +1,11 @@
 /**
  * Abre una ruta de detalle en una pestaña nueva.
  *
- * Gesto de navegación único de los listados (decisión de diseño): un clic simple
- * en una fila abre el detalle en pestaña nueva. Centraliza el `window.open(...)`
- * que antes estaba copiado con flags ligeramente distintos por toda la app.
+ * Es la acción del DOBLE clic en la convención de navegación de la app (ver
+ * `utils/click-navigation.ts` y docs/client.md) — el clic simple navega en la
+ * misma pestaña. Centraliza el `window.open(...)` que antes estaba copiado
+ * con flags ligeramente distintos por toda la app; sigue usándose también
+ * suelto para acciones puntuales que deliberadamente abren pestaña nueva.
  *
  * @param path Ruta absoluta de la app (p. ej. `/users/123`) o URL completa.
  */

@@ -164,7 +164,7 @@ export function CourseRequestReportTab() {
             value={idCatalogCourse}
             onChange={setIdCatalogCourse}
             optionFilterProp="label"
-            options={catalogCourses?.map((c) => ({ value: c.id_catalog_course, label: c.name }))}
+            options={catalogCourses?.filter((c) => !c.hidden_from_filters).map((c) => ({ value: c.id_catalog_course, label: c.name }))}
           />
         </Col>
       </Row>

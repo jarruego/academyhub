@@ -14,6 +14,7 @@ import {
   useSanitizationIssuesQuery,
 } from "../../hooks/api/user-sanitization/useSanitization";
 import { FLAG_COLORS } from "../../theme/semantic-colors";
+import { useLinkNavigation } from "../../utils/click-navigation";
 
 const { Text } = Typography;
 
@@ -30,8 +31,6 @@ const AUTO_FIXABLE_FIELDS: AutoFixableField[] = ["phone", "email", "nss"];
 
 const fullName = (u: { name: string; first_surname: string | null; second_surname: string | null }) =>
   [u.name, u.first_surname, u.second_surname].filter(Boolean).join(" ").trim();
-
-const openUserTab = (id: number) => window.open(`/users/${id}`, "_blank", "noopener");
 
 // ---- Barra de corrección masiva (un botón por campo auto-corregible) ----
 const BulkFixBar: React.FC<{ counts: Record<AutoFixableField, number> }> = ({ counts }) => {
@@ -92,6 +91,7 @@ const FixModal: React.FC<{
   const { message } = App.useApp();
   const { mutateAsync: fix, isPending: isFixing } = useFixIssueMutation();
   const { mutateAsync: manualFix, isPending: isSaving } = useManualFixMutation();
+  const linkTo = useLinkNavigation();
   const [manualValue, setManualValue] = useState(issue.value);
   const meta = FIELD_META[issue.field];
 
@@ -124,7 +124,7 @@ const FixModal: React.FC<{
       title={<span><Tag color={meta.color}>{meta.label}</Tag> de {fullName(user)}</span>}
       onCancel={onClose}
       footer={[
-        <Button key="open" icon={<ExportOutlined />} onClick={() => openUserTab(user.id_user)}>
+        <Button key="open" icon={<ExportOutlined />} {...linkTo(`/users/${user.id_user}`)}>
           Abrir ficha
         </Button>,
         issue.fixable ? (
@@ -191,6 +191,7 @@ const FixModal: React.FC<{
 
 const UserSanitization: React.FC = () => {
   const { data, isLoading, error } = useSanitizationIssuesQuery();
+  const linkTo = useLinkNavigation();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<FieldKey | "all">("all");
   const [hideBajas, setHideBajas] = useState(false);
@@ -277,7 +278,7 @@ const UserSanitization: React.FC = () => {
       key: "action",
       width: 120,
       render: (_v, r) => (
-        <Button size="small" icon={<ExportOutlined />} onClick={() => openUserTab(r.id_user)}>
+        <Button size="small" icon={<ExportOutlined />} {...linkTo(`/users/${r.id_user}`)}>
           Ficha
         </Button>
       ),

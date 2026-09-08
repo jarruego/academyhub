@@ -16,13 +16,14 @@ import { ActiveTag } from "../../components/common/tags";
 import { formatDate } from "../../utils/format";
 import { normalizeLoose, matchesLoose } from "../../utils/normalize-search";
 import { FLAG_COLORS } from "../../theme/semantic-colors";
-import { openDetail } from "../../utils/open-detail";
+import { useLinkNavigation } from "../../utils/click-navigation";
 
 export default function GroupsRoute() {
   const { data: groupsData, isLoading: isGroupsLoading } = useAllGroupsQuery();
   const { data: coursesData, isLoading: isCoursesLoading } = useCoursesQuery();
   const [searchText, setSearchText] = useState("");
   const navigate = useNavigate();
+  const linkTo = useLinkNavigation();
   const { token } = theme.useToken();
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,13 +89,14 @@ export default function GroupsRoute() {
                 ? <Tooltip title={text}><span>{text.slice(0, 45)}…</span></Tooltip>
                 : text;
             },
-            onCell: (record: Group) => ({
-              onClick: (e: React.MouseEvent) => {
-                e.stopPropagation();
-                openDetail(`/courses/${record.id_course}`);
-              },
-              style: { cursor: 'pointer', color: token.colorPrimary },
-            }),
+            onCell: (record: Group) => {
+              const handlers = linkTo(`/courses/${record.id_course}`);
+              return {
+                onClick: (e: React.MouseEvent) => { e.stopPropagation(); handlers.onClick?.(e); },
+                onDoubleClick: (e: React.MouseEvent) => { e.stopPropagation(); handlers.onDoubleClick?.(e); },
+                style: { cursor: 'pointer', color: token.colorPrimary },
+              };
+            },
             sorter: (a: Group, b: Group) => (courseNameById[a.id_course] ?? '').localeCompare(courseNameById[b.id_course] ?? ''),
           },
           {

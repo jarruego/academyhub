@@ -1,0 +1,1 @@
+ALTER TABLE "academyhub"."catalog_courses" ADD COLUMN "hidden_from_filters" boolean DEFAULT false NOT NULL;

@@ -24,6 +24,7 @@ import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { useSetGroupTutorsMutation } from "../../hooks/api/groups/use-set-group-tutors.mutation";
 import { isGroupActive, GROUP_ACTIVE_MODE_OPTIONS } from "../../utils/group-active.util";
+import { useLinkNavigation } from "../../utils/click-navigation";
 dayjs.extend(utc);
 
 const GROUP_FORM_SCHEMA = z.object({
@@ -41,6 +42,7 @@ const GROUP_FORM_SCHEMA = z.object({
 export default function EditGroupRoute() {
   const { id_group } = useParams();
   const navigate = useNavigate();
+  const linkTo = useLinkNavigation();
   const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(id_group || "");
   const { data: courseData } = useCourseQuery(groupData?.id_course ? String(groupData.id_course) : "");
   const { mutateAsync: updateGroup } = useUpdateGroupMutation(id_group || "");
@@ -157,7 +159,7 @@ export default function EditGroupRoute() {
             <h2 style={{ margin: 0}}>Usuarios del Grupo {groupData?.group_name ? `- ${groupData.group_name}` : ''}</h2>
             {courseData?.course_name && (
               <div style={{ marginLeft: 12 }}>
-                <a href={`/courses/${courseData.id_course}`} target="_blank" rel="noopener noreferrer">
+                <a href={`/courses/${courseData.id_course}`} {...linkTo(`/courses/${courseData.id_course}`)}>
                   <Tag color="blue" style={{ cursor: 'pointer' }}>{courseData.course_name}</Tag>
                 </a>
               </div>

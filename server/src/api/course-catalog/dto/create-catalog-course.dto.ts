@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
-import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min } from "class-validator";
+import { IsBoolean, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min } from "class-validator";
 import { CourseModality } from "src/types/course/course-modality.enum";
 
 export class CreateCatalogCourseDto {
@@ -65,4 +65,9 @@ export class CreateCatalogCourseDto {
   @IsOptional()
   @IsString()
   professional_area?: string;
+
+  @ApiPropertyOptional({ description: 'Oculta el curso de los selects de filtro/búsqueda (peticiones, interesados). No afecta a los listados ni a la asignación de curso al crear una edición.' })
+  @IsOptional()
+  @IsBoolean()
+  hidden_from_filters?: boolean;
 }

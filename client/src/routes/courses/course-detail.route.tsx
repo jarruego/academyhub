@@ -29,6 +29,7 @@ import { isGroupActive } from "../../utils/group-active.util";
 import { CourseCandidatesSection } from "../../components/course/course-candidates-section";
 import { useOrganizationSettingsQuery } from "../../hooks/api/organization/use-organization-settings.query";
 import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course-catalog.query";
+import { useLinkNavigation } from "../../utils/click-navigation";
 
 const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
@@ -68,6 +69,7 @@ export default function CourseDetailRoute() {
   // resto de la ficha del curso donde solo ADMIN/MANAGER pueden editar.
   const canEditCandidates = [Role.ADMIN, Role.MANAGER, Role.TUTOR].includes(role);
   const navigate = useNavigate();
+  const linkTo = useLinkNavigation();
   const { id_course } = useParams();
   const [searchParams] = useSearchParams();
   // Llegada desde la ficha de usuario: preseleccionar el grupo/usuario indicados en la URL,
@@ -365,7 +367,7 @@ export default function CourseDetailRoute() {
               </Col>
               {courseData?.id_catalog_course && (
                 <Col xs={24} md={8} style={{ display: 'flex', alignItems: 'center' }}>
-                  <Link to={`/course-catalog/${courseData.id_catalog_course}?tab=contenidos`} target="_blank" rel="noopener noreferrer">
+                  <Link to={`/course-catalog/${courseData.id_catalog_course}?tab=contenidos`} {...linkTo(`/course-catalog/${courseData.id_catalog_course}?tab=contenidos`)}>
                     <FileTextOutlined /> Ver contenidos del curso de catálogo
                   </Link>
                 </Col>
@@ -639,7 +641,7 @@ export default function CourseDetailRoute() {
                         <Button
                           type="default"
                           icon={<CommentOutlined />}
-                          onClick={() => window.open(`/tools/forum-duplicator?courseId=${id_course}`, '_blank', 'noopener')}
+                          {...linkTo(`/tools/forum-duplicator?courseId=${id_course}`)}
                         >
                           Foros
                         </Button>

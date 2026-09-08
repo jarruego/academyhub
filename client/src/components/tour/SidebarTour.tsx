@@ -1,45 +1,38 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate, type NavigateFunction } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Joyride, STATUS, ACTIONS, EVENTS, Step, EventData } from "react-joyride";
 import { useTour } from "../../providers/tour/tour.context";
 import { useIsMobile } from "../../hooks/use-is-mobile";
+import { DOUBLE_CLICK_WINDOW_MS } from "../../utils/click-navigation";
 
 type TourStep = Step & {
   /** Navigate here before showing the step, when different from the current route. */
   route?: string;
   /**
-   * Runs synchronously right before the step is shown (after any `route`
-   * navigation is triggered). Used to demonstrate flows the tour can't reach
-   * by simply pointing at a link — e.g. opening a record's detail page or
-   * selecting a table row — without requiring the user to click through by
-   * hand. See `openFirstRowInSameTab`/`clickFirstRow`/`clickTabByLabel` below.
+   * Runs right before the step is shown (after any `route` navigation is
+   * triggered) — may return a Promise, which the tour awaits before advancing
+   * to the step. Used to demonstrate flows the tour can't reach by simply
+   * pointing at a link — e.g. opening a record's detail page or selecting a
+   * table row — without requiring the user to click through by hand. See
+   * `clickFirstRow`/`clickFirstRowAndWait`/`clickTabByLabel` below.
    */
-  beforeShow?: (navigate: NavigateFunction) => void;
+  beforeShow?: () => void | Promise<void>;
 };
 
 /**
- * List rows navigate via `openDetail()` → `window.open(url, "_blank")` (the
- * app-wide "single click opens a new tab" convention — see docs/client.md).
- * A single-tab Joyride tour can't follow into a new tab, so for the duration
- * of one click we swap `window.open` for a same-tab `navigate()` call. This
- * only affects the very next `window.open` invocation (restored inside the
- * wrapper, before the app's own listener even runs), and only ever runs while
- * the tour is driving the click itself.
+ * List rows navigate via the app-wide click convention (`utils/click-navigation.ts`,
+ * see docs/client.md "Table navigation"): a plain click already navigates in
+ * the SAME tab, so dispatching a synthetic click on the first row is enough —
+ * no more monkey-patching needed (that was only required back when a single
+ * click opened a new tab, which a single-tab Joyride tour couldn't follow).
+ * The click's own navigation is deferred by `DOUBLE_CLICK_WINDOW_MS` (to allow
+ * a real double-click to cancel it), so callers that navigate to a different
+ * page must `await` this before pointing Joyride at something on that page.
  */
-function openFirstRowInSameTab(navigate: NavigateFunction, tableSelector = ".ant-table-tbody tr[data-row-key]") {
+function clickFirstRowAndWait(tableSelector = ".ant-table-tbody tr[data-row-key]"): Promise<void> {
   const row = document.querySelector<HTMLElement>(tableSelector);
-  if (!row) return;
-  const originalOpen = window.open;
-  window.open = ((url?: string | URL) => {
-    window.open = originalOpen;
-    if (url) {
-      const target = typeof url === "string" ? url : url.toString();
-      const path = target.startsWith(window.location.origin) ? target.slice(window.location.origin.length) : target;
-      navigate(path);
-    }
-    return null;
-  }) as typeof window.open;
-  row.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  row?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  return new Promise((resolve) => setTimeout(resolve, DOUBLE_CLICK_WINDOW_MS + 50));
 }
 
 /** Selects the first row of an in-page table (no navigation involved). */
@@ -85,11 +78,11 @@ const rawSteps: TourStep[] = [
   {
     route: "/users",
     target: ".ant-table-thead",
-    content: "Un clic en cualquier fila abre la ficha completa del usuario en una pestaña nueva. En este tour la abrimos aquí mismo para que la veas.",
+    content: "Un clic en cualquier fila abre su ficha completa (doble clic para abrirla en una pestaña nueva). Vamos a probarlo.",
   },
   {
     route: "/users",
-    beforeShow: (navigate) => openFirstRowInSameTab(navigate),
+    beforeShow: () => clickFirstRowAndWait(),
     target: "#user-detail-tabs",
     content: "Esta es la ficha del usuario: Datos, Empresa/Centros, Moodle y Cursos (con certificados de asistencia). Cámbiate de pestaña para ver cada bloque.",
   },
@@ -118,7 +111,7 @@ const rawSteps: TourStep[] = [
   },
   {
     route: "/courses",
-    beforeShow: (navigate) => openFirstRowInSameTab(navigate),
+    beforeShow: () => clickFirstRowAndWait(),
     target: "#groups-table .ant-table-thead",
     content: "Esta es la ficha del curso. A la izquierda están sus grupos, con fechas de inicio y fin.",
   },
@@ -146,7 +139,7 @@ const rawSteps: TourStep[] = [
   },
   {
     route: "/course-requests",
-    beforeShow: (navigate) => openFirstRowInSameTab(navigate, "#course-requests-table .ant-table-tbody tr[data-row-key]"),
+    beforeShow: () => clickFirstRowAndWait("#course-requests-table .ant-table-tbody tr[data-row-key]"),
     target: "#course-request-detail-tabs",
     content: "Esta es la ficha de una petición: sus datos (centro, curso, contacto) y la lista de alumnos solicitados.",
   },
@@ -212,7 +205,7 @@ export default function SidebarTour() {
 
   if (isMobile) return null;
 
-  const goToIndex = (nextIndex: number) => {
+  const goToIndex = async (nextIndex: number) => {
     if (nextIndex < 0 || nextIndex >= steps.length) {
       stopTour();
       setStepIndex(0);
@@ -222,7 +215,7 @@ export default function SidebarTour() {
     if (nextStep.route && nextStep.route !== location.pathname) {
       navigate(nextStep.route);
     }
-    nextStep.beforeShow?.(navigate);
+    await nextStep.beforeShow?.();
     setStepIndex(nextIndex);
   };
 
@@ -234,7 +227,7 @@ export default function SidebarTour() {
       return;
     }
     if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
-      goToIndex(index + (action === ACTIONS.PREV ? -1 : 1));
+      void goToIndex(index + (action === ACTIONS.PREV ? -1 : 1));
     }
   };
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { App, Button, Card, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
+import { App, Button, Card, DatePicker, Segmented, Select, Switch, Table, Tag, Tooltip, Typography } from "antd";
+import dayjs, { Dayjs } from "dayjs";
 import { CopyOutlined, PlusOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { ColumnsType } from "antd/es/table";
@@ -19,7 +20,7 @@ import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useRole } from "../../utils/permissions/use-role";
 import { useIsMobile } from "../../hooks/use-is-mobile";
-import { openDetail } from "../../utils/open-detail";
+import { useLinkNavigation } from "../../utils/click-navigation";
 import { formatDate } from "../../utils/format";
 import { CourseRequestReportTab } from "../../components/course-requests/course-request-report-tab";
 
@@ -39,6 +40,7 @@ const BY_COURSE_TABLE_HEIGHT = 200;
 
 function CourseRequestsListTab() {
   const navigate = useNavigate();
+  const linkTo = useLinkNavigation();
   const role = useRole();
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
   const isMobile = useIsMobile();
@@ -48,6 +50,7 @@ function CourseRequestsListTab() {
   const [idCenter, setIdCenter] = useState<number | undefined>();
   const [idCompanies, setIdCompanies] = useState<number[]>([]);
   const [idGroup, setIdGroup] = useState<number | undefined>();
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
 
   const { data: catalogCourses } = useCourseCatalogQuery();
   const { data: centers } = useCentersQuery();
@@ -60,6 +63,25 @@ function CourseRequestsListTab() {
     : undefined;
 
   const { data: allRequests, isLoading } = useCourseRequestsQuery({ id_catalog_course: idCatalogCourse, id_center: idCenter, status });
+
+  // Peticiones sin ningún filtro (todas, cualquier estado): sirve solo para
+  // calcular qué cursos/empresas/centros tienen alguna petición asociada, de
+  // modo que los desplegables de filtro no ofrezcan opciones vacías — no
+  // afecta al listado principal ni se filtra por los filtros activos (a
+  // diferencia de `groupOptions`, que si se restringe con ellos más abajo).
+  const { data: allRequestsForFacets } = useCourseRequestsQuery({});
+  const catalogCoursesWithRequests = useMemo(
+    () => new Set((allRequestsForFacets ?? []).map((r) => r.id_catalog_course)),
+    [allRequestsForFacets],
+  );
+  const companiesWithRequests = useMemo(
+    () => new Set((allRequestsForFacets ?? []).filter((r) => r.id_company != null).map((r) => r.id_company)),
+    [allRequestsForFacets],
+  );
+  const centersWithRequests = useMemo(
+    () => new Set((allRequestsForFacets ?? []).filter((r) => r.id_center != null).map((r) => r.id_center)),
+    [allRequestsForFacets],
+  );
 
   // La empresa y el grupo filtran en cliente (el endpoint ya devuelve
   // id_company y groups por fila); el centro y el curso, en cambio, se
@@ -74,10 +96,11 @@ function CourseRequestsListTab() {
     [companyFilteredRequests, idGroup],
   );
 
-  // Solo centros de las empresas seleccionadas (si no hay ninguna, todos).
+  // Solo centros de las empresas seleccionadas (si no hay ninguna, todos) y
+  // que además tengan alguna petición asociada.
   const centerOptions = useMemo(
-    () => centers?.filter((c) => !idCompanies.length || idCompanies.includes(c.id_company)),
-    [centers, idCompanies],
+    () => centers?.filter((c) => (!idCompanies.length || idCompanies.includes(c.id_company)) && centersWithRequests.has(c.id_center)),
+    [centers, idCompanies, centersWithRequests],
   );
 
   // Grupos a los que pertenece alguna de las peticiones ya filtradas por
@@ -199,18 +222,19 @@ function CourseRequestsListTab() {
       sorter: (a, b) => a.groups.length - b.groups.length,
       render: (groups: CourseRequest["groups"]) =>
         groups.length
-          ? groups.map((g) => (
-              <Tag
-                key={g.id_group}
-                style={{ cursor: "pointer" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openDetail(`/groups/${g.id_group}/edit`);
-                }}
-              >
-                {g.group_name}
-              </Tag>
-            ))
+          ? groups.map((g) => {
+              const handlers = linkTo(`/groups/${g.id_group}/edit`);
+              return (
+                <Tag
+                  key={g.id_group}
+                  style={{ cursor: "pointer" }}
+                  onClick={(e) => { e.stopPropagation(); handlers.onClick?.(e); }}
+                  onDoubleClick={(e) => { e.stopPropagation(); handlers.onDoubleClick?.(e); }}
+                >
+                  {g.group_name}
+                </Tag>
+              );
+            })
           : "-",
     },
     ...(canEdit
@@ -285,7 +309,7 @@ function CourseRequestsListTab() {
       ellipsis: true,
       sorter: (a, b) => String(a.course_name).localeCompare(String(b.course_name)),
       render: (v: string, record: Record<string, unknown>) => (
-        <Typography.Link onClick={() => openDetail(`/course-catalog/${record.id_catalog_course}`)}>{v}</Typography.Link>
+        <Typography.Link {...linkTo(`/course-catalog/${record.id_catalog_course}`)}>{v}</Typography.Link>
       ),
     },
     {
@@ -318,7 +342,7 @@ function CourseRequestsListTab() {
         return `${cell.student_count} (${cell.request_count})`;
       },
     })),
-  ], [companyColumns, statsByCourseCompanyKey]);
+  ], [companyColumns, statsByCourseCompanyKey, linkTo]);
 
   const toolbar = (
     <>
@@ -333,7 +357,7 @@ function CourseRequestsListTab() {
         value={idCompanies}
         onChange={handleCompaniesChange}
         optionFilterProp="label"
-        options={companies?.map((c) => ({ value: c.id_company, label: c.company_name }))}
+        options={companies?.filter((c) => companiesWithRequests.has(c.id_company)).map((c) => ({ value: c.id_company, label: c.company_name }))}
       />
       <Select
         allowClear
@@ -343,7 +367,7 @@ function CourseRequestsListTab() {
         value={idCatalogCourse}
         onChange={setIdCatalogCourse}
         optionFilterProp="label"
-        options={catalogCourses?.map((c) => ({ value: c.id_catalog_course, label: c.name }))}
+        options={catalogCourses?.filter((c) => !c.hidden_from_filters && catalogCoursesWithRequests.has(c.id_catalog_course)).map((c) => ({ value: c.id_catalog_course, label: c.name }))}
       />
       <Select
         allowClear

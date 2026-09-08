@@ -43,7 +43,7 @@ export default function CourseInterestsRoute() {
   const toolbar = <>
     <Input.Search placeholder="Buscar por nombre o DNI" value={search} onChange={event => setSearch(event.target.value)} style={{ minWidth: 220, flex: "0 1 300px" }} />
     <Select allowClear placeholder="Curso de catálogo" style={{ minWidth: 220 }} value={catalogCourseId} onChange={setCatalogCourseId}
-      showSearch optionFilterProp="label" options={catalogCourses.map(item => ({ value: item.id_catalog_course, label: item.name }))} />
+      showSearch optionFilterProp="label" options={catalogCourses.filter(item => !item.hidden_from_filters).map(item => ({ value: item.id_catalog_course, label: item.name }))} />
     <Select allowClear placeholder="Estado" style={{ minWidth: 160 }} value={status} onChange={setStatus}
       options={STATUSES.map(value => ({ value, label: label(value) }))} />
   </>;

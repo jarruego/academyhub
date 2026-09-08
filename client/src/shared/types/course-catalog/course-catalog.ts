@@ -17,6 +17,9 @@ export type CatalogCourse = {
   sepe_specialty_name?: string | null;
   professional_family?: string | null;
   professional_area?: string | null;
+  // Oculta el curso de los selects de filtro/búsqueda (peticiones, interesados).
+  // No afecta a los listados ni a la asignación de curso al crear una edición.
+  hidden_from_filters?: boolean;
   editions_count?: number;
   editions?: Course[];
 };

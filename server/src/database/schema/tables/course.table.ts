@@ -28,6 +28,10 @@ export const catalogCourseTable = academyhubSchema.table('catalog_courses', {
   // vivían duplicados en cada edición, en `courses.contents` — migración 0076
   // hizo el backfill desde la edición más reciente con datos y borró esa columna).
   contents: text(),
+  // Oculta el curso de catálogo de los selects de filtro/búsqueda (peticiones,
+  // interesados) sin afectar a los listados normales ni a la asignación de
+  // curso de catálogo de una edición. Solo ADMIN puede marcarlo.
+  hidden_from_filters: boolean().notNull().default(false),
   ...TIMESTAMPS,
 }, (table) => ({
   normalizedNameIdx: uniqueIndex("idx_catalog_courses_normalized_name").on(table.normalized_name),
