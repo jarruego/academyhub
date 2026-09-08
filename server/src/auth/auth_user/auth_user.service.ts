@@ -70,7 +70,7 @@ export class AuthUserService {
     if (data.name !== undefined) updateData.name = data.name;
     if (data.lastName !== undefined) updateData.lastName = data.lastName ?? null;
     if (data.role !== undefined) updateData.role = data.role;
-    if (data.can_import_inaem !== undefined) updateData.can_import_inaem = data.can_import_inaem;
+    if (data.can_manage_candidates !== undefined) updateData.can_manage_candidates = data.can_manage_candidates;
 
     // Only update password when a non-empty value is provided
     if (data.password !== undefined && data.password !== null && data.password !== '') {

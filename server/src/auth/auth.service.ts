@@ -13,10 +13,10 @@ export type JwtPayload = {
   id: number;
   username: string;
   role: Role;
-  // Permiso puntual, independiente del rol — ver auth_users.can_import_inaem.
+  // Permiso puntual, independiente del rol — ver auth_users.can_manage_candidates.
   // Como no hay refresh token, un cambio de flag no se aplica a una sesión ya
   // emitida hasta que el usuario vuelva a iniciar sesión (igual que el rol).
-  can_import_inaem?: boolean;
+  can_manage_candidates?: boolean;
   jti: string;
   exp?: number;
 }
@@ -38,7 +38,7 @@ export class AuthService {
       id: user.id,
       username: user.username,
       role: user.role,
-      can_import_inaem: user.can_import_inaem,
+      can_manage_candidates: user.can_manage_candidates,
       jti: randomUUID(),
     };
 

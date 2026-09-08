@@ -28,9 +28,10 @@ export class UpdateUserDTO {
   @IsEnum(Role)
   role?: Role;
 
-  // Permiso puntual, independiente del rol: importar Preinscritos INAEM
-  // acotado a una edición — ver auth_users.can_import_inaem.
+  // Permiso puntual, independiente del rol: gestión de candidaturas de una
+  // edición (Planificación y selección + Candidatos, incluye importar
+  // Preinscritos INAEM acotado a esa edición) — ver auth_users.can_manage_candidates.
   @IsOptional()
   @IsBoolean()
-  can_import_inaem?: boolean;
+  can_manage_candidates?: boolean;
 }

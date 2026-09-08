@@ -12,10 +12,12 @@ export const authUserTable = academyhubSchema.table('auth_users', {
     username: varchar({length: 32}).notNull().unique(),
     password: varchar({length: 256}).notNull(),
     role: varchar({ length: 16 }).notNull().default(Role.VIEWER),
-    // Permiso puntual independiente del rol: permite importar el fichero de
-    // Preinscripciones INAEM (acotado a la edición desde la que se lance) sin
-    // dar acceso a Acciones/Alumnos ni al resto de capacidades de ADMIN/MANAGER.
-    can_import_inaem: boolean().notNull().default(false),
+    // Permiso puntual independiente del rol: gestión de candidaturas de una
+    // edición (pestañas Planificación y selección + Candidatos, incluye
+    // importar el fichero de Preinscripciones INAEM acotado a esa edición)
+    // sin dar acceso a Acciones/Alumnos ni al resto de capacidades de
+    // ADMIN/MANAGER.
+    can_manage_candidates: boolean().notNull().default(false),
     ...TIMESTAMPS,
 });
 

@@ -51,7 +51,7 @@ export interface InaemImportOptions {
    * Si se indica, solo se procesan filas de Preinscripciones cuyo Nº de
    * Expediente coincide exactamente con este valor — el resto se marcan como
    * fallidas sin tocar ningún otro curso. Lo usa quien accede solo por el
-   * permiso puntual `can_import_inaem` (no ADMIN/MANAGER), para acotar el
+   * permiso puntual `can_manage_candidates` (no ADMIN/MANAGER), para acotar el
    * import a la edición desde la que se lanzó — ver `InaemImportController.upload`.
    */
   restrictToFileNumber?: string;

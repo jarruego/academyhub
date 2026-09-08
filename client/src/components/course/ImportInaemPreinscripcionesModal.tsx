@@ -13,7 +13,7 @@ type Step = "pick" | "confirm" | "progress";
  * Reconversión del antiguo "Importar Excel" de Candidatos: sube el fichero
  * oficial de Preinscripciones INAEM (mismo backend que /tools/import-inaem),
  * tras un aviso explícito y una reautenticación por contraseña. Quien no sea
- * ADMIN/MANAGER (solo tiene el permiso puntual `can_import_inaem`) queda
+ * ADMIN/MANAGER (solo tiene el permiso puntual `can_manage_candidates`) queda
  * acotado por el servidor al expediente de `courseId` — ver
  * `InaemImportController.upload` y docs/import-inaem.md.
  */

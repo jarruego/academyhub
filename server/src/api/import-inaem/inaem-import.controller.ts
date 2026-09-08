@@ -31,13 +31,13 @@ const toBoolean = ({ value }: { value: unknown }) => value === true || value ===
 class UploadInaemDto {
   // Crear acciones formativas inexistentes (curso provisional). Por defecto: true.
   // Ignorado (forzado a false) cuando el actor solo tiene el permiso puntual
-  // can_import_inaem — ver InaemImportController.upload.
+  // can_manage_candidates — ver InaemImportController.upload.
   @IsOptional()
   @Transform(toBoolean)
   @IsBoolean()
   createMissingCourses?: boolean;
 
-  // Obligatorio solo para quien accede vía can_import_inaem (no ADMIN/MANAGER):
+  // Obligatorio solo para quien accede vía can_manage_candidates (no ADMIN/MANAGER):
   // acota el import de Preinscripciones al expediente de esta edición.
   @IsOptional()
   @Type(() => Number)
@@ -67,9 +67,9 @@ export class InaemImportController {
    *
    * Guard ampliado a propósito respecto al resto del controlador (que sigue
    * ADMIN/MANAGER): quien no sea ADMIN/MANAGER solo puede pasar si tiene el
-   * permiso puntual `can_import_inaem` (auth_users.can_import_inaem), y en ese
-   * caso queda restringido aquí mismo, en el handler (no en el guard, que no
-   * puede ver los ficheros subidos — los rellena el interceptor después):
+   * permiso puntual `can_manage_candidates` (auth_users.can_manage_candidates),
+   * y en ese caso queda restringido aquí mismo, en el handler (no en el guard,
+   * que no puede ver los ficheros subidos — los rellena el interceptor después):
    * nunca puede enviar Acciones/Alumnos, y su fichero de Preinscripciones se
    * acota al Nº de Expediente de `id_course` (obligatorio en ese caso),
    * forzando además `createMissingCourses: false`. Ver docs/import-inaem.md.
@@ -111,7 +111,7 @@ export class InaemImportController {
       if (payload.acciones || payload.alumnos) {
         throw new ForbiddenException("Solo ADMIN/MANAGER pueden importar Acciones o Alumnos.");
       }
-      if (!req.user.can_import_inaem) {
+      if (!req.user.can_manage_candidates) {
         throw new ForbiddenException("No tienes permiso para importar Preinscripciones INAEM.");
       }
       if (!body.id_course) {

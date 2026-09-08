@@ -39,12 +39,12 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
         name: user.name,
         lastName: user.lastName ?? undefined,
         role: user.role,
-        can_import_inaem: user.can_import_inaem ?? false,
+        can_manage_candidates: user.can_manage_candidates ?? false,
       });
     }
     if (mode === 'create') {
       form.resetFields();
-      form.setFieldsValue({ role: Role.VIEWER, can_import_inaem: false });
+      form.setFieldsValue({ role: Role.VIEWER, can_manage_candidates: false });
     }
   }, [user, mode, form]);
 
@@ -128,8 +128,8 @@ export default function AuthUserFormModal({ open, user = null, mode = 'edit', on
                 key: 'permissions' as const,
                 label: 'Permisos',
                 children: (
-                  <Form.Item name="can_import_inaem" valuePropName="checked">
-                    <Checkbox>Puede importar Preinscritos INAEM (acotado a la edición desde la que lo lance, aunque su rol no sea ADMIN/MANAGER)</Checkbox>
+                  <Form.Item name="can_manage_candidates" valuePropName="checked">
+                    <Checkbox>Puede gestionar candidaturas (pestañas Planificación y selección y Candidatos de la edición, incluye importar Preinscritos INAEM), aunque su rol no sea ADMIN/MANAGER/TUTOR</Checkbox>
                   </Form.Item>
                 ),
               },

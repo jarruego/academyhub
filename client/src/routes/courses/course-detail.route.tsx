@@ -22,7 +22,7 @@ import GroupUsersManager from '../../components/group/GroupUsersManager';
 import UserDetail from "../../components/user/user-detail";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
-import { useRole } from "../../utils/permissions/use-role";
+import { useRole, useCanManageCandidates } from "../../utils/permissions/use-role";
 import { Group } from "../../shared/types/group/group";
 import { isGroupActive } from "../../utils/group-active.util";
 import { CourseCandidatesSection } from "../../components/course/course-candidates-section";
@@ -64,10 +64,18 @@ export default function CourseDetailRoute() {
   const { token } = theme.useToken();
   const role = useRole();
   const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
+  // Permiso puntual, independiente del rol: gestión de candidaturas de esta edición
+  // (Planificación y selección + Candidatos) — ver auth_users.can_manage_candidates.
+  const canManageCandidates = useCanManageCandidates();
   // La pestaña Candidatos es una excepción: TUTOR tiene las mismas funciones que MANAGER
   // ahí (alta/baja, edición de campos, incorporar desde interesados), a diferencia del
-  // resto de la ficha del curso donde solo ADMIN/MANAGER pueden editar.
-  const canEditCandidates = [Role.ADMIN, Role.MANAGER, Role.TUTOR].includes(role);
+  // resto de la ficha del curso donde solo ADMIN/MANAGER pueden editar. Quien tenga el
+  // permiso puntual `can_manage_candidates` también entra, aunque su rol no sea ninguno
+  // de los anteriores.
+  const canEditCandidates = [Role.ADMIN, Role.MANAGER, Role.TUTOR].includes(role) || canManageCandidates;
+  // Planificación y selección: reservada a ADMIN/MANAGER salvo que el actor tenga el
+  // permiso puntual `can_manage_candidates` (misma excepción que en Candidatos).
+  const canEditPlanning = canEdit || canManageCandidates;
   const navigate = useNavigate();
   const linkTo = useLinkNavigation();
   const { id_course } = useParams();
@@ -744,20 +752,20 @@ export default function CourseDetailRoute() {
         children: (
           <Form layout="vertical" onFinish={handleSubmit(submit)}>
             <Row gutter={[16, 0]}>
-              <Col xs={24} sm={8} md={4}><Form.Item label="Plazas"><Controller name="capacity" control={control} render={({field}) => <Input type="number" min={0} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
-              <Col xs={24} sm={8} md={6}><Form.Item label="Fecha de selección"><Controller name="selection_at" control={control} render={({field}) => <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{width:'100%'}} value={field.value ? dayjs(field.value) : null} onChange={value => canEdit && field.onChange(value?.toDate() ?? null)} disabled={!canEdit} />} /></Form.Item></Col>
-              <Col xs={24} sm={8} md={7}><Form.Item label="Lugar de selección"><Controller name="selection_place" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
-              <Col xs={24} sm={12} md={7}><Form.Item label="Lugar de impartición"><Controller name="training_place" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24} sm={8} md={4}><Form.Item label="Plazas"><Controller name="capacity" control={control} render={({field}) => <Input type="number" min={0} {...field} value={field.value ?? ''} readOnly={!canEditPlanning} />} /></Form.Item></Col>
+              <Col xs={24} sm={8} md={6}><Form.Item label="Fecha de selección"><Controller name="selection_at" control={control} render={({field}) => <DatePicker showTime format="DD/MM/YYYY HH:mm" style={{width:'100%'}} value={field.value ? dayjs(field.value) : null} onChange={value => canEditPlanning && field.onChange(value?.toDate() ?? null)} disabled={!canEditPlanning} />} /></Form.Item></Col>
+              <Col xs={24} sm={8} md={7}><Form.Item label="Lugar de selección"><Controller name="selection_place" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEditPlanning} />} /></Form.Item></Col>
+              <Col xs={24} sm={12} md={7}><Form.Item label="Lugar de impartición"><Controller name="training_place" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEditPlanning} />} /></Form.Item></Col>
             </Row>
             <Row gutter={[16, 0]}>
-              <Col xs={24} md={12}><Form.Item label="Destinatarios"><Controller name="target_audience" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
-              <Col xs={24} md={12}><Form.Item label="Requisitos de acceso"><Controller name="admission_requirements" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
-              <Col xs={24} md={12}><Form.Item label="Documentación solicitada"><Controller name="required_documentation" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
-              <Col xs={24} sm={12} md={6}><Form.Item label="Horario previsto"><Controller name="planned_schedule" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
-              <Col xs={24} sm={12} md={6}><Form.Item label="Responsable / gestor"><Controller name="coordinator" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
-              <Col xs={24}><Form.Item label="Observaciones organizativas"><Controller name="organization_notes" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEdit} />} /></Form.Item></Col>
+              <Col xs={24} md={12}><Form.Item label="Destinatarios"><Controller name="target_audience" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEditPlanning} />} /></Form.Item></Col>
+              <Col xs={24} md={12}><Form.Item label="Requisitos de acceso"><Controller name="admission_requirements" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEditPlanning} />} /></Form.Item></Col>
+              <Col xs={24} md={12}><Form.Item label="Documentación solicitada"><Controller name="required_documentation" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEditPlanning} />} /></Form.Item></Col>
+              <Col xs={24} sm={12} md={6}><Form.Item label="Horario previsto"><Controller name="planned_schedule" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEditPlanning} />} /></Form.Item></Col>
+              <Col xs={24} sm={12} md={6}><Form.Item label="Responsable / gestor"><Controller name="coordinator" control={control} render={({field}) => <Input {...field} value={field.value ?? ''} readOnly={!canEditPlanning} />} /></Form.Item></Col>
+              <Col xs={24}><Form.Item label="Observaciones organizativas"><Controller name="organization_notes" control={control} render={({field}) => <Input.TextArea rows={3} {...field} value={field.value ?? ''} readOnly={!canEditPlanning} />} /></Form.Item></Col>
             </Row>
-            {canEdit && <div className="form-actions"><Button type="primary" icon={<SaveOutlined />} htmlType="submit">Guardar planificación</Button></div>}
+            {canEditPlanning && <div className="form-actions"><Button type="primary" icon={<SaveOutlined />} htmlType="submit">Guardar planificación</Button></div>}
           </Form>
         ),
       }] : []), ...(isPublicFunding ? [{

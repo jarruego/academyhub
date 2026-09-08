@@ -14,7 +14,7 @@ import {
 } from "../../hooks/api/course-candidates/use-course-candidates";
 import { useCourseInterestsByCatalogQuery, useIncorporateInterestsMutation } from "../../hooks/api/course-interests/use-course-interests";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
-import { useRole, useCanImportInaem } from "../../utils/permissions/use-role";
+import { useRole, useCanManageCandidates } from "../../utils/permissions/use-role";
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { AutoSaveText } from "../common/AutoSaveText";
 import { PersonSearchOrCreateModal, type PersonSearchOrCreateInput } from "../common/PersonSearchOrCreateModal";
@@ -96,7 +96,7 @@ interface Props { courseId: number; catalogCourseId: number; canEdit: boolean; }
 export function CourseCandidatesSection({ courseId, catalogCourseId, canEdit }: Props) {
   const { message, modal } = App.useApp();
   const role = useRole();
-  const canImportInaem = useCanImportInaem();
+  const canManageCandidates = useCanManageCandidates();
   const hasFullInaemAccess = role === Role.ADMIN || role === Role.MANAGER;
   const [importInaemOpen, setImportInaemOpen] = useState(false);
   const { data = [], isLoading } = useCourseCandidatesQuery(courseId);
@@ -271,14 +271,14 @@ export function CourseCandidatesSection({ courseId, catalogCourseId, canEdit }: 
     <Space wrap style={{ marginBottom: 12 }}>
       {canEdit && <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>Añadir candidato</Button>}
       {canEdit && Boolean(catalogCourseId) && <Button icon={<TeamOutlined />} onClick={() => setIncorporateOpen(true)}>Desde interesados{availableInterests.length ? ` (${availableInterests.length})` : ""}</Button>}
-      {(hasFullInaemAccess || canImportInaem) && <Button icon={<FileExcelOutlined />} onClick={() => setImportInaemOpen(true)}>Importar Preinscritos INAEM</Button>}
+      {(hasFullInaemAccess || canManageCandidates) && <Button icon={<FileExcelOutlined />} onClick={() => setImportInaemOpen(true)}>Importar Preinscritos INAEM</Button>}
       <Button icon={<FileExcelOutlined />} onClick={exportExcel} disabled={!rows.length}>Exportar Excel</Button>
     </Space>
     {!rows.length ? <Empty description="Aún no hay candidatos. Puedes añadirlos aunque todavía no estén preinscritos en INAEM." /> :
       <Table<CourseCandidate> rowKey="id_candidate" columns={columns} dataSource={rows} pagination={false} scroll={{ x: 1520 }} size="small" />}
     <PersonSearchOrCreateModal title="Añadir candidato" open={addOpen} onClose={() => setAddOpen(false)} availableUsers={availableUsersForAdd} submitting={createCandidate.isPending} onSubmit={handleAdd} />
     <IncorporateModal open={incorporateOpen} onClose={() => setIncorporateOpen(false)} availableInterests={availableInterests} submitting={incorporateInterests.isPending} onSubmit={handleIncorporate} />
-    {(hasFullInaemAccess || canImportInaem) && (
+    {(hasFullInaemAccess || canManageCandidates) && (
       <ImportInaemPreinscripcionesModal
         open={importInaemOpen}
         onClose={() => setImportInaemOpen(false)}
