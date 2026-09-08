@@ -2,8 +2,24 @@ import { ColumnProps } from "antd/es/table";
 import { User } from "../../shared/types/user/user";
 import { UserCenter } from "../../shared/types/center/user-center";
 import React from "react";
-import { Progress } from "antd";
+import { Progress, Tag } from "antd";
 import { BajaTag } from "../../components/users/baja-tag";
+
+// Diminutivos de los shortname de rol de Moodle más habituales; cualquier
+// otro valor se muestra tal cual (fallback), para no dejar la celda vacía
+// ante un rol de Moodle no contemplado aquí.
+const ROLE_SHORTNAME_LABELS: Record<string, string> = {
+  student: 'Alumno',
+  editingteacher: 'Tutor',
+  teacher: 'Profesor',
+  manager: 'Gestor',
+  coursecreator: 'Creador',
+};
+
+const roleLabel = (shortname?: string | null) => {
+  if (!shortname) return null;
+  return ROLE_SHORTNAME_LABELS[shortname.toLowerCase()] ?? shortname;
+};
 // Use the existing `UserCenter` type (includes is_main_center) and add the
 // optional `is_enrollment_center` flag that the backend may include.
 type Center = UserCenter & { is_enrollment_center?: boolean };
@@ -32,16 +48,13 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
     { title: 'Apellidos', dataIndex: ['first_surname'], sorter: {
         compare: (a, b) => (a.first_surname || '').localeCompare(b.first_surname || ''),
     } },
-  { title: 'Rol', dataIndex: ['role_shortname'], sorter: {
-    compare: (a, b) => (a.role_shortname || '').localeCompare(b.role_shortname || ''),
-  }, render: (_: unknown, user: User) => (user.role_shortname ?? (user.id_role ? String(user.id_role) : '-')) },
     // { title: 'Email', dataIndex: ['email'], sorter: {
     //     compare: (a, b) => (a.email || '').localeCompare(b.email || ''),
     // } },
     // { title: 'MOODLE USERNAME', dataIndex: ['moodle_username'], sorter: {
     //     compare: (a, b) => (a.moodle_username || '').localeCompare(b.moodle_username || ''),
     // } },
-    { title: 'Porcentaje', dataIndex: ['completion_percentage'], sorter: {
+    { title: 'Progreso', dataIndex: ['completion_percentage'], sorter: {
         compare: (a, b) => (Number(a.completion_percentage) || 0) - (Number(b.completion_percentage) || 0),
     }, render: (_: unknown, user: User) => {
         const percent = Number(user.completion_percentage) || 0;
@@ -52,7 +65,7 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
             strokeColor: percent >= 75 ? '#52c41a' : '#ff4d4f',
         });
     } },
-    { title: 'Tiempo usado', dataIndex: ['time_spent'], sorter: {
+    { title: 'Tiempo', dataIndex: ['time_spent'], sorter: {
       compare: (a, b) => (Number(a.time_spent) || 0) - (Number(b.time_spent) || 0),
     }, render: (_: unknown, user: User) => formatTimeSpent(user.time_spent) },
   { title: 'Centro',
@@ -81,6 +94,12 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
         const center = user.centers?.find((c: Center) => c.is_enrollment_center) ?? user.centers?.find((c: Center) => c.is_main_center) ?? user.centers?.[0];
         return center?.company_name ?? '-';
       } },
+    { title: 'Rol', dataIndex: ['role_shortname'], sorter: {
+    compare: (a, b) => (a.role_shortname || '').localeCompare(b.role_shortname || ''),
+  }, render: (_: unknown, user: User) => {
+      const label = roleLabel(user.role_shortname ?? (user.id_role ? String(user.id_role) : null));
+      return label ? React.createElement(Tag, { style: { fontSize: 11, lineHeight: '16px', padding: '0 4px' } }, label) : '-';
+  } },
 ]
 
 /**
@@ -89,5 +108,5 @@ export const USERS_TABLE_COLUMNS: ColumnProps<User>[] = [
  */
 export const filterUsersTimeSpentColumn = (columns: ColumnProps<User>[], includeTimeSpent: boolean) => {
   if (includeTimeSpent) return columns;
-  return columns.filter(col => col.title !== 'Tiempo usado');
+  return columns.filter(col => col.title !== 'Tiempo');
 };

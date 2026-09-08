@@ -480,7 +480,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
     });
 
     const bonifiedColumn = studentOnly({
-      title: 'Bonificado',
+      title: 'Bonif.',
       dataIndex: 'bonified',
       key: 'bonified',
       width: 100,
@@ -493,7 +493,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
     const gateStudentColumns = (cols: (typeof USERS_TABLE_COLUMNS)[number][]) =>
       cols.map((column) =>
-        column.title === 'Porcentaje' || column.title === 'Tiempo usado' ? studentOnly(column) : column,
+        column.title === 'Progreso' || column.title === 'Tiempo' ? studentOnly(column) : column,
       );
 
     const filterCompanyColumns = (cols: (typeof USERS_TABLE_COLUMNS)[number][]) =>
@@ -501,10 +501,10 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
     if (profile.isPresential) {
       // En presencial el porcentaje/tiempo no aplican (no hay Moodle): se sustituye
-      // la columna Porcentaje por el estado de finalización.
+      // la columna Progreso por el estado de finalización.
       const cols = filterCompanyColumns(USERS_TABLE_COLUMNS)
-        .filter((column) => column.title !== 'Tiempo usado')
-        .map((column) => (column.title === 'Porcentaje' ? finalizedColumn : column));
+        .filter((column) => column.title !== 'Tiempo')
+        .map((column) => (column.title === 'Progreso' ? finalizedColumn : column));
       if (profile.showBonificationButton) cols.push(bonifiedColumn);
       return cols;
     }
