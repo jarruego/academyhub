@@ -83,12 +83,19 @@ function CourseRequestsListTab() {
     [allRequestsForFacets],
   );
 
-  // La empresa y el grupo filtran en cliente (el endpoint ya devuelve
-  // id_company y groups por fila); el centro y el curso, en cambio, se
-  // filtran en servidor (ver query de arriba).
+  // La empresa, el rango de fechas y el grupo filtran en cliente (el endpoint
+  // ya devuelve id_company/request_date/groups por fila); el centro y el
+  // curso, en cambio, se filtran en servidor (ver query de arriba).
   const companyFilteredRequests = useMemo(
-    () => allRequests?.filter((r) => !idCompanies.length || (r.id_company != null && idCompanies.includes(r.id_company))),
-    [allRequests, idCompanies],
+    () => allRequests?.filter((r) => {
+      if (idCompanies.length && !(r.id_company != null && idCompanies.includes(r.id_company))) return false;
+      if (dateRange) {
+        const requestDate = dayjs(r.request_date);
+        if (requestDate.isBefore(dateRange[0], "day") || requestDate.isAfter(dateRange[1], "day")) return false;
+      }
+      return true;
+    }),
+    [allRequests, idCompanies, dateRange],
   );
 
   const requests = useMemo(
