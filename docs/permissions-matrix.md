@@ -173,10 +173,10 @@ Class-level `[ADMIN, MANAGER]`. "Foros" button in course ficha matches (`AuthzHi
 |---|---|---|---|---|---|---|
 | List reports, roles, facets | ✅ | ✅ | ✅ | ✅ | ✅ | |
 | Export PDF/Excel | ✅ | ✅ | ✅ | ✅ | ✅ | |
-| Export **with passwords** (`include_passwords`) | ✅ | ✅ | ❌ | ❌ | ❌ | |
+| Export **with passwords** (`include_passwords`) | ✅ | ✅ | ❌ | ✅ | ❌ | Widened to `TUTOR` 2026-09-09 (see Changelog) |
 | Send report to centers (`send/groups`, `send`, `send/test`) | ✅ | ✅ | ❌ | ✅ | ❌ | **Split 1** |
-| Send report **with passwords** (`dedication_passwords`) | ✅ | ✅ | ❌ | ❌ | ❌ | ⚠️ see "Open items" below — pending a decision on widening this to `TUTOR` |
-| "Incluir contraseñas" checkbox | ✅ | ✅ | ❌ | ❌ | ❌ | |
+| Send report **with passwords** (`dedication_passwords`) | ✅ | ✅ | ❌ | ✅ | ❌ | Widened to `TUTOR` 2026-09-09 — now a straight subset of Split 1 instead of a separate exclusion |
+| "Incluir contraseñas" checkbox | ✅ | ✅ | ❌ | ✅ | ❌ | `reports.route.tsx` and `SendReportMailModal.tsx` |
 
 ## 16. User Merge / User Sanitization
 
@@ -191,7 +191,7 @@ Both class-level `[ADMIN]`.
 
 ## Open items (pending a decision)
 
-1. **`dedication_passwords` excludes `TUTOR` inside Split 1's own guard (§15).** `TUTOR` can send a report to a center (Split 1) but not one that includes `dedication_passwords` — same restriction as `VIEWER`/`CONSULTOR`, unlike the rest of Split 1 where `TUTOR` has the ADMIN/MANAGER-level access. Under discussion 2026-09-09: whether `TUTOR` should be allowed to send/export dedicación **with** passwords, particularly from "Enviar informe" in the group ficha — and if so, whether that should also extend to `/reports/export`'s `include_passwords` or stay send-only.
+None open as of 2026-09-09 — the last one (`dedication_passwords`/`TUTOR`, below) was resolved the same day.
 
 ## Changelog
 
@@ -202,3 +202,4 @@ Both class-level `[ADMIN]`.
 - **Empresas/Centros**: client `canEdit` narrowed to ADMIN-only (was `[ADMIN, MANAGER]`, while the server was already ADMIN-only) — closes the "editable form the server rejects" gap. Applies to `company-detail.route.tsx`, `center-detail.route.tsx`, and the "Añadir Centro" button.
 - **`POST /user`** (create a single user) narrowed to `[ADMIN]` (was `[ADMIN, MANAGER]`), and `/create-user` gained a page-level ADMIN-only gate (previously reachable by MANAGER via direct URL, matching the already-ADMIN-only listing button). Verified this does **not** affect adding a new candidato/interesado (§9), which goes through a separate, still-`TUTOR`-accessible endpoint.
 - **Course Requests vs. Candidatos/Interesados** (§9 vs §10): confirmed intentional — `TUTOR` gets write access to the latter two but not to Peticiones. Not a bug to fix.
+- **`dedication_passwords`/`include_passwords` widened to `TUTOR`** (§15): `moodle_users.moodle_password` is already shown to `TUTOR` in plain text on the user ficha (documented in `docs/security.md`), so blocking it specifically in report exports/sends was inconsistent — not a broader exposure. Both the `send`/`send/test` and `export` checks in `reports.controller.ts` now only block `VIEWER`/`CONSULTOR`; the "Incluir contraseñas" checkboxes in `reports.route.tsx` and `SendReportMailModal.tsx` widened to match.

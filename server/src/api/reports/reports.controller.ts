@@ -52,7 +52,11 @@ export class ReportsController {
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @Post('export')
   async exportPdf(@Body() body: ReportExportDTO, @Req() req: { user: JwtPayload }, @Res() res: Response) {
-    if (body.include_passwords && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR || req.user?.role === Role.CONSULTOR)) {
+    // TUTOR sí puede incluir contraseñas (decisión 2026-09-09, ver
+    // docs/permissions-matrix.md): moodle_users.moodle_password ya se le
+    // muestra en texto plano en la ficha del alumno (docs/security.md), así
+    // que la restricción real es "no VIEWER/CONSULTOR", no "no TUTOR".
+    if (body.include_passwords && (req.user?.role === Role.VIEWER || req.user?.role === Role.CONSULTOR)) {
       throw new ForbiddenException('Este rol no puede exportar informes con contraseñas.');
     }
     await this.reportsPdfService.exportPdfFromPayload(body, res);
@@ -61,7 +65,8 @@ export class ReportsController {
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   @Post('send')
   async sendReport(@Body() body: ReportSendDTO, @Req() req: { user: JwtPayload }) {
-    if (body.attach?.includes('dedication_passwords') && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR || req.user?.role === Role.CONSULTOR)) {
+    // Ver comentario en exportPdf: TUTOR sí puede incluir contraseñas.
+    if (body.attach?.includes('dedication_passwords') && (req.user?.role === Role.VIEWER || req.user?.role === Role.CONSULTOR)) {
       throw new ForbiddenException('Este rol no puede enviar informes con contraseñas.');
     }
     const results = await this.reportsMailService.sendReportMail(body, req.user && {
@@ -75,7 +80,8 @@ export class ReportsController {
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   @Post('send/test')
   async sendReportTest(@Body() body: ReportSendDTO, @Req() req: { user: JwtPayload }) {
-    if (body.attach?.includes('dedication_passwords') && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR || req.user?.role === Role.CONSULTOR)) {
+    // Ver comentario en exportPdf: TUTOR sí puede incluir contraseñas.
+    if (body.attach?.includes('dedication_passwords') && (req.user?.role === Role.VIEWER || req.user?.role === Role.CONSULTOR)) {
       throw new ForbiddenException('Este rol no puede enviar informes con contraseñas.');
     }
     return this.reportsMailService.sendTestReportMail(body, req.user && {

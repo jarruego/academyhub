@@ -275,7 +275,8 @@ export default function SendReportMailModal({ open, selection, onOk, onCancel }:
               <Checkbox checked={attachDedication} onChange={(e) => setAttachDedication(e.target.checked)}>
                 Dedicación (todos los alumnos seleccionados de cada grupo)
               </Checkbox>
-              <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+              {/* ADMIN/MANAGER/TUTOR (decisión 2026-09-09, ver docs/permissions-matrix.md) */}
+              <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.TUTOR]}>
                 <Checkbox checked={attachDedicationPasswords} onChange={(e) => setAttachDedicationPasswords(e.target.checked)}>
                   Dedicación con usuario/clave de Moodle (PDF aparte, acción sensible)
                 </Checkbox>

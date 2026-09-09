@@ -828,8 +828,9 @@ export default function ReportsRoute() {
 
 
 
-            {/* Show the include passwords checkbox only for dedication reports, and only to ADMIN/MANAGER */}
-            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+            {/* Show the include passwords checkbox only for dedication reports, and only to
+                ADMIN/MANAGER/TUTOR (decisión 2026-09-09, ver docs/permissions-matrix.md) */}
+            <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.TUTOR]}>
               {exportReportType !== 'certification' && exportReportType !== 'bonification' && (
                 <div>
                   <label>

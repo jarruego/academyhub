@@ -164,7 +164,7 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     title: 'Informes',
     rows: [
       { label: 'Listar informes, exportar PDF/Excel', access: all('yes') },
-      { label: 'Exportar/enviar informe con contraseñas', access: adminManager(), note: 'Pendiente de decidir si TUTOR debería poder enviarlo (no exportarlo) — ver "Open items" en docs/permissions-matrix.md' },
+      { label: 'Exportar/enviar informe con contraseñas', access: { ...adminManager(), [TUTOR]: 'yes' }, note: 'Ampliado a TUTOR el 2026-09-09 — ya ve la clave de Moodle en la ficha del alumno' },
       { label: 'Enviar informe a centros', access: split(), note: 'Split 1' },
     ],
   },
