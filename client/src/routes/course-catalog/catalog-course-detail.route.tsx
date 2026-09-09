@@ -72,7 +72,18 @@ export default function CatalogCourseDetailRoute() {
       { key:"interesados", label:`Interesados (${interests.length})`, children:<CourseInterestsSection catalogCourseId={id} canEdit={canEditInterests} canAdd={canAddInterests} /> },
       { key:"contenidos", label:"Contenidos", children:<CatalogCourseContentsTab catalogCourseId={id} initialContents={data.contents} canEdit={canEditContents} /> },
     ]} />
-    <Modal title="Fusionar curso de catálogo" open={mergeOpen} onCancel={() => setMergeOpen(false)} onOk={async () => { if (!target) return; await merge.mutateAsync(target); message.success("Cursos fusionados"); navigate(`/course-catalog/${target}`); }} okButtonProps={{disabled:!target}} okText="Fusionar" cancelText="Cancelar">
+    <Modal title="Fusionar curso de catálogo" open={mergeOpen} onCancel={() => setMergeOpen(false)} onOk={async () => {
+      if (!target) return;
+      try {
+        await merge.mutateAsync(target);
+        message.success("Cursos fusionados");
+        setMergeOpen(false);
+        setTarget(undefined);
+        navigate(`/course-catalog/${target}`);
+      } catch (error) {
+        message.error((error as {response?:{data?:{message?:string}}})?.response?.data?.message ?? "No se pudo fusionar");
+      }
+    }} okButtonProps={{disabled:!target}} confirmLoading={merge.isPending} okText="Fusionar" cancelText="Cancelar">
       <Space direction="vertical" style={{width:"100%"}}><span>Todas las ediciones se trasladarán al curso seleccionado.</span><Select showSearch optionFilterProp="label" style={{width:"100%"}} value={target} onChange={setTarget} options={all.filter(item=>item.id_catalog_course!==id).map(item=>({value:item.id_catalog_course,label:item.name}))} /></Space>
     </Modal>
   </>;
