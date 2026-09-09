@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import AuthUserFormModal from './AuthUserFormModal';
+import PermissionsMatrixPanel from './PermissionsMatrixPanel';
 import { AuthUser } from './types';
 import { getApiHost } from '../../utils/api/get-api-host.util';
 import { useAuthenticatedAxios } from '../../utils/api/use-authenticated-axios.util';
@@ -151,6 +152,7 @@ export default function AuthUserManagement() {
           <Table columns={columns} dataSource={users} rowKey="id" />
         )}
       </Card>
+      <PermissionsMatrixPanel />
     </div>
   );
 }
