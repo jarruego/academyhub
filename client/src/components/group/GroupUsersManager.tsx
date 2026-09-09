@@ -9,7 +9,7 @@ import CreateUserGroupModal from './CreateUserGroupModal';
 import ImportUsersToGroupModal from './ImportUsersToGroupModal';
 import ImportFromCourseRequestsModal from './ImportFromCourseRequestsModal';
 import { Role } from '../../hooks/api/auth/use-login.mutation';
-import { useUsersByGroupQuery } from '../../hooks/api/users/use-users-by-group.query';
+import { useUsersByGroupsQuery, UserWithGroup } from '../../hooks/api/users/use-users-by-groups.query';
 import { useGroupQuery } from '../../hooks/api/groups/use-group.query';
 import { useCreateBonificationFileMutation } from '../../hooks/api/groups/use-create-bonification-file.mutation';
 import { useUpdateUserEnrollmentCenterMutation } from '../../hooks/api/groups/use-update-user-enrollment-center.mutation';
@@ -28,7 +28,12 @@ import SendReportMailModal from '../mail/SendReportMailModal';
 import { getCourseProfile } from '../../utils/course-profile';
 
 interface Props {
-  groupId: number | null | undefined;
+  // Uno o varios grupos seleccionados en la ficha del curso. Con 2+, los alumnos de todos
+  // se fusionan en una sola tabla (útil para Correo/Informe/seguimiento); Matricular, Moodle
+  // y Bonificar quedan deshabilitados porque mutan un grupo concreto — ver docs/client.md.
+  groupIds: number[];
+  // Nombre de cada grupo por id, para la columna "Grupo" que aparece cuando hay 2+ seleccionados.
+  groupNamesById?: Record<number, string>;
   courseName?: string;
   courseModality?: string | null;
   courseClient?: string | null;
@@ -74,9 +79,30 @@ const isStudentUser = (user: User): boolean => {
   return typeof role === 'string' ? role.toLowerCase() === 'student' : false;
 };
 
-const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModality, courseClient, courseFunding, catalogCourseId, groupStart, groupEnd, highlightUserId }) => {
+// Con varios grupos fusionados, un mismo alumno matriculado en 2+ de los grupos
+// seleccionados aparece como una fila por grupo (correcto para "Enviar informe",
+// donde cada matrícula es una fila distinta) — pero "Correo" no debe mandarle
+// una copia por cada fila, así que se deduplica por id_user justo antes de abrir esa modal.
+function dedupeByUserId<T extends { id_user: number }>(rows: T[]): T[] {
+  const seen = new Set<number>();
+  const result: T[] = [];
+  for (const r of rows) {
+    if (seen.has(r.id_user)) continue;
+    seen.add(r.id_user);
+    result.push(r);
+  }
+  return result;
+}
+
+const GroupUsersManager: React.FC<Props> = ({ groupIds, groupNamesById = {}, courseName, courseModality, courseClient, courseFunding, catalogCourseId, groupStart, groupEnd, highlightUserId }) => {
   const { message: messageApi, modal, notification: notificationApi } = App.useApp();
   const { token } = theme.useToken();
+
+  // 2+ grupos seleccionados: vista fusionada de solo lectura para Correo/Informe/
+  // seguimiento. Matricular, Moodle y Bonificar necesitan un único grupo (mutan
+  // user_group de ese grupo concreto) y quedan deshabilitados — ver docs/client.md.
+  const isMulti = groupIds.length > 1;
+  const singleGroupId = groupIds.length === 1 ? groupIds[0] : null;
 
   const extractSummary = (text?: string) => {
     if (!text) return '';
@@ -84,7 +110,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
     const idx = text.indexOf(marker);
     return idx !== -1 ? text.slice(0, idx) : text;
   };
-  const { data: usersData, isLoading, refetch } = useUsersByGroupQuery(groupId ? Number(groupId) : null);
+  const { data: usersData, isLoading, refetch } = useUsersByGroupsQuery(groupIds);
   const sortedUsers = useMemo(() => {
     const list = usersData ?? [];
     return [...list].sort((a, b) => {
@@ -97,17 +123,26 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const { data: orgSettings } = useOrganizationSettingsQuery();
   const itopTrainingEnabled = orgSettings?.settings.plugins.itop_training ?? false;
 
-  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  // Filas seleccionadas (no solo ids): con varios grupos fusionados, la misma persona
+  // puede aparecer como una fila por cada grupo en el que está matriculada, y cada fila
+  // lleva su propio id_group (necesario para "Enviar informe" — ver dedupeByUserId arriba
+  // para por qué "Correo" sí deduplica por id_user).
+  const [selectedRows, setSelectedRows] = useState<UserWithGroup[]>([]);
+  const selectedUserIds = useMemo(() => Array.from(new Set(selectedRows.map((r) => r.id_user))), [selectedRows]);
 
   const appliedHighlightUserRef = useRef(false);
   useEffect(() => {
     if (appliedHighlightUserRef.current) return;
     if (highlightUserId == null || sortedUsers.length === 0) return;
     appliedHighlightUserRef.current = true;
-    setSelectedUserIds((prev) => (prev.includes(highlightUserId) ? prev : [...prev, highlightUserId]));
+    const row = sortedUsers.find((u) => u.id_user === highlightUserId);
+    if (row) {
+      setSelectedRows((prev) => (prev.some((r) => r.id_group === row.id_group && r.id_user === row.id_user) ? prev : [...prev, row]));
+    }
     const timeoutId = window.setTimeout(() => {
-      const row = document.querySelector(`tr[data-row-key="${highlightUserId}"]`);
-      row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const key = row ? `${row.id_group}-${row.id_user}` : String(highlightUserId);
+      const rowEl = document.querySelector(`tr[data-row-key="${key}"]`);
+      rowEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 300);
     return () => window.clearTimeout(timeoutId);
   }, [highlightUserId, sortedUsers]);
@@ -124,7 +159,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   const updateUserEnrollmentCenterMutation = useUpdateUserEnrollmentCenterMutation();
   const { mutateAsync: syncMoodleGroupMembers, isPending: syncMoodleGroupMembersPending } = useSyncMoodleGroupMembersMutation();
 
-  const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(groupId ? String(groupId) : undefined);
+  const { data: groupData, isLoading: isGroupLoading } = useGroupQuery(singleGroupId ? String(singleGroupId) : undefined);
   const { previewUsersToCreate, addUsers } = useMoodleGroupMembersApi();
   const exportUsersToMailCsv = useExportUsersToMailCsv();
   const exportUsersToSmsCsv = useExportUsersToSmsCsv();
@@ -140,21 +175,17 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       const n = Number(v ?? 0) || 0;
       return n > 0 && n <= 1 ? n * 100 : n;
     };
-    const ids = usersData
-      .filter((u: User) => {
-        const percent = getPercent(u.completion_percentage);
-        return isStudentUser(u) && percent > 0 && percent < 75;
-      })
-      .map(u => u.id_user);
-    setSelectedUserIds(ids);
+    const rows = usersData.filter((u) => {
+      const percent = getPercent(u.completion_percentage);
+      return isStudentUser(u) && percent > 0 && percent < 75;
+    });
+    setSelectedRows(rows);
   };
 
   const handleMarkZero = () => {
     if (!usersData) return;
-    const ids = usersData
-      .filter((u: User) => isStudentUser(u) && Number(u.completion_percentage ?? 0) === 0)
-      .map(u => u.id_user);
-    setSelectedUserIds(ids);
+    const rows = usersData.filter((u) => isStudentUser(u) && Number(u.completion_percentage ?? 0) === 0);
+    setSelectedRows(rows);
   };
 
   const handleMark75 = () => {
@@ -163,14 +194,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       const n = Number(v ?? 0) || 0;
       return n > 0 && n <= 1 ? n * 100 : n;
     };
-    const ids = usersData
-      .filter((u: User) => isStudentUser(u) && getPercent(u.completion_percentage) >= 75)
-      .map(u => u.id_user);
-    setSelectedUserIds(ids);
+    const rows = usersData.filter((u) => isStudentUser(u) && getPercent(u.completion_percentage) >= 75);
+    setSelectedRows(rows);
   };
 
   const openBonification = () => {
-    if (!selectedUserIds || selectedUserIds.length === 0) {
+    if (isMulti) return;
+    if (!selectedRows || selectedRows.length === 0) {
       messageApi.warning('Selecciona al menos un usuario para bonificar');
       return;
     }
@@ -178,12 +208,12 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   };
 
   const handleConfirmBonification = async () => {
-    if (!groupId) return;
+    if (!singleGroupId) return;
     try {
-      const response = await createBonificationFile.mutateAsync({ groupId: Number(groupId), userIds: selectedUserIds });
+      const response = await createBonificationFile.mutateAsync({ groupId: Number(singleGroupId), userIds: selectedUserIds });
       const blob = response.data as Blob;
 
-      let filename = `grupo_${groupId}.xml`;
+      let filename = `grupo_${singleGroupId}.xml`;
       try {
         const cd = response.headers?.['content-disposition'] || response.headers?.['Content-Disposition'];
         if (cd) {
@@ -256,7 +286,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   };
 
   const handleTraerMoodle = async () => {
-    if (!groupId) return;
+    if (!singleGroupId) return;
     const moodleId = groupData?.moodle_id;
     if (!moodleId) {
       messageApi.warning('El grupo local no está asociado a un grupo de Moodle');
@@ -332,13 +362,13 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   };
 
   const handleSubirMoodle = async () => {
-    if (!groupId) return;
+    if (!singleGroupId) return;
     if (!selectedUserIds || selectedUserIds.length === 0) {
       messageApi.warning('Selecciona al menos un usuario para subir a Moodle');
       return;
     }
     try {
-      const toCreate = await previewUsersToCreate(Number(groupId), selectedUserIds);
+      const toCreate = await previewUsersToCreate(Number(singleGroupId), selectedUserIds);
       if (Array.isArray(toCreate) && toCreate.length > 0) {
         modal.confirm({
           title: `Se crearán ${toCreate.length} usuario(s) en Moodle`,
@@ -358,7 +388,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
           ),
           onOk: async () => {
             try {
-              const resp = await addUsers(Number(groupId), selectedUserIds);
+              const resp = await addUsers(Number(singleGroupId), selectedUserIds);
               const result = (resp as { data?: SyncResponse })?.data;
               if (result?.success) {
                 messageApi.success(result.message || 'Usuarios añadidos a Moodle');
@@ -418,7 +448,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
           content: `¿Deseas añadir ${selectedUserIds.length} usuario(s) seleccionados al grupo de Moodle asociado?`,
           onOk: async () => {
             try {
-              const resp = await addUsers(Number(groupId), selectedUserIds);
+              const resp = await addUsers(Number(singleGroupId), selectedUserIds);
               const result = (resp as { data?: SyncResponse })?.data;
               if (result?.success) {
                 messageApi.success(result.message || 'Usuarios añadidos a Moodle');
@@ -499,6 +529,23 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
     const filterCompanyColumns = (cols: (typeof USERS_TABLE_COLUMNS)[number][]) =>
       profile.showCompanyColumns ? cols : cols.filter((c) => c.title !== 'Centro' && c.title !== 'Empresa');
 
+    // Solo con 2+ grupos fusionados: de qué grupo viene cada fila (el mismo alumno puede
+    // aparecer una vez por cada grupo en el que está matriculado — ver dedupeByUserId).
+    const groupIdOf = (u: User) => (u as UserWithGroup).id_group;
+    const groupNameColumn = {
+      title: 'Grupo',
+      dataIndex: 'id_group',
+      key: 'id_group',
+      width: 160,
+      sorter: {
+        compare: (a: User, b: User) =>
+          (groupNamesById[groupIdOf(a)] ?? '').localeCompare(groupNamesById[groupIdOf(b)] ?? ''),
+      },
+      render: (_: unknown, user: User) => groupNamesById[groupIdOf(user)] ?? `#${groupIdOf(user)}`,
+    };
+    const withGroupColumn = (cols: (typeof USERS_TABLE_COLUMNS)[number][]) =>
+      isMulti ? [groupNameColumn, ...cols] : cols;
+
     if (profile.isPresential) {
       // En presencial el porcentaje/tiempo no aplican (no hay Moodle): se sustituye
       // la columna Progreso por el estado de finalización.
@@ -506,7 +553,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         .filter((column) => column.title !== 'Tiempo')
         .map((column) => (column.title === 'Progreso' ? finalizedColumn : column));
       if (profile.showBonificationButton) cols.push(bonifiedColumn);
-      return cols;
+      return withGroupColumn(cols);
     }
 
     const groupSyncedColumn = {
@@ -533,8 +580,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
     if (profile.showBonificationButton) {
       cols.push(bonifiedColumn);
     }
-    return cols;
-  }, [profile, itopTrainingEnabled]);
+    return withGroupColumn(cols);
+  }, [profile, itopTrainingEnabled, isMulti, groupNamesById]);
 
   const { totalStudents, studentsAtOrAbove75, bonifiedStudents } = useMemo(() => {
     let total = 0;
@@ -629,9 +676,9 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
   ];
 
   const handleUsuariosMenuClick: MenuProps['onClick'] = ({ key }) => {
-    if (key === 'gestor' && groupId) setIsManageModalOpen(true);
-    if (key === 'importar' && groupId) setIsImportModalOpen(true);
-    if (key === 'peticiones' && groupId) setIsImportFromRequestsModalOpen(true);
+    if (key === 'gestor' && singleGroupId) setIsManageModalOpen(true);
+    if (key === 'importar' && singleGroupId) setIsImportModalOpen(true);
+    if (key === 'peticiones' && singleGroupId) setIsImportFromRequestsModalOpen(true);
   };
 
   const handleMoodleMenuClick: MenuProps['onClick'] = ({ key }) => {
@@ -644,7 +691,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
       if (!usersData || usersData.length === 0) return messageApi.warning('No hay usuarios para exportar');
       if (!selectedUserIds || selectedUserIds.length === 0) return messageApi.warning('Selecciona al menos un usuario para exportar');
       try {
-        const result = await exportUsersToMailCsv(selectedUserIds, usersData, groupData?.group_name);
+        const result = await exportUsersToMailCsv(selectedUserIds, usersData, groupData?.group_name, groupNamesById);
         if (!result || result.rowsCount === 0) { messageApi.info('Exportación cancelada'); return; }
         messageApi.success(`CSV exportado correctamente (${result.rowsCount} filas)`);
       } catch (err) {
@@ -683,24 +730,35 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         {/* Izquierda: acciones de gestión */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
-            <Dropdown menu={{ items: usuariosMenuItems, onClick: handleUsuariosMenuClick }}>
-              <Button icon={<TeamOutlined />}>
-                Matricular <DownOutlined />
-              </Button>
-            </Dropdown>
+            {/* El span intermedio es necesario: un Button/Dropdown disabled tiene
+                pointer-events:none y nunca dispara el hover del Tooltip envolvente. */}
+            <Tooltip title={isMulti ? 'Selecciona un único grupo para matricular' : undefined}>
+              <span>
+                <Dropdown menu={{ items: usuariosMenuItems, onClick: handleUsuariosMenuClick }} disabled={isMulti}>
+                  <Button icon={<TeamOutlined />} disabled={isMulti}>
+                    Matricular <DownOutlined />
+                  </Button>
+                </Dropdown>
+              </span>
+            </Tooltip>
 
             {profile.showMoodleSync && (
-              <Dropdown
-                menu={{ items: moodleMenuItems, onClick: handleMoodleMenuClick }}
-                disabled={syncMoodleGroupMembersPending}
-              >
-                <Button
-                  icon={<CloudDownloadOutlined style={{ color: BRAND_COLORS.moodle }} />}
-                  loading={syncMoodleGroupMembersPending}
-                >
-                  Moodle <DownOutlined />
-                </Button>
-              </Dropdown>
+              <Tooltip title={isMulti ? 'Selecciona un único grupo para sincronizar con Moodle' : undefined}>
+                <span>
+                  <Dropdown
+                    menu={{ items: moodleMenuItems, onClick: handleMoodleMenuClick }}
+                    disabled={isMulti || syncMoodleGroupMembersPending}
+                  >
+                    <Button
+                      icon={<CloudDownloadOutlined style={{ color: BRAND_COLORS.moodle }} />}
+                      loading={syncMoodleGroupMembersPending}
+                      disabled={isMulti}
+                    >
+                      Moodle <DownOutlined />
+                    </Button>
+                  </Dropdown>
+                </span>
+              </Tooltip>
             )}
 
             <Dropdown menu={{ items: exportarMenuItems, onClick: handleExportarMenuClick }}>
@@ -757,17 +815,25 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
           </AuthzHide>
           <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
             {profile.showBonificationButton && (
-              <Button onClick={openBonification} type="primary" icon={<SaveOutlined />}>
-                Bonificar
-              </Button>
+              <Tooltip title={isMulti ? 'Selecciona un único grupo para bonificar' : undefined}>
+                <span>
+                  <Button onClick={openBonification} type="primary" icon={<SaveOutlined />} disabled={isMulti}>
+                    Bonificar
+                  </Button>
+                </span>
+              </Tooltip>
             )}
           </AuthzHide>
         </div>
       </div>
 
+      {/* Table<User>: USERS_TABLE_COLUMNS está tipado para User; mezclarlo con
+          Table<UserWithGroup> crea un ciclo genérico irresoluble en los tipos de antd
+          (ColumnTitleProps es autorreferencial). Los datos reales sí llevan id_group —
+          se castea puntualmente donde hace falta leerlo (rowKey, columna "Grupo", selección). */}
       <Table<User>
         id="group-users-table"
-        rowKey="id_user"
+        rowKey={(u) => `${(u as UserWithGroup).id_group}-${u.id_user}`}
         dataSource={sortedUsers}
         columns={columns}
         loading={isLoading}
@@ -777,10 +843,12 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
           const syncedAt = groupData?.moodle_synced_at;
           const formattedDate = formatDateTime(syncedAt, 'Sin sincronizar');
           return (
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, paddingRight: 8 }}>
-              <div style={{ fontSize: '0.9em', color: token.colorTextSecondary }}>
-                <strong>Última sincronización:</strong>&nbsp;{formattedDate}
-              </div>
+            <div style={{ display: 'flex', justifyContent: isMulti ? 'flex-end' : 'space-between', gap: 16, paddingRight: 8 }}>
+              {!isMulti && (
+                <div style={{ fontSize: '0.9em', color: token.colorTextSecondary }}>
+                  <strong>Última sincronización:</strong>&nbsp;{formattedDate}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 16 }}>
                 <strong>Estudiantes:</strong>&nbsp;{totalStudents}
                 <span>•</span>
@@ -810,26 +878,24 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         })}
         rowSelection={{
           type: 'checkbox',
-          selectedRowKeys: selectedUserIds,
-          onChange: (_keys: React.Key[], selectedRows: User[]) => {
-            const onlyStudents = selectedRows
-              .filter((u) => isStudentUser(u))
-              .map((u) => u.id_user);
-            setSelectedUserIds(onlyStudents);
+          selectedRowKeys: selectedRows.map((r) => `${r.id_group}-${r.id_user}`),
+          onChange: (_keys: React.Key[], selectedRowsArg: User[]) => {
+            const onlyStudents = (selectedRowsArg as UserWithGroup[]).filter((u) => isStudentUser(u));
+            setSelectedRows(onlyStudents);
           },
           getCheckboxProps: (record: User) => ({
-            id: `user-checkbox-${record.id_user}`,
+            id: `user-checkbox-${(record as UserWithGroup).id_group}-${record.id_user}`,
             disabled: !isStudentUser(record),
           }),
         }}
         size="small"
       />
 
-      <CreateUserGroupModal open={isManageModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsManageModalOpen(false)} />
-      <ImportUsersToGroupModal open={isImportModalOpen} groupId={groupId ? String(groupId) : undefined} onClose={() => setIsImportModalOpen(false)} onSuccess={() => setIsImportModalOpen(false)} />
+      <CreateUserGroupModal open={isManageModalOpen} groupId={singleGroupId ? String(singleGroupId) : undefined} onClose={() => setIsManageModalOpen(false)} />
+      <ImportUsersToGroupModal open={isImportModalOpen} groupId={singleGroupId ? String(singleGroupId) : undefined} onClose={() => setIsImportModalOpen(false)} onSuccess={() => setIsImportModalOpen(false)} />
       <ImportFromCourseRequestsModal
         open={isImportFromRequestsModalOpen}
-        groupId={groupId}
+        groupId={singleGroupId}
         catalogCourseId={catalogCourseId}
         onClose={() => setIsImportFromRequestsModalOpen(false)}
         onSuccess={() => { setIsImportFromRequestsModalOpen(false); void refetch(); }}
@@ -837,8 +903,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
       <SendMailToGroupModal
         open={isSendMailOpen}
-        users={(usersData || []).filter(u => selectedUserIds.includes(u.id_user))}
-        tutors={(usersData || [])
+        users={dedupeByUserId(selectedRows)}
+        tutors={dedupeByUserId(usersData || [])
           .filter((u) => !!u.is_tutor && String(u.role_shortname ?? '').toLowerCase() !== 'student' && !!u.email)
           .map((u) => ({
             id_user: u.id_user,
@@ -854,7 +920,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
 
       <SendReportMailModal
         open={isSendReportOpen}
-        selection={{ selected_keys: groupId ? selectedUserIds.map((id) => `${id}-${groupId}`) : [] }}
+        selection={{ selected_keys: selectedRows.map((r) => `${r.id_user}-${r.id_group}`) }}
         onOk={() => setIsSendReportOpen(false)}
         onCancel={() => setIsSendReportOpen(false)}
       />
@@ -868,11 +934,11 @@ const GroupUsersManager: React.FC<Props> = ({ groupId, courseName, courseModalit
         selectedUserIds={selectedUserIds}
         selectedCenters={selectedCenters}
         setSelectedCenters={setSelectedCenters}
-        groupId={groupId}
+        groupId={singleGroupId}
         updateUserEnrollmentCenterMutation={updateUserEnrollmentCenterMutation}
         refetchUsersByGroup={() => refetch?.()}
         message={messageApi}
-        onRemoveUser={(id) => setSelectedUserIds(prev => prev.filter(x => x !== id))}
+        onRemoveUser={(id) => setSelectedRows(prev => prev.filter(r => r.id_user !== id))}
       />
 
       <Modal

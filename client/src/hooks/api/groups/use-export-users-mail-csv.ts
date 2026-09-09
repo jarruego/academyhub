@@ -5,6 +5,9 @@ import type { User } from '../../../shared/types/user/user';
 import type { MoodleUserSelectModel } from '../../../shared/types/moodle/moodle-user.types';
 import { buildCsv, saveCsv, safeFilename } from '../../../utils/export-utils';
 
+// Con varios grupos fusionados (ver GroupUsersManager), cada fila trae su propio id_group.
+type UserRow = User & { id_group?: number };
+
 type ExportRow = {
   usuario: string;
   contraseña: string;
@@ -49,8 +52,15 @@ export const useExportUsersToMailCsv = () => {
     return results;
   };
 
-  const exportSelected = useCallback(async (selectedUserIds: number[], usersData: User[], groupName?: string) => {
-    const selected = selectedUserIds.map(id => usersData.find(u => u.id_user === id)).filter(Boolean) as User[];
+  const exportSelected = useCallback(async (
+    selectedUserIds: number[],
+    usersData: UserRow[],
+    groupName?: string,
+    // Nombre de grupo por id_group: si se indica, cada fila usa el suyo (varios grupos
+    // fusionados) en vez del único `groupName` compartido por todas las filas.
+    groupNamesById?: Record<number, string>,
+  ) => {
+    const selected = selectedUserIds.map(id => usersData.find(u => u.id_user === id)).filter(Boolean) as UserRow[];
     if (selected.length === 0) throw new Error('No users selected');
 
     // get moodle results in batches to avoid bursts
@@ -72,7 +82,7 @@ export const useExportUsersToMailCsv = () => {
       const porcentajeRaw = u.completion_percentage ?? 0;
       const porcentaje = (typeof porcentajeRaw === 'number' && porcentajeRaw > 0 && porcentajeRaw <= 1) ? (porcentajeRaw * 100).toString() : String(porcentajeRaw ?? '0');
       const centro = mainCenter ? mainCenter.center_name ?? '' : '';
-      const grupo = groupName ?? '';
+      const grupo = (groupNamesById && u.id_group != null) ? (groupNamesById[u.id_group] ?? '') : (groupName ?? '');
 
       return {
         usuario: username,

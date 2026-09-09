@@ -106,6 +106,11 @@ export default function CourseDetailRoute() {
   }, [groupsData]);
   // A course is active if it has at least one active group (derived state).
   const courseActive = useMemo(() => (groupsData ?? []).some((g) => isGroupActive(g)), [groupsData]);
+  // Nombres de grupo por id, para la columna "Grupo" en la vista fusionada de GroupUsersManager.
+  const groupNamesById = useMemo(
+    () => Object.fromEntries(sortedGroups.map((g) => [g.id_group, g.group_name])),
+    [sortedGroups],
+  );
   // Enlace al curso en Moodle. La URL configurada puede ser la del webservice
   // (p.ej. .../webservice/rest/server.php), por eso se usa solo el origin.
   const { data: orgSettings } = useOrganizationSettingsQuery();
@@ -121,12 +126,14 @@ export default function CourseDetailRoute() {
   // Preinscripciones del curso: solo ADMIN/MANAGER (el endpoint exige ese rol).
   // La pestaña solo aparece si el curso tiene preinscripciones asociadas.
   const { mutateAsync: updateCourse } = useUpdateCourseMutation(id_course || "");
-  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  // Selección de grupos: 1 = comportamiento de siempre (Matricular/Moodle/Bonificar
+  // disponibles); 2+ = vista fusionada de alumnos (solo lectura + Correo/Informe).
+  const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
+  const selectedGroupId = selectedGroupIds.length === 1 ? selectedGroupIds[0] : null;
   const { refetch: refetchUsersByGroup } = useUsersByGroupQuery(selectedGroupId);
   const { mutateAsync: deleteCourse } = useDeleteCourseMutation(id_course || "");
   // Perezosa: solo se consulta al pulsar "Eliminar Curso" (ver handleDelete).
   const { refetch: checkCourseDeletion } = useCourseDeletionCheckQuery(id_course || "");
-  const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [userToLookup, setUserToLookup] = useState<number | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -185,30 +192,28 @@ export default function CourseDetailRoute() {
       appliedInitialGroupRef.current = true;
       const requestedId = initialGroupIdRef.current;
       if (sortedGroups.some((g) => g.id_group === requestedId)) {
-        setSelectedGroupId(requestedId);
+        setSelectedGroupIds([requestedId]);
         return;
       }
     }
-    setSelectedGroupId((prev) => {
-      const stillExists = prev != null && sortedGroups.some((g) => g.id_group === prev);
-      return stillExists ? prev : sortedGroups[0].id_group;
+    setSelectedGroupIds((prev) => {
+      const stillValid = prev.length > 0 && prev.every((id) => sortedGroups.some((g) => g.id_group === id));
+      return stillValid ? prev : [sortedGroups[0].id_group];
     });
   }, [sortedGroups]);
 
   useEffect(() => {
-    if (selectedGroupId != null) {
-      setSelectedRowKeys([selectedGroupId]);
-    }
-  }, [selectedGroupId]);
-
-  useEffect(() => {
-    if (selectedGroupId == null) return;
+    // Solo tiene sentido llevar el scroll automático cuando hay una única fila
+    // seleccionada (carga inicial o click simple); con selección múltiple no hay
+    // una fila "la" seleccionada a la que desplazarse.
+    if (selectedGroupIds.length !== 1) return;
+    const onlyId = selectedGroupIds[0];
     const timeoutId = window.setTimeout(() => {
-      const row = document.querySelector(`#groups-table tr[data-row-key="${selectedGroupId}"]`);
+      const row = document.querySelector(`#groups-table tr[data-row-key="${onlyId}"]`);
       row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 300);
     return () => window.clearTimeout(timeoutId);
-  }, [selectedGroupId]);
+  }, [selectedGroupIds]);
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -316,8 +321,34 @@ export default function CourseDetailRoute() {
   };
 
   const handleRowClick = (record: { id_group: number }) => {
-    setSelectedGroupId(record.id_group);
-    setSelectedRowKeys([record.id_group]);
+    setSelectedGroupIds([record.id_group]);
+  };
+
+  // Misma fecha de inicio/fin (o ambas vacías) para poder fusionar varios grupos: si no, las
+  // variables {FECHA_INICIO}/{FECHA_FIN} de "Correo" quedarían ambiguas entre grupos distintos.
+  const groupDateKey = (g: Group) => {
+    const s = g.start_date ? dayjs(g.start_date).format('YYYY-MM-DD') : '';
+    const e = g.end_date ? dayjs(g.end_date).format('YYYY-MM-DD') : '';
+    return `${s}|${e}`;
+  };
+
+  const handleGroupSelectionChange = (keys: number[]) => {
+    if (keys.length <= 1) {
+      setSelectedGroupIds(keys);
+      return;
+    }
+    const groups = keys
+      .map((id) => sortedGroups.find((g) => g.id_group === id))
+      .filter((g): g is Group => Boolean(g));
+    const distinctDateKeys = new Set(groups.map(groupDateKey));
+    if (distinctDateKeys.size > 1) {
+      modal.warning({
+        title: 'No se pueden combinar estos grupos',
+        content: 'Solo puedes seleccionar varios grupos a la vez si tienen exactamente las mismas fechas de inicio y fin — si no, las fechas que se muestran en correos e informes serían ambiguas.',
+      });
+      return;
+    }
+    setSelectedGroupIds(keys);
   };
 
   const hasMoodleId = Boolean(courseData?.moodle_id);
@@ -705,10 +736,9 @@ export default function CourseDetailRoute() {
                   pagination={false}
                   scroll={{ y: 500 }}
                   rowSelection={{
-                    type: 'radio',
-                    selectedRowKeys,
-                    onChange: (selectedRowKeys) => setSelectedRowKeys(selectedRowKeys as number[]),
-                    renderCell: () => null,
+                    type: 'checkbox',
+                    selectedRowKeys: selectedGroupIds,
+                    onChange: (keys) => handleGroupSelectionChange(keys as number[]),
                   }}
                   id="groups-table"
                   onRow={(record) => ({
@@ -723,14 +753,15 @@ export default function CourseDetailRoute() {
               </Col>
               <Col xs={24} lg={16}>
                 <GroupUsersManager
-                  groupId={selectedGroupId}
+                  groupIds={selectedGroupIds}
+                  groupNamesById={groupNamesById}
                   courseName={courseData?.course_name}
                   courseModality={courseData?.modality}
                   courseClient={courseData?.client}
                   courseFunding={courseData?.funding}
                   catalogCourseId={courseData?.id_catalog_course}
-                  groupStart={sortedGroups.find(g => g.id_group === selectedGroupId)?.start_date}
-                  groupEnd={sortedGroups.find(g => g.id_group === selectedGroupId)?.end_date}
+                  groupStart={sortedGroups.find(g => g.id_group === selectedGroupIds[0])?.start_date}
+                  groupEnd={sortedGroups.find(g => g.id_group === selectedGroupIds[0])?.end_date}
                   highlightUserId={highlightUserId}
                 />
               </Col>

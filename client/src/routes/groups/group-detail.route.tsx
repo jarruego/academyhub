@@ -166,7 +166,7 @@ export default function EditGroupRoute() {
             )}
           </div>
           <GroupUsersManager
-            groupId={id_group ? parseInt(id_group, 10) : null}
+            groupIds={id_group ? [parseInt(id_group, 10)] : []}
             courseName={courseData?.course_name}
             courseModality={courseData?.modality}
             courseClient={courseData?.client}
