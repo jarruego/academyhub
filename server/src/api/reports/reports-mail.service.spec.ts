@@ -189,7 +189,20 @@ describe('ReportsMailService', () => {
     await service.sendReportMail({ ...baseBody, html: '<p>Del {FECHA_INICIO} al {FECHA_FIN}</p>' });
 
     const call = mailService.sendMail.mock.calls[0][0];
-    expect(call.html).toBe('<p>Del 1/9/2026 al 1/12/2026</p>');
+    expect(call.html).toBe('<p>Del 01/09/2026 al 01/12/2026</p>');
+  });
+
+  it('{FECHA_FIN} no se adelanta un día cuando la medianoche de Madrid cae en el día UTC anterior (verano, UTC+2)', async () => {
+    // 2026-09-07T22:00:00Z es la medianoche del 8 de septiembre en Europe/Madrid
+    // (CEST, UTC+2). Formatear en UTC directamente (bug ya corregido) daba "7/9/2026".
+    const { service, mailService } = makeService([
+      makeRow({ group_end_date: new Date('2026-09-07T22:00:00Z') }),
+    ]);
+
+    await service.sendReportMail({ ...baseBody, html: '<p>Fin: {FECHA_FIN}</p>' });
+
+    const call = mailService.sendMail.mock.calls[0][0];
+    expect(call.html).toBe('<p>Fin: 08/09/2026</p>');
   });
 
   it('deja {FECHA_INICIO}/{FECHA_FIN} vacías cuando el grupo mezcla fechas distintas de verdad', async () => {

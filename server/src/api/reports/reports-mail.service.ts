@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import dayjs from '../../common/utils/dayjs-tz';
 import { ReportsService, ReportRowsSelection } from './reports.service';
 import { ReportsPdfService } from './reports-pdf.service';
 import { MailService, EmailActor, SendMailAttachment } from '../mail/mail.service';
@@ -179,12 +180,18 @@ export class ReportsMailService {
     // valor, así que con 2+ alumnos casi nunca detectaba "una sola fecha" y
     // {FECHA_INICIO}/{FECHA_FIN} salían siempre vacías. Se normaliza a una
     // clave de fecha (YYYY-MM-DD) antes de deduplicar.
+    //
+    // Esa clave — y su formateo posterior — deben interpretarse en la zona
+    // horaria de la organización (Europe/Madrid), no en la del proceso Node
+    // (UTC en producción): mismo bug de "-1 día" ya corregido en
+    // MoodleService al crear grupos (ver comentario allí).
+    const REPORT_TZ = 'Europe/Madrid';
     const toDateKey = (v: unknown): string | undefined => {
       if (!v) return undefined;
-      const d = v instanceof Date ? v : new Date(String(v));
-      return Number.isNaN(d.getTime()) ? undefined : d.toISOString().slice(0, 10);
+      const d = dayjs(v as string | Date).tz(REPORT_TZ);
+      return d.isValid() ? d.format('YYYY-MM-DD') : undefined;
     };
-    const formatDateKey = (key: string) => new Date(`${key}T00:00:00Z`).toLocaleDateString('es-ES', { timeZone: 'UTC' });
+    const formatDateKey = (key: string) => dayjs.tz(key, REPORT_TZ).format('DD/MM/YYYY');
 
     const startKeys = [...new Set(group.rows.map((r) => toDateKey(r.group_start_date)).filter((v): v is string => !!v))];
     const endKeys = [...new Set(group.rows.map((r) => toDateKey(r.group_end_date)).filter((v): v is string => !!v))];
