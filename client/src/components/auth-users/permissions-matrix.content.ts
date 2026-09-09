@@ -42,6 +42,11 @@ const split = (): Record<Role, PermissionMatrixAccess> =>
 const candidatesFlag = (): Record<Role, PermissionMatrixAccess> =>
   ({ [ADMIN]: 'yes', [MANAGER]: 'yes', [VIEWER]: 'flag', [TUTOR]: 'flag', [CONSULTOR]: 'flag' });
 
+// Importación INAEM (desde 2026-09-09): solo ADMIN tiene acceso pleno; el resto,
+// incluido MANAGER, solo entra con el flag can_manage_candidates.
+const adminFullRestFlag = (): Record<Role, PermissionMatrixAccess> =>
+  ({ [ADMIN]: 'yes', [MANAGER]: 'flag', [VIEWER]: 'flag', [TUTOR]: 'flag', [CONSULTOR]: 'flag' });
+
 export const PERMISSIONS_MATRIX_UPDATED_AT = '2026-09-09';
 
 export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
@@ -57,26 +62,25 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     key: 'organization',
     title: 'Organización, SMTP y plantillas de correo',
     rows: [
-      { label: 'Ver ajustes de organización / SMTP / plantillas', access: all('yes'), note: 'Sin restricción de rol en cliente ni servidor (lectura)' },
+      { label: 'Ver ajustes de organización / SMTP / plantillas (lectura, API)', access: all('yes') },
       { label: 'Guardar ajustes de organización, SMTP o plantillas', access: adminOnly() },
+      { label: 'Pantallas "SMTP" y "Plantillas de correo" (Administración → Correo)', access: adminOnly() },
     ],
   },
   {
     key: 'import-sage',
     title: 'Importación SAGE',
     rows: [
-      { label: 'Subir CSV/FTP, decisiones, jobs, usuarios fallidos', access: adminManager() },
-      { label: 'Limpiar jobs, recuperar interrumpidos, borrar fallidos en bloque', access: adminOnly() },
-      { label: 'Pantalla "Importación SAGE"', access: adminOnly(), note: 'MANAGER tiene API pero no ve la pantalla — ver hallazgos de la auditoría' },
+      { label: 'Todo (subir CSV/FTP, decisiones, jobs, usuarios fallidos, pantalla)', access: adminOnly(), note: 'Solo ADMIN — es una tarea automática (cron) o de administración' },
     ],
   },
   {
     key: 'import-inaem',
     title: 'Importación INAEM',
     rows: [
-      { label: 'Importar Acciones / Alumnos, Preinscripciones sin restricción', access: adminManager() },
-      { label: 'Importar Preinscritos INAEM acotado a una edición', access: candidatesFlag() },
-      { label: 'Borrar preinscripciones de un curso, resolver conflictos', access: adminManager() },
+      { label: 'Importar Acciones / Alumnos, Preinscripciones sin restricción, borrar/resolver conflictos', access: adminOnly() },
+      { label: 'Importar Preinscritos INAEM acotado a una edición', access: adminFullRestFlag(), note: 'MANAGER también necesita el flag desde 2026-09-09' },
+      { label: 'Pantalla "Importación INAEM"', access: adminOnly() },
     ],
   },
   {
@@ -99,7 +103,7 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     title: 'Candidatos, catálogo e interesados',
     rows: [
       { label: 'Ver candidatos / interesados / catálogo', access: all('yes') },
-      { label: 'Crear/borrar/editar candidatos e interesados', access: candidatesFlag(), note: 'Split 3 — TUTOR tiene acceso pleno sin necesitar el flag' },
+      { label: 'Crear/borrar/editar candidatos e interesados', access: candidatesFlag(), note: 'Split 3 — TUTOR tiene acceso pleno sin necesitar el flag (confirmado intencional)' },
       { label: 'Crear, editar o fusionar un curso de catálogo', access: adminOnly() },
       { label: 'Editar contenidos del curso de catálogo', access: adminManager() },
     ],
@@ -109,7 +113,7 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     title: 'Peticiones de centros',
     rows: [
       { label: 'Ver peticiones, informe, PDF', access: all('yes') },
-      { label: 'Crear/editar/cerrar/borrar petición, matricular desde petición', access: adminManager(), note: 'A diferencia de Candidatos/Interesados, aquí TUTOR no escribe' },
+      { label: 'Crear/editar/cerrar/borrar petición, matricular desde petición', access: adminManager(), note: 'A diferencia de Candidatos/Interesados, aquí TUTOR no escribe (confirmado intencional)' },
     ],
   },
   {
@@ -137,8 +141,8 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     title: 'Empresas y centros',
     rows: [
       { label: 'Ver empresa/centro, listar, usuarios del centro', access: all('yes') },
-      { label: 'Crear/borrar empresa o centro, gestionar usuarios del centro', access: adminOnly() },
-      { label: 'Editar empresa/centro', access: adminOnly(), note: '⚠️ el cliente se lo muestra también a MANAGER (ver hallazgos)' },
+      { label: 'Crear/editar/borrar empresa o centro, gestionar usuarios del centro', access: adminOnly() },
+      { label: 'Actualizar centro principal en bloque', access: adminManager() },
       { label: '"Formación en el centro" (pestaña)', access: split(), note: 'Split 1' },
     ],
   },
@@ -148,7 +152,8 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     rows: [
       { label: 'Ver/listar usuarios, centros/cursos de un usuario, certificado', access: all('yes') },
       { label: 'Borrar usuario', access: adminOnly() },
-      { label: 'Crear usuario, importar de Moodle, alta/edición en bloque', access: adminManager(), note: 'Botón del listado solo lo ve ADMIN, pero MANAGER puede entrar por /create-user' },
+      { label: 'Crear usuario (formulario dedicado)', access: adminOnly(), note: 'Botón y página /create-user, ambos ADMIN desde 2026-09-09' },
+      { label: 'Importar de Moodle, alta/edición en bloque', access: adminManager() },
       { label: 'Editar ficha completa de usuario', access: { ...adminManager(), [TUTOR]: 'yes' } },
       { label: 'Editar solo datos de identidad (alta rápida / posible duplicado)', access: candidatesFlag() },
       { label: 'Enviar correo a un usuario', access: split(), note: 'Split 2' },
@@ -159,7 +164,7 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     title: 'Informes',
     rows: [
       { label: 'Listar informes, exportar PDF/Excel', access: all('yes') },
-      { label: 'Exportar/enviar informe con contraseñas', access: adminManager() },
+      { label: 'Exportar/enviar informe con contraseñas', access: adminManager(), note: 'Pendiente de decidir si TUTOR debería poder enviarlo (no exportarlo) — ver "Open items" en docs/permissions-matrix.md' },
       { label: 'Enviar informe a centros', access: split(), note: 'Split 1' },
     ],
   },

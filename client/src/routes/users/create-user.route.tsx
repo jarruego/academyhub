@@ -1,4 +1,4 @@
-import { App, Button, Form, Input, Checkbox, Select, DatePicker, Row, Col } from "antd";
+import { App, Alert, Card, Button, Form, Input, Checkbox, Select, DatePicker, Row, Col } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCreateUserMutation } from "../../hooks/api/users/use-create-user.mutation";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
@@ -13,6 +13,7 @@ import { DNI_SCHEMA } from "../../schemas/dni.schema";
 import { detectDocumentType } from "../../utils/detect-document-type";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
+import { useRole } from "../../utils/permissions/use-role";
 import { SALARY_GROUP_OPTIONS, EDUCATION_LEVEL_OPTIONS } from '../../constants/options/user-options';
 
 const CREATE_USER_FORM = z.object({
@@ -50,6 +51,7 @@ const CREATE_USER_FORM = z.object({
 
 export default function CreateUserRoute() {
   const navigate = useNavigate();
+  const role = useRole();
   const { mutateAsync: createUser } = useCreateUserMutation();
   const { handleSubmit, control, setValue, watch, formState: {errors} } = useForm({
     resolver: zodResolver(CREATE_USER_FORM)
@@ -84,6 +86,22 @@ export default function CreateUserRoute() {
         content: "Revise los datos e inténtelo de nuevo.",
       });
     }
+  }
+
+  // POST /user es ADMIN-only desde 2026-09-09 (ver docs/permissions-matrix.md);
+  // sin esto, MANAGER podía llegar aquí navegando directo a /create-user y
+  // rellenar un formulario que el servidor le iba a rechazar al enviar.
+  if (role?.toLowerCase() !== Role.ADMIN) {
+    return (
+      <Card>
+        <Alert
+          message="Acceso denegado"
+          description="Solo los administradores pueden crear usuarios."
+          type="error"
+          showIcon
+        />
+      </Card>
+    );
   }
 
   return (

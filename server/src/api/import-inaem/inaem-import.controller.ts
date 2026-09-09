@@ -37,7 +37,7 @@ class UploadInaemDto {
   @IsBoolean()
   createMissingCourses?: boolean;
 
-  // Obligatorio solo para quien accede vía can_manage_candidates (no ADMIN/MANAGER):
+  // Obligatorio solo para quien accede vía can_manage_candidates (no ADMIN):
   // acota el import de Preinscripciones al expediente de esta edición.
   @IsOptional()
   @Type(() => Number)
@@ -65,14 +65,17 @@ export class InaemImportController {
    * Sube hasta tres ficheros del INAEM (todos opcionales). Si se envían varios,
    * se procesan en orden: Acciones -> Preinscripciones -> Alumnos.
    *
-   * Guard ampliado a propósito respecto al resto del controlador (que sigue
-   * ADMIN/MANAGER): quien no sea ADMIN/MANAGER solo puede pasar si tiene el
-   * permiso puntual `can_manage_candidates` (auth_users.can_manage_candidates),
-   * y en ese caso queda restringido aquí mismo, en el handler (no en el guard,
-   * que no puede ver los ficheros subidos — los rellena el interceptor después):
-   * nunca puede enviar Acciones/Alumnos, y su fichero de Preinscripciones se
-   * acota al Nº de Expediente de `id_course` (obligatorio en ese caso),
-   * forzando además `createMissingCourses: false`. Ver docs/import-inaem.md.
+   * Guard ampliado a propósito respecto al resto del controlador (que ahora es
+   * ADMIN-only, ver más abajo): quien no sea ADMIN solo puede pasar si tiene el
+   * permiso puntual `can_manage_candidates` (auth_users.can_manage_candidates)
+   * — incluido MANAGER, que desde 2026-09-09 NO tiene acceso pleno a esta
+   * importación (decisión explícita: no es tarea suya salvo que gestione
+   * candidaturas de una edición concreta) — y en ese caso queda restringido
+   * aquí mismo, en el handler (no en el guard, que no puede ver los ficheros
+   * subidos — los rellena el interceptor después): nunca puede enviar
+   * Acciones/Alumnos, y su fichero de Preinscripciones se acota al Nº de
+   * Expediente de `id_course` (obligatorio en ese caso), forzando además
+   * `createMissingCourses: false`. Ver docs/import-inaem.md.
    */
   @Post("upload")
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
@@ -104,12 +107,12 @@ export class InaemImportController {
       throw new HttpException("No se ha proporcionado ningún fichero", HttpStatus.BAD_REQUEST);
     }
 
-    const hasFullAccess = req.user.role === Role.ADMIN || req.user.role === Role.MANAGER;
+    const hasFullAccess = req.user.role === Role.ADMIN;
     let restrictToFileNumber: string | undefined;
 
     if (!hasFullAccess) {
       if (payload.acciones || payload.alumnos) {
-        throw new ForbiddenException("Solo ADMIN/MANAGER pueden importar Acciones o Alumnos.");
+        throw new ForbiddenException("Solo ADMIN puede importar Acciones o Alumnos.");
       }
       if (!req.user.can_manage_candidates) {
         throw new ForbiddenException("No tienes permiso para importar Preinscripciones INAEM.");
@@ -152,7 +155,7 @@ export class InaemImportController {
   }
 
   @Get("preinscriptions/by-user/:id")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @ApiOperation({ summary: "Preinscripciones de un usuario (ficha de usuario)" })
   async getUserPreinscriptions(@Param("id") id: string) {
     const num = parseInt(id, 10);
@@ -161,7 +164,7 @@ export class InaemImportController {
   }
 
   @Get("preinscriptions/by-course/:id")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @ApiOperation({ summary: "Preinscritos de un curso/expediente" })
   async getCoursePreinscriptions(@Param("id") id: string) {
     const num = parseInt(id, 10);
@@ -170,7 +173,7 @@ export class InaemImportController {
   }
 
   @Get("preinscriptions/by-course/:id/enrolled-count")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @ApiOperation({ summary: "Nº de usuarios matriculados en algún grupo del curso" })
   async getCourseEnrolledCount(@Param("id") id: string) {
     const num = parseInt(id, 10);
@@ -188,14 +191,14 @@ export class InaemImportController {
   }
 
   @Get("conflicts")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @ApiOperation({ summary: "Conflictos de sobrescritura pendientes (usuario ya existente)" })
   async getConflicts() {
     return this.inaemImportService.getPendingConflicts();
   }
 
   @Put("conflicts/:id/resolve")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @ApiOperation({ summary: "Resolver un conflicto: overwrite (sobrescribir) o keep (mantener)" })
   async resolveConflict(@Param("id") id: string, @Body() body: ResolveConflictDto) {
     const num = parseInt(id, 10);
@@ -205,7 +208,7 @@ export class InaemImportController {
   }
 
   @Delete("conflicts")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @ApiOperation({ summary: "Borrar todos los conflictos INAEM pendientes" })
   async deleteAllConflicts() {
     const deleted = await this.inaemImportService.deleteAllPendingConflicts();
@@ -213,7 +216,7 @@ export class InaemImportController {
   }
 
   @Delete("conflicts/:id")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @ApiOperation({ summary: "Borrar (descartar) un conflicto INAEM pendiente sin tocar el usuario" })
   async deleteConflict(@Param("id") id: string) {
     const num = parseInt(id, 10);

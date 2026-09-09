@@ -40,7 +40,10 @@ export default function EditCenterRoute() {
   const navigate = useNavigate();
   const location = useLocation();
   const role = useRole();
-  const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
+  // Solo ADMIN (decisión 2026-09-09): PUT /center/:id ya era ADMIN-only en
+  // servidor, esto cerraba el hueco de mostrarle a MANAGER un formulario
+  // editable que el servidor le iba a rechazar. Ver docs/permissions-matrix.md.
+  const canEdit = role === Role.ADMIN;
   const { data: centerData, isLoading: isCenterLoading } = useCenterQuery(id_center || "");
   const { data: companyData, isLoading: isCompanyLoading } = useCompanyQuery(centerData?.id_company ? String(centerData.id_company) : "");
   const { mutateAsync: updateCenter } = useUpdateCenterMutation(id_center || "");
@@ -193,7 +196,7 @@ export default function EditCenterRoute() {
         </Row>
         <div className="form-actions">
           <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-          <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+          <AuthzHide roles={[Role.ADMIN]}>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="save-center">Guardar</Button>
           <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />}>Eliminar Centro</Button>
           </AuthzHide>

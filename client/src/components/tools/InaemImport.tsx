@@ -115,7 +115,11 @@ const InaemImport: React.FC = () => {
   const summary = jobStatus?.resultSummary;
 
   return (
-    <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+    // Solo ADMIN (decisión 2026-09-09): esta herramienta general (Acciones/
+    // Alumnos/Preinscripciones sin restricción) ya no es accesible para MANAGER
+    // — su único acceso a la importación INAEM ahora es el botón acotado a una
+    // edición en la pestaña Candidatos, y solo con el flag can_manage_candidates.
+    <AuthzHide roles={[Role.ADMIN]}>
       <div>
         <PageHeader
           title="Importación INAEM"

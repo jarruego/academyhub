@@ -97,7 +97,10 @@ export function CourseCandidatesSection({ courseId, catalogCourseId, canEdit }: 
   const { message, modal } = App.useApp();
   const role = useRole();
   const canManageCandidates = useCanManageCandidates();
-  const hasFullInaemAccess = role === Role.ADMIN || role === Role.MANAGER;
+  // Solo ADMIN (decisión 2026-09-09): MANAGER ya no tiene acceso pleno/sin
+  // restricción a la importación INAEM — solo con el flag can_manage_candidates,
+  // igual que VIEWER/TUTOR/CONSULTOR. Ver docs/permissions-matrix.md.
+  const hasFullInaemAccess = role === Role.ADMIN;
   const [importInaemOpen, setImportInaemOpen] = useState(false);
   const { data = [], isLoading } = useCourseCandidatesQuery(courseId);
   const { data: users = [] } = useAllUsersLookupQuery();

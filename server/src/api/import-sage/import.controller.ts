@@ -178,10 +178,13 @@ type MulterFile = {
     stream?: NodeJS.ReadableStream;
 };
 
+// Solo ADMIN: la importación SAGE es una tarea automática (SAGE_IMPORT_CRON,
+// docs/import.md) o manual de administración — MANAGER no participa en ella
+// (decisión 2026-09-09, ver docs/permissions-matrix.md).
 @ApiTags('Import')
 @ApiBearerAuth()
 @Controller('api/import')
-@UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+@UseGuards(RoleGuard([Role.ADMIN]))
 export class ImportController {
     private readonly logger = new Logger(ImportController.name);
 
@@ -646,7 +649,7 @@ export class ImportController {
     }
 
     @Get('failed-users')
-    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+    @UseGuards(RoleGuard([Role.ADMIN]))
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Obtener usuarios que fallaron al importarse' })
     @ApiResponse({
@@ -664,7 +667,7 @@ export class ImportController {
     }
 
     @Get('failed-users/stats')
-    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+    @UseGuards(RoleGuard([Role.ADMIN]))
     @ApiBearerAuth()
     @ApiOperation({ summary: 'Obtener estadísticas de usuarios fallidos' })
     @ApiResponse({

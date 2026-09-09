@@ -28,7 +28,10 @@ const COMPANY_FORM_SCHEMA = z.object({
 export default function CompanyDetailRoute() {
   const navigate = useNavigate();
   const role = useRole();
-  const canEdit = [Role.ADMIN, Role.MANAGER].includes(role);
+  // Solo ADMIN (decisión 2026-09-09): PUT /company/:id ya era ADMIN-only en
+  // servidor, esto cerraba el hueco de mostrarle a MANAGER un formulario
+  // editable que el servidor le iba a rechazar. Ver docs/permissions-matrix.md.
+  const canEdit = role === Role.ADMIN;
   const { id_company } = useParams();
   const { data: companyData, isLoading: isCompanyLoading } = useCompanyQuery(id_company || "");
   const { mutateAsync: updateCompany } = useUpdateCompanyMutation(id_company || "");
@@ -132,7 +135,7 @@ export default function CompanyDetailRoute() {
           </Row>
           <div className="form-actions">
             <Button type="default" onClick={() => navigate(-1)}>Cancelar</Button>
-            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+            <AuthzHide roles={[Role.ADMIN]}>
             <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">Guardar</Button>
             <Button type="primary" danger onClick={handleDelete} icon={<DeleteOutlined />} data-testid="delete-company">Eliminar Empresa</Button>
             </AuthzHide>
@@ -149,7 +152,7 @@ export default function CompanyDetailRoute() {
           loading={isCentersLoading}
           scopedToCompany
           toolbarExtra={
-            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
+            <AuthzHide roles={[Role.ADMIN]}>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleAddCenter}>
                 Añadir Centro
               </Button>

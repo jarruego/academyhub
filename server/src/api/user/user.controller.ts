@@ -20,7 +20,11 @@ export class UserController {
     private readonly userCoursesCertificateService: UserCoursesCertificateService,
   ) {}
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  // Solo ADMIN (decisión 2026-09-09, ver docs/permissions-matrix.md): antes
+  // era ADMIN/MANAGER en servidor pero el botón "Crear usuario" del listado ya
+  // era ADMIN-only en cliente — MANAGER solo podía crear navegando directo a
+  // /create-user. Se cierra ese hueco por ambos lados.
+  @UseGuards(RoleGuard([Role.ADMIN]))
   @Post()
   async create(@Body() createUserDTO: CreateUserDTO) {
     return this.userService.create(createUserDTO);
