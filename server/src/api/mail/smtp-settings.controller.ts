@@ -20,7 +20,7 @@ export class SmtpSettingsController {
   }
 
   @Get()
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   async getSettings() {
     return this.mask(await this.smtpSettingsService.getSettings());
   }

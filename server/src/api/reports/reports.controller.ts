@@ -18,19 +18,19 @@ export class ReportsController {
     private readonly reportsMailService: ReportsMailService,
   ) {}
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @Get()
   async findAll(@Query() query: ReportFilterDTO) {
     return this.reportsService.findAll(query);
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @Get('roles')
   async getRoles() {
     return this.reportsService.getRoles();
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @Get('facets')
   async getFacets(@Query() query: ReportFilterDTO) {
     return this.reportsService.getFacets(query);
@@ -49,10 +49,10 @@ export class ReportsController {
     });
   }
 
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @Post('export')
   async exportPdf(@Body() body: ReportExportDTO, @Req() req: { user: JwtPayload }, @Res() res: Response) {
-    if (body.include_passwords && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR)) {
+    if (body.include_passwords && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR || req.user?.role === Role.CONSULTOR)) {
       throw new ForbiddenException('Este rol no puede exportar informes con contraseñas.');
     }
     await this.reportsPdfService.exportPdfFromPayload(body, res);
@@ -61,7 +61,7 @@ export class ReportsController {
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   @Post('send')
   async sendReport(@Body() body: ReportSendDTO, @Req() req: { user: JwtPayload }) {
-    if (body.attach?.includes('dedication_passwords') && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR)) {
+    if (body.attach?.includes('dedication_passwords') && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR || req.user?.role === Role.CONSULTOR)) {
       throw new ForbiddenException('Este rol no puede enviar informes con contraseñas.');
     }
     const results = await this.reportsMailService.sendReportMail(body, req.user && {
@@ -75,7 +75,7 @@ export class ReportsController {
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
   @Post('send/test')
   async sendReportTest(@Body() body: ReportSendDTO, @Req() req: { user: JwtPayload }) {
-    if (body.attach?.includes('dedication_passwords') && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR)) {
+    if (body.attach?.includes('dedication_passwords') && (req.user?.role === Role.VIEWER || req.user?.role === Role.TUTOR || req.user?.role === Role.CONSULTOR)) {
       throw new ForbiddenException('Este rol no puede enviar informes con contraseñas.');
     }
     return this.reportsMailService.sendTestReportMail(body, req.user && {

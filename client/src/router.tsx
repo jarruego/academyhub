@@ -126,7 +126,7 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
       children: [
         { key: '/courses', icon: <BookOutlined />, className: 'app-sider-child-item', label: <Link to="/courses" onClick={onClose}>Ediciones</Link> },
         { key: '/groups', icon: <TeamOutlined />, className: 'app-sider-child-item', label: <Link to="/groups" onClick={onClose}>Grupos</Link> },
-        ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER || role?.toLowerCase() === Role.TUTOR
+        ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER || role?.toLowerCase() === Role.TUTOR || role?.toLowerCase() === Role.CONSULTOR
           ? [{ key: '/course-requests', icon: <SolutionOutlined />, className: 'app-sider-child-item', label: <Link to="/course-requests" onClick={onClose}>Peticiones</Link> }]
           : []),
       ],
@@ -139,7 +139,7 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
         { key: '/centers', icon: <ApartmentOutlined />, className: 'app-sider-child-item', label: <Link to="/centers" onClick={onClose}>Centros</Link> },
       ],
     },
-    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER || role?.toLowerCase() === Role.TUTOR
+    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER || role?.toLowerCase() === Role.TUTOR || role?.toLowerCase() === Role.CONSULTOR
       ? [{ key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports" onClick={onClose}>Informes</Link> }]
       : []),
   ];

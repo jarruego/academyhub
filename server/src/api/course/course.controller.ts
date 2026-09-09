@@ -28,7 +28,7 @@ export class CourseController {
   // — el resto se descarta en silencio, no se lanza error, porque el
   // formulario del cliente es compartido entre pestañas y siempre envía el
   // curso completo. Ver docs/security.md.
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateCourseDTO: UpdateCourseDTO, @Req() req: { user: JwtPayload }) {
     const numericId = parseInt(id, 10);

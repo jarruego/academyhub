@@ -140,7 +140,7 @@ export class MailController {
   }
 
   @Get('tutor-moodle-token-status/:tutorUserId')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   async tutorMoodleTokenStatus(@Param('tutorUserId', ParseIntPipe) tutorUserId: number) {
     const hasToken = await this.mailService.tutorHasMoodleToken(tutorUserId);
     return { hasToken };

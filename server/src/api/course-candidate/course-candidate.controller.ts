@@ -7,7 +7,7 @@ import { CreateCourseCandidateDto } from "./dto/create-course-candidate.dto";
 import { UpdateCourseCandidatesDto } from "./dto/update-course-candidates.dto";
 
 @Controller("course-candidates")
-@UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+@UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
 export class CourseCandidateController {
   constructor(private readonly service: CourseCandidateService) {}
 

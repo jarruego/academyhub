@@ -75,7 +75,7 @@ export class InaemImportController {
    * forzando además `createMissingCourses: false`. Ver docs/import-inaem.md.
    */
   @Post("upload")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @ApiOperation({ summary: "Importar ficheros del INAEM (acciones/alumnos/preinscripciones)" })
   @ApiConsumes("multipart/form-data")
   @ApiResponse({ status: 201, description: "Importación iniciada" })
@@ -134,7 +134,7 @@ export class InaemImportController {
   // Mismo guard ampliado que "upload": quien lanza un import de Preinscripciones
   // vía el permiso puntual también necesita poder consultar su progreso.
   @Get("job-status/:jobId")
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @ApiOperation({ summary: "Estado de un trabajo de importación INAEM" })
   async getJobStatus(@Param("jobId") jobId: string) {
     const job = await this.jobService.getJobStatus(jobId);

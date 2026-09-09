@@ -32,7 +32,7 @@ export class UserController {
   // detectar un posible duplicado al añadir a mano), y en ese caso queda
   // restringido a USER_IDENTITY_FIELDS — el resto se descarta en silencio.
   // Ver docs/security.md.
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateUserDTO: UpdateUserDTO, @Req() req: { user: JwtPayload }) {
     const numericId = parseInt(id, 10);

@@ -66,7 +66,7 @@ export class AuthController {
   @Throttle({
     default: { limit: 8, ttl: 60 * 1000 },
   })
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
   @HttpCode(HttpStatus.OK)
   @Post("verify-password")
   async verifyPassword(@Body() dto: VerifyPasswordDTO, @Req() req: { user: JwtPayload }) {

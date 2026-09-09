@@ -9,7 +9,7 @@ import { IncorporateInterestsDto } from "./dto/incorporate-interests.dto";
 import { UpdateCourseInterestsDto } from "./dto/update-course-interests.dto";
 
 @Controller("course-interests")
-@UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR]))
+@UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
 export class CourseInterestController {
   constructor(private readonly service: CourseInterestService) {}
 
