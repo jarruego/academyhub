@@ -102,7 +102,7 @@ export class MoodleController {
         return result;
     }
 
-    @UseGuards(RoleGuard([Role.ADMIN]))
+    @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
     @Post('groups/:groupId/push')
     /**
      * Create or update a local group in Moodle. If the local group doesn't have a `moodle_id`

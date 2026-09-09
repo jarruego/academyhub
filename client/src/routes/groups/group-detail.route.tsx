@@ -307,8 +307,9 @@ export default function EditGroupRoute() {
               <Tag color={STATUS_COLORS.warning}>No subido a Moodle</Tag>
             )}
 
-            {/* Upload button (visible to admins) - moved here from the actions area */}
-            <AuthzHide roles={[Role.ADMIN]}>
+            {/* Subida (ADMIN/MANAGER, igual que el resto de acciones de Moodle sobre un
+                grupo — ver GroupUsersManager) y borrado en Moodle (solo ADMIN, destructivo). */}
+            <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
               <Button
                 icon={<CloudUploadOutlined style={{ color: BRAND_COLORS.moodle }} />}
                 loading={pushGroupMutation.status === 'pending'}
@@ -341,7 +342,9 @@ export default function EditGroupRoute() {
               >
                 Subir a Moodle
               </Button>
-              {/* Show delete-in-Moodle button when group has no users and is already uploaded */}
+            </AuthzHide>
+            {/* Show delete-in-Moodle button when group has no users and is already uploaded */}
+            <AuthzHide roles={[Role.ADMIN]}>
               {groupData?.moodle_id && (usersInGroup?.length ?? 0) === 0 && (
                 <Button
                   style={{ marginLeft: 8 }}
