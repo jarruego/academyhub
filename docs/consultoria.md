@@ -34,7 +34,10 @@ migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
   la campaña inicial, no es un bloque cerrado.
 - **Auditoría anual** (nuevo, contenedor): una por centro y ejercicio, ciclo
   de vida borrador → abierta → cerrada. Agrupa el plan + evaluación de
-  acciones + evaluación de competencias de ese año.
+  acciones + evaluación de competencias de ese año. Se cierra sola a los dos
+  años de abrirse (red de seguridad), pero ADMIN y CONSULTOR pueden abrirla o
+  cerrarla a mano en cualquier momento — el automatismo nunca bloquea la
+  gestión manual.
 - **Evaluación de acciones formativas**: acción, fecha, evaluación/motivo
   (texto libre — utilidad y cumplimiento del objetivo desde el punto de vista
   del cliente auditado, no la satisfacción del alumno), porcentaje (0-100),
@@ -44,18 +47,27 @@ migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
 - **Cuadro de formación por centro**: cruce trabajador (DNI, nombre,
   apellidos, cargo) × acción, con fecha. Automático para formación propia ya
   registrada; ajuste manual del roster evaluado (añadir/quitar trabajador)
-  sin tocar la asociación real centro–trabajador. *(Fase siguiente, no esta
-  fase 1)* Panel de altas/bajas más granular: gestión curso a curso de quién
-  participó en cada acción formativa concreta — sirve de base para
-  automatizar más el cruce y para llevar registro de asistencia por acción.
+  sin tocar la asociación real centro–trabajador. Para añadir a alguien que
+  falta se busca entre **todos** los trabajadores del sistema (no solo los
+  del centro) por nombre, DNI, teléfono o email; si no consta asociado a
+  este centro se añade igual, con un aviso visible (sin indicar de momento a
+  qué centro pertenece realmente — pendiente de decidir si conviene
+  mostrarlo). Mismo mecanismo de búsqueda/aviso reutilizado en evaluación de
+  competencias. *(Fase siguiente, no esta fase 1)* Panel de altas/bajas más
+  granular: gestión curso a curso de quién participó en cada acción
+  formativa concreta — sirve de base para automatizar más el cruce y para
+  llevar registro de asistencia por acción.
 - **Evaluación de competencias**: 25 competencias fijas por trabajador,
   escala `1` (no necesita mejorar) / `0` (necesita mejorar) / en blanco (no
   aplica al puesto). Periodicidad libre; hábito anual en diciembre salvo
-  altas o cambios de puesto. Alcance por ejercicio: plantilla activa + bajas
-  dentro de ese ejercicio. Plantillas por puesto de trabajo (28 puestos)
-  autorellenan la evaluación, editable; configurador administrado por ADMIN
-  y CONSULTOR. Pantalla de evaluación (paso a paso / vista global / otra):
-  sin decidir.
+  altas o cambios de puesto. El roster de cada ejercicio lo fija la
+  auditoría anual del centro: entran los trabajadores activos entre el 1 de
+  enero y el 31 de diciembre de ese año, y también quien causó baja dentro
+  de ese mismo ejercicio (quien causó baja antes no entra); más el añadido
+  manual por búsqueda descrito arriba. Plantillas por puesto de trabajo (28
+  puestos) autorellenan la evaluación, editable; configurador administrado
+  por ADMIN y CONSULTOR. Pantalla de evaluación (paso a paso / vista global /
+  otra): sin decidir.
 - **Acceso externo de centros**: token opaco aleatorio (no JWT), hasheado en
   BD, resuelto en servidor al centro; único token por centro; revocable y
   regenerable al instante desde la ficha del centro. Atado al estado de la
@@ -70,9 +82,15 @@ migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
   empresa/centro).
 - Auditoría anual = contenedor con estado por centro, creación **automática**
   (proceso programado al iniciar el ejercicio; un centro incorporado a mitad
-  de año recibe la suya en el momento del alta). A partir de ahí, ADMIN y
-  CONSULTOR pueden gestionarla a mano (reabrir, cerrar antes de tiempo,
-  ajustar fechas) — automática al crearse, no cerrada a lo automático.
+  de año recibe la suya en el momento del alta) y **cierre automático a los
+  dos años** como red de seguridad. A partir de ahí, ADMIN y CONSULTOR pueden
+  gestionarla a mano en cualquier momento (reabrir, cerrar antes de tiempo,
+  ajustar fechas) — lo automático es el valor por defecto, nunca un bloqueo.
+- Roster de la evaluación de competencias por ejercicio = trabajadores
+  activos entre el 1 de enero y el 31 de diciembre de ese año + bajas dentro
+  del ejercicio (quien causó baja antes no entra); ampliable a mano buscando
+  por nombre/DNI/teléfono/email entre todos los trabajadores del sistema,
+  con aviso si no constan de este centro.
 - Plan base compartido por todos los centros del cliente, no duplicado.
   Selección de cursos hacia el plan: buscador con autocompletado sobre el
   catálogo, reutilizando el selector de curso que ya existe en otros flujos.
