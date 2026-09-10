@@ -85,5 +85,6 @@ Prod gotcha (Render): `SCHEDULER_TIMEZONE` + `SAGE_IMPORT_CRON` must be set in t
 | `docs/reports.md` | touching `api/reports/` (PDF templating, report rows). |
 | `docs/backups.md` | **touching `api/backups/`** (admin panel: status/list/run/download), `.github/workflows/backup.yml`, or anything about copias de seguridad (nightly pg_dump + Storage mirror to external S3 via GitHub Actions; secrets list, restore procedure, local dev copy). |
 | `docs/client.md` | frontend work under `client/` (API hooks, auth flow, routing, responsive conventions, type sharing, tests). |
+| `docs/consultoria.md` | **touching `api/consultoria/`** (nuevo apartado Consultoría, sin implementar). Covers el planteamiento funcional: entidad Cliente (agrupa empresas/centros), acción formativa reutilizando el modelo de cursos, plan base + por centro, auditoría anual como contenedor por centro/ejercicio, evaluación de acciones y de competencias, acceso externo por token, y las decisiones cerradas/pendientes. No crear código de este módulo sin antes leer el doc — la capa técnica no ha empezado. |
 
 Memory note `project_sage_import_field_update` tracks a pending SAGE field-sync policy decision.
