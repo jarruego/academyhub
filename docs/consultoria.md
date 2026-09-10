@@ -61,32 +61,45 @@ migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
 ## Decisiones cerradas
 - Cliente = entidad nueva en Consultoría (no se amplía el modelo core de
   empresa/centro).
-- Auditoría anual = contenedor con estado por centro.
+- Auditoría anual = contenedor con estado por centro, creación **automática**
+  (proceso programado al iniciar el ejercicio; un centro incorporado a mitad
+  de año recibe la suya en el momento del alta). A partir de ahí, ADMIN y
+  CONSULTOR pueden gestionarla a mano (reabrir, cerrar antes de tiempo,
+  ajustar fechas) — automática al crearse, no cerrada a lo automático.
 - Plan base compartido por todos los centros del cliente, no duplicado.
+  Selección de cursos hacia el plan: buscador con autocompletado sobre el
+  catálogo, reutilizando el selector de curso que ya existe en otros flujos.
+  Clonable de un año a otro como punto de partida editable.
+- Altas de acciones formativas de un centro: **sin validación bloqueante**;
+  entran directas al plan/cuadro, con una bandeja de revisión opcional para
+  ADMIN/CONSULTOR.
 - Acciones formativas reutilizan el modelo de cursos existente, con flag de
   origen (propio/externo).
+- Categoría pasa de texto libre a **lista fija gestionable** (Modalidad ya
+  era lista fija: Online/Presencial/Mixta).
+- "Evaluación/Motivo" de la evaluación de acciones: **texto libre único**,
+  sin subcampos.
+- Formación externa en el cuadro: solo entra si se registra como acción
+  formativa (origen=externo); no se admite formación suelta sin pasar por
+  el modelo de acción.
 - Configurador de plantillas puesto↔competencia: ADMIN y CONSULTOR.
 - Campo "Imparte" = empresa/centro de formación que imparte la acción.
 
 ## Decisiones pendientes
-- Listado definitivo de campos de la acción formativa (¿Modalidad/Categoría
-  pasan de texto libre a lista fija?).
-- Mecanismo de selección de cursos del catálogo hacia el plan base;
-  validación de altas de un centro; si el plan es clonable de un año a otro.
-- Creación automática vs. manual de la auditoría anual por centro; qué pasa
-  con un centro incorporado a mitad de año.
-- Si "Evaluación/Motivo" necesita subcampos (impacto / motivo de anulación /
-  medidas si `<50%`) o queda como texto libre único.
-- Circuito para que la formación externa entre en el cruce del cuadro por
-  centro; alcance exacto del panel de altas/bajas (fase siguiente).
-- Diseño de seguridad del token de acceso externo — análisis dedicado.
+- Diseño de seguridad del token de acceso externo — el único punto
+  genuinamente abierto; es un análisis técnico dedicado, no una decisión de
+  negocio.
+- Alcance exacto del panel de altas/bajas de participantes — deliberadamente
+  sin definir, pertenece a una fase siguiente a esta fase 1.
 
 ## Estado
-Planteamiento funcional cerrado con el cliente, documentado también como
-documento compartible para consultoría (con roadmap y checklist de estado).
-Capa técnica (modelo de datos definitivo, endpoints, pantallas, matriz de
-permisos) sin empezar — no crear código de `api/consultoria/` a partir de
-este documento sin antes cerrar las decisiones pendientes de arriba.
+Planteamiento funcional y decisiones de diseño ya cerradas (documentadas
+también como documento compartible para consultoría, con roadmap y checklist
+de estado). Falta la validación formal con el compañero de consultoría y el
+diseño de seguridad del token. Capa técnica (modelo de datos definitivo,
+endpoints, pantallas, matriz de permisos) sin empezar — no crear código de
+`api/consultoria/` a partir de este documento sin antes tener ese visto
+bueno.
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)
 1. Cierre de decisiones con consultoría.
