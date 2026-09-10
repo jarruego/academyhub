@@ -44,8 +44,10 @@ migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
 - **Cuadro de formación por centro**: cruce trabajador (DNI, nombre,
   apellidos, cargo) × acción, con fecha. Automático para formación propia ya
   registrada; ajuste manual del roster evaluado (añadir/quitar trabajador)
-  sin tocar la asociación real centro–trabajador. Panel de altas/bajas de
-  participantes más completo: **fase siguiente**, no esta fase 1.
+  sin tocar la asociación real centro–trabajador. *(Fase siguiente, no esta
+  fase 1)* Panel de altas/bajas más granular: gestión curso a curso de quién
+  participó en cada acción formativa concreta — sirve de base para
+  automatizar más el cruce y para llevar registro de asistencia por acción.
 - **Evaluación de competencias**: 25 competencias fijas por trabajador,
   escala `1` (no necesita mejorar) / `0` (necesita mejorar) / en blanco (no
   aplica al puesto). Periodicidad libre; hábito anual en diciembre salvo
@@ -54,9 +56,14 @@ migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
   autorellenan la evaluación, editable; configurador administrado por ADMIN
   y CONSULTOR. Pantalla de evaluación (paso a paso / vista global / otra):
   sin decidir.
-- **Acceso externo de centros**: URL + token por centro, permanente (no
-  caduca por campaña), revocable/regenerable, alcance cerrado al propio
-  centro, cambios auditados. Diseño de seguridad detallado: pendiente.
+- **Acceso externo de centros**: token opaco aleatorio (no JWT), hasheado en
+  BD, resuelto en servidor al centro; único token por centro; revocable y
+  regenerable al instante desde la ficha del centro. Atado al estado de la
+  auditoría anual de ese centro (§ auditoría anual): edita mientras está
+  abierta, pasa a solo lectura al cerrarla. Alcance cerrado a los datos de
+  ese centro, sin exportaciones masivas ni navegación a otros centros;
+  cambios auditados. Implementación exacta (hash, longitud, middleware): en
+  el diseño técnico.
 
 ## Decisiones cerradas
 - Cliente = entidad nueva en Consultoría (no se amplía el modelo core de
@@ -86,20 +93,17 @@ migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
 - Campo "Imparte" = empresa/centro de formación que imparte la acción.
 
 ## Decisiones pendientes
-- Diseño de seguridad del token de acceso externo — el único punto
-  genuinamente abierto; es un análisis técnico dedicado, no una decisión de
-  negocio.
-- Alcance exacto del panel de altas/bajas de participantes — deliberadamente
-  sin definir, pertenece a una fase siguiente a esta fase 1.
+Ninguna decisión funcional o de seguridad queda abierta. Solo falta la
+validación formal del planteamiento con el compañero de consultoría (§ Estado).
 
 ## Estado
-Planteamiento funcional y decisiones de diseño ya cerradas (documentadas
-también como documento compartible para consultoría, con roadmap y checklist
-de estado). Falta la validación formal con el compañero de consultoría y el
-diseño de seguridad del token. Capa técnica (modelo de datos definitivo,
-endpoints, pantallas, matriz de permisos) sin empezar — no crear código de
-`api/consultoria/` a partir de este documento sin antes tener ese visto
-bueno.
+Planteamiento funcional y decisiones de diseño **cerradas por completo**
+(documentadas también como documento compartible para consultoría, con
+roadmap y checklist de estado). Falta la validación formal con el compañero
+de consultoría — es revisión, no debate. Capa técnica (modelo de datos
+definitivo, endpoints, pantallas, matriz de permisos, implementación del
+token) sin empezar — no crear código de `api/consultoria/` a partir de este
+documento sin antes tener ese visto bueno.
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)
 1. Cierre de decisiones con consultoría.
