@@ -36,6 +36,7 @@ import SageImportRoute from './routes/tools/import-sage.route';
 import InaemImportRoute from './routes/tools/import-inaem.route';
 import AuditLogRoute from './routes/tools/audit-log.route';
 import EmailLogRoute from './routes/tools/email-log.route';
+import SmsLogRoute from './routes/tools/sms-log.route';
 import ForumDuplicatorRoute from './routes/tools/forum-duplicator.route';
 import MergeDuplicatesRoute from './routes/tools/merge-duplicates.route';
 import MoodleAuditRoute from './routes/tools/moodle-audit.route';
@@ -46,6 +47,8 @@ import ReportsRoute from './routes/reports/reports.route';
 import OrganizationSettingsPage from './routes/organization/OrganizationSettingsPage';
 import SmtpSettingsPage from './routes/mail/smtp-settings.route';
 import MailTemplatesPage from './routes/mail/mail-templates.route';
+import SmsSettingsPage from './routes/sms/sms-settings.route';
+import SmsTemplatesPage from './routes/sms/sms-templates.route';
 import HelpRoute from './routes/help/help.route';
 import TourProvider from './providers/tour/tour.context';
 import SidebarTour from './components/tour/SidebarTour';
@@ -62,6 +65,7 @@ import {
   ToolOutlined,
   TeamOutlined,
   MailOutlined,
+  MobileOutlined,
   MenuOutlined,
   FileTextOutlined,
   SafetyCertificateOutlined,
@@ -87,7 +91,7 @@ interface SidebarProps {
 // solo reaccionaba al click, así que se perdía al recargar o navegar por URL.
 const MENU_LEAF_KEYS = [
   '/', '/users', '/courses', '/groups', '/course-requests', '/centers', '/reports', '/organization',
-  '/tools/importaciones', '/tools/gestion-acceso', '/tools/correo', '/tools/herramientas',
+  '/tools/importaciones', '/tools/gestion-acceso', '/tools/correo', '/tools/sms', '/tools/herramientas',
 ];
 
 const selectedLeafKey = (pathname: string) => MENU_LEAF_KEYS
@@ -150,6 +154,7 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
       { key: '/tools/importaciones', icon: <FileTextOutlined />, label: <Link to="/tools/importaciones" onClick={onClose}>Importaciones</Link> },
       { key: '/tools/gestion-acceso', icon: <SafetyCertificateOutlined />, label: <Link to="/tools/gestion-acceso" onClick={onClose}>Gestión y acceso</Link> },
       { key: '/tools/correo', icon: <MailOutlined />, label: <Link to="/tools/correo" onClick={onClose}>Correo</Link> },
+      { key: '/tools/sms', icon: <MobileOutlined />, label: <Link to="/tools/sms" onClick={onClose}>SMS</Link> },
       { key: '/tools/herramientas', icon: <ToolOutlined />, label: <Link to="/tools/herramientas" onClick={onClose}>Herramientas</Link> },
     ];
     menuItems.push({ key: 'administracion', icon: <SettingOutlined />, label: <span>Administración</span>, children: adminChildren });
@@ -248,6 +253,7 @@ export default function AppRouter() {
               <Route path="/tools/importaciones" element={<ToolList categoryKey="importaciones" />} />
               <Route path="/tools/gestion-acceso" element={<ToolList categoryKey="gestion-acceso" />} />
               <Route path="/tools/correo" element={<ToolList categoryKey="correo" />} />
+              <Route path="/tools/sms" element={<ToolList categoryKey="sms" />} />
               <Route path="/tools/herramientas" element={<ToolList categoryKey="herramientas" />} />
               <Route path="/tools/data-cross-reference" element={<DataCrossReferenceRoute />} />
               <Route path="/tools/user-management" element={<UserManagementRoute />} />
@@ -259,10 +265,13 @@ export default function AppRouter() {
               <Route path="/tools/import-inaem" element={<InaemImportRoute />} />
               <Route path="/tools/audit-log" element={<AuditLogRoute />} />
               <Route path="/tools/email-log" element={<EmailLogRoute />} />
+              <Route path="/tools/sms-log" element={<SmsLogRoute />} />
               <Route path="/tools/forum-duplicator" element={<ForumDuplicatorRoute />} />
               <Route path="/tools/backups" element={<BackupsRoute />} />
               <Route path="/organization/smtp" element={<SmtpSettingsPage />} />
               <Route path="/organization/mail-templates" element={<MailTemplatesPage />} />
+              <Route path="/organization/sms" element={<SmsSettingsPage />} />
+              <Route path="/organization/sms-templates" element={<SmsTemplatesPage />} />
               <Route path="/help" element={<HelpRoute />} />
             </Routes>
           </Content>

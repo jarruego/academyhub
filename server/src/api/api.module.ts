@@ -11,6 +11,7 @@ import { ImportModule } from './import-sage/import.module';
 import { ImportInaemModule } from './import-inaem/import-inaem.module';
 import { ReportsModule } from './reports/reports.module';
 import { MailModule } from './mail/mail.module';
+import { SmsModule } from './sms/sms.module';
 import { OrganizationModule } from './organization/organization.module';
 import { FilesModule } from './files/files.module';
 import { AuditModule } from './audit/audit.module';
@@ -24,6 +25,6 @@ import { CourseCandidateModule } from './course-candidate/course-candidate.modul
 import { CourseInterestModule } from './course-interest/course-interest.module';
 
 @Module({
-  imports: [CompanyModule, CenterModule, CourseCatalogModule, CourseCandidateModule, CourseInterestModule, CourseModule, GroupModule, UserModule, MoodleModule, ForumModule, MoodleUserModule, ImportModule, ImportInaemModule, ReportsModule, OrganizationModule, FilesModule, MailModule, AuditModule, UserMergeModule, UserSanitizationModule, BackupsModule, MoodleAuditModule, CourseRequestModule],
+  imports: [CompanyModule, CenterModule, CourseCatalogModule, CourseCandidateModule, CourseInterestModule, CourseModule, GroupModule, UserModule, MoodleModule, ForumModule, MoodleUserModule, ImportModule, ImportInaemModule, ReportsModule, OrganizationModule, FilesModule, MailModule, SmsModule, AuditModule, UserMergeModule, UserSanitizationModule, BackupsModule, MoodleAuditModule, CourseRequestModule],
 })
 export class ApiModule {}

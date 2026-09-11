@@ -28,3 +28,16 @@ export function sanitizePhone(phone: string | null | undefined): string | undefi
   if (digits.length < 9) return undefined;
   return hasPlus ? `+${digits}` : digits;
 }
+
+/**
+ * Forma E.164 para enviar SMS (Mailrelay exige "+<código país><número>").
+ * `users.phone` se guarda saneado pero sin prefijo internacional en la
+ * mayoría de los casos (base de usuarios española) — si no viene con `+`,
+ * se antepone el código de país por defecto. Devuelve `undefined` si el
+ * teléfono no es válido tras el saneo (ver `sanitizePhone`).
+ */
+export function toE164Phone(phone: string | null | undefined, defaultCountryCode = "+34"): string | undefined {
+  const sanitized = sanitizePhone(phone);
+  if (!sanitized) return undefined;
+  return sanitized.startsWith("+") ? sanitized : `${defaultCountryCode}${sanitized}`;
+}

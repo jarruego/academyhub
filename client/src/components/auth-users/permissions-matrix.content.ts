@@ -94,6 +94,17 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     ],
   },
   {
+    key: 'sms',
+    title: 'SMS (Mailrelay)',
+    rows: [
+      { label: 'Ver ajustes SMS (lectura, API)', access: all('yes') },
+      { label: 'Guardar ajustes SMS y probar conexión con Mailrelay', access: adminOnly() },
+      { label: 'Pantalla "Configuración SMS" (Administración → SMS)', access: adminOnly() },
+      { label: 'Enviar SMS (prueba, grupo)', access: split(), note: 'Mismo criterio que el envío de correo' },
+      { label: 'Registro de envíos de SMS y "Actualizar estado"', access: adminOnly() },
+    ],
+  },
+  {
     key: 'forum-duplicator',
     title: 'Duplicador de foros',
     rows: [{ label: 'Listar y duplicar temas de foro', access: adminManager() }],

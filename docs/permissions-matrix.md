@@ -68,6 +68,18 @@ Initial audit: 2026-09-09, followed same-day by a round of deliberate decisions 
 | Read-only Moodle lookups (users/courses/groups/enrolled/profiles) | ✅ | ✅ | ✅ | ✅ | ✅ | No guard |
 | `/tools/moodle-import` screen | ✅ | ❌ | ❌ | ❌ | ❌ | Consistent — every action here is ADMIN-only |
 
+## 5b. SMS (Mailrelay)
+
+| Action | ADMIN | MANAGER | VIEWER | TUTOR | CONSULTOR | Notes |
+|---|---|---|---|---|---|---|
+| View SMS settings (`api_key` always masked) | ✅ | ✅ | ✅ | ✅ | ✅ | `GET /sms-settings`, same pattern as SMTP |
+| Save SMS settings / test connection with Mailrelay | ✅ | ❌ | ❌ | ❌ | ❌ | `POST /sms-settings`, `POST /sms/connection` |
+| `/organization/sms` screen | ✅ | ❌ | ❌ | ❌ | ❌ | Same ADMIN-only gate as `/organization/smtp` |
+| View SMS templates | ✅ | ✅ | ✅ | ✅ | ✅ | `GET /sms-templates` |
+| Create/edit/delete SMS template | ✅ | ❌ | ❌ | ❌ | ❌ | `POST/PUT/DELETE /sms-templates` |
+| `POST /sms/send`, `/sms/send-from-template` | ✅ | ✅ | ❌ | ✅ | ❌ | Same split as mail (§5) — "SMS" button in group screen and test send |
+| SMS log (`/tools/sms-log`) and "Actualizar estado" | ✅ | ❌ | ❌ | ❌ | ❌ | `GET /sms-log`, `POST /sms-log/:id/refresh-status`, same criterion as email log (§1) |
+
 ## 6. Moodle Audit
 
 | Action | ADMIN | MANAGER | VIEWER | TUTOR | CONSULTOR |
@@ -194,6 +206,8 @@ Both class-level `[ADMIN]`.
 None open as of 2026-09-09 — the last one (`dedication_passwords`/`TUTOR`, below) was resolved the same day.
 
 ## Changelog
+
+**2026-09-11 — new SMS module (Mailrelay).** New section §5b, same split/gating criteria as mail (§5) and email log (§1): settings read for all 5 roles, write/test/templates/log ADMIN-only, send `[ADMIN, MANAGER, TUTOR]`. See `docs/sms.md`.
 
 **2026-09-09 — round of decisions following the initial audit.** All of these were explicit user decisions, not unilateral changes:
 - **Import SAGE** narrowed to `[ADMIN]` (was `[ADMIN, MANAGER]`) — it's an automated (cron) or ADMIN-only task, not MANAGER's.

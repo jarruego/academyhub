@@ -101,6 +101,33 @@ export const toolCategories: ToolCategory[] = [
     ],
   },
   {
+    key: "sms",
+    category: "SMS",
+    tools: [
+      {
+        key: "sms-config",
+        label: "Configuración SMS",
+        description: "Configura la cuenta y API key de Mailrelay para el envío de SMS.",
+        icon: <SettingOutlined style={{ fontSize: 20 }} />,
+        linkTo: "/organization/sms",
+      },
+      {
+        key: "sms-templates",
+        label: "Gestor de plantillas SMS",
+        description: "Crea y gestiona las plantillas de SMS con variables dinámicas.",
+        icon: <FileTextOutlined style={{ fontSize: 20 }} />,
+        linkTo: "/organization/sms-templates",
+      },
+      {
+        key: "sms-log",
+        label: "Registro de envíos de SMS",
+        description: "Consulta los SMS enviados: quién, cuándo, destinatario, plantilla y estado.",
+        icon: <MailOutlined style={{ fontSize: 20 }} />,
+        linkTo: "/tools/sms-log",
+      },
+    ],
+  },
+  {
     key: "herramientas",
     category: "Herramientas",
     tools: [

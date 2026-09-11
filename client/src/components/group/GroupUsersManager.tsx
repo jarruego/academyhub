@@ -25,6 +25,7 @@ import useExportUsersToMailCsv from '../../hooks/api/groups/use-export-users-mai
 import useExportUsersToSmsCsv from '../../hooks/api/groups/use-export-users-sms-csv';
 import SendMailToGroupModal from '../mail/SendMailToGroupModal';
 import SendReportMailModal from '../mail/SendReportMailModal';
+import SendSmsToGroupModal from '../sms/SendSmsToGroupModal';
 import { getCourseProfile } from '../../utils/course-profile';
 
 interface Props {
@@ -153,6 +154,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupIds, groupNamesById = {}, cou
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isImportFromRequestsModalOpen, setIsImportFromRequestsModalOpen] = useState(false);
   const [isSendMailOpen, setIsSendMailOpen] = useState(false);
+  const [isSendSmsOpen, setIsSendSmsOpen] = useState(false);
   const [isSendReportOpen, setIsSendReportOpen] = useState(false);
 
   const createBonificationFile = useCreateBonificationFileMutation();
@@ -785,6 +787,23 @@ const GroupUsersManager: React.FC<Props> = ({ groupIds, groupNamesById = {}, cou
             </Button>
           </AuthzHide>
 
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.TUTOR]}>
+            <Button
+              id="group-sms-button"
+              type="default"
+              icon={<MobileOutlined />}
+              onClick={() => {
+                if (!selectedUserIds || selectedUserIds.length === 0) {
+                  messageApi.warning('Selecciona al menos un usuario');
+                  return;
+                }
+                setIsSendSmsOpen(true);
+              }}
+            >
+              SMS
+            </Button>
+          </AuthzHide>
+
           {/* Envío de informes a centros: solo ADMIN/MANAGER/TUTOR, sin acceso para VIEWER. */}
           <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.TUTOR]}>
             <Button
@@ -916,6 +935,16 @@ const GroupUsersManager: React.FC<Props> = ({ groupIds, groupNamesById = {}, cou
         groupEnd={groupEnd}
         onOk={() => setIsSendMailOpen(false)}
         onCancel={() => setIsSendMailOpen(false)}
+      />
+
+      <SendSmsToGroupModal
+        open={isSendSmsOpen}
+        users={dedupeByUserId(selectedRows).map((u) => ({ id_user: u.id_user, phone: u.phone }))}
+        courseName={courseName}
+        groupStart={groupStart}
+        groupEnd={groupEnd}
+        onOk={() => setIsSendSmsOpen(false)}
+        onCancel={() => setIsSendSmsOpen(false)}
       />
 
       <SendReportMailModal
