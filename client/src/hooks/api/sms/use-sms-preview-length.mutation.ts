@@ -3,7 +3,10 @@ import { useAuthenticatedAxios } from '../../../utils/api/use-authenticated-axio
 import { getApiHost } from '../../../utils/api/get-api-host.util';
 
 export interface SmsPreviewLengthRequest {
-  templateId: number;
+  // Exactamente uno de los dos: templateId (plantilla guardada) o message
+  // (texto editado ad-hoc, aún sin guardar como plantilla).
+  templateId?: number;
+  message?: string;
   userId?: number;
   courseName?: string;
   courseStart?: string;

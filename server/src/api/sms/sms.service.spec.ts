@@ -113,6 +113,38 @@ describe('SmsService — registro en sms_log', () => {
     expect(entry).toMatchObject({ status: 'failed' });
     expect(entry.error).toMatch(/supera el límite/);
   });
+
+  it('con applyVariables sustituye {NOMBRE_CURSO} en el mensaje editado antes de enviar (envío a grupo personalizado)', async () => {
+    const svc = makeService();
+    const client = (svc as any).mailrelaySmsClient;
+    jest.spyOn(svc as any, 'recordSmsLog').mockResolvedValue(undefined);
+
+    await svc.sendSms({
+      to: '600000000',
+      message: 'Tu curso {NOMBRE_CURSO} empieza el {FECHA_INICIO}.',
+      applyVariables: true,
+      courseName: 'Excel Avanzado',
+      courseStart: '01/09/2026',
+    });
+
+    expect(client.sendSms).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: 'Tu curso Excel Avanzado empieza el 01/09/2026.\nBaja SMS: {{ unsubscribe_url }}' }),
+    );
+  });
+
+  it('sin applyVariables NO sustituye nada (comportamiento por defecto sin cambios)', async () => {
+    const svc = makeService();
+    const client = (svc as any).mailrelaySmsClient;
+    jest.spyOn(svc as any, 'recordSmsLog').mockResolvedValue(undefined);
+
+    await svc.sendSms({ to: '600000000', message: 'Tu curso {NOMBRE_CURSO} empieza pronto.', courseName: 'Excel Avanzado' });
+
+    expect(client.sendSms).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: 'Tu curso {NOMBRE_CURSO} empieza pronto.\nBaja SMS: {{ unsubscribe_url }}' }),
+    );
+  });
 });
 
 describe('SmsService.previewLength', () => {
@@ -141,6 +173,26 @@ describe('SmsService.previewLength', () => {
     const result = await svc.previewLength({ templateId: 8 });
 
     expect(result.parts).toBeGreaterThan(1);
+  });
+
+  it('acepta un mensaje ad-hoc (message) en vez de templateId, para el texto editado en el envío a grupo', async () => {
+    const svc = makeService();
+    const templatesService = { findById: jest.fn() };
+    (svc as any).smsTemplatesService = templatesService;
+
+    const result = await svc.previewLength({
+      message: 'Tu curso {NOMBRE_CURSO} empieza pronto.',
+      courseName: 'Excel Avanzado',
+    });
+
+    const expectedMessage = 'Tu curso Excel Avanzado empieza pronto.\nBaja SMS: {{ unsubscribe_url }}';
+    expect(result).toMatchObject({ length: expectedMessage.length, parts: 1 });
+    expect(templatesService.findById).not.toHaveBeenCalled();
+  });
+
+  it('lanza si no se pasa ni templateId ni message', async () => {
+    const svc = makeService();
+    await expect(svc.previewLength({})).rejects.toThrow(/Falta templateId o message/);
   });
 });
 

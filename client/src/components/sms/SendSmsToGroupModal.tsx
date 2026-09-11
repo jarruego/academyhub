@@ -1,11 +1,13 @@
-import { App, Modal, Form, Select, Button, Typography, Input, Progress, Alert } from 'antd';
+import { App, Modal, Form, Select, Button, Typography, Input, Progress, Alert, Space, Tooltip } from 'antd';
+import type { TextAreaRef } from 'antd/es/input/TextArea';
 import axios from 'axios';
 import { useSmsTemplatesQuery } from '../../hooks/api/sms/use-sms-templates';
 import { useSmsSettingsQuery } from '../../hooks/api/sms/use-sms-settings';
 import { useSendSmsMutation } from '../../hooks/api/sms/use-send-sms.mutation';
-import { useSendTestSms } from '../../hooks/api/sms/use-sms-test';
+import { useSendCustomSmsMutation } from '../../hooks/api/sms/use-send-custom-sms.mutation';
 import { useSmsPreviewLengthMutation, type SmsPreviewLengthResponse } from '../../hooks/api/sms/use-sms-preview-length.mutation';
-import { useState, useEffect } from 'react';
+import { MAIL_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-variables';
+import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 
 // El backend propaga el mensaje real de Mailrelay (401/422/...) en
@@ -37,7 +39,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
   const { data: templates, isLoading: templatesLoading } = useSmsTemplatesQuery();
   const { data: smsSettings } = useSmsSettingsQuery();
   const { mutateAsync: sendSms, isPending } = useSendSmsMutation();
-  const { mutateAsync: sendTestSms, isPending: isTestPending } = useSendTestSms();
+  const { mutateAsync: sendCustomSms, isPending: isCustomPending } = useSendCustomSmsMutation();
   const previewLengthMutation = useSmsPreviewLengthMutation();
   const { message: messageApi } = App.useApp();
 
@@ -64,6 +66,36 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
 
   const selectedTemplateData = templates?.find((t) => t.id === selectedTemplate);
 
+  // Mensaje editable: se rellena con el contenido de la plantilla al
+  // elegirla, y el usuario puede acortarlo/editarlo libremente (p. ej. si se
+  // pasa del límite de caracteres) antes de enviar.
+  const [editedMessage, setEditedMessage] = useState('');
+  const textareaRef = useRef<TextAreaRef>(null);
+
+  useEffect(() => {
+    setEditedMessage(selectedTemplateData?.message ?? '');
+    // Solo al cambiar de plantilla, no en cada edición.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTemplate]);
+
+  const isMessageEdited = !!selectedTemplateData && editedMessage !== selectedTemplateData.message;
+
+  const insertVariable = (variable: string) => {
+    const textarea = textareaRef.current?.resizableTextArea?.textArea;
+    if (!textarea) {
+      setEditedMessage((current) => `${current}${variable}`);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+    setEditedMessage(value.slice(0, start) + variable + value.slice(end));
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+    }, 0);
+  };
+
   const formatDate = (value?: string | Date | null) => {
     if (!value) return '';
     const d = dayjs(value);
@@ -83,34 +115,38 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
   const exceedsLengthLimit = !!lengthPreview && lengthPreview.parts > lengthPreview.limitParts;
 
   useEffect(() => {
-    if (!open || !selectedTemplate) {
+    if (!open || !selectedTemplate || !editedMessage.trim()) {
       setLengthPreview(null);
       return;
     }
     let cancelled = false;
     setLengthPreviewLoading(true);
-    previewLengthMutation
-      .mutateAsync({
-        templateId: selectedTemplate,
-        userId: sampleUser?.id_user,
-        courseName: courseName ?? '',
-        courseStart: startLabel,
-        courseEnd: endLabel,
-      })
-      .then((result) => {
-        if (!cancelled) setLengthPreview(result);
-      })
-      .catch(() => {
-        if (!cancelled) setLengthPreview(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLengthPreviewLoading(false);
-      });
+    // Debounce: no recalcular en cada pulsación mientras se edita el mensaje.
+    const timer = setTimeout(() => {
+      previewLengthMutation
+        .mutateAsync({
+          message: editedMessage,
+          userId: sampleUser?.id_user,
+          courseName: courseName ?? '',
+          courseStart: startLabel,
+          courseEnd: endLabel,
+        })
+        .then((result) => {
+          if (!cancelled) setLengthPreview(result);
+        })
+        .catch(() => {
+          if (!cancelled) setLengthPreview(null);
+        })
+        .finally(() => {
+          if (!cancelled) setLengthPreviewLoading(false);
+        });
+    }, 350);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, selectedTemplate, sampleUser?.id_user, courseName, startLabel, endLabel]);
+  }, [open, selectedTemplate, editedMessage, sampleUser?.id_user, courseName, startLabel, endLabel]);
 
   const resetState = () => {
     setSelectedTemplate(undefined);
@@ -124,6 +160,10 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
     }
     if (!selectedTemplate) {
       messageApi.warning('Selecciona una plantilla');
+      return false;
+    }
+    if (!editedMessage.trim()) {
+      messageApi.warning('El mensaje no puede estar vacío');
       return false;
     }
     return true;
@@ -150,10 +190,14 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
 
     setIsTestSending(true);
     try {
-      await sendTestSms({
+      await sendCustomSms({
         to: testPhone.trim(),
-        message: selectedTemplateData?.message ?? '',
+        message: editedMessage,
         senderName: senderName.trim(),
+        applyVariables: true,
+        courseName: courseName ?? '',
+        courseStart: startLabel,
+        courseEnd: endLabel,
       });
       messageApi.success(`SMS de prueba enviado a ${testPhone.trim()}`);
       setTestModalOpen(false);
@@ -188,15 +232,31 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
         continue;
       }
       try {
-        await sendSms({
-          userId: user.id_user,
-          templateId: selectedTemplate as number,
-          courseName: courseName ?? '',
-          courseStart: startLabel,
-          courseEnd: endLabel,
-          toPhone: user.phone,
-          senderName: senderName.trim(),
-        });
+        if (isMessageEdited) {
+          // Mensaje editado: ya no coincide con la plantilla guardada, se
+          // envía tal cual (con variables sustituidas en el backend) — el
+          // registro no queda asociado a la plantilla de origen.
+          await sendCustomSms({
+            to: user.phone,
+            message: editedMessage,
+            senderName: senderName.trim(),
+            applyVariables: true,
+            userId: user.id_user,
+            courseName: courseName ?? '',
+            courseStart: startLabel,
+            courseEnd: endLabel,
+          });
+        } else {
+          await sendSms({
+            userId: user.id_user,
+            templateId: selectedTemplate as number,
+            courseName: courseName ?? '',
+            courseStart: startLabel,
+            courseEnd: endLabel,
+            toPhone: user.phone,
+            senderName: senderName.trim(),
+          });
+        }
         sent += 1;
       } catch {
         failed += 1;
@@ -268,7 +328,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
         footer={[
           <Button key="cancel" onClick={onCancel}>Cancelar</Button>,
           <Button key="test" onClick={() => setTestModalOpen(true)}>Enviar prueba</Button>,
-          <Button key="submit" type="primary" loading={isPending} disabled={exceedsLengthLimit} onClick={handleSendClick}>Enviar</Button>,
+          <Button key="submit" type="primary" loading={isPending || isCustomPending} disabled={exceedsLengthLimit} onClick={handleSendClick}>Enviar</Button>,
         ]}
       >
         <Form layout="vertical">
@@ -304,10 +364,34 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
           </Form.Item>
 
           {selectedTemplateData && (
-            <Form.Item label="Vista previa">
-              <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, padding: 12, whiteSpace: 'pre-wrap' }}>
-                {selectedTemplateData.message}
-              </div>
+            <Form.Item
+              label="Mensaje a enviar"
+              extra={isMessageEdited ? (
+                <Button size="small" type="link" style={{ padding: 0 }} onClick={() => setEditedMessage(selectedTemplateData.message)}>
+                  Restaurar texto de la plantilla
+                </Button>
+              ) : undefined}
+            >
+              <Space style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+                {MAIL_TEMPLATE_VARIABLES.map((v) => (
+                  <Tooltip title={v.label} key={v.key}>
+                    <Button
+                      size="small"
+                      type="text"
+                      style={{ fontSize: 11, padding: '0 6px', height: 22, lineHeight: '20px' }}
+                      onClick={() => insertVariable(v.key)}
+                    >
+                      {v.key}
+                    </Button>
+                  </Tooltip>
+                ))}
+              </Space>
+              <Input.TextArea
+                ref={textareaRef}
+                value={editedMessage}
+                onChange={(e) => setEditedMessage(e.target.value)}
+                rows={5}
+              />
               <div style={{ marginTop: 6 }}>
                 {lengthPreviewLoading ? (
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>Calculando longitud real…</Typography.Text>
@@ -323,7 +407,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
                   style={{ marginTop: 8 }}
                   type="error"
                   showIcon
-                  message={`Supera el límite de ${lengthPreview.limitParts} SMS (${lengthPreview.encoding === 'GSM-7' ? 160 : 70} caracteres). Acorta la plantilla o el nombre del curso antes de enviar.`}
+                  message={`Supera el límite de ${lengthPreview.limitParts} SMS (${lengthPreview.encoding === 'GSM-7' ? 160 : 70} caracteres). Edita el mensaje de arriba para acortarlo.`}
                 />
               )}
             </Form.Item>
@@ -338,7 +422,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
         onCancel={() => { setTestModalOpen(false); setTestPhone(''); }}
         onOk={handleSendTest}
         okText="Enviar"
-        confirmLoading={isTestSending || isTestPending}
+        confirmLoading={isTestSending || isCustomPending}
         width={420}
       >
         <Form layout="vertical">
@@ -351,7 +435,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
             />
           </Form.Item>
           <Typography.Text type="secondary">
-            Se enviará el texto tal cual de la plantilla (sin sustituir variables) a este teléfono.
+            Se enviará el mensaje de arriba a este teléfono, sustituyendo {'{NOMBRE_CURSO}'}/{'{FECHA_INICIO}'}/{'{FECHA_FIN}'} — {'{USUARIO_MOODLE}'}/{'{CLAVE_MOODLE}'} quedarán vacías (no hay un alumno real asociado a la prueba).
           </Typography.Text>
         </Form>
       </Modal>

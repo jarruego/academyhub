@@ -34,6 +34,11 @@ export class SmsController {
       to: body.to,
       message: body.message,
       senderName: body.senderName,
+      applyVariables: body.applyVariables,
+      userId: body.userId,
+      courseName: body.courseName,
+      courseStart: body.courseStart,
+      courseEnd: body.courseEnd,
       actor: this.actorFromReq(req),
     });
     return { ok: true };

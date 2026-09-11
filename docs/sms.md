@@ -44,6 +44,8 @@ Ver `docs/permissions-matrix.md` §5b para la tabla completa (mantenerla sincron
 - `SmsTemplatesTab.tsx` + modales — gestor de plantillas SMS (texto plano, sin editor HTML ni subida de imagen).
 - `SmsLog.tsx` (`/tools/sms-log`) — registro de envíos, con botón "Actualizar estado" por fila.
 - `SendSmsToGroupModal.tsx` — botón "SMS" en la pantalla de grupo (junto al de "Correo"), junto a `SendMailToGroupModal`: selector de plantilla + remitente (prellenado con el `sender_name` por defecto, editable), envío iterando los alumnos seleccionados con teléfono.
+  - **Mensaje editable**: al elegir la plantilla, su texto se carga en un `Input.TextArea` editable (con los mismos botones de variables), para poder acortarlo si supera el límite — la longitud (`preview-length`) se recalcula contra el texto editado con un debounce de 350ms. Botón "Restaurar texto de la plantilla" si se ha editado.
+  - **Ruta de envío dual** (`SmsService.sendSms` vs `sendSmsFromTemplate`): si el mensaje coincide con el de la plantilla guardada, se envía vía `POST /sms/send-from-template` (`templateId`, queda asociado en `sms_log`); si se ha editado, se envía vía `POST /sms/send` con `applyVariables: true` + `userId`/`courseName`/`courseStart`/`courseEnd` (mismo mecanismo que el correo personalizado de `MailService`) — el registro no queda asociado a ninguna plantilla en ese caso (mismo comportamiento que el "correo personalizado" de mail). El botón "Enviar prueba" siempre usa esta segunda vía (sin `userId`, así que `{USUARIO_MOODLE}`/`{CLAVE_MOODLE}` resuelven vacío).
 
 ## Precedente sustituido
 

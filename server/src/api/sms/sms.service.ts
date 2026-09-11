@@ -23,6 +23,14 @@ export interface SendSmsOptions {
   actor?: SmsActor;
   templateId?: number;
   templateName?: string;
+  // Sustituye variables tipo {NOMBRE_CURSO} en `message` antes de enviar
+  // (usado por el mensaje personalizado/editado del envío a grupo; las
+  // plantillas ya llegan sustituidas desde sendSmsFromTemplate).
+  applyVariables?: boolean;
+  userId?: number;
+  courseName?: string;
+  courseStart?: string;
+  courseEnd?: string;
 }
 
 export interface SendSmsFromTemplateOptions {
@@ -37,7 +45,10 @@ export interface SendSmsFromTemplateOptions {
 }
 
 export interface PreviewSmsLengthOptions {
-  templateId: number;
+  // Exactamente uno de los dos: `templateId` (plantilla guardada) o `message`
+  // (texto editado ad-hoc, aún sin guardar como plantilla).
+  templateId?: number;
+  message?: string;
   userId?: number;
   courseName?: string;
   courseStart?: string;
@@ -188,6 +199,18 @@ export class SmsService {
     return info;
   }
 
+  /** Sustituye variables en `message` cuando options.applyVariables está activo (mensaje personalizado/editado). */
+  private async withAppliedVariables(options: SendSmsOptions): Promise<string> {
+    if (!options.applyVariables) return options.message;
+    const variables = await this.buildTemplateVariables(
+      options.userId,
+      options.courseName,
+      options.courseStart,
+      options.courseEnd,
+    );
+    return this.applyVariables(options.message, variables);
+  }
+
   async sendSms(options: SendSmsOptions): Promise<void> {
     const creds = await this.resolveCredentials();
     const settings = await this.smsSettingsService.getSettings();
@@ -197,7 +220,8 @@ export class SmsService {
     const phone = toE164Phone(options.to);
     if (!phone) throw new BadRequestException(`Teléfono inválido: ${options.to}`);
 
-    const finalMessage = this.ensureUnsubscribeUrl(options.message);
+    const resolvedMessage = await this.withAppliedVariables(options);
+    const finalMessage = this.ensureUnsubscribeUrl(resolvedMessage);
 
     const logBase = {
       actor: options.actor,
@@ -256,8 +280,16 @@ export class SmsService {
    * enviar si se supera `MAX_SMS_PARTS`.
    */
   async previewLength(options: PreviewSmsLengthOptions): Promise<SmsLengthInfo & { limitParts: number }> {
-    const template = await this.smsTemplatesService.findById(options.templateId);
-    if (!template) throw new BadRequestException('Plantilla SMS no encontrada');
+    let rawMessage: string;
+    if (options.message !== undefined) {
+      rawMessage = options.message;
+    } else if (options.templateId) {
+      const template = await this.smsTemplatesService.findById(options.templateId);
+      if (!template) throw new BadRequestException('Plantilla SMS no encontrada');
+      rawMessage = template.message;
+    } else {
+      throw new BadRequestException('Falta templateId o message');
+    }
 
     const variables = await this.buildTemplateVariables(
       options.userId,
@@ -266,7 +298,7 @@ export class SmsService {
       options.courseEnd,
     );
 
-    const finalMessage = this.ensureUnsubscribeUrl(this.applyVariables(template.message, variables));
+    const finalMessage = this.ensureUnsubscribeUrl(this.applyVariables(rawMessage, variables));
     return { ...estimateSmsLength(finalMessage), limitParts: this.MAX_SMS_PARTS };
   }
 
