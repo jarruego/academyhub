@@ -8,6 +8,8 @@ import {
   CourseRequestStudentInput,
 } from "../../shared/types/course-request/course-request";
 import { detectDocumentType } from "../../utils/detect-document-type";
+import { useAllUsersLookupQuery } from "../../hooks/api/users/use-users.query";
+import { AddCourseRequestStudentModal } from "./AddCourseRequestStudentModal";
 
 // Saneo de campos (espacios, mayúsculas de DNI, minúsculas de email...), igual
 // que hace el backend al guardar/subir Excel — aquí solo para que la grid ya se
@@ -180,7 +182,9 @@ type Props = {
 
 export function CourseRequestStudentsGrid({ students, readOnly, saving, uploading, onSave, onUploadExcel, scrollToStudentId, onReleaseGroup, onReopen }: Props) {
   const { message: messageApi, modal } = App.useApp();
+  const { data: allUsers = [] } = useAllUsersLookupQuery();
   const [rows, setRows] = useState<Row[]>(() => toRows(students));
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [releasingId, setReleasingId] = useState<number | null>(null);
@@ -229,7 +233,11 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
 
   const removeRow = (key: string) => setRows((prev) => prev.filter((row) => row.key !== key));
 
-  const addRow = () => setRows((prev) => [...prev, EMPTY_ROW()]);
+  const existingDnis = useMemo(() => new Set(rows.map((row) => row.dni).filter(Boolean)), [rows]);
+
+  const handleAddStudent = (row: CourseRequestStudentInput) => {
+    setRows((prev) => [...prev, { ...EMPTY_ROW(), ...row }]);
+  };
 
   const handlePasteConfirm = () => {
     const parsed = parsePasteBlock(pasteText);
@@ -361,7 +369,15 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
             key: "actions",
             width: 48,
             render: (_: unknown, row: Row) => (
-              <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeRow(row.key)} />
+              <Popconfirm
+                title="¿Eliminar a este alumno?"
+                description='Se quitará de la lista; el cambio no se guarda hasta pulsar "Guardar cambios".'
+                okText="Eliminar"
+                cancelText="Cancelar"
+                onConfirm={() => removeRow(row.key)}
+              >
+                <Button size="small" danger icon={<DeleteOutlined />} />
+              </Popconfirm>
             ),
           },
         ]),
@@ -371,7 +387,7 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
     <div>
       {!readOnly && (
         <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-          <Button icon={<PlusOutlined />} onClick={addRow}>Añadir fila</Button>
+          <Button icon={<PlusOutlined />} onClick={() => setAddModalOpen(true)}>Añadir alumno</Button>
           <Button icon={<SnippetsOutlined />} onClick={() => setPasteModalOpen(true)}>Pegar desde Excel</Button>
           <Upload customRequest={handleUploadRequest} showUploadList={false} accept=".xlsx,.xls">
             <Button icon={<InboxOutlined />} loading={uploading}>Subir Excel</Button>
@@ -390,6 +406,13 @@ export function CourseRequestStudentsGrid({ students, readOnly, saving, uploadin
         pagination={false}
         scroll={{ x: "max-content" }}
         rowClassName={(row) => row.key === `id-${scrollToStudentId}` ? 'student-row-highlight' : ''}
+      />
+      <AddCourseRequestStudentModal
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        availableUsers={allUsers}
+        existingDnis={existingDnis}
+        onAdd={handleAddStudent}
       />
       <Modal
         title="Pegar alumnos desde Excel"
