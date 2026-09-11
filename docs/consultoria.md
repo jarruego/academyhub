@@ -136,3 +136,28 @@ documento sin antes tener ese visto bueno.
 10. Acceso externo seguro para centros.
 11. *(Fase siguiente, fuera de esta fase 1)* Panel de altas/bajas de
     participantes.
+
+## Mejoras futuras (fuera de alcance, sin diseñar)
+Ideas para una fase posterior a las 11 anteriores, una vez Consultoría esté
+desarrollada y en uso real. No forman parte del planteamiento cerrado ni
+condicionan el diseño técnico actual — se anotan aquí para no perderlas.
+
+- **Peticiones de formación desde el centro**: el centro (vía su acceso
+  externo por token, § Acceso externo de centros) lanza sus propias
+  solicitudes de formación eligiendo un curso del catálogo y los
+  trabajadores que lo realizarían. La app avisa del alta por notificación
+  y/o correo. Por decidir cuando se estudie: a quién llega el aviso
+  (ADMIN/CONSULTOR/otro), qué circuito de aprobación sigue la petición
+  (¿entra directa al plan del centro, como las altas de acciones propias
+  actuales, o pasa por una bandeja de revisión?) y su relación con la
+  bandeja de revisión opcional ya prevista para altas de acciones
+  formativas (§ Decisiones cerradas).
+- **Avisos proactivos a centros por correo, con filtros**: aprovechando que
+  el sistema ya tiene los datos para cotejarlo (evaluaciones registradas,
+  roster de la auditoría), enviar correos a centros filtrando por
+  situaciones como evaluación baja de una acción formativa, trabajadores
+  pendientes de evaluar (competencias) o acciones formativas pendientes de
+  evaluar. Por decidir cuando se estudie: quién dispara el envío (manual
+  desde una pantalla de filtros, o automático/programado), destinatario
+  exacto en el centro y si comparte plantillas con el sistema de informes
+  por email ya existente en la app (fuera de Consultoría).
