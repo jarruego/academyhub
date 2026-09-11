@@ -31,7 +31,7 @@ describe('SmsService — registro en sms_log', () => {
     // Mailrelay exige un enlace de baja en cada SMS (422 si no lo lleva): se añade automáticamente.
     expect(client.sendSms).toHaveBeenCalledWith(
       { accountUrl: 'cuenta.ipzmarketing.com', apiKey: 'plain-key' },
-      { to: ['+34600000000'], sender_name: 'MECOHISA', message: 'Tu clave es 1234\n{{ unsubscribe_url }}' },
+      { to: ['+34600000000'], sender_name: 'MECOHISA', message: 'Tu clave es 1234\nBaja SMS: {{ unsubscribe_url }}' },
     );
 
     expect(recSpy).toHaveBeenCalledTimes(1);

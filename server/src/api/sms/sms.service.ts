@@ -156,7 +156,7 @@ export class SmsService {
    */
   private ensureUnsubscribeUrl(message: string): string {
     const placeholder = '{{ unsubscribe_url }}';
-    return message.includes(placeholder) ? message : `${message}\n${placeholder}`;
+    return message.includes(placeholder) ? message : `${message}\nBaja SMS: ${placeholder}`;
   }
 
   async sendSms(options: SendSmsOptions): Promise<void> {
