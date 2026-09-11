@@ -16,6 +16,7 @@ Cliente HTTP fino: `server/src/api/sms/mailrelay-sms.client.ts` (axios, mismo pa
 - `POST /sms/send` — body `{ to: string[] (máx 50, formato E.164), sender_name: string, message: string }`, los 3 obligatorios. Respuesta `201` con array `[{id, subscriber_id, phone, created_at}]` — se usa `to: [unTeléfono]` siempre (un envío por destinatario, igual que el bucle de `SendMailToGroupModal`), porque cada alumno tiene variables `{USUARIO_MOODLE}`/`{CLAVE_MOODLE}` distintas.
 - `GET /sms/sent_messages/{id}` — estado real: `not_processed|processed|ignored|delivered|failed|expired`, `processed_at`, `delivered_at`, `used_credits`, `parts_count`. Se llama solo al pulsar "Actualizar estado" en el Registro de envíos (no hay webhook documentado).
 - No existe endpoint dedicado de "test de conexión": se usa `GET /sms/sent_messages?per_page=1` como ping autenticado (200 = credenciales válidas, 401 = inválidas).
+- **Mailrelay exige un enlace de baja en cada SMS** (rechaza con `422 "Your campaign must contain an unsubscribe URL"` si no lo lleva): `SmsService.ensureUnsubscribeUrl()` añade `{{ unsubscribe_url }}` al final del mensaje automáticamente si la plantilla/mensaje libre no lo incluye ya, para que ninguna plantilla creada sin saberlo rompa el envío. Detectado en producción 2026-09-11.
 - Teléfonos: `users.phone` se guarda saneado pero normalmente sin prefijo internacional (`phone.util.ts`). `toE164Phone()` antepone `+34` si no hay `+` (base de usuarios española).
 
 ## Variables de plantilla

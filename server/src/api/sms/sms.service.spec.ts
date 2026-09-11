@@ -28,9 +28,10 @@ describe('SmsService — registro en sms_log', () => {
       templateName: 'Bienvenida',
     });
 
+    // Mailrelay exige un enlace de baja en cada SMS (422 si no lo lleva): se añade automáticamente.
     expect(client.sendSms).toHaveBeenCalledWith(
       { accountUrl: 'cuenta.ipzmarketing.com', apiKey: 'plain-key' },
-      { to: ['+34600000000'], sender_name: 'MECOHISA', message: 'Tu clave es 1234' },
+      { to: ['+34600000000'], sender_name: 'MECOHISA', message: 'Tu clave es 1234\n{{ unsubscribe_url }}' },
     );
 
     expect(recSpy).toHaveBeenCalledTimes(1);
@@ -77,6 +78,19 @@ describe('SmsService — registro en sms_log', () => {
     const db = { db: { insert: () => ({ values: () => ({ returning: () => Promise.reject(new Error('db down')) }) }) } };
     const svc = makeService({ db });
     await expect((svc as any).recordSmsLog({ status: 'sent', recipient: '+34600000000' })).resolves.toBeUndefined();
+  });
+
+  it('no duplica {{ unsubscribe_url }} si el mensaje/plantilla ya lo incluye', async () => {
+    const svc = makeService();
+    const client = (svc as any).mailrelaySmsClient;
+    jest.spyOn(svc as any, 'recordSmsLog').mockResolvedValue(undefined);
+
+    await svc.sendSms({ to: '600000000', message: 'Aviso importante.\n{{ unsubscribe_url }}' });
+
+    expect(client.sendSms).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: 'Aviso importante.\n{{ unsubscribe_url }}' }),
+    );
   });
 
   it('teléfono inválido: lanza antes de llamar a Mailrelay', async () => {

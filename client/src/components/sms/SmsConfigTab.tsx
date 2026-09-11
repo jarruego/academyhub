@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react';
 import { App, Button, Card, Input, Modal, Typography } from 'antd';
+import axios from 'axios';
 import { useSmsSettingsQuery, useSaveSmsSettingsMutation } from '../../hooks/api/sms/use-sms-settings';
 import { useTestSmsConnection, useSendTestSms } from '../../hooks/api/sms/use-sms-test';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import z from 'zod';
 import type { SmsSettingsForm } from '../../shared/types/sms/sms-settings.types';
+
+// El backend propaga el mensaje real de Mailrelay (401/422/...) en
+// InternalServerErrorException; mostrarlo es clave para diagnosticar (cuenta
+// mal escrita, api_key inválida, sender_name no aprobado, etc.).
+const getErrorMessage = (err: unknown, fallback: string): string => {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { message?: string | string[] } | undefined;
+    if (data?.message) return Array.isArray(data.message) ? data.message.join(', ') : data.message;
+  }
+  return fallback;
+};
 
 const SMS_SETTINGS_SCHEMA: z.ZodType<SmsSettingsForm> = z.object({
   account_url: z.string().min(1, 'La cuenta de Mailrelay es obligatoria'),
@@ -60,8 +72,8 @@ export default function SmsConfigTab() {
       await saveMutation.mutateAsync(values);
       messageApi.success('Configuración SMS guardada');
       refetch();
-    } catch {
-      messageApi.error('Error al guardar la configuración');
+    } catch (err) {
+      messageApi.error(getErrorMessage(err, 'Error al guardar la configuración'), 8);
     }
   };
 
@@ -69,8 +81,8 @@ export default function SmsConfigTab() {
     try {
       await testConnection.mutateAsync(values);
       messageApi.success('Conexión con Mailrelay correcta');
-    } catch {
-      messageApi.error('Error de conexión con Mailrelay');
+    } catch (err) {
+      messageApi.error(getErrorMessage(err, 'Error de conexión con Mailrelay'), 8);
     }
   });
 
@@ -87,8 +99,8 @@ export default function SmsConfigTab() {
       });
       messageApi.success('SMS de prueba enviado');
       setTestModalOpen(false);
-    } catch {
-      messageApi.error('Error al enviar el SMS de prueba');
+    } catch (err) {
+      messageApi.error(getErrorMessage(err, 'Error al enviar el SMS de prueba'), 8);
     }
   });
 

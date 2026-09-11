@@ -148,6 +148,17 @@ export class SmsService {
     }
   }
 
+  /**
+   * Mailrelay exige que todo SMS incluya un enlace/placeholder de baja
+   * (rechaza con 422 "Your campaign must contain an unsubscribe URL" si no lo
+   * lleva) — lo añade automáticamente si la plantilla o el mensaje libre no
+   * lo trae, para que ninguna plantilla creada sin saberlo rompa el envío.
+   */
+  private ensureUnsubscribeUrl(message: string): string {
+    const placeholder = '{{ unsubscribe_url }}';
+    return message.includes(placeholder) ? message : `${message}\n${placeholder}`;
+  }
+
   async sendSms(options: SendSmsOptions): Promise<void> {
     const creds = await this.resolveCredentials();
     const settings = await this.smsSettingsService.getSettings();
@@ -169,7 +180,7 @@ export class SmsService {
       const result = await this.mailrelaySmsClient.sendSms(creds, {
         to: [phone],
         sender_name: senderName,
-        message: options.message,
+        message: this.ensureUnsubscribeUrl(options.message),
       });
       await this.recordSmsLog({
         ...logBase,

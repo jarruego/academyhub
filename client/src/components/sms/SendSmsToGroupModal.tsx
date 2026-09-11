@@ -1,10 +1,21 @@
 import { App, Modal, Form, Select, Button, Typography, Input, Progress, Alert } from 'antd';
+import axios from 'axios';
 import { useSmsTemplatesQuery } from '../../hooks/api/sms/use-sms-templates';
 import { useSmsSettingsQuery } from '../../hooks/api/sms/use-sms-settings';
 import { useSendSmsMutation } from '../../hooks/api/sms/use-send-sms.mutation';
 import { useSendTestSms } from '../../hooks/api/sms/use-sms-test';
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
+
+// El backend propaga el mensaje real de Mailrelay (401/422/...) en
+// InternalServerErrorException; mostrarlo es clave para diagnosticar.
+const getErrorMessage = (err: unknown, fallback: string): string => {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as { message?: string | string[] } | undefined;
+    if (data?.message) return Array.isArray(data.message) ? data.message.join(', ') : data.message;
+  }
+  return fallback;
+};
 
 interface GroupUserRef {
   id_user: number;
@@ -95,7 +106,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
       setTestModalOpen(false);
       setTestPhone('');
     } catch (err) {
-      messageApi.error(err instanceof Error ? err.message : 'Error al enviar el SMS de prueba');
+      messageApi.error(getErrorMessage(err, 'Error al enviar el SMS de prueba'), 8);
     } finally {
       setIsTestSending(false);
     }
