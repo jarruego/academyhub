@@ -19,8 +19,11 @@ export class SmsSettingsController {
     return { ...row, api_key: '', hasApiKey };
   }
 
+  // Solo ADMIN/MANAGER: son los únicos roles con acceso al envío de SMS
+  // (botón de grupo) o al panel de Administración → SMS, así que nadie más
+  // necesita leer esto (a diferencia de SMTP, donde TUTOR también envía correo).
   @Get()
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.VIEWER, Role.TUTOR, Role.CONSULTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   async getSettings() {
     return this.mask(await this.smsSettingsService.getSettings());
   }

@@ -28,12 +28,12 @@ Mismo catálogo que el correo (`client/src/constants/mail/mail-template-variable
 
 ## Endpoints y guards
 
-Mismo patrón que mail (`AuthGuard` global + `RoleGuard` por endpoint, sin `@Public()`):
+Mismo patrón que mail (`AuthGuard` global + `RoleGuard` por endpoint, sin `@Public()`), pero **más restrictivo a propósito** (decisión 2026-09-11): solo `[ADMIN, MANAGER]`, sin `TUTOR` — a diferencia del correo, donde TUTOR también envía. Las lecturas se han acotado igual (sin VIEWER/TUTOR/CONSULTOR), porque ningún otro rol tiene ya ningún uso legítimo de ellas.
 
-- `GET /sms-settings` → 5 roles (lectura, `api_key` enmascarada a `''` + `hasApiKey`). `POST /sms-settings` → `ADMIN`.
+- `GET /sms-settings` → `[ADMIN, MANAGER]` (lectura, `api_key` enmascarada a `''` + `hasApiKey`). `POST /sms-settings` → `ADMIN`.
 - `POST /sms/connection` → `ADMIN` (prueba de conexión, admite valores del formulario aún no guardados — `api_key` vacía = usar la almacenada).
-- `POST /sms/send`, `POST /sms/send-from-template` → `[ADMIN, MANAGER, TUTOR]` (mismo split que el envío de correo).
-- `GET /sms-templates`, `GET /sms-templates/:id` → 5 roles. `POST/PUT/DELETE /sms-templates` → `ADMIN`.
+- `POST /sms/send`, `POST /sms/send-from-template`, `POST /sms/preview-length` → `[ADMIN, MANAGER]`.
+- `GET /sms-templates`, `GET /sms-templates/:id` → `[ADMIN, MANAGER]`. `POST/PUT/DELETE /sms-templates` → `ADMIN`.
 - `GET /sms-log`, `POST /sms-log/:id/refresh-status` → `ADMIN` (mismo criterio que `email-log`).
 
 Ver `docs/permissions-matrix.md` §5b para la tabla completa (mantenerla sincronizada con `permissions-matrix.content.ts`, bloque `key: 'sms'`).

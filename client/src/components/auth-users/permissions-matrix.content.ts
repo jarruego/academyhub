@@ -97,10 +97,10 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     key: 'sms',
     title: 'SMS (Mailrelay)',
     rows: [
-      { label: 'Ver ajustes SMS (lectura, API)', access: all('yes') },
+      { label: 'Ver ajustes y plantillas SMS (lectura, API)', access: adminManager(), note: 'A diferencia del correo, TUTOR no tiene ningún acceso a SMS' },
       { label: 'Guardar ajustes SMS y probar conexión con Mailrelay', access: adminOnly() },
       { label: 'Pantalla "Configuración SMS" (Administración → SMS)', access: adminOnly() },
-      { label: 'Enviar SMS (prueba, grupo)', access: split(), note: 'Mismo criterio que el envío de correo' },
+      { label: 'Enviar SMS (prueba, grupo)', access: adminManager(), note: 'Sin TUTOR, a diferencia del correo' },
       { label: 'Registro de envíos de SMS y "Actualizar estado"', access: adminOnly() },
     ],
   },

@@ -25,8 +25,10 @@ export class SmsController {
     return { ok: true };
   }
 
+  // Solo ADMIN/MANAGER (decisión 2026-09-11): a diferencia del correo, TUTOR
+  // no tiene botón "SMS" en la pantalla de grupo.
   @Post('send')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   async sendSms(@Body() body: SendSmsDto, @Req() req: any) {
     await this.smsService.sendSms({
       to: body.to,
@@ -39,13 +41,13 @@ export class SmsController {
 
   /** Longitud/partes del SMS ya resuelto (variables + pie de baja), sin enviarlo ni exponer el texto. */
   @Post('preview-length')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   async previewLength(@Body() body: SmsPreviewLengthDto) {
     return this.smsService.previewLength(body);
   }
 
   @Post('send-from-template')
-  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   async sendSmsFromTemplate(@Body() body: SendSmsFromTemplateDto, @Req() req: any) {
     await this.smsService.sendSmsFromTemplate({
       to: body.toPhone,

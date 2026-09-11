@@ -787,7 +787,8 @@ const GroupUsersManager: React.FC<Props> = ({ groupIds, groupNamesById = {}, cou
             </Button>
           </AuthzHide>
 
-          <AuthzHide roles={[Role.ADMIN, Role.MANAGER, Role.TUTOR]}>
+          {/* SMS: solo ADMIN/MANAGER (decisión 2026-09-11) — a diferencia del correo, TUTOR no lo tiene. */}
+          <AuthzHide roles={[Role.ADMIN, Role.MANAGER]}>
             <Button
               id="group-sms-button"
               type="default"

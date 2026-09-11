@@ -70,14 +70,16 @@ Initial audit: 2026-09-09, followed same-day by a round of deliberate decisions 
 
 ## 5b. SMS (Mailrelay)
 
+Narrower than mail on purpose (decision 2026-09-11): only ADMIN/MANAGER, no TUTOR — unlike mail (§5) where TUTOR also sends. Reads (`GET /sms-settings`, `GET /sms-templates`) are narrowed to match, since no other role has any legitimate use for them (contrast with SMTP/mail templates, kept open to all 5 roles because TUTOR still needs them there).
+
 | Action | ADMIN | MANAGER | VIEWER | TUTOR | CONSULTOR | Notes |
 |---|---|---|---|---|---|---|
-| View SMS settings (`api_key` always masked) | ✅ | ✅ | ✅ | ✅ | ✅ | `GET /sms-settings`, same pattern as SMTP |
+| View SMS settings (`api_key` always masked) | ✅ | ✅ | ❌ | ❌ | ❌ | `GET /sms-settings` |
 | Save SMS settings / test connection with Mailrelay | ✅ | ❌ | ❌ | ❌ | ❌ | `POST /sms-settings`, `POST /sms/connection` |
 | `/organization/sms` screen | ✅ | ❌ | ❌ | ❌ | ❌ | Same ADMIN-only gate as `/organization/smtp` |
-| View SMS templates | ✅ | ✅ | ✅ | ✅ | ✅ | `GET /sms-templates` |
+| View SMS templates | ✅ | ✅ | ❌ | ❌ | ❌ | `GET /sms-templates` |
 | Create/edit/delete SMS template | ✅ | ❌ | ❌ | ❌ | ❌ | `POST/PUT/DELETE /sms-templates` |
-| `POST /sms/send`, `/sms/send-from-template`, `/sms/preview-length` | ✅ | ✅ | ❌ | ✅ | ❌ | Same split as mail (§5) — "SMS" button in group screen, test send, and the pre-send length check |
+| `POST /sms/send`, `/sms/send-from-template`, `/sms/preview-length` | ✅ | ✅ | ❌ | ❌ | ❌ | "SMS" button in group screen, test send, and the pre-send length check |
 | SMS log (`/tools/sms-log`) and "Actualizar estado" | ✅ | ❌ | ❌ | ❌ | ❌ | `GET /sms-log`, `POST /sms-log/:id/refresh-status`, same criterion as email log (§1) |
 
 ## 6. Moodle Audit
@@ -207,7 +209,9 @@ None open as of 2026-09-09 — the last one (`dedication_passwords`/`TUTOR`, bel
 
 ## Changelog
 
-**2026-09-11 — new SMS module (Mailrelay).** New section §5b, same split/gating criteria as mail (§5) and email log (§1): settings read for all 5 roles, write/test/templates/log ADMIN-only, send `[ADMIN, MANAGER, TUTOR]`. See `docs/sms.md`.
+**2026-09-11 — SMS narrowed to ADMIN/MANAGER only (no TUTOR).** Explicit user decision: unlike mail, TUTOR has no "SMS" button in the group screen and no access to `POST /sms/send`, `/sms/send-from-template`, `/sms/preview-length`. Reads (`GET /sms-settings`, `GET /sms-templates`) narrowed from all-5-roles down to `[ADMIN, MANAGER]` to match (no other role has a legitimate use for them anymore).
+
+**2026-09-11 — new SMS module (Mailrelay).** New section §5b, same split/gating criteria as mail (§5) and email log (§1): settings read for all 5 roles, write/test/templates/log ADMIN-only, send `[ADMIN, MANAGER, TUTOR]`. See `docs/sms.md`. *(Superseded same day — see entry above.)*
 
 **2026-09-09 — round of decisions following the initial audit.** All of these were explicit user decisions, not unilateral changes:
 - **Import SAGE** narrowed to `[ADMIN]` (was `[ADMIN, MANAGER]`) — it's an automated (cron) or ADMIN-only task, not MANAGER's.
