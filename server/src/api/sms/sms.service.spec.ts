@@ -99,6 +99,49 @@ describe('SmsService — registro en sms_log', () => {
     await expect(svc.sendSms({ to: '123', message: 'Aviso' })).rejects.toThrow('Teléfono inválido');
     expect(client.sendSms).not.toHaveBeenCalled();
   });
+
+  it('bloquea el envío (y no llama a Mailrelay) si supera 1 SMS de 160 caracteres, registrando "failed"', async () => {
+    const svc = makeService();
+    const client = (svc as any).mailrelaySmsClient;
+    const recSpy = jest.spyOn(svc as any, 'recordSmsLog').mockResolvedValue(undefined);
+    const longMessage = 'A'.repeat(150); // + "\nBaja SMS: {{ unsubscribe_url }}" (~32) supera 160
+
+    await expect(svc.sendSms({ to: '600000000', message: longMessage })).rejects.toThrow(/supera el límite/);
+
+    expect(client.sendSms).not.toHaveBeenCalled();
+    const entry = recSpy.mock.calls[0][0] as { status: string; error?: string };
+    expect(entry).toMatchObject({ status: 'failed' });
+    expect(entry.error).toMatch(/supera el límite/);
+  });
+});
+
+describe('SmsService.previewLength', () => {
+  it('calcula caracteres/partes del mensaje ya resuelto (variables + pie de baja) sin enviarlo ni devolver el texto', async () => {
+    const svc = makeService();
+    const templatesService = { findById: jest.fn().mockResolvedValue({ id: 7, name: 'Recordatorio', message: 'Tu curso {NOMBRE_CURSO} empieza el {FECHA_INICIO}.' }) };
+    (svc as any).smsTemplatesService = templatesService;
+
+    const result = await svc.previewLength({
+      templateId: 7,
+      courseName: 'Excel Avanzado',
+      courseStart: '01/09/2026',
+    });
+
+    // "Tu curso Excel Avanzado empieza el 01/09/2026.\nBaja SMS: {{ unsubscribe_url }}"
+    const expectedMessage = 'Tu curso Excel Avanzado empieza el 01/09/2026.\nBaja SMS: {{ unsubscribe_url }}';
+    expect(result).toMatchObject({ length: expectedMessage.length, parts: 1, encoding: 'GSM-7', limitParts: 1 });
+    expect(JSON.stringify(result)).not.toContain('Excel Avanzado');
+  });
+
+  it('marca parts > 1 cuando el mensaje resuelto supera 160 caracteres', async () => {
+    const svc = makeService();
+    const templatesService = { findById: jest.fn().mockResolvedValue({ id: 8, name: 'Largo', message: 'A'.repeat(150) }) };
+    (svc as any).smsTemplatesService = templatesService;
+
+    const result = await svc.previewLength({ templateId: 8 });
+
+    expect(result.parts).toBeGreaterThan(1);
+  });
 });
 
 describe('SmsService.sendSmsFromTemplate', () => {

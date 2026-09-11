@@ -77,7 +77,7 @@ Initial audit: 2026-09-09, followed same-day by a round of deliberate decisions 
 | `/organization/sms` screen | ✅ | ❌ | ❌ | ❌ | ❌ | Same ADMIN-only gate as `/organization/smtp` |
 | View SMS templates | ✅ | ✅ | ✅ | ✅ | ✅ | `GET /sms-templates` |
 | Create/edit/delete SMS template | ✅ | ❌ | ❌ | ❌ | ❌ | `POST/PUT/DELETE /sms-templates` |
-| `POST /sms/send`, `/sms/send-from-template` | ✅ | ✅ | ❌ | ✅ | ❌ | Same split as mail (§5) — "SMS" button in group screen and test send |
+| `POST /sms/send`, `/sms/send-from-template`, `/sms/preview-length` | ✅ | ✅ | ❌ | ✅ | ❌ | Same split as mail (§5) — "SMS" button in group screen, test send, and the pre-send length check |
 | SMS log (`/tools/sms-log`) and "Actualizar estado" | ✅ | ❌ | ❌ | ❌ | ❌ | `GET /sms-log`, `POST /sms-log/:id/refresh-status`, same criterion as email log (§1) |
 
 ## 6. Moodle Audit

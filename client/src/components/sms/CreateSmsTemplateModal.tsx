@@ -6,7 +6,7 @@ import { Modal, Input, Form, Space, Tooltip, Button, Typography } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import { useCreateSmsTemplateMutation } from '../../hooks/api/sms/use-sms-templates';
 import { MAIL_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-variables';
-import { estimateSmsLength } from '../../utils/sms/sms-length.util';
+import { estimateSmsLength, withUnsubscribeFooter, SMS_MAX_PARTS } from '../../utils/sms/sms-length.util';
 
 const SmsTemplateSchema = z.object({
   name: z.string().min(1, 'El nombre es obligatorio'),
@@ -36,7 +36,8 @@ export default function CreateSmsTemplateModal({ open, onOk, onCancel }: CreateS
   };
 
   const message = watch('message') || '';
-  const { length, parts, encoding } = estimateSmsLength(message);
+  const { length, parts, encoding } = estimateSmsLength(withUnsubscribeFooter(message));
+  const exceedsLimit = parts > SMS_MAX_PARTS;
   const textareaRef = React.useRef<TextAreaRef>(null);
 
   const insertVariable = (variable: string) => {
@@ -96,9 +97,16 @@ export default function CreateSmsTemplateModal({ open, onOk, onCancel }: CreateS
             control={control}
             render={({ field }) => <Input.TextArea {...field} ref={textareaRef} rows={6} />}
           />
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {length} caracteres · {encoding} · {parts || 0} parte{parts === 1 ? '' : 's'} (estimado)
+          <Typography.Text type={exceedsLimit ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>
+            {length} caracteres (con el pie "Baja SMS:") · {encoding} · {parts || 0} parte{parts === 1 ? '' : 's'} — estimado, sin el nombre real del curso
           </Typography.Text>
+          {exceedsLimit && (
+            <div>
+              <Typography.Text type="danger" style={{ fontSize: 12 }}>
+                Ya supera {SMS_MAX_PARTS} SMS ({encoding === 'GSM-7' ? 160 : 70} caracteres) sin contar el nombre real del curso — acórtalo.
+              </Typography.Text>
+            </div>
+          )}
         </Form.Item>
       </Form>
     </Modal>

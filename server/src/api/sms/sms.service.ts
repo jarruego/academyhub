@@ -7,6 +7,7 @@ import { DATABASE_PROVIDER } from '../../database/database.module';
 import { DatabaseService } from '../../database/database.service';
 import { SmsLogRepository, SmsLogQuery } from '../../database/repository/sms/sms-log.repository';
 import { toE164Phone } from '../../utils/phone.util';
+import { estimateSmsLength, SmsLengthInfo } from '../../utils/sms/sms-length.util';
 
 // Actor que origina el envío (tomado del JWT en el controller, no del body).
 export interface SmsActor {
@@ -35,10 +36,22 @@ export interface SendSmsFromTemplateOptions {
   actor?: SmsActor;
 }
 
+export interface PreviewSmsLengthOptions {
+  templateId: number;
+  userId?: number;
+  courseName?: string;
+  courseStart?: string;
+  courseEnd?: string;
+}
+
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
   private readonly smsLogRepo: SmsLogRepository;
+  // Política de coste: cada envío debe caber en 1 SMS (160 caracteres GSM-7 /
+  // 70 UCS-2), incluido el pie "Baja SMS: {{ unsubscribe_url }}". Decisión
+  // explícita del usuario 2026-09-11 — no enviar SMS multi-parte.
+  private readonly MAX_SMS_PARTS = 1;
 
   constructor(
     private readonly smsSettingsService: SmsSettingsService,
@@ -159,6 +172,22 @@ export class SmsService {
     return message.includes(placeholder) ? message : `${message}\nBaja SMS: ${placeholder}`;
   }
 
+  /**
+   * Valida que el mensaje final (ya con variables sustituidas y el pie de
+   * baja) quepa en el límite de coste (`MAX_SMS_PARTS`). Lanza si se supera —
+   * el mensaje incluye el recuento para que el usuario sepa cuánto recortar.
+   */
+  private assertWithinLengthLimit(finalMessage: string): SmsLengthInfo {
+    const info = estimateSmsLength(finalMessage);
+    if (info.parts > this.MAX_SMS_PARTS) {
+      const limit = info.encoding === 'GSM-7' ? 160 : 70;
+      throw new BadRequestException(
+        `El SMS supera el límite de ${limit} caracteres (1 SMS): tiene ${info.length} caracteres y ocuparía ${info.parts} partes. Acorta la plantilla o el mensaje.`,
+      );
+    }
+    return info;
+  }
+
   async sendSms(options: SendSmsOptions): Promise<void> {
     const creds = await this.resolveCredentials();
     const settings = await this.smsSettingsService.getSettings();
@@ -167,6 +196,8 @@ export class SmsService {
 
     const phone = toE164Phone(options.to);
     if (!phone) throw new BadRequestException(`Teléfono inválido: ${options.to}`);
+
+    const finalMessage = this.ensureUnsubscribeUrl(options.message);
 
     const logBase = {
       actor: options.actor,
@@ -177,10 +208,11 @@ export class SmsService {
     };
 
     try {
+      this.assertWithinLengthLimit(finalMessage);
       const result = await this.mailrelaySmsClient.sendSms(creds, {
         to: [phone],
         sender_name: senderName,
-        message: this.ensureUnsubscribeUrl(options.message),
+        message: finalMessage,
       });
       await this.recordSmsLog({
         ...logBase,
@@ -215,6 +247,27 @@ export class SmsService {
       templateId: options.templateId,
       templateName: template.name,
     });
+  }
+
+  /**
+   * Calcula la longitud/partes del SMS ya resuelto (variables + pie de baja)
+   * para un alumno y curso concretos, SIN enviar nada ni devolver el texto
+   * (podría contener {CLAVE_MOODLE}) — solo el recuento, para avisar antes de
+   * enviar si se supera `MAX_SMS_PARTS`.
+   */
+  async previewLength(options: PreviewSmsLengthOptions): Promise<SmsLengthInfo & { limitParts: number }> {
+    const template = await this.smsTemplatesService.findById(options.templateId);
+    if (!template) throw new BadRequestException('Plantilla SMS no encontrada');
+
+    const variables = await this.buildTemplateVariables(
+      options.userId,
+      options.courseName,
+      options.courseStart,
+      options.courseEnd,
+    );
+
+    const finalMessage = this.ensureUnsubscribeUrl(this.applyVariables(template.message, variables));
+    return { ...estimateSmsLength(finalMessage), limitParts: this.MAX_SMS_PARTS };
   }
 
   /** Refresca el estado real de entrega en Mailrelay para una fila del registro (botón manual). */

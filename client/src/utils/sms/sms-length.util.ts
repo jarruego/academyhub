@@ -26,3 +26,15 @@ export function estimateSmsLength(text: string): SmsLengthInfo {
   const parts = length === 0 ? 0 : length <= singleLimit ? 1 : Math.ceil(length / concatLimit);
   return { length, parts, encoding };
 }
+
+// Mismo pie que añade siempre el backend (SmsService.ensureUnsubscribeUrl) si
+// la plantilla no lo trae ya — se suma aquí para que el contador del editor
+// no infravalore la longitud real. El nombre real del curso (variable
+// {NOMBRE_CURSO}) puede alargarla más: el recuento exacto se calcula en el
+// envío a grupo, contra el backend, con el curso y un alumno reales.
+export const SMS_UNSUBSCRIBE_FOOTER = '\nBaja SMS: {{ unsubscribe_url }}';
+export const SMS_MAX_PARTS = 1;
+
+export function withUnsubscribeFooter(text: string): string {
+  return text.includes('{{ unsubscribe_url }}') ? text : `${text}${SMS_UNSUBSCRIBE_FOOTER}`;
+}

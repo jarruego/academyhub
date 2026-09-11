@@ -5,6 +5,7 @@ import { Role } from '../../guards/role.enum';
 import { SendSmsDto } from '../../dto/sms/send-sms.dto';
 import { SendSmsFromTemplateDto } from '../../dto/sms/send-sms-from-template.dto';
 import { SmsSettingsDto } from '../../dto/sms/sms-settings.dto';
+import { SmsPreviewLengthDto } from '../../dto/sms/sms-preview-length.dto';
 
 @Controller('sms')
 export class SmsController {
@@ -34,6 +35,13 @@ export class SmsController {
       actor: this.actorFromReq(req),
     });
     return { ok: true };
+  }
+
+  /** Longitud/partes del SMS ya resuelto (variables + pie de baja), sin enviarlo ni exponer el texto. */
+  @Post('preview-length')
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER, Role.TUTOR]))
+  async previewLength(@Body() body: SmsPreviewLengthDto) {
+    return this.smsService.previewLength(body);
   }
 
   @Post('send-from-template')

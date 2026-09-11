@@ -4,6 +4,7 @@ import { useSmsTemplatesQuery } from '../../hooks/api/sms/use-sms-templates';
 import { useSmsSettingsQuery } from '../../hooks/api/sms/use-sms-settings';
 import { useSendSmsMutation } from '../../hooks/api/sms/use-send-sms.mutation';
 import { useSendTestSms } from '../../hooks/api/sms/use-sms-test';
+import { useSmsPreviewLengthMutation, type SmsPreviewLengthResponse } from '../../hooks/api/sms/use-sms-preview-length.mutation';
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 
@@ -37,6 +38,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
   const { data: smsSettings } = useSmsSettingsQuery();
   const { mutateAsync: sendSms, isPending } = useSendSmsMutation();
   const { mutateAsync: sendTestSms, isPending: isTestPending } = useSendTestSms();
+  const previewLengthMutation = useSmsPreviewLengthMutation();
   const { message: messageApi } = App.useApp();
 
   const [selectedTemplate, setSelectedTemplate] = useState<number | undefined>();
@@ -71,6 +73,45 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
   const startLabel = formatDate(groupStart ?? null);
   const endLabel = formatDate(groupEnd ?? null);
 
+  // Longitud/partes reales del SMS (variables + pie de baja sustituidos),
+  // calculada en el backend para un alumno de muestra (el primero con
+  // teléfono) — sin exponer su clave de Moodle, solo el recuento. Aviso
+  // ANTES de enviar: si supera el límite, se bloquea el botón "Enviar".
+  const sampleUser = users.find((u) => !!u.phone) ?? users[0];
+  const [lengthPreview, setLengthPreview] = useState<SmsPreviewLengthResponse | null>(null);
+  const [lengthPreviewLoading, setLengthPreviewLoading] = useState(false);
+  const exceedsLengthLimit = !!lengthPreview && lengthPreview.parts > lengthPreview.limitParts;
+
+  useEffect(() => {
+    if (!open || !selectedTemplate) {
+      setLengthPreview(null);
+      return;
+    }
+    let cancelled = false;
+    setLengthPreviewLoading(true);
+    previewLengthMutation
+      .mutateAsync({
+        templateId: selectedTemplate,
+        userId: sampleUser?.id_user,
+        courseName: courseName ?? '',
+        courseStart: startLabel,
+        courseEnd: endLabel,
+      })
+      .then((result) => {
+        if (!cancelled) setLengthPreview(result);
+      })
+      .catch(() => {
+        if (!cancelled) setLengthPreview(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLengthPreviewLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, selectedTemplate, sampleUser?.id_user, courseName, startLabel, endLabel]);
+
   const resetState = () => {
     setSelectedTemplate(undefined);
     setSenderName((smsSettings as { sender_name?: string } | undefined)?.sender_name ?? '');
@@ -86,6 +127,18 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
       return false;
     }
     return true;
+  };
+
+  const handleSendClick = async () => {
+    if (exceedsLengthLimit && lengthPreview) {
+      const limitChars = lengthPreview.encoding === 'GSM-7' ? 160 : 70;
+      messageApi.error(
+        `El SMS supera ${lengthPreview.limitParts} SMS (${limitChars} caracteres): tiene ${lengthPreview.length} caracteres. Acorta la plantilla o el nombre del curso.`,
+        8,
+      );
+      return;
+    }
+    await handleSend();
   };
 
   const handleSendTest = async () => {
@@ -215,7 +268,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
         footer={[
           <Button key="cancel" onClick={onCancel}>Cancelar</Button>,
           <Button key="test" onClick={() => setTestModalOpen(true)}>Enviar prueba</Button>,
-          <Button key="submit" type="primary" loading={isPending} onClick={handleSend}>Enviar</Button>,
+          <Button key="submit" type="primary" loading={isPending} disabled={exceedsLengthLimit} onClick={handleSendClick}>Enviar</Button>,
         ]}
       >
         <Form layout="vertical">
@@ -255,6 +308,24 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
               <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, padding: 12, whiteSpace: 'pre-wrap' }}>
                 {selectedTemplateData.message}
               </div>
+              <div style={{ marginTop: 6 }}>
+                {lengthPreviewLoading ? (
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>Calculando longitud real…</Typography.Text>
+                ) : lengthPreview ? (
+                  <Typography.Text type={exceedsLengthLimit ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>
+                    {lengthPreview.length} caracteres · {lengthPreview.encoding} · {lengthPreview.parts} parte{lengthPreview.parts === 1 ? '' : 's'} de {lengthPreview.limitParts}
+                    {' '}(mensaje final ya con variables y "Baja SMS:" sustituidos, según {sampleUser ? 'el primer alumno con teléfono' : 'la plantilla'})
+                  </Typography.Text>
+                ) : null}
+              </div>
+              {exceedsLengthLimit && lengthPreview && (
+                <Alert
+                  style={{ marginTop: 8 }}
+                  type="error"
+                  showIcon
+                  message={`Supera el límite de ${lengthPreview.limitParts} SMS (${lengthPreview.encoding === 'GSM-7' ? 160 : 70} caracteres). Acorta la plantilla o el nombre del curso antes de enviar.`}
+                />
+              )}
             </Form.Item>
           )}
         </Form>
