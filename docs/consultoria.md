@@ -47,8 +47,9 @@ no ha empezado — ver "Estado" más abajo.
   que cumpla la norma aunque no habría construido uno por su cuenta; un
   único plan compartido por todos los centros del cliente, sin duplicar.
   **Formación propia de cada centro**: por encima del plan base, cada centro
-  añade la suya (más catálogo, o externa). Admite altas fuera de la campaña
-  inicial, no es un bloque cerrado.
+  añade la suya (más catálogo, o externa) — y **ADMIN/CONSULTOR pueden darla
+  de alta en nombre de un centro**, no tiene que hacerlo siempre el propio
+  centro. Admite altas fuera de la campaña inicial, no es un bloque cerrado.
 - **Auditoría anual** (nuevo, contenedor): una por centro y ejercicio, ciclo
   de vida borrador → abierta → cerrada. Agrupa el plan + evaluación de
   acciones + evaluación de competencias de ese año. Se cierra sola a los dos
@@ -96,7 +97,10 @@ no ha empezado — ver "Estado" más abajo.
     todavía): Marisa registra la acción en el plan (con fecha), el centro la
     evalúa igual que el resto, y Marisa puede registrar también a los
     asistentes (sujeto también a que ya existan como usuarios) — asume los
-    pasos 1 y 3 en este caso.
+    pasos 1 y 3 en este caso. No es un tercer origen: sigue siendo una acción
+    **propia** de Mecohisa, solo que probablemente con un entorno de alta más
+    amigable y sencillo que el alta de catálogo completa de ADMIN/CONSULTOR
+    (a concretar en el diseño técnico).
 - **Evaluación de competencias**: 25 competencias fijas por trabajador,
   escala `1` (no necesita mejorar) / `0` (necesita mejorar) / en blanco (no
   aplica al puesto). Periodicidad libre; hábito anual en diciembre salvo
@@ -118,6 +122,28 @@ no ha empezado — ver "Estado" más abajo.
   catálogo de Mecohisa). Alcance cerrado a los datos de ese centro, sin
   exportaciones masivas ni navegación a otros centros; cambios auditados.
   Implementación exacta (hash, longitud, middleware): en el diseño técnico.
+
+## Dashboards auditables (objetivo de consultoría)
+Fase 1 no está completa hasta que existan estos 4 informes, exportables como
+evidencia de auditoría (ver la motivación normativa al principio del doc):
+
+1. **Plan de Formación Anual** — sale de § Plan de formación (base + propio
+   de cada centro).
+2. **Evaluación de las Acciones Formativas Realizadas** — sale de §
+   Evaluación de acciones formativas, con el filtro "`<50%` con
+   justificación" que da el campo Porcentaje.
+3. **Registro de Alumnos Formados** (3 años + año en curso) — sale del
+   Cuadro de formación por centro. *Pendiente:* ¿agrega varias auditorías
+   anuales de un centro (3 cerradas + la actual) o es una ventana fija de 4
+   años natural, con o sin auditoría para esos años?
+4. **Evaluación de Competencias por Puesto de Trabajo** — sale de §
+   Evaluación de competencias. *Pendiente:* ¿tabla por trabajador filtrable
+   por puesto, o vista agregada (% de necesidad de mejora por competencia y
+   puesto, sin bajar a cada trabajador)?
+
+*Pendiente:* consultoría mencionó un informe y unas tablas propias que usan
+hoy, para reflejar su estructura en estos 4 dashboards — no ha llegado
+todavía.
 
 ## Decisiones cerradas
 - Cliente = entidad nueva en Consultoría (no se amplía el modelo core de
@@ -155,30 +181,24 @@ no ha empezado — ver "Estado" más abajo.
 - Campo "Imparte" = empresa/centro de formación que imparte la acción.
 - Objetivos = un único campo (no específicos/generales separados); Categoría
   y Fecha pasan a listas fijas gestionables (Fecha no es una fecha real).
+- ADMIN y CONSULTOR pueden dar de alta formación en nombre de un centro.
+- El caso de Marisa (formación presencial de Mecohisa sin catalogar) no es
+  un tercer origen — sigue siendo acción propia, con un alta más sencilla.
 
 ## Decisiones pendientes
-Consultoría revisó el documento y confirmó casi todo (correcciones ya
-incorporadas arriba). Quedan dos puntos que reabrió/planteó expresamente:
-- ¿Pueden ADMIN y CONSULTOR dar de alta formación **en nombre de un
-  centro**, o debe hacerlo siempre el propio centro? (afecta al modelo de
-  Plan de formación de arriba). A confirmar antes del diseño técnico.
-- La formación presencial de Marisa (propia de Mecohisa, sin catalogar):
-  ¿se le da la posibilidad de registrar una acción propia directamente, sin
-  pasar por el alta formal en el catálogo? Sería un tercer origen además de
-  "propia de catálogo" y "externa de un centro".
-
-Fuera de eso, falta la validación formal del resto del planteamiento con el
-compañero de consultoría.
+Consultoría dio el **visto bueno final** al planteamiento de negocio (§
+Modelo conceptual y Decisiones cerradas). Solo quedan los 3 detalles de
+diseño de los dashboards auditables (arriba) — no bloquean empezar el
+diseño técnico.
 
 ## Estado
-Planteamiento funcional y decisiones de diseño **cerradas casi por
-completo** (documentadas también como documento compartible para
-consultoría, con roadmap y checklist de estado); consultoría ya hizo una
-pasada de revisión. Queda 1 punto reabierto (arriba) y la validación formal
-del resto. Capa técnica (modelo de datos definitivo, endpoints, pantallas,
-matriz de permisos, implementación del token) sin empezar — no crear código
-de `api/consultoria/` a partir de este documento sin antes tener ese visto
-bueno.
+Planteamiento funcional y de negocio **cerrado, con visto bueno de
+consultoría** (documentado también como documento compartible, con roadmap y
+checklist de estado). Quedan 3 detalles de diseño de los dashboards
+auditables (arriba), a resolver en paralelo. Capa técnica (modelo de datos
+definitivo, endpoints, pantallas, matriz de permisos, implementación del
+token) sin empezar — puede arrancar ya; no crear código de
+`api/consultoria/` sin antes leer este documento entero.
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)
 1. Cierre de decisiones con consultoría.
@@ -194,27 +214,39 @@ bueno.
 11. *(Fase siguiente, fuera de esta fase 1)* Panel de altas/bajas de
     participantes.
 
-## Mejoras futuras (fuera de alcance, sin diseñar)
+## Mejoras futuras — fase 2 (fuera de alcance, sin diseñar)
 Ideas para una fase posterior a las 11 anteriores, una vez Consultoría esté
 desarrollada y en uso real. No forman parte del planteamiento cerrado ni
-condicionan el diseño técnico actual — se anotan aquí para no perderlas.
+condicionan el diseño técnico actual — se anotan aquí para no perderlas. Los
+4 primeros puntos son los que consultoría marcó como objetivos de fase 2.
 
-- **Peticiones de formación desde el centro**: el centro (vía su acceso
-  externo por token, § Acceso externo de centros) lanza sus propias
-  solicitudes de formación eligiendo un curso del catálogo y los
-  trabajadores que lo realizarían. La app avisa del alta por notificación
-  y/o correo. Por decidir cuando se estudie: a quién llega el aviso
-  (ADMIN/CONSULTOR/otro), qué circuito de aprobación sigue la petición
-  (¿entra directa al plan del centro, como las altas de acciones propias
-  actuales, o pasa por una bandeja de revisión?) y su relación con la
-  bandeja de revisión opcional ya prevista para altas de acciones
-  formativas (§ Decisiones cerradas).
-- **Avisos proactivos a centros por correo, con filtros**: aprovechando que
-  el sistema ya tiene los datos para cotejarlo (evaluaciones registradas,
-  roster de la auditoría), enviar correos a centros filtrando por
-  situaciones como evaluación baja de una acción formativa, trabajadores
-  pendientes de evaluar (competencias) o acciones formativas pendientes de
-  evaluar. Por decidir cuando se estudie: quién dispara el envío (manual
-  desde una pantalla de filtros, o automático/programado), destinatario
-  exacto en el centro y si comparte plantillas con el sistema de informes
-  por email ya existente en la app (fuera de Consultoría).
+- **Interés de un centro en acciones del catálogo**: el centro (vía su
+  acceso externo por token) marca en qué acciones del catálogo de Mecohisa
+  está interesado — más ligero que una petición formal. Conceptualmente
+  parecido a la bolsa de interesados que ya existe en el catálogo
+  (`course_interests`, ver `docs/course-catalog.md`), pero ahí el interés es
+  de una persona por un curso; aquí sería de un centro por una acción.
+  Estudiar si se adapta ese mismo patrón o hace falta algo nuevo.
+- **Petición de formación/alumnos desde el centro**: el centro lanza sus
+  propias solicitudes de formación eligiendo un curso del catálogo y los
+  trabajadores que lo realizarían. **Fuerte candidato a reutilizar**: ya
+  existe `api/course-request/` ("Peticiones de centros", ver
+  `docs/course-requests.md`) — un centro manda por Excel o pega a mano el
+  listado de alumnos que necesita para un curso de catálogo, con estado
+  ABIERTA/CERRADA; es prácticamente lo mismo que pide consultoría aquí,
+  valorar extenderlo en vez de construir algo nuevo. Por decidir cuando se
+  estudie: a quién llega el aviso del alta (ADMIN/CONSULTOR/otro) y qué
+  circuito de aprobación sigue (¿entra directa al plan del centro, como las
+  altas de acciones propias actuales, o pasa por la bandeja de revisión
+  opcional ya prevista, § Decisiones cerradas?).
+- **Correo a centros según filtros de los informes**: desde los dashboards
+  auditables, si el auditor detecta errores, campos en blanco o necesidades
+  de comunicación al aplicar un filtro, disparar un correo a los centros
+  afectados directamente desde ahí. Por decidir cuando se estudie: disparo
+  manual desde la pantalla de filtros (lo que pide consultoría) frente a
+  automático/programado, destinatario exacto en el centro, y si comparte
+  plantillas con el sistema de informes por email ya existente en la app
+  (fuera de Consultoría).
+- **Informe de formación / dashboard adicional**: consultoría mencionó un
+  informe y unas tablas propias que usan hoy, para reflejarlos en el
+  diseño — pendiente de que lo compartan (ver "Dashboards auditables").
