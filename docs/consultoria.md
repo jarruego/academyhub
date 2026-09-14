@@ -1,14 +1,21 @@
 # Consultoría (`api/consultoria`, sin implementar)
 
-Nuevo apartado para gestionar servicios de consultoría de formación con los
-centros de un cliente. Acceso solo **ADMIN** y **CONSULTOR**. Cliente piloto:
+Nuevo apartado para que **Mecohisa** (la organización que presta el servicio
+a través de la app) gestione la consultoría de formación con los centros de
+un cliente. Acceso solo **ADMIN** y **CONSULTOR**. Cliente piloto:
 **VITALIA**. Fase 1: auditoría de la formación (plan, evaluación de acciones,
 evaluación de competencias, cuadro por centro).
 
+No es solo un cuadro de mandos: es la **herramienta de registro** con la que
+un centro sostiene, ante una auditoría, el cumplimiento de los requisitos de
+formación y competencia de sus normas de gestión (ISO 9001, ISO 14001,
+ISO 45001, SGE21, UNE 10002, UNE 158101, UNE 158201) — condiciona el diseño:
+los datos tienen que quedar trazados y ser exportables como evidencia.
+
 Read before touching `api/consultoria/`. Este doc recoge el **planteamiento
-funcional**, ya debatido con el cliente; el diseño técnico (endpoints, DTOs,
-migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
-"Estado" más abajo.
+funcional**, ya debatido con el cliente y revisado por consultoría; el diseño
+técnico (endpoints, DTOs, migraciones, pantallas, matriz de permisos) todavía
+no ha empezado — ver "Estado" más abajo.
 
 ## Modelo conceptual
 - **Cliente** (nuevo, entidad propia de Consultoría): agrupa una o varias
@@ -23,15 +30,25 @@ migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
   Campo nuevo `origen` (propio/externo); una acción externa no lleva
   edición/grupo/matrícula real ni sync a Moodle, solo los campos necesarios
   para plan/evaluación/cuadro.
-  - Ya existen en `courses`: `course_name`, `hours`, `modality`, `category`
-    (texto libre), `target_audience` (= "Dirigido a").
-  - Nuevos: objetivos específicos, objetivos generales (el catálogo solo
-    tiene un `objectives` único, no separado por acción), fecha (texto libre
-    por ahora).
-- **Plan de formación**: dos capas — plan base del cliente (acciones de
-  catálogo, compartido por todos sus centros, sin duplicar) + formación
-  propia de cada centro (propia o externa) por encima. Admite altas fuera de
-  la campaña inicial, no es un bloque cerrado.
+  - Ya existen en `courses`: `course_name`, `hours`, `modality` (lista fija:
+    Online/Presencial/Mixta), `category` (texto libre → pasa a lista fija),
+    `target_audience` (= "Dirigido a").
+  - Nuevos: `objetivos` — **un único campo**, sin separar específicos/
+    generales (a petición de consultoría; el catálogo ya tiene un
+    `objectives` único a nivel de catálogo, esto sería el equivalente por
+    acción); `fecha` — **lista fija de valores**, no texto libre ni fecha
+    real (p. ej. *A demanda*, *Según calendario central*, *Alta trabajador*,
+    *En elaboración*, ampliable).
+- **Plan de formación**: dos capas. La decisión última del plan es siempre
+  del centro — Mecohisa no "planifica" por él, aunque en la práctica sea
+  quien lo arranca. **Plan base**: el catálogo de Mecohisa pasa, en la
+  práctica, a ser el plan de formación del centro (no una planificación
+  aparte que se le añade) — es lo que permite que un centro tenga un plan
+  que cumpla la norma aunque no habría construido uno por su cuenta; un
+  único plan compartido por todos los centros del cliente, sin duplicar.
+  **Formación propia de cada centro**: por encima del plan base, cada centro
+  añade la suya (más catálogo, o externa). Admite altas fuera de la campaña
+  inicial, no es un bloque cerrado.
 - **Auditoría anual** (nuevo, contenedor): una por centro y ejercicio, ciclo
   de vida borrador → abierta → cerrada. Agrupa el plan + evaluación de
   acciones + evaluación de competencias de ese año. Se cierra sola a los dos
@@ -109,19 +126,28 @@ migraciones, pantallas, matriz de permisos) todavía no ha empezado — ver
   el modelo de acción.
 - Configurador de plantillas puesto↔competencia: ADMIN y CONSULTOR.
 - Campo "Imparte" = empresa/centro de formación que imparte la acción.
+- Objetivos = un único campo (no específicos/generales separados); Categoría
+  y Fecha pasan a listas fijas gestionables (Fecha no es una fecha real).
 
 ## Decisiones pendientes
-Ninguna decisión funcional o de seguridad queda abierta. Solo falta la
-validación formal del planteamiento con el compañero de consultoría (§ Estado).
+Consultoría revisó el documento y confirmó casi todo (correcciones ya
+incorporadas arriba). Queda un punto que reabrió expresamente:
+- ¿Pueden ADMIN y CONSULTOR dar de alta formación **en nombre de un
+  centro**, o debe hacerlo siempre el propio centro? (afecta al modelo de
+  Plan de formación de arriba). A confirmar antes del diseño técnico.
+
+Fuera de eso, falta la validación formal del resto del planteamiento con el
+compañero de consultoría.
 
 ## Estado
-Planteamiento funcional y decisiones de diseño **cerradas por completo**
-(documentadas también como documento compartible para consultoría, con
-roadmap y checklist de estado). Falta la validación formal con el compañero
-de consultoría — es revisión, no debate. Capa técnica (modelo de datos
-definitivo, endpoints, pantallas, matriz de permisos, implementación del
-token) sin empezar — no crear código de `api/consultoria/` a partir de este
-documento sin antes tener ese visto bueno.
+Planteamiento funcional y decisiones de diseño **cerradas casi por
+completo** (documentadas también como documento compartible para
+consultoría, con roadmap y checklist de estado); consultoría ya hizo una
+pasada de revisión. Queda 1 punto reabierto (arriba) y la validación formal
+del resto. Capa técnica (modelo de datos definitivo, endpoints, pantallas,
+matriz de permisos, implementación del token) sin empezar — no crear código
+de `api/consultoria/` a partir de este documento sin antes tener ese visto
+bueno.
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)
 1. Cierre de decisiones con consultoría.
