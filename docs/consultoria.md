@@ -85,11 +85,18 @@ no ha empezado — ver "Estado" más abajo.
     alumnos (ya tiene esos datos de la matrícula real), no el centro.
     Posibles avisos recordatorios si falta algún paso (relacionado con los
     avisos proactivos de "Mejoras futuras").
+  - **Registrar asistentes es seleccionar, nunca crear**: solo se puede
+    anotar como asistente a un trabajador que ya existe como `user` en la
+    base de datos — misma búsqueda por nombre/DNI/teléfono/email que el
+    ajuste manual del roster, arriba. Si la persona no está dada de alta en
+    el sistema, no se puede registrar desde Consultoría; tiene que existir
+    antes por la vía habitual de la aplicación.
   - **Caso excepcional — formación presencial de Marisa** (personal de
     Mecohisa que a veces organiza formación presencial propia sin catalogar
     todavía): Marisa registra la acción en el plan (con fecha), el centro la
     evalúa igual que el resto, y Marisa puede registrar también a los
-    asistentes — asume los pasos 1 y 3 en este caso.
+    asistentes (sujeto también a que ya existan como usuarios) — asume los
+    pasos 1 y 3 en este caso.
 - **Evaluación de competencias**: 25 competencias fijas por trabajador,
   escala `1` (no necesita mejorar) / `0` (necesita mejorar) / en blanco (no
   aplica al puesto). Periodicidad libre; hábito anual en diciembre salvo
