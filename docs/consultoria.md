@@ -58,9 +58,12 @@ no ha empezado — ver "Estado" más abajo.
 - **Evaluación de acciones formativas**: acción, fecha, evaluación/motivo
   (texto libre — utilidad y cumplimiento del objetivo desde el punto de vista
   del cliente auditado, no la satisfacción del alumno), porcentaje (0-100),
-  imparte (empresa/centro que imparte la acción). Evaluación progresiva
-  según terminan las acciones, no un único corte anual; `<50%` exige motivos
-  y medidas propuestas.
+  imparte (empresa/centro que imparte la acción). Dos campos separados a
+  propósito: el texto explica el caso, el **porcentaje** lo hace explotable
+  (filtrar/comprobar que toda evaluación `<50%` está justificada y con
+  acción correctiva asociada). Evaluación progresiva según terminan las
+  acciones, no un único corte anual; `<50%` exige motivos y medidas
+  propuestas.
 - **Cuadro de formación por centro**: cruce trabajador (DNI, nombre,
   apellidos, cargo) × acción, con fecha. Automático para formación propia ya
   registrada; ajuste manual del roster evaluado (añadir/quitar trabajador)
@@ -74,6 +77,19 @@ no ha empezado — ver "Estado" más abajo.
   granular: gestión curso a curso de quién participó en cada acción
   formativa concreta — sirve de base para automatizar más el cruce y para
   llevar registro de asistencia por acción.
+  - **Circuito de registro, en orden**: para una acción propia de un
+    centro — 1) el centro la registra en su plan · 2) el centro la evalúa ·
+    3) el centro registra los asistentes. Para un curso del catálogo de
+    Mecohisa — 1) petición/matrícula (circuito ya existente fuera de
+    Consultoría) · 2) el centro evalúa · 3) **Mecohisa** registra a los
+    alumnos (ya tiene esos datos de la matrícula real), no el centro.
+    Posibles avisos recordatorios si falta algún paso (relacionado con los
+    avisos proactivos de "Mejoras futuras").
+  - **Caso excepcional — formación presencial de Marisa** (personal de
+    Mecohisa que a veces organiza formación presencial propia sin catalogar
+    todavía): Marisa registra la acción en el plan (con fecha), el centro la
+    evalúa igual que el resto, y Marisa puede registrar también a los
+    asistentes — asume los pasos 1 y 3 en este caso.
 - **Evaluación de competencias**: 25 competencias fijas por trabajador,
   escala `1` (no necesita mejorar) / `0` (necesita mejorar) / en blanco (no
   aplica al puesto). Periodicidad libre; hábito anual en diciembre salvo
@@ -89,10 +105,12 @@ no ha empezado — ver "Estado" más abajo.
   BD, resuelto en servidor al centro; único token por centro; revocable y
   regenerable al instante desde la ficha del centro. Atado al estado de la
   auditoría anual de ese centro (§ auditoría anual): edita mientras está
-  abierta, pasa a solo lectura al cerrarla. Alcance cerrado a los datos de
-  ese centro, sin exportaciones masivas ni navegación a otros centros;
-  cambios auditados. Implementación exacta (hash, longitud, middleware): en
-  el diseño técnico.
+  abierta, pasa a solo lectura al cerrarla. El centro usa este acceso para
+  evaluar sus acciones, evaluar competencias, y registrar a los asistentes
+  de sus propias acciones (paso 3 del circuito de arriba — no de las de
+  catálogo de Mecohisa). Alcance cerrado a los datos de ese centro, sin
+  exportaciones masivas ni navegación a otros centros; cambios auditados.
+  Implementación exacta (hash, longitud, middleware): en el diseño técnico.
 
 ## Decisiones cerradas
 - Cliente = entidad nueva en Consultoría (no se amplía el modelo core de
@@ -119,11 +137,13 @@ no ha empezado — ver "Estado" más abajo.
   origen (propio/externo).
 - Categoría pasa de texto libre a **lista fija gestionable** (Modalidad ya
   era lista fija: Online/Presencial/Mixta).
-- "Evaluación/Motivo" de la evaluación de acciones: **texto libre único**,
-  sin subcampos.
+- "Evaluación/Motivo" de la evaluación de acciones: se mantiene como **dos
+  campos** (texto libre + Porcentaje numérico), sin partir el texto en más
+  subcampos.
 - Formación externa en el cuadro: solo entra si se registra como acción
   formativa (origen=externo); no se admite formación suelta sin pasar por
-  el modelo de acción.
+  el modelo de acción. Circuito de registro en tres pasos según origen
+  (detallado arriba), con la excepción de Marisa.
 - Configurador de plantillas puesto↔competencia: ADMIN y CONSULTOR.
 - Campo "Imparte" = empresa/centro de formación que imparte la acción.
 - Objetivos = un único campo (no específicos/generales separados); Categoría
@@ -131,10 +151,14 @@ no ha empezado — ver "Estado" más abajo.
 
 ## Decisiones pendientes
 Consultoría revisó el documento y confirmó casi todo (correcciones ya
-incorporadas arriba). Queda un punto que reabrió expresamente:
+incorporadas arriba). Quedan dos puntos que reabrió/planteó expresamente:
 - ¿Pueden ADMIN y CONSULTOR dar de alta formación **en nombre de un
   centro**, o debe hacerlo siempre el propio centro? (afecta al modelo de
   Plan de formación de arriba). A confirmar antes del diseño técnico.
+- La formación presencial de Marisa (propia de Mecohisa, sin catalogar):
+  ¿se le da la posibilidad de registrar una acción propia directamente, sin
+  pasar por el alta formal en el catálogo? Sería un tercer origen además de
+  "propia de catálogo" y "externa de un centro".
 
 Fuera de eso, falta la validación formal del resto del planteamiento con el
 compañero de consultoría.
