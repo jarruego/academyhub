@@ -214,6 +214,27 @@ marcan explícitamente como infraestructura nueva.
   capturan sus cambios sin tocar nada. Contrapartida: hace falta poder
   distinguirlos de usuarios reales en las pantallas de Gestión de usuarios
   (ver más abajo).
+- **Token del centro en el mismo sitio que el JWT**: `Authorization: Bearer
+  <token>`, no una cabecera nueva — el cliente ya tiene un hook
+  (`use-authenticated-axios.util.ts`) montado sobre esa cabecera; el acceso
+  externo usa una variante ligera del mismo, cambiando solo de dónde saca el
+  valor. Sin ambigüedad con el JWT normal porque `ConsultingTokenGuard` solo
+  se monta en las rutas del centro, nunca en las internas.
+- **Grupo de menú "Consultoría" con el mismo patrón que "Cursos"/"Empresas"**
+  en `router.tsx`: condicional en línea sobre el rol
+  (`role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() ===
+  Role.CONSULTOR`), no `AuthzHide` — comprobado, el sidebar no usa ese
+  componente para sus grupos, los construye así los dos que ya existen.
+- **Alias de puesto de trabajo** (`consulting_job_position_aliases`):
+  `job_position` es texto libre y poco fiable ("Gerocultor/a" vs
+  "gerocultora" vs "GEROCULTOR"...) — comparar contra el nombre del catálogo
+  no es suficiente. En vez de intentar adivinar, una tabla de alias
+  (valor tal cual aparece en `job_position` → puesto del catálogo de 28) que
+  mantiene **solo ADMIN**, con una pantalla que lista los valores de
+  `job_position` que todavía no tienen alias — se resuelven una vez y quedan
+  memorizados. Mismo patrón que ya usa la importación de Peticiones de
+  centros para hacer matching de columnas de Excel por alias
+  (`course-request-column-map.ts`).
 
 ### Modelo de datos (Drizzle, `academyhubSchema`, nombres en inglés — igual que el resto del esquema)
 
@@ -230,20 +251,21 @@ marcan explícitamente como infraestructura nueva.
 | `consulting_roster_adjustments` | Ajuste manual del cuadro/competencias: `id`, `id_center`, `id_user`, `adjustment_type` (`ADD`/`REMOVE`), `created_by`, `created_at`. |
 | `consulting_competencies` | Catálogo de 25: `id`, `name`, `display_order`. |
 | `consulting_job_positions` | Catálogo de 28: `id`, `name`, `group_label`, `display_order`. |
+| `consulting_job_position_aliases` | `job_position` (texto, tal cual aparece en `user`) → `id_job_position`. Mantenida por ADMIN. |
 | `consulting_position_competency_templates` | Configurador: `id_job_position`, `id_competency`, `default_value` (1/0/NULL), único por par. |
 | `consulting_competency_evaluations` | `id`, `id_user`, `id_center`, `id_competency`, `id_annual_audit`, `value` (1/0/NULL), `evaluated_at`, `evaluated_by` (nullable). |
 | `consulting_center_tokens` | `id_center` (único), `token_hash`, `created_at`, `last_used_at`, `revoked_at`. |
 
 Notas:
 - `id_annual_audit` en evaluaciones es explícito (no derivado en cada query) para que los 4 dashboards no tengan que recalcular a qué ejercicio pertenece cada fila — el servicio lo resuelve solo al crear la evaluación, a partir de `id_center` + fecha.
-- **`user.job_position` ya existe** (texto libre) — se usa como señal para el autorelleno de la plantilla por puesto (buscando coincidencia contra `consulting_job_positions.name`), pero la evaluación de competencias no depende de él: si no hay coincidencia, se autorellena vacío y se avisa, sin bloquear.
+- **`user.job_position` ya existe** (texto libre) — se usa como señal para el autorelleno de la plantilla por puesto, resuelto vía `consulting_job_position_aliases` (no comparando texto directamente contra `consulting_job_positions.name`, poco fiable). Si el valor de `job_position` no tiene alias todavía, se autorellena vacío y se avisa, sin bloquear — queda listado para que ADMIN lo mapee.
 - Consecuencia de "usuario técnico por centro": añadir `auth_users.is_service_account` (boolean, default `false`) para poder filtrarlos por defecto de `/auth-users` y de cualquier listado de usuarios — a validar con `docs/security.md`/`docs/permissions-matrix.md` al implementarlo.
 
 ### Guards y acceso externo
 
 **No hay precedente de acceso público por token en este código** (se comprobó — el único `@Public()` existente es login y descarga de ficheros; el "token" de `docs/mail-moodle.md` es un token de servidor→Moodle, no de visitante→servidor). Es infraestructura nueva:
 
-- `ConsultingTokenGuard` (nuevo, junto a `AuthGuard`): lee el token de una cabecera (`X-Consulting-Token`, no de la URL de cada llamada — el enlace humano sí lleva el token en la URL, pero el cliente lo reenvía por cabecera en las llamadas a la API), lo hashea, lo resuelve contra `consulting_center_tokens`, comprueba `revoked_at IS NULL`, y rellena `request['user']` con el usuario técnico del centro — igual que hace `AuthGuard` con un login normal. Comprueba también el estado de la auditoría anual del centro: si está `CLOSED`, solo permite lectura.
+- `ConsultingTokenGuard` (nuevo, junto a `AuthGuard`): lee el token de `Authorization: Bearer <token>` (no de la URL de cada llamada a la API — el enlace humano sí lo lleva en la URL, pero el cliente lo reenvía por esa cabecera, igual que el JWT normal, vía una variante de `use-authenticated-axios.util.ts`), lo hashea, lo resuelve contra `consulting_center_tokens`, comprueba `revoked_at IS NULL`, y rellena `request['user']` con el usuario técnico del centro — igual que hace `AuthGuard` con un login normal. Comprueba también el estado de la auditoría anual del centro: si está `CLOSED`, solo permite lectura.
 - Enlace humano: `https://<app>/consultoria-centro/:token` — ruta de cliente sin el layout/sidebar normal, que guarda el token y lo usa en cabecera para sus llamadas a `api/consultoria/centro/...`.
 - Endpoints internos (ADMIN/CONSULTOR): `@UseGuards(RoleGuard([Role.ADMIN, Role.CONSULTOR]))` a nivel de controlador, mismo patrón que `course-request.controller.ts`. `CONSULTOR` hoy tiene los mismos privilegios que `VIEWER` (comentario en `role.enum.ts`) — Consultoría es el primer módulo que le da permisos reales.
 
@@ -255,10 +277,11 @@ Apertura/cierre automático de la auditoría anual: tarea programada siguiendo e
 
 ### Frontend
 
-- Grupo nuevo en el sidebar, "Consultoría" (`client/src/router.tsx`, junto al resto de grupos) — visibilidad `[Role.ADMIN, Role.CONSULTOR]`. *A verificar al construirlo:* el array de menú de `router.tsx` no confirmado que aplique `AuthzHide` por ítem — puede que el filtrado de visibilidad se haga de otra forma allí.
+- Grupo nuevo en el sidebar, "Consultoría" (`client/src/router.tsx`, junto al resto de grupos) — visibilidad `role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.CONSULTOR`, igual que "Cursos"/"Empresas".
 - Rutas internas: `/consultoria` (listado de clientes) → `/consultoria/:id` (ficha: empresas/centros, plan, auditorías por centro) con pestañas para evaluación de acciones, cuadro y competencias.
 - Ruta externa del centro: `/consultoria-centro/:token`, layout propio sin sidebar.
 - Empresas/Centros no tienen hoy ninguna pantalla de agrupación (son recursos planos bajo "Empresas") — Cliente no se cuelga de esas pantallas, tiene las suyas propias, referenciando empresas/centros por id.
+- Pantalla ADMIN "Puestos sin mapear": lista los valores de `job_position` sin alias todavía, con selector del puesto del catálogo al que corresponden.
 
 ### Al implementar (recordatorios de CLAUDE.md)
 - Cada `RoleGuard`/`@Public()` nuevo → actualizar `docs/permissions-matrix.md` **y** `permissions-matrix.content.ts` a la vez.
@@ -270,21 +293,16 @@ Negocio: consultoría dio el **visto bueno final** (§ Modelo conceptual y
 Decisiones cerradas). Solo quedan los 3 detalles de diseño de los
 dashboards auditables (arriba) — no bloquean nada.
 
-Técnico (a verificar al implementar, no bloquean seguir con el diseño):
-- Si el array de menú de `client/src/router.tsx` aplica `AuthzHide` por
-  ítem o filtra la visibilidad de otra forma — condiciona cómo se gatea el
-  grupo "Consultoría" a `[ADMIN, CONSULTOR]`.
-- Nombre exacto de la cabecera/mecanismo para reenviar el token del centro
-  en cada llamada del cliente externo (`X-Consulting-Token` es una
-  propuesta, no algo ya usado en el código).
+Técnico: sin puntos abiertos — las dos dudas de arquitectura (menú del
+sidebar, cabecera del token) se resolvieron revisando el código real, y se
+sumó el diseño de alias de puesto de trabajo (arriba).
 
 ## Estado
 Planteamiento funcional **cerrado, con visto bueno de consultoría**.
-**Diseño técnico borrador ya escrito** (tablas, guards, módulo, endpoints,
-frontend — ver arriba), basado en las convenciones reales del código, con
-4 decisiones de arquitectura ya tomadas. Sigue sin haber código ni
-migraciones — no crear nada de `api/consultoria/` sin antes leer este
-documento entero y confirmar el diseño técnico con quien vaya a construirlo.
+**Diseño técnico cerrado** (tablas, guards, módulo, endpoints, frontend —
+ver arriba), basado en las convenciones reales del código, sin puntos
+técnicos abiertos. Sigue sin haber código ni migraciones — no crear nada de
+`api/consultoria/` sin antes leer este documento entero.
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)
 1. Cierre de decisiones con consultoría.
