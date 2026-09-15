@@ -135,7 +135,11 @@ evidencia de auditoría (ver la motivación normativa al principio del doc):
 3. **Registro de Alumnos Formados** (3 años + año en curso) — sale del
    Cuadro de formación por centro. *Pendiente:* ¿agrega varias auditorías
    anuales de un centro (3 cerradas + la actual) o es una ventana fija de 4
-   años natural, con o sin auditoría para esos años?
+   años natural, con o sin auditoría para esos años? **Dato nuevo:** el
+   informe/estadísticas real que usa consultoría hoy mantiene **10 años**
+   de histórico (2016-2025), no 4 — a tener en cuenta al cerrar esta
+   pregunta (ver análisis de los ficheros de consultoría, § Mejoras
+   futuras).
 4. **Evaluación de Competencias por Puesto de Trabajo** — sale de §
    Evaluación de competencias. *Pendiente:* ¿tabla por trabajador filtrable
    por puesto, o vista agregada (% de necesidad de mejora por competencia y
@@ -351,6 +355,43 @@ condicionan el diseño técnico actual — se anotan aquí para no perderlas. Lo
   automático/programado, destinatario exacto en el centro, y si comparte
   plantillas con el sistema de informes por email ya existente en la app
   (fuera de Consultoría).
-- **Informe de formación / dashboard adicional**: consultoría mencionó un
-  informe y unas tablas propias que usan hoy, para reflejarlos en el
-  diseño — pendiente de que lo compartan (ver "Dashboards auditables").
+- **Informe de formación / dashboard adicional** — consultoría compartió 3
+  ficheros reales (analizados 2026-09-15, sin decisiones tomadas todavía —
+  solo para informar el diseño de fase 2):
+  - **`ESTADÍSTICAS FORMACIÓN VITALIA 2016-2025.xlsx`**: hoja `DATA` es una
+    tabla plana, una fila por (año × curso × centro) — columnas `AÑO`,
+    `CURSO`, `CENTRO`, `AF` (código de acción formativa FUNDAE — ya tenemos
+    el equivalente en `courses.fundae_id`), `FINALIZADOS`, `APUNTADOS`, `%`
+    (finalizados/apuntados), `HORAS`, `€` (valor económico), `Hs finaliz`.
+    2.185 filas — es el origen de todas las tablas dinámicas del informe
+    Word (por curso, por centro, por año, cruces curso×centro). Confirma
+    que el modelo "una fila por acción×centro×fecha" que ya tenemos
+    (`consulting_action_evaluations` + el cruce del cuadro) es el correcto
+    para alimentar este tipo de informe.
+  - **`INFORME DE FORMACIÓN DEL GRUPO VITALIA 2025.docx`**: el informe
+    anual redactado a partir de esos datos — conclusiones + 21 tablas.
+    Aporta dos métricas que **no están en nuestro diseño actual**:
+    - **% de éxito** (finalizados/apuntados) por centro y por curso — ahora
+      mismo el cuadro de formación solo registra quién terminó, no la tasa
+      de abandono/no-presentados. Podría ser una columna más del dashboard
+      "Registro de Alumnos Formados" (§ Dashboards auditables), no un
+      cambio de modelo (ya tenemos `APUNTADOS` implícito en la matrícula
+      real de `user_group`/`user_course`).
+    - **Valor económico y crédito FUNDAE** por empresa (crédito disponible
+      / dispuesto / no consumido, valor en € de la formación por curso y
+      centro) — esto es un eje nuevo, de gestión de crédito FUNDAE, más
+      cercano a "cuánto ha costado/vale la formación" que a auditoría de
+      cumplimiento ISO. Fuera del alcance actual de Consultoría (fase 1 y
+      2) tal como está definido — anotar como posible fase 3, no diseñar
+      todavía.
+  - **`ENCUESTAS FORMACIÓN VITALIA 2024.xlsx`**: exportación de un
+    formulario de Google, una fila por respuesta — datos demográficos
+    (residencia/centro, edad, sexo, titulación, categoría profesional...) +
+    ~10 preguntas de satisfacción por curso, promediadas por centro en una
+    tabla dinámica. Hoy se analiza a mano. Encaja con lo ya dicho en el
+    planteamiento funcional: la satisfacción del alumno **no** es lo que
+    evalúa Consultoría (§ Evaluación de acciones formativas evalúa utilidad
+    desde el punto de vista del centro, no la encuesta del alumno) — pero
+    si en el futuro se quiere automatizar esta parte, el punto de entrada
+    natural sería una integración con Google Forms/Sheets, no un formulario
+    propio dentro de la app.
