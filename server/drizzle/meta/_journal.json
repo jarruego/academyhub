@@ -575,6 +575,13 @@
       "when": 1789125540877,
       "tag": "0081_outgoing_logan",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1789458103043,
+      "tag": "0082_gifted_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }

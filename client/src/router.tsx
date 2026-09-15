@@ -16,6 +16,9 @@ import CreateGroupRoute from './routes/groups/create-group.route';
 import EditGroupRoute from './routes/groups/group-detail.route';
 import CompaniesRoute from './routes/companies/companies.route';
 import CreateCompanyRoute from './routes/companies/create-company.route';
+import ConsultoriaClientsRoute from './routes/consultoria/consultoria-clients.route';
+import CreateConsultingClientRoute from './routes/consultoria/create-consulting-client.route';
+import ConsultingClientDetailRoute from './routes/consultoria/consulting-client-detail.route';
 import CompanyDetailRoute from './routes/companies/company-detail.route';
 import CreateCenterRoute from './routes/centers/create-center.route';
 import EditCenterRoute from './routes/centers/center-detail.route';
@@ -73,6 +76,7 @@ import {
   SolutionOutlined,
   ReadOutlined,
   QuestionCircleOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content, Header } = Layout;
@@ -90,7 +94,7 @@ interface SidebarProps {
 // la selección la llevaba el propio `Menu` de forma interna (uncontrolled) y
 // solo reaccionaba al click, así que se perdía al recargar o navegar por URL.
 const MENU_LEAF_KEYS = [
-  '/', '/users', '/courses', '/groups', '/course-requests', '/centers', '/reports', '/organization',
+  '/', '/users', '/courses', '/groups', '/course-requests', '/centers', '/consultoria', '/reports', '/organization',
   '/tools/importaciones', '/tools/gestion-acceso', '/tools/correo', '/tools/sms', '/tools/herramientas',
 ];
 
@@ -143,6 +147,11 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
         { key: '/centers', icon: <ApartmentOutlined />, className: 'app-sider-child-item', label: <Link to="/centers" onClick={onClose}>Centros</Link> },
       ],
     },
+    // Solo un ítem por ahora (Clientes) — cuando haya más pantallas de Consultoría
+    // (ficha de cliente, evaluaciones...) pasará a "type: 'group'" como Empresas/Cursos.
+    ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.CONSULTOR
+      ? [{ key: '/consultoria', icon: <AuditOutlined />, label: <Link to="/consultoria" onClick={onClose}>Consultoría</Link> }]
+      : []),
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER || role?.toLowerCase() === Role.TUTOR || role?.toLowerCase() === Role.CONSULTOR
       ? [{ key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports" onClick={onClose}>Informes</Link> }]
       : []),
@@ -243,6 +252,9 @@ export default function AppRouter() {
               <Route path="/companies/:id_company/add-center" element={<CreateCenterRoute />} />
               <Route path="/centers/:id_center/edit" element={<EditCenterRoute />} />
               <Route path="/add-company" element={<CreateCompanyRoute />} />
+              <Route path="/consultoria" element={<ConsultoriaClientsRoute />} />
+              <Route path="/consultoria/add-client" element={<CreateConsultingClientRoute />} />
+              <Route path="/consultoria/clients/:id" element={<ConsultingClientDetailRoute />} />
               <Route path="/organization" element={<OrganizationSettingsPage />} />
               <Route path="/centers" element={<CentersRoute />} />
               <Route path="/course-requests" element={<CourseRequestsRoute />} />

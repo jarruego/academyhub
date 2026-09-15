@@ -23,8 +23,9 @@ import { CourseRequestModule } from './course-request/course-request.module';
 import { CourseCatalogModule } from './course-catalog/course-catalog.module';
 import { CourseCandidateModule } from './course-candidate/course-candidate.module';
 import { CourseInterestModule } from './course-interest/course-interest.module';
+import { ConsultoriaModule } from './consultoria/consultoria.module';
 
 @Module({
-  imports: [CompanyModule, CenterModule, CourseCatalogModule, CourseCandidateModule, CourseInterestModule, CourseModule, GroupModule, UserModule, MoodleModule, ForumModule, MoodleUserModule, ImportModule, ImportInaemModule, ReportsModule, OrganizationModule, FilesModule, MailModule, SmsModule, AuditModule, UserMergeModule, UserSanitizationModule, BackupsModule, MoodleAuditModule, CourseRequestModule],
+  imports: [CompanyModule, CenterModule, CourseCatalogModule, CourseCandidateModule, CourseInterestModule, CourseModule, GroupModule, UserModule, MoodleModule, ForumModule, MoodleUserModule, ImportModule, ImportInaemModule, ReportsModule, OrganizationModule, FilesModule, MailModule, SmsModule, AuditModule, UserMergeModule, UserSanitizationModule, BackupsModule, MoodleAuditModule, CourseRequestModule, ConsultoriaModule],
 })
 export class ApiModule {}

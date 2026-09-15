@@ -27,6 +27,7 @@ import { courseRequestTable, courseRequestStatus, courseRequestSource } from "./
 import { courseRequestStudentTable } from "./schema/tables/course_request_student.table";
 import { courseCandidateTable, candidateSource, candidateProcessStatus, candidateEmploymentStatus, candidateAttendanceStatus } from "./schema/tables/course_candidate.table";
 import { courseInterestTable, interestStatus, interestSource } from "./schema/tables/course_interest.table";
+import { consultingClientTable, consultingClientCompanyTable } from "./schema/tables/consulting_client.table";
 import { preinscriptionRegistrationSource } from "./schema/tables/user_preinscription.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
@@ -71,6 +72,8 @@ export const course_requests = courseRequestTable;
 export const course_request_students = courseRequestStudentTable;
 export const course_candidates = courseCandidateTable;
 export const course_interests = courseInterestTable;
+export const consulting_clients = consultingClientTable;
+export const consulting_client_companies = consultingClientCompanyTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
