@@ -20,7 +20,6 @@ const courseData = {
   fundae_id: "F123",
   active: true,
   moodle_id: 123,
-  id_category: 1,
   funding: "PUBLICA",
 };
 vi.mock("../../hooks/api/course-catalog/use-course-catalog.query", () => ({

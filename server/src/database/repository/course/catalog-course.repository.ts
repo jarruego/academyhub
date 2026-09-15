@@ -27,6 +27,7 @@ export class CatalogCourseRepository extends Repository {
         internal_code: catalogCourseTable.internal_code,
         description: catalogCourseTable.description,
         objectives: catalogCourseTable.objectives,
+        target_audience: catalogCourseTable.target_audience,
         base_contents: catalogCourseTable.base_contents,
         contents: catalogCourseTable.contents,
         hidden_from_filters: catalogCourseTable.hidden_from_filters,

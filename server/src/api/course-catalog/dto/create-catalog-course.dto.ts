@@ -24,6 +24,13 @@ export class CreateCatalogCourseDto {
   @IsString()
   objectives?: string;
 
+  // A quién va dirigido el curso — propiedad estable, no de una edición
+  // concreta. Usado por Consultoría (docs/consultoria.md).
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  target_audience?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

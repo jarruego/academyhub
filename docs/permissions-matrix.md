@@ -139,6 +139,8 @@ Class-level `[ADMIN, MANAGER]`. "Foros" button in course ficha matches (`AuthzHi
 | Enroll/edit/delete user in course, delete course | ✅ | ❌ | ❌ | ❌ | ❌ | |
 | "Guardar Curso" / "Eliminar Curso" buttons | ✅ | ✅ (save only) | ❌ | ❌ | ❌ | |
 | Candidatos tab inline field edit | ✅ | ✅ | flag | ✅ | flag | Part of **Split 3** |
+| Categorías de curso (`api/course-categories`): listar | ✅ | ✅ | ✅ | ✅ | ✅ | Núcleo, no Consultoría — `course_categories` sustituye `courses.category` (texto libre sin uso). Añadido 2026-09-15. |
+| Categorías de curso: crear/editar | ✅ | ❌ | ❌ | ❌ | ❌ | Catálogo editable sin migración (primer precedente de este tipo, ver `docs/architecture.md`) |
 
 ## 12. Grupos
 
@@ -206,9 +208,12 @@ Both class-level `[ADMIN]`.
 | Action | ADMIN | MANAGER | VIEWER | TUTOR | CONSULTOR | Notes |
 |---|---|---|---|---|---|---|
 | Clientes (create/list/get/update), vincular/desvincular empresas | ✅ | ❌ | ❌ | ❌ | ✅ | `ConsultingClientController`, class-level `[ADMIN, CONSULTOR]`. Primer uso real de `CONSULTOR` — hasta ahora tenía los mismos privilegios que `VIEWER` en todos los demás módulos. Ver `docs/consultoria.md`. |
-| "Consultoría" screen / sidebar item | ✅ | ❌ | ❌ | ❌ | ✅ | `router.tsx` menú + rutas `/consultoria*`, gateadas en línea igual que el resto del sidebar |
+| Acciones formativas: listar / ver / etiquetar (origen, categoría, fecha) un curso de catálogo existente | ✅ | ❌ | ❌ | ❌ | ✅ | `ConsultingActionController`, `[ADMIN, CONSULTOR]`. Los datos del curso en sí (objetivos/horas/modalidad/dirigido a) siguen ADMIN-only vía la ficha de catálogo — no se editan desde aquí. |
+| Fechas de planificación (`consulting_planning_dates`): listar | ✅ | ❌ | ❌ | ❌ | ✅ | `ConsultingPlanningDateController`, lectura `[ADMIN, CONSULTOR]` |
+| Fechas de planificación: crear/editar | ✅ | ❌ | ❌ | ❌ | ❌ | Escritura solo ADMIN, mismo criterio que categorías de curso (§11) |
+| "Consultoría" screen / sidebar item (Clientes, Acciones formativas) | ✅ | ❌ | ❌ | ❌ | ✅ | `router.tsx` menú + rutas `/consultoria*`, gateadas en línea igual que el resto del sidebar |
 
-Solo Cliente y estructura implementado (2026-09-15). El resto del módulo (acciones formativas, plan, auditoría anual, evaluaciones, acceso externo por token) sigue sin construir — se añadirá aquí a la vez que cada pieza.
+Cliente y estructura + Acciones formativas ("usar un curso ya existente") implementados (2026-09-15). El resto del módulo (dar de alta una acción nueva, plan, auditoría anual, evaluaciones, acceso externo por token) sigue sin construir — se añadirá aquí a la vez que cada pieza.
 
 ---
 
@@ -218,7 +223,7 @@ None open as of 2026-09-09 — the last one (`dedication_passwords`/`TUTOR`, bel
 
 ## Changelog
 
-**2026-09-15 — new Consultoría module, §17.** First real use of the `CONSULTOR` role: `ConsultingClientController` gated `[ADMIN, CONSULTOR]`, not the 5-role/`VIEWER`-equivalent access it's had everywhere else so far. Only Cliente y estructura built; rest of the module still pending.
+**2026-09-15 — new Consultoría module, §17, extended with Acciones formativas.** First real use of the `CONSULTOR` role: `ConsultingClientController`/`ConsultingActionController` gated `[ADMIN, CONSULTOR]`, not the 5-role/`VIEWER`-equivalent access it's had everywhere else so far. Write access to the new core `course_categories` catalog (§11) and `consulting_planning_dates` narrowed to `[ADMIN]` (read open to whoever can already read courses / Consultoría). Cliente y estructura + Acciones formativas ("usar un curso ya existente") built; rest of the module still pending.
 
 **2026-09-11 — SMS narrowed to ADMIN/MANAGER only (no TUTOR).** Explicit user decision: unlike mail, TUTOR has no "SMS" button in the group screen and no access to `POST /sms/send`, `/sms/send-from-template`, `/sms/preview-length`. Reads (`GET /sms-settings`, `GET /sms-templates`) narrowed from all-5-roles down to `[ADMIN, MANAGER]` to match (no other role has a legitimate use for them anymore).
 

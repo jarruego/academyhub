@@ -28,7 +28,6 @@ const CREATE_COURSE_FORM = z.object({
   client: z.nativeEnum(CourseClient).optional(),
   funding: z.nativeEnum(CourseFunding).optional(),
   moodle_id: z.coerce.number().optional(),
-  id_category: z.number().optional(),
   capacity: z.coerce.number().int().min(0).optional(),
   selection_at: z.date().nullable().optional(),
   selection_place: z.string().optional(),

@@ -140,6 +140,8 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
       { label: 'Crear curso, matricular/borrar usuario, eliminar curso', access: adminOnly() },
       { label: 'Editar ficha completa del curso', access: adminManager() },
       { label: 'Editar solo Planificación y selección', access: candidatesFlag() },
+      { label: 'Categorías de curso: listar', access: all('yes'), note: 'Núcleo, no Consultoría — sustituye courses.category (texto libre sin uso). Añadido 2026-09-15' },
+      { label: 'Categorías de curso: crear/editar', access: adminOnly() },
     ],
   },
   {
@@ -193,7 +195,10 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     key: 'consultoria',
     title: 'Consultoría',
     rows: [
-      { label: 'Clientes (crear/listar/editar), vincular/desvincular empresas', access: adminConsultor(), note: 'Solo Cliente y estructura implementado por ahora — ver docs/consultoria.md' },
+      { label: 'Clientes (crear/listar/editar), vincular/desvincular empresas', access: adminConsultor(), note: 'Ver docs/consultoria.md' },
+      { label: 'Acciones formativas: listar/ver/etiquetar un curso existente', access: adminConsultor(), note: 'Los datos del curso (objetivos/horas/modalidad/dirigido a) siguen ADMIN-only vía la ficha de catálogo' },
+      { label: 'Fechas de planificación: listar', access: adminConsultor() },
+      { label: 'Fechas de planificación: crear/editar', access: adminOnly(), note: 'Mismo criterio que categorías de curso' },
     ],
   },
 ];

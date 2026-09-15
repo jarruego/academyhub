@@ -8,6 +8,8 @@ export type CatalogCourse = {
   internal_code?: string | null;
   description?: string | null;
   objectives?: string | null;
+  // A quién va dirigido el curso — propiedad estable, no de una edición. Usado por Consultoría.
+  target_audience?: string | null;
   base_contents?: string | null;
   // Contenidos HTML de la formación, compartidos por todas las ediciones.
   contents?: string | null;

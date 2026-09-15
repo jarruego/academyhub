@@ -16,7 +16,7 @@ AcademyHub separa la identidad estable de una formación de cada ejecución conc
 
 ## Datos del catálogo
 
-Nombre, código interno opcional, descripción, objetivos, contenidos base, modalidad/horas habituales, referencia de especialidad SEPE y familia/área profesional. Los valores habituales son informativos: no reescriben ediciones existentes.
+Nombre, código interno opcional, descripción, objetivos, **a quién va dirigido** (`target_audience`, añadido 2026-09-15 a petición de Consultoría — ver `docs/consultoria.md`), contenidos base, modalidad/horas habituales, referencia de especialidad SEPE y familia/área profesional. Los valores habituales son informativos: no reescriben ediciones existentes.
 
 `catalog_courses.contents` (HTML largo, pestaña propia **Contenidos** en la ficha del catálogo) es el temario real de la formación, compartido por todas sus ediciones — antes vivía duplicado en `courses.contents` por cada edición; la migración `0076` lo trasladó (backfill desde la edición con `start_date` más reciente que tuviera contenido, a igualdad `id_course` más alto) y `0077` borró la columna de `courses`. Es un campo distinto de `base_contents` (plantilla informativa de "contenidos habituales", sin editor HTML). Editable por ADMIN y MANAGER (el resto de la ficha del catálogo es solo-ADMIN, ver "API y permisos").
 

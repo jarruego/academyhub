@@ -8,8 +8,6 @@ export type Course = {
     catalog_course_name?: string;
     course_name: string;
     moodle_id?: number | null;
-    // Antes texto libre; ahora referencia al catálogo course_categories (ver server).
-    id_category?: number | null;
     short_name: string;
     start_date?: Date | null;
     end_date?: Date | null;

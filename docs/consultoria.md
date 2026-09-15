@@ -25,22 +25,26 @@ ya y qué falta antes de tocar nada.
   cliente. Existe `courses.client` (enum `CourseClient`, incluye `VITALIA`)
   pero es solo una etiqueta a nivel de curso, no una entidad — no sirve como
   sustituto.
-- **Acción formativa**: reutiliza/extiende el modelo de cursos
-  (`catalog_courses`/`courses`) en vez de crear una tabla paralela — mismo
-  patrón que los cursos provisionales de INAEM (`courses.is_provisional`).
-  Campo nuevo `origen` (propio/externo); una acción externa no lleva
-  edición/grupo/matrícula real ni sync a Moodle, solo los campos necesarios
-  para plan/evaluación/cuadro.
-  - Ya existen en `courses`: `course_name`, `hours`, `modality` (lista fija:
-    Online/Presencial/Mixta), `id_category` (lista fija editable, `course_categories`
-    — implementada 2026-09-15, del núcleo de cursos, no solo de Consultoría),
-    `target_audience` (= "Dirigido a").
-  - Nuevos: `objetivos` — **un único campo**, sin separar específicos/
-    generales (a petición de consultoría; el catálogo ya tiene un
-    `objectives` único a nivel de catálogo, esto sería el equivalente por
-    acción); `fecha` — **lista fija de valores**, no texto libre ni fecha
-    real (p. ej. *A demanda*, *Según calendario central*, *Alta trabajador*,
-    *En elaboración*, ampliable).
+- **Acción formativa**: reutiliza/extiende el modelo de cursos — **cuelga de
+  `catalog_courses`** (el curso, identidad estable), **no de `courses`** (una
+  edición/convocación concreta). Corregido 2026-09-15: el primer diseño la
+  ataba a una edición; era un error — Nombre/Horas/Modalidad/Objetivos/
+  Dirigido a son propiedades del curso en general (no cambian de una
+  convocatoria a otra), y qué ediciones/alumnos/centros concretos lo hicieron
+  y cuándo es un cruce de datos para más adelante (cuadro de formación), no
+  parte de "qué es esta acción".
+  - Ya existen en `catalog_courses`: `name`, `default_hours` (= Horas),
+    `default_modality` (= Modalidad, lista fija: Online/Presencial/Mixta),
+    `objectives` (= Objetivos, **un único campo** — a petición de
+    consultoría, sin separar específicos/generales), `id_category` (=
+    Categoría, lista fija editable `course_categories`, núcleo, no solo
+    Consultoría), y `target_audience` (= Dirigido a, **añadido 2026-09-15** —
+    antes solo existía a nivel de edición).
+  - Nuevo, propio de Consultoría: `origen` (propio/externo — una acción
+    externa no lleva edición/grupo/matrícula real ni sync a Moodle) y
+    `fecha` — **lista fija de valores**, no texto libre ni fecha real (p. ej.
+    *A demanda*, *Según calendario central*, *Alta trabajador*, *En
+    elaboración*, ampliable).
 - **Plan de formación**: dos capas. La decisión última del plan es siempre
   del centro — Mecohisa no "planifica" por él, aunque en la práctica sea
   quien lo arranca. **Plan base**: el catálogo de Mecohisa pasa, en la
@@ -211,14 +215,23 @@ marcan explícitamente como infraestructura nueva.
   **Actualizado 2026-09-15**: Categoría se implementó como `course_categories`
   **del núcleo de cursos**, no como catálogo propio de Consultoría —
   `courses.category` (texto libre, 0 valores reales, sin pantalla) se
-  sustituyó directamente por `courses.id_category` (FK), en vez de convivir
-  los dos. Gestión ADMIN-only (`api/course-categories`); Consultoría solo
-  la consume. Ver `docs/architecture.md` § Course typology. Fecha sigue
-  siendo `consulting_planning_dates`, propio de Consultoría (no tiene
-  sentido fuera de ese contexto).
-- **Campos nuevos de la acción formativa en tabla satélite**, no en
-  `courses`: `consulting_action_details` (`id_course` PK/FK) — `courses`
-  (compartida por toda la app) no gana columnas nuevas.
+  eliminó. Gestión ADMIN-only (`api/course-categories`); Consultoría solo la
+  consume. Ver `docs/architecture.md` § Course typology. Fecha sigue siendo
+  `consulting_planning_dates`, propio de Consultoría (no tiene sentido fuera
+  de ese contexto).
+- **La acción formativa cuelga de `catalog_courses`, no de `courses`**
+  (corregido 2026-09-15 — ver "Modelo conceptual" arriba). Consecuencia: la
+  tabla satélite se queda en casi nada — `consulting_action_details`
+  (`id_catalog_course` PK/FK, `origin`, `id_category`, `id_planning_date`,
+  `created_by`) — Objetivos, Horas, Modalidad y Dirigido a se leen
+  directamente de `catalog_courses`, sin duplicarlos. `target_audience`
+  (Dirigido a) se añadió a `catalog_courses` por el mismo motivo que
+  Categoría: es una primera prueba de campo — se detectó y se revirtió un
+  intento fallido de poner `id_category` a nivel de **edición**
+  (`courses.id_category`) que se quedó sin usar en cuanto la acción pasó a
+  vivir en el catálogo; no volver a cometer ese error si se añade algo más
+  aquí — pensar primero si el campo es del curso (catálogo) o de la
+  convocatoria (edición).
 - **Acceso externo del centro = usuario técnico sin login** en `auth_users`
   por centro. El guard nuevo resuelve el token y rellena `request['user']`
   igual que `AuthGuard` — así el `audit_log`/`AuditInterceptor` existentes
@@ -253,12 +266,12 @@ marcan explícitamente como infraestructura nueva.
 |---|---|
 | `consulting_clients` | Cliente a auditar: `id`, `name`. |
 | `consulting_client_companies` | Empresas de un cliente: `id_consulting_client`, `id_company` (único por par). |
-| `consulting_action_details` | 1:1 con `courses`: `id_course` (PK/FK), `origin` (enum `OWN`/`EXTERNAL`), `objectives` (text), `id_planning_date` (FK), `created_by` (nullable — null si lo creó el token del centro). Categoría **no** va aquí — se lee directamente de `courses.id_category` (núcleo, ver abajo). |
-| `course_categories` *(núcleo, no `consulting_*`)* | Catálogo editable ADMIN-only: `id_category`, `name`, `active`, `display_order`. Referenciada por `courses.id_category`. Ya implementada — ver `docs/architecture.md`. |
-| `consulting_planning_dates` | Catálogo editable: `id`, `name` (*A demanda*, *Según calendario central*...), `active`, `order`. |
+| `consulting_action_details` | **Ya implementada** (2026-09-15). 1:1 con `catalog_courses` (no con `courses`/edición): `id_catalog_course` (PK/FK), `origin` (enum `OWN`/`EXTERNAL`), `id_category` (FK), `id_planning_date` (FK), `created_by` (nullable — null si lo creó el token del centro). Objetivos/Horas/Modalidad/Dirigido a **no** van aquí — se leen directamente de `catalog_courses` (núcleo, ver abajo). |
+| `course_categories` *(núcleo, no `consulting_*`)* | **Ya implementada.** Catálogo editable ADMIN-only: `id_category`, `name`, `active`, `display_order`. Referenciada por `consulting_action_details.id_category`. Ver `docs/architecture.md`. |
+| `consulting_planning_dates` | **Ya implementada.** Catálogo editable ADMIN-only: `id_planning_date`, `name` (*A demanda*, *Según calendario central*...), `active`, `display_order`. |
 | `consulting_annual_audits` | `id`, `id_center`, `year`, `status` (`DRAFT`/`OPEN`/`CLOSED`), `opened_at`, `closed_at`, `auto_close_at` (`opened_at` + 2 años), `created_by`. |
-| `consulting_plan_items` | `id`, `id_consulting_client`, `id_center` (nullable — NULL = plan base compartido), `id_course`, `added_by` (nullable), `added_at`. |
-| `consulting_action_evaluations` | `id`, `id_course`, `id_center`, `id_annual_audit`, `evaluation_date`, `evaluation_text`, `percentage` (0-100, nullable si se anula), `imparte_text`, `evaluated_by` (nullable), `created_at`. |
+| `consulting_plan_items` | `id`, `id_consulting_client`, `id_center` (nullable — NULL = plan base compartido), **`id_catalog_course`** (no `id_course` — el plan lista acciones formativas, que son de catálogo), `added_by` (nullable), `added_at`. |
+| `consulting_action_evaluations` | `id`, **`id_catalog_course`** (no `id_course`, mismo motivo), `id_center`, `id_annual_audit`, `evaluation_date`, `evaluation_text`, `percentage` (0-100, nullable si se anula), `imparte_text`, `evaluated_by` (nullable), `created_at`. |
 | `consulting_roster_adjustments` | Ajuste manual del cuadro/competencias: `id`, `id_center`, `id_user`, `adjustment_type` (`ADD`/`REMOVE`), `created_by`, `created_at`. |
 | `consulting_competencies` | Catálogo de 25: `id`, `name`, `display_order`. |
 | `consulting_job_positions` | Catálogo de 28: `id`, `name`, `group_label`, `display_order`. |
@@ -288,8 +301,9 @@ Apertura/cierre automático de la auditoría anual: tarea programada siguiendo e
 
 ### Frontend
 
-- Grupo nuevo en el sidebar, "Consultoría" (`client/src/router.tsx`, junto al resto de grupos) — visibilidad `role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.CONSULTOR`, igual que "Cursos"/"Empresas".
-- Rutas internas: `/consultoria` (listado de clientes) → `/consultoria/:id` (ficha: empresas/centros, plan, auditorías por centro) con pestañas para evaluación de acciones, cuadro y competencias.
+- Grupo nuevo en el sidebar, "Consultoría" (`client/src/router.tsx`) — grupo sin página propia (solo etiqueta, no `<Link>`), con "Clientes" y "Acciones formativas" como hijos reales; visibilidad `role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.CONSULTOR`.
+- **Ya implementadas**: `/consultoria` (listado de clientes) → `/consultoria/clients/:id` (ficha, pestañas Cliente/Empresas); `/consultoria/actions` (listado de acciones formativas ya etiquetadas) → `/consultoria/actions/add` y `/consultoria/actions/:id_catalog_course` (buscar/editar un curso de catálogo — datos del curso en solo lectura con enlace a su ficha, Origen/Categoría/Fecha editables; "+ Añadir" en los desplegables de Categoría/Fecha para ADMIN cuando el catálogo está vacío).
+- Rutas internas pendientes: `/consultoria/clients/:id` ganará pestañas de plan, auditorías, evaluación de acciones, cuadro y competencias a medida que se construyan.
 - Ruta externa del centro: `/consultoria-centro/:token`, layout propio sin sidebar.
 - Empresas/Centros no tienen hoy ninguna pantalla de agrupación (son recursos planos bajo "Empresas") — Cliente no se cuelga de esas pantallas, tiene las suyas propias, referenciando empresas/centros por id.
 - Pantalla ADMIN "Puestos sin mapear": lista los valores de `job_position` sin alias todavía, con selector del puesto del catálogo al que corresponden.
@@ -314,11 +328,15 @@ Diseño técnico cerrado (tablas, guards, módulo, endpoints, frontend), basado
 en las convenciones reales del código. **En construcción desde 2026-09-15**:
 - ✅ Cliente y estructura (`consulting_clients`/`consulting_client_companies`,
   CRUD + vincular/desvincular empresas, menú "Consultoría").
-- ✅ `course_categories` (núcleo, no `consulting_*`) — preparación de Acciones
-  formativas; sustituye `courses.category`.
-- ⏳ Resto de Acciones formativas (tabla satélite, origen, objetivos, fecha) —
-  pendiente investigar el flujo de alta de curso existente antes de diseñar
-  cómo cuelga de él.
+- ✅ `course_categories` (núcleo, no `consulting_*`) — sustituye
+  `courses.category`. `catalog_courses.target_audience` (núcleo) añadido por
+  el mismo motivo.
+- ✅ Acciones formativas — camino "usar un curso ya existente": etiquetar
+  (origen/categoría/fecha) un `catalog_courses` ya existente vía
+  `consulting_action_details`. Objetivos/Horas/Modalidad/Dirigido a se leen
+  del propio curso de catálogo, sin duplicar. Camino "dar de alta una acción
+  nueva" (catálogo+satélite en una transacción, para externas/Marisa):
+  pendiente.
 - Resto del roadmap sin empezar.
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)

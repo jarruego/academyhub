@@ -23,12 +23,6 @@ export class UpdateCourseDTO {
   course_name: string;
 
   @ApiPropertyOptional()
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  id_category?: number;
-
-  @ApiPropertyOptional()
   @IsNotEmpty()
   @IsString()
   short_name: string;

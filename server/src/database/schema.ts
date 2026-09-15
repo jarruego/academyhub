@@ -29,6 +29,8 @@ import { courseCandidateTable, candidateSource, candidateProcessStatus, candidat
 import { courseInterestTable, interestStatus, interestSource } from "./schema/tables/course_interest.table";
 import { consultingClientTable, consultingClientCompanyTable } from "./schema/tables/consulting_client.table";
 import { courseCategoryTable } from "./schema/tables/course_category.table";
+import { consultingPlanningDateTable } from "./schema/tables/consulting_planning_date.table";
+import { consultingActionDetailTable, consultingActionOrigin } from "./schema/tables/consulting_action_detail.table";
 import { preinscriptionRegistrationSource } from "./schema/tables/user_preinscription.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
@@ -76,6 +78,8 @@ export const course_interests = courseInterestTable;
 export const consulting_clients = consultingClientTable;
 export const consulting_client_companies = consultingClientCompanyTable;
 export const course_categories = courseCategoryTable;
+export const consulting_planning_dates = consultingPlanningDateTable;
+export const consulting_action_details = consultingActionDetailTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
@@ -94,6 +98,7 @@ export const candidate_attendance_status = candidateAttendanceStatus;
 export const preinscription_registration_source = preinscriptionRegistrationSource;
 export const interest_status = interestStatus;
 export const interest_source = interestSource;
+export const consulting_action_origin_enum = consultingActionOrigin;
 // export const enrollment_status = enrollmentStatus;
 
 // Re-export types for convenience

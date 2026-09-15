@@ -5,7 +5,6 @@ import { CourseModality } from "../../../types/course/course-modality.enum";
 import { CourseClient } from "../../../types/course/course-client.enum";
 import { CourseFunding } from "../../../types/course/course-funding.enum";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
-import { courseCategoryTable } from "./course_category.table";
 
 export const courseModality = academyhubSchema.enum('course_modality', Object.values(CourseModality) as [string, ...string[]]);
 export const courseClient = academyhubSchema.enum('course_client', Object.values(CourseClient) as [string, ...string[]]);
@@ -21,6 +20,12 @@ export const catalogCourseTable = academyhubSchema.table('catalog_courses', {
   base_contents: text(),
   default_modality: courseModality(),
   default_hours: integer(),
+  // A quién va dirigido el curso (p. ej. "Personal de cocina") — propiedad
+  // estable del curso, no de una edición concreta. Antes solo existía
+  // `courses.target_audience` (a nivel de edición, gateado a la pestaña
+  // INAEM); este es el equivalente a nivel de catálogo, usado por
+  // Consultoría — ver docs/consultoria.md.
+  target_audience: text(),
   sepe_specialty_code: text(),
   sepe_specialty_name: text(),
   professional_family: text(),
@@ -44,9 +49,6 @@ export const courseTable = academyhubSchema.table('courses', {
   id_catalog_course: integer().notNull().references(() => catalogCourseTable.id_catalog_course),
   moodle_id: integer(),
   course_name: text().notNull(),
-  // Antes texto libre (sin uso real); ahora referencia al catálogo editable
-  // course_categories. Null = sin categorizar.
-  id_category: integer().references(() => courseCategoryTable.id_category),
   short_name: text().notNull(),
   start_date: timestamp({withTimezone: true}),
   end_date: timestamp({withTimezone: true}),
@@ -90,7 +92,6 @@ export const courseTable = academyhubSchema.table('courses', {
     // así que los cursos sin expediente conviven sin problema.
     fileNumberIdx: uniqueIndex("idx_courses_file_number").on(table.file_number),
     catalogCourseIdx: index("idx_courses_id_catalog_course").on(table.id_catalog_course),
-    categoryIdx: index("idx_courses_id_category").on(table.id_category),
   };
 });
 
