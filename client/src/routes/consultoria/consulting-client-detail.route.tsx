@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { App, Button, Form, Input, Select, Table } from "antd";
 import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
@@ -22,6 +22,7 @@ const CONSULTING_CLIENT_FORM = z.object({
 export default function ConsultingClientDetailRoute() {
   const { id } = useParams();
   const id_consulting_client = id || "";
+  const navigate = useNavigate();
   const { message, modal } = App.useApp();
 
   const { data: clientData, isLoading: isClientLoading } = useConsultingClientQuery(id_consulting_client);
@@ -81,7 +82,7 @@ export default function ConsultingClientDetailRoute() {
   const submitName: SubmitHandler<z.infer<typeof CONSULTING_CLIENT_FORM>> = async (info) => {
     try {
       await updateClient(info);
-      message.success('Nombre actualizado.');
+      navigate('/consultoria');
     } catch {
       message.error('No se pudo guardar el nombre. Inténtalo de nuevo.');
     }

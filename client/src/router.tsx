@@ -118,7 +118,6 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
   // comprobación en devtools) solo mientras esa página esté activa.
   const isCoursesGroupActive = pathname === '/course-catalog' || pathname.startsWith('/course-catalog/');
   const isCompaniesGroupActive = pathname === '/companies' || pathname === '/add-company' || pathname.startsWith('/companies/');
-  const isConsultoriaGroupActive = pathname === '/consultoria' || pathname.startsWith('/consultoria/');
   const activeGroupLinkStyle = { backgroundColor: token.colorPrimary, color: '#fff', margin: 4, width: 'calc(100% - 8px)', borderRadius: 8 };
 
   const selectedKeys = selectedLeafKey(pathname) ? [selectedLeafKey(pathname) as string] : [];
@@ -148,11 +147,14 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
         { key: '/centers', icon: <ApartmentOutlined />, className: 'app-sider-child-item', label: <Link to="/centers" onClick={onClose}>Centros</Link> },
       ],
     },
+    // A diferencia de Cursos/Empresas, "Consultoría" todavía no tiene una página
+    // propia (quizá un dashboard el día de mañana) — es solo un contenedor de
+    // menú, sin enlace ni resaltado propio; solo su hijo "Clientes" es una página real.
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.CONSULTOR
       ? [{
           type: 'group' as const,
           key: 'consultoria-group',
-          label: <Link to="/consultoria" onClick={onClose} className="app-sider-group-title" style={isConsultoriaGroupActive ? activeGroupLinkStyle : undefined}><AuditOutlined /><span>Consultoría</span></Link>,
+          label: <span className="app-sider-group-title"><AuditOutlined /><span>Consultoría</span></span>,
           children: [
             { key: '/consultoria', icon: <TeamOutlined />, className: 'app-sider-child-item', label: <Link to="/consultoria" onClick={onClose}>Clientes</Link> },
           ],
