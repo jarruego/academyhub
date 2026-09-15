@@ -24,8 +24,9 @@ export class UpdateCourseDTO {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
-  category?: string;
+  @Type(() => Number)
+  @IsInt()
+  id_category?: number;
 
   @ApiPropertyOptional()
   @IsNotEmpty()

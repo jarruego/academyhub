@@ -19,8 +19,9 @@ export class FilterCourseDTO {
   course_name?: string;
 
   @IsOptional()
-  @IsString()
-  category?: string;
+  @Type(() => Number)
+  @IsInt()
+  id_category?: number;
 
   @IsOptional()
   @IsString()

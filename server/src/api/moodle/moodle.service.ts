@@ -1789,7 +1789,6 @@ export class MoodleService {
                 start_date: new Date(moodleCourse.startdate * 1000),
                 end_date: (moodleCourse.enddate && moodleCourse.enddate > 0) ? new Date(moodleCourse.enddate * 1000) : null,
                 // Campos opcionales necesarios para la creación
-                category: "",
                 modality: CourseModality.ONLINE,
                 hours: 0,
                 price_per_hour: null,

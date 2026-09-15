@@ -26,6 +26,8 @@ A course is labelled by two stored **orthogonal** axes plus modality (enums mirr
 - `funding` (`course_funding`: `PRIVADA`/`FUNDAE`/`PUBLICA`) — how it's paid. INAEM ⇒ `PUBLICA`; FUNDAE applies to private bonified courses (`fundae_id` itself lives per **group**). Both nullable = "sin clasificar".
 - **Ámbito público/privado is NOT a stored axis** — it is *derived* from `funding` (`PUBLICA` ⇒ público; `FUNDAE`/`PRIVADA` ⇒ privado). That's why `client` carries the specific entity and `funding` carries the regime.
 
+`courses.id_category` (FK → `course_categories`, nullable) is a separate, non-orthogonal tag — what topic the course is about (Higiene, PRL...), not who it's for or how it's paid. Added 2026-09-15 replacing a dead `category` text column (0 real values, no screen). First lookup-table-backed catalog in the schema editable by ADMIN without a migration (`api/course-categories`) — every other constrained list in this file is a Postgres enum. Only surfaced today from Consultoría (`docs/consultoria.md`); not yet shown on the general course screens.
+
 Migration `0051` first split origin/funding; migration `0052` then replaced `origin` (`PRIVADA`/`INAEM`) with `client` (backfill: `origin=INAEM`→`INAEM`; `PRIVADA`+`funding=FUNDAE`→`VITALIA` (heuristic, ~95% of FUNDAE is VITALIA — review exceptions); rest `PRIVADA`→`OTRO`) and dropped `course_origin`. Bonification (`group-bonification.service`) rejects explicit non-FUNDAE funding. UI (tabs by funding + client column/filter, `getCourseProfile` capability helper, derived user filter) → `docs/client.md`.
 
 ## Active state (groups & courses)

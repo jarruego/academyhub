@@ -39,7 +39,7 @@ export class CourseRepository extends Repository {
 
         if (filter.course_name) where.push(ilike(courseTable.course_name, `%${filter.course_name}%`));
         if (filter.short_name) where.push(ilike(courseTable.short_name, `%${filter.short_name}%`));
-        if (filter.category) where.push(ilike(courseTable.category, `%${filter.category}%`));
+        if (filter.id_category) where.push(eq(courseTable.id_category, filter.id_category));
         if (filter.start_date) where.push(eq(courseTable.start_date, filter.start_date));
         if (filter.end_date) where.push(eq(courseTable.end_date, filter.end_date));
         // if (filter.price_per_hour) where.push(eq(courseTable.price_per_hour, filter.price_per_hour));

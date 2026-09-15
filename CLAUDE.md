@@ -86,6 +86,6 @@ Prod gotcha (Render): `SCHEDULER_TIMEZONE` + `SAGE_IMPORT_CRON` must be set in t
 | `docs/reports.md` | touching `api/reports/` (PDF templating, report rows). |
 | `docs/backups.md` | **touching `api/backups/`** (admin panel: status/list/run/download), `.github/workflows/backup.yml`, or anything about copias de seguridad (nightly pg_dump + Storage mirror to external S3 via GitHub Actions; secrets list, restore procedure, local dev copy). |
 | `docs/client.md` | frontend work under `client/` (API hooks, auth flow, routing, responsive conventions, type sharing, tests). |
-| `docs/consultoria.md` | **touching `api/consultoria/`** (nuevo apartado Consultoría, sin implementar). Covers el planteamiento funcional (cerrado) y el diseño técnico borrador: tablas nuevas (`consulting_*`), el guard de acceso externo por token (infraestructura nueva, sin precedente en el código), el módulo NestJS propuesto y las pantallas de cliente. No crear código de este módulo sin antes leer el doc entero — sigue sin haber migraciones ni código. |
+| `docs/consultoria.md` | **touching `api/consultoria/`** (nuevo apartado Consultoría, en construcción pieza a pieza). Covers el planteamiento funcional (cerrado) y el diseño técnico: tablas `consulting_*`, el guard de acceso externo por token (infraestructura nueva, sin precedente en el código), el módulo NestJS y las pantallas de cliente. Ver "Estado" del doc para qué está ya construido (Cliente y estructura) y qué falta. |
 
 Memory note `project_sage_import_field_update` tracks a pending SAGE field-sync policy decision.

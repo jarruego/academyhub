@@ -226,7 +226,6 @@ export class CourseService {
         moodle_id: moodleCourse.id,
         start_date: new Date(moodleCourse.startdate * 1000),
         end_date: (moodleCourse.enddate && moodleCourse.enddate > 0) ? new Date(moodleCourse.enddate * 1000) : null,
-        category: "",
         modality: CourseModality.ONLINE,
         hours: 0,
         price_per_hour: null,

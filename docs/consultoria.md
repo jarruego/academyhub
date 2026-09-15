@@ -1,4 +1,4 @@
-# Consultoría (`api/consultoria`, sin implementar)
+# Consultoría (`api/consultoria`, en construcción — ver "Estado")
 
 Nuevo apartado para que **Mecohisa** (la organización que presta el servicio
 a través de la app) gestione la consultoría de formación con los centros de
@@ -14,8 +14,9 @@ los datos tienen que quedar trazados y ser exportables como evidencia.
 
 Read before touching `api/consultoria/`. Este doc recoge el **planteamiento
 funcional** (ya cerrado con consultoría) y el **diseño técnico** (tablas,
-guards, módulo, endpoints, frontend) — ver "Diseño técnico" más abajo. Sigue
-sin haber código: esto es el plan, no la implementación — ver "Estado".
+guards, módulo, endpoints, frontend) — ver "Diseño técnico" más abajo.
+En construcción desde 2026-09-15, pieza a pieza — ver "Estado" para qué hay
+ya y qué falta antes de tocar nada.
 
 ## Modelo conceptual
 - **Cliente** (nuevo, entidad propia de Consultoría): agrupa una o varias
@@ -31,7 +32,8 @@ sin haber código: esto es el plan, no la implementación — ver "Estado".
   edición/grupo/matrícula real ni sync a Moodle, solo los campos necesarios
   para plan/evaluación/cuadro.
   - Ya existen en `courses`: `course_name`, `hours`, `modality` (lista fija:
-    Online/Presencial/Mixta), `category` (texto libre → pasa a lista fija),
+    Online/Presencial/Mixta), `id_category` (lista fija editable, `course_categories`
+    — implementada 2026-09-15, del núcleo de cursos, no solo de Consultoría),
     `target_audience` (= "Dirigido a").
   - Nuevos: `objetivos` — **un único campo**, sin separar específicos/
     generales (a petición de consultoría; el catálogo ya tiene un
@@ -203,12 +205,17 @@ marcan explícitamente como infraestructura nueva.
   de año. "Clonable" es una acción de servicio (`cloneItemsTo`), no un
   concepto del modelo — copia la lista de un cliente a otro (o la resetea)
   como punto de partida editable.
-- **Categoría y Fecha de la acción = tabla catálogo editable por ADMIN**
-  (`consulting_categories`, `consulting_planning_dates`), no un enum de
-  Postgres — es la primera vez en este código que una lista de valores se
-  gestiona desde una pantalla en vez de una migración. Aplican solo a
-  Consultoría: no tocan `courses.category` (que sigue siendo texto libre
-  para el resto de la app).
+- **Categoría y Fecha de la acción = tabla catálogo editable por ADMIN**,
+  no un enum de Postgres — primera vez en este código que una lista de
+  valores se gestiona desde una pantalla en vez de una migración.
+  **Actualizado 2026-09-15**: Categoría se implementó como `course_categories`
+  **del núcleo de cursos**, no como catálogo propio de Consultoría —
+  `courses.category` (texto libre, 0 valores reales, sin pantalla) se
+  sustituyó directamente por `courses.id_category` (FK), en vez de convivir
+  los dos. Gestión ADMIN-only (`api/course-categories`); Consultoría solo
+  la consume. Ver `docs/architecture.md` § Course typology. Fecha sigue
+  siendo `consulting_planning_dates`, propio de Consultoría (no tiene
+  sentido fuera de ese contexto).
 - **Campos nuevos de la acción formativa en tabla satélite**, no en
   `courses`: `consulting_action_details` (`id_course` PK/FK) — `courses`
   (compartida por toda la app) no gana columnas nuevas.
@@ -246,8 +253,8 @@ marcan explícitamente como infraestructura nueva.
 |---|---|
 | `consulting_clients` | Cliente a auditar: `id`, `name`. |
 | `consulting_client_companies` | Empresas de un cliente: `id_consulting_client`, `id_company` (único por par). |
-| `consulting_action_details` | 1:1 con `courses`: `id_course` (PK/FK), `origin` (enum `OWN`/`EXTERNAL`), `objectives` (text), `id_planning_date` (FK), `created_by` (nullable — null si lo creó el token del centro). |
-| `consulting_categories` | Catálogo editable: `id`, `name`, `active`, `order`. |
+| `consulting_action_details` | 1:1 con `courses`: `id_course` (PK/FK), `origin` (enum `OWN`/`EXTERNAL`), `objectives` (text), `id_planning_date` (FK), `created_by` (nullable — null si lo creó el token del centro). Categoría **no** va aquí — se lee directamente de `courses.id_category` (núcleo, ver abajo). |
+| `course_categories` *(núcleo, no `consulting_*`)* | Catálogo editable ADMIN-only: `id_category`, `name`, `active`, `display_order`. Referenciada por `courses.id_category`. Ya implementada — ver `docs/architecture.md`. |
 | `consulting_planning_dates` | Catálogo editable: `id`, `name` (*A demanda*, *Según calendario central*...), `active`, `order`. |
 | `consulting_annual_audits` | `id`, `id_center`, `year`, `status` (`DRAFT`/`OPEN`/`CLOSED`), `opened_at`, `closed_at`, `auto_close_at` (`opened_at` + 2 años), `created_by`. |
 | `consulting_plan_items` | `id`, `id_consulting_client`, `id_center` (nullable — NULL = plan base compartido), `id_course`, `added_by` (nullable), `added_at`. |
@@ -303,10 +310,16 @@ sumó el diseño de alias de puesto de trabajo (arriba).
 
 ## Estado
 Planteamiento funcional **cerrado, con visto bueno de consultoría**.
-**Diseño técnico cerrado** (tablas, guards, módulo, endpoints, frontend —
-ver arriba), basado en las convenciones reales del código, sin puntos
-técnicos abiertos. Sigue sin haber código ni migraciones — no crear nada de
-`api/consultoria/` sin antes leer este documento entero.
+Diseño técnico cerrado (tablas, guards, módulo, endpoints, frontend), basado
+en las convenciones reales del código. **En construcción desde 2026-09-15**:
+- ✅ Cliente y estructura (`consulting_clients`/`consulting_client_companies`,
+  CRUD + vincular/desvincular empresas, menú "Consultoría").
+- ✅ `course_categories` (núcleo, no `consulting_*`) — preparación de Acciones
+  formativas; sustituye `courses.category`.
+- ⏳ Resto de Acciones formativas (tabla satélite, origen, objetivos, fecha) —
+  pendiente investigar el flujo de alta de curso existente antes de diseñar
+  cómo cuelga de él.
+- Resto del roadmap sin empezar.
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)
 1. Cierre de decisiones con consultoría.
