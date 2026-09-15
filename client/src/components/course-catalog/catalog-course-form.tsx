@@ -11,6 +11,7 @@ const schema = z.object({
   internal_code: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   objectives: z.string().optional().nullable(),
+  target_audience: z.string().optional().nullable(),
   base_contents: z.string().optional().nullable(),
   default_modality: z.nativeEnum(CourseModality).optional().nullable(),
   default_hours: z.coerce.number().int().min(0).optional().nullable(),
@@ -36,6 +37,7 @@ export function CatalogCourseForm({ initial, readOnly = false, saving = false, o
       internal_code: initial?.internal_code ?? "",
       description: initial?.description ?? "",
       objectives: initial?.objectives ?? "",
+      target_audience: initial?.target_audience ?? "",
       base_contents: initial?.base_contents ?? "",
       default_modality: initial?.default_modality ?? null,
       default_hours: initial?.default_hours ?? null,
@@ -60,6 +62,9 @@ export function CatalogCourseForm({ initial, readOnly = false, saving = false, o
     <Row gutter={[16, 0]}>
       <Col xs={24} md={12}><Form.Item label="Descripción">{input("description", true)}</Form.Item></Col>
       <Col xs={24} md={12}><Form.Item label="Objetivos">{input("objectives", true)}</Form.Item></Col>
+    </Row>
+    <Row gutter={[16, 0]}>
+      <Col xs={24} md={12}><Form.Item label="Dirigido a">{input("target_audience", true)}</Form.Item></Col>
     </Row>
     <Row gutter={[16, 0]}>
       <Col xs={24} sm={12} md={6}><Form.Item label="Modalidad habitual"><Controller name="default_modality" control={control} render={({ field }) => <Select {...field} value={field.value ?? undefined} allowClear disabled={readOnly} options={Object.values(CourseModality).map(value => ({ value, label: value }))} />}/></Form.Item></Col>
