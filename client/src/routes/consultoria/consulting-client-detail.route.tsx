@@ -1,15 +1,23 @@
 import { useParams } from "react-router-dom";
-import { App, Button, Descriptions, Select, Table } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
-import { useMemo, useState } from "react";
+import { App, Button, Form, Input, Select, Table } from "antd";
+import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
+import { useEffect, useMemo, useState } from "react";
+import { useForm, Controller, SubmitHandler } from "react-hook-form";
+import z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { RouteTabs } from "../../components/common/RouteTabs";
 import { AuthzHide } from "../../components/permissions/authz-hide";
 import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useConsultingClientQuery } from "../../hooks/api/consulting-client/use-consulting-client.query";
+import { useUpdateConsultingClientMutation } from "../../hooks/api/consulting-client/use-update-consulting-client.mutation";
 import { useConsultingClientCompaniesQuery } from "../../hooks/api/consulting-client/use-consulting-client-companies.query";
 import { useAddConsultingClientCompanyMutation } from "../../hooks/api/consulting-client/use-add-consulting-client-company.mutation";
 import { useRemoveConsultingClientCompanyMutation } from "../../hooks/api/consulting-client/use-remove-consulting-client-company.mutation";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
+
+const CONSULTING_CLIENT_FORM = z.object({
+  name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
+});
 
 export default function ConsultingClientDetailRoute() {
   const { id } = useParams();
@@ -17,10 +25,19 @@ export default function ConsultingClientDetailRoute() {
   const { message, modal } = App.useApp();
 
   const { data: clientData, isLoading: isClientLoading } = useConsultingClientQuery(id_consulting_client);
+  const { mutateAsync: updateClient } = useUpdateConsultingClientMutation(id_consulting_client);
   const { data: clientCompaniesData, isLoading: isClientCompaniesLoading } = useConsultingClientCompaniesQuery(id_consulting_client);
   const { data: allCompaniesData } = useCompaniesQuery();
   const { mutateAsync: addCompany, isPending: isAdding } = useAddConsultingClientCompanyMutation(id_consulting_client);
   const { mutateAsync: removeCompany } = useRemoveConsultingClientCompanyMutation(id_consulting_client);
+
+  const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof CONSULTING_CLIENT_FORM>>({
+    resolver: zodResolver(CONSULTING_CLIENT_FORM),
+  });
+
+  useEffect(() => {
+    if (clientData) reset({ name: clientData.name });
+  }, [clientData, reset]);
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | undefined>();
 
@@ -61,14 +78,36 @@ export default function ConsultingClientDetailRoute() {
     });
   };
 
+  const submitName: SubmitHandler<z.infer<typeof CONSULTING_CLIENT_FORM>> = async (info) => {
+    try {
+      await updateClient(info);
+      message.success('Nombre actualizado.');
+    } catch {
+      message.error('No se pudo guardar el nombre. Inténtalo de nuevo.');
+    }
+  };
+
   const items = [
     {
       key: "datos",
       label: "Cliente",
       children: (
-        <Descriptions column={1} bordered size="small">
-          <Descriptions.Item label="Nombre">{clientData.name}</Descriptions.Item>
-        </Descriptions>
+        <Form layout="vertical" onFinish={handleSubmit(submitName)} style={{ maxWidth: 420 }}>
+          <Form.Item
+            label="Nombre del cliente"
+            name="name"
+            required
+            help={errors.name?.message}
+            validateStatus={errors.name ? "error" : undefined}
+          >
+            <Controller name="name" control={control} render={({ field }) => <Input id="name" data-testid="name" {...field} />} />
+          </Form.Item>
+          <AuthzHide roles={[Role.ADMIN, Role.CONSULTOR]}>
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} data-testid="submit">
+              Guardar
+            </Button>
+          </AuthzHide>
+        </Form>
       ),
     },
     {

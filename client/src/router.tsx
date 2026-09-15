@@ -118,6 +118,7 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
   // comprobación en devtools) solo mientras esa página esté activa.
   const isCoursesGroupActive = pathname === '/course-catalog' || pathname.startsWith('/course-catalog/');
   const isCompaniesGroupActive = pathname === '/companies' || pathname === '/add-company' || pathname.startsWith('/companies/');
+  const isConsultoriaGroupActive = pathname === '/consultoria' || pathname.startsWith('/consultoria/');
   const activeGroupLinkStyle = { backgroundColor: token.colorPrimary, color: '#fff', margin: 4, width: 'calc(100% - 8px)', borderRadius: 8 };
 
   const selectedKeys = selectedLeafKey(pathname) ? [selectedLeafKey(pathname) as string] : [];
@@ -147,10 +148,15 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
         { key: '/centers', icon: <ApartmentOutlined />, className: 'app-sider-child-item', label: <Link to="/centers" onClick={onClose}>Centros</Link> },
       ],
     },
-    // Solo un ítem por ahora (Clientes) — cuando haya más pantallas de Consultoría
-    // (ficha de cliente, evaluaciones...) pasará a "type: 'group'" como Empresas/Cursos.
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.CONSULTOR
-      ? [{ key: '/consultoria', icon: <AuditOutlined />, label: <Link to="/consultoria" onClick={onClose}>Consultoría</Link> }]
+      ? [{
+          type: 'group' as const,
+          key: 'consultoria-group',
+          label: <Link to="/consultoria" onClick={onClose} className="app-sider-group-title" style={isConsultoriaGroupActive ? activeGroupLinkStyle : undefined}><AuditOutlined /><span>Consultoría</span></Link>,
+          children: [
+            { key: '/consultoria', icon: <TeamOutlined />, className: 'app-sider-child-item', label: <Link to="/consultoria" onClick={onClose}>Clientes</Link> },
+          ],
+        }]
       : []),
     ...(role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.MANAGER || role?.toLowerCase() === Role.VIEWER || role?.toLowerCase() === Role.TUTOR || role?.toLowerCase() === Role.CONSULTOR
       ? [{ key: '/reports', icon: <PieChartOutlined />, label: <Link to="/reports" onClick={onClose}>Informes</Link> }]

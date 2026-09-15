@@ -201,6 +201,15 @@ Class-level `[ADMIN, MANAGER]`. "Foros" button in course ficha matches (`AuthzHi
 
 Both class-level `[ADMIN]`.
 
+## 17. Consultoría (`api/consultoria`)
+
+| Action | ADMIN | MANAGER | VIEWER | TUTOR | CONSULTOR | Notes |
+|---|---|---|---|---|---|---|
+| Clientes (create/list/get/update), vincular/desvincular empresas | ✅ | ❌ | ❌ | ❌ | ✅ | `ConsultingClientController`, class-level `[ADMIN, CONSULTOR]`. Primer uso real de `CONSULTOR` — hasta ahora tenía los mismos privilegios que `VIEWER` en todos los demás módulos. Ver `docs/consultoria.md`. |
+| "Consultoría" screen / sidebar item | ✅ | ❌ | ❌ | ❌ | ✅ | `router.tsx` menú + rutas `/consultoria*`, gateadas en línea igual que el resto del sidebar |
+
+Solo Cliente y estructura implementado (2026-09-15). El resto del módulo (acciones formativas, plan, auditoría anual, evaluaciones, acceso externo por token) sigue sin construir — se añadirá aquí a la vez que cada pieza.
+
 ---
 
 ## Open items (pending a decision)
@@ -208,6 +217,8 @@ Both class-level `[ADMIN]`.
 None open as of 2026-09-09 — the last one (`dedication_passwords`/`TUTOR`, below) was resolved the same day.
 
 ## Changelog
+
+**2026-09-15 — new Consultoría module, §17.** First real use of the `CONSULTOR` role: `ConsultingClientController` gated `[ADMIN, CONSULTOR]`, not the 5-role/`VIEWER`-equivalent access it's had everywhere else so far. Only Cliente y estructura built; rest of the module still pending.
 
 **2026-09-11 — SMS narrowed to ADMIN/MANAGER only (no TUTOR).** Explicit user decision: unlike mail, TUTOR has no "SMS" button in the group screen and no access to `POST /sms/send`, `/sms/send-from-template`, `/sms/preview-length`. Reads (`GET /sms-settings`, `GET /sms-templates`) narrowed from all-5-roles down to `[ADMIN, MANAGER]` to match (no other role has a legitimate use for them anymore).
 

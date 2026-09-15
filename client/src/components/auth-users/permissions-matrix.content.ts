@@ -47,7 +47,12 @@ const candidatesFlag = (): Record<Role, PermissionMatrixAccess> =>
 const adminFullRestFlag = (): Record<Role, PermissionMatrixAccess> =>
   ({ [ADMIN]: 'yes', [MANAGER]: 'flag', [VIEWER]: 'flag', [TUTOR]: 'flag', [CONSULTOR]: 'flag' });
 
-export const PERMISSIONS_MATRIX_UPDATED_AT = '2026-09-09';
+// Consultoría: primer módulo con acceso real de CONSULTOR (en el resto de la
+// app tiene los mismos privilegios que VIEWER).
+const adminConsultor = (): Record<Role, PermissionMatrixAccess> =>
+  ({ ...all('no'), [ADMIN]: 'yes', [CONSULTOR]: 'yes' });
+
+export const PERMISSIONS_MATRIX_UPDATED_AT = '2026-09-15';
 
 export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
   {
@@ -183,5 +188,12 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
     key: 'merge-sanitization',
     title: 'Fusión de duplicados y sanitización',
     rows: [{ label: 'Fusionar usuarios duplicados, sanitizar datos', access: adminOnly() }],
+  },
+  {
+    key: 'consultoria',
+    title: 'Consultoría',
+    rows: [
+      { label: 'Clientes (crear/listar/editar), vincular/desvincular empresas', access: adminConsultor(), note: 'Solo Cliente y estructura implementado por ahora — ver docs/consultoria.md' },
+    ],
   },
 ];
