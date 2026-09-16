@@ -32,11 +32,11 @@ export class ReportFilterDTO {
   @IsInt({ each: true })
   id_center?: number[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Filtra por curso de catálogo (catalog_courses.id_catalog_course), no por edición' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  id_course?: number;
+  id_catalog_course?: number;
 
   @ApiPropertyOptional({ type: [Number] })
   @IsOptional()

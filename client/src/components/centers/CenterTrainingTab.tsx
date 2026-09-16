@@ -31,7 +31,7 @@ export default function CenterTrainingTab({ centerId }: Props) {
   const [isSendReportOpen, setIsSendReportOpen] = useState(false);
 
   const params: ReportsQueryParams = { id_center: [centerId], page: 1, limit: 2000 };
-  if (selectedCourse != null) params.id_course = selectedCourse;
+  if (selectedCourse != null) params.id_catalog_course = selectedCourse;
   if (selectedGroup.length) params.id_group = selectedGroup;
   if (dateRange?.[0] && dateRange?.[1]) {
     params.start_date = dateRange[0].startOf('day').toISOString();
@@ -39,7 +39,7 @@ export default function CenterTrainingTab({ centerId }: Props) {
   }
 
   const { data, isLoading } = useReportsQuery(params);
-  const facetParams: ReportFacetsParams = { id_center: [centerId], id_course: selectedCourse, start_date: params.start_date, end_date: params.end_date };
+  const facetParams: ReportFacetsParams = { id_center: [centerId], id_catalog_course: selectedCourse, start_date: params.start_date, end_date: params.end_date };
   const { data: facets, isFetching: facetsLoading } = useReportFacetsQuery(facetParams);
 
   const rows: ReportRow[] = useMemo(() => data?.data ?? [], [data]);
@@ -75,7 +75,7 @@ export default function CenterTrainingTab({ centerId }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
         <Space wrap align="end">
           <div>
-            <div style={{ marginBottom: 4 }}>Curso</div>
+            <div style={{ marginBottom: 4 }}>Curso de catálogo</div>
             <Select
               allowClear
               showSearch
@@ -85,7 +85,7 @@ export default function CenterTrainingTab({ centerId }: Props) {
               loading={facetsLoading}
               value={selectedCourse}
               onChange={(v) => { setSelectedCourse(v == null ? undefined : Number(v)); setSelectedGroup([]); setSelectedRowKeys([]); }}
-              options={(facets?.courses ?? []).map((c) => ({ label: c.course_name ?? String(c.id_course), value: c.id_course }))}
+              options={(facets?.courses ?? []).map((c) => ({ label: c.name ?? String(c.id_catalog_course), value: c.id_catalog_course }))}
             />
           </div>
           <div>

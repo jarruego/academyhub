@@ -6,7 +6,7 @@ import type { PgColumn } from "drizzle-orm/pg-core";
 import { userGroupTable } from "src/database/schema/tables/user_group.table";
 import { userTable } from "src/database/schema/tables/user.table";
 import { groupTable } from "src/database/schema/tables/group.table";
-import { courseTable } from "src/database/schema/tables/course.table";
+import { courseTable, catalogCourseTable } from "src/database/schema/tables/course.table";
 import { centers } from "src/database/schema";
 import { companyTable } from "src/database/schema/tables/company.table";
 import { userCenterTable } from "src/database/schema/tables/user_center.table";
@@ -48,7 +48,8 @@ export class ReportsRepository extends Repository {
         where.push(eq(centers.id_center, filter.id_center));
       }
     }
-    if (exclude !== 'course' && filter?.id_course) where.push(eq(courseTable.id_course, filter.id_course));
+    // "course" filtra por curso de CATÁLOGO (todas sus ediciones), no por una edición concreta.
+    if (exclude !== 'course' && filter?.id_catalog_course) where.push(eq(catalogCourseTable.id_catalog_course, filter.id_catalog_course));
     // Support multiple selected groups (id_group can be number[])
     if (exclude !== 'group' && filter?.id_group) {
       if (Array.isArray(filter.id_group) && filter.id_group.length) {
@@ -130,6 +131,7 @@ export class ReportsRepository extends Repository {
         .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
         .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
         .innerJoin(courseTable, eq(groupTable.id_course, courseTable.id_course))
+        .innerJoin(catalogCourseTable, eq(courseTable.id_catalog_course, catalogCourseTable.id_catalog_course))
         .leftJoin(userRolesTable, eq(userGroupTable.id_role, userRolesTable.id_role))
         .leftJoin(userCourseTable, and(eq(userCourseTable.id_user, userTable.id_user), eq(userCourseTable.id_course, courseTable.id_course)))
         .leftJoin(userCenterTable, and(eq(userCenterTable.id_user, userTable.id_user), eq(userCenterTable.is_main_center, true)))
@@ -141,8 +143,8 @@ export class ReportsRepository extends Repository {
     const [companies, centersList, courses, groups, roles, modalities, clients, fundings] = await Promise.all([
       baseSelect({ id_company: companyTable.id_company, company_name: companyTable.company_name }, 'company').orderBy(companyTable.company_name) as Promise<{ id_company: number; company_name: string | null }[]>,
       baseSelect({ id_center: centers.id_center, center_name: centers.center_name }, 'center').orderBy(centers.center_name) as Promise<{ id_center: number; center_name: string | null }[]>,
-      baseSelect({ id_course: courseTable.id_course, course_name: courseTable.course_name }, 'course').orderBy(courseTable.course_name) as Promise<{ id_course: number; course_name: string | null }[]>,
-      (filter?.id_course
+      baseSelect({ id_catalog_course: catalogCourseTable.id_catalog_course, name: catalogCourseTable.name }, 'course').orderBy(catalogCourseTable.name) as Promise<{ id_catalog_course: number; name: string | null }[]>,
+      (filter?.id_catalog_course
         ? baseSelect({ id_group: groupTable.id_group, group_name: groupTable.group_name }, 'group').orderBy(groupTable.group_name)
         : Promise.resolve([])) as Promise<{ id_group: number; group_name: string | null }[]>,
       baseSelect({ id_role: userRolesTable.id_role, role_shortname: userRolesTable.role_shortname }, 'role').orderBy(userRolesTable.role_shortname) as Promise<{ id_role: number; role_shortname: string | null }[]>,
@@ -188,6 +190,7 @@ export class ReportsRepository extends Repository {
       .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
       .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
       .innerJoin(courseTable, eq(groupTable.id_course, courseTable.id_course))
+      .innerJoin(catalogCourseTable, eq(courseTable.id_catalog_course, catalogCourseTable.id_catalog_course))
       .leftJoin(userCourseTable, and(eq(userCourseTable.id_user, userTable.id_user), eq(userCourseTable.id_course, courseTable.id_course)))
       .leftJoin(userCenterTable, and(eq(userCenterTable.id_user, userTable.id_user), eq(userCenterTable.is_main_center, true)))
       .leftJoin(centers, eq(userCenterTable.id_center, centers.id_center))
@@ -277,6 +280,7 @@ export class ReportsRepository extends Repository {
       .innerJoin(userTable, eq(userGroupTable.id_user, userTable.id_user))
       .innerJoin(groupTable, eq(userGroupTable.id_group, groupTable.id_group))
       .innerJoin(courseTable, eq(groupTable.id_course, courseTable.id_course))
+      .innerJoin(catalogCourseTable, eq(courseTable.id_catalog_course, catalogCourseTable.id_catalog_course))
       .leftJoin(userRolesTable, eq(userGroupTable.id_role, userRolesTable.id_role))
       .leftJoin(userCourseTable, and(eq(userCourseTable.id_user, userTable.id_user), eq(userCourseTable.id_course, courseTable.id_course)))
       .leftJoin(moodleUserTable, and(eq(moodleUserTable.id_user, userTable.id_user), eq(moodleUserTable.is_main_user, true)))

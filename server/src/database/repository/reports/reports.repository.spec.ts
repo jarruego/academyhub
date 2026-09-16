@@ -33,9 +33,9 @@ describe('ReportsRepository.buildWhereConditions — facetas estándar', () => {
 
   it('un filtro global no se excluye al pasar exclude', () => {
     const repo = buildRepo();
-    const filter: ReportFilterDTO = { id_course: 5, bonified: true };
+    const filter: ReportFilterDTO = { id_catalog_course: 5, bonified: true };
     expect(repo.buildWhereConditions(filter)).toHaveLength(2);
-    // exclude del curso deja solo el global
+    // exclude del curso de catálogo deja solo el global
     expect(repo.buildWhereConditions(filter, 'course')).toHaveLength(1);
     // exclude de otra dimensión no toca ni curso ni global
     expect(repo.buildWhereConditions(filter, 'company')).toHaveLength(2);
@@ -46,7 +46,7 @@ describe('ReportsRepository.buildWhereConditions — facetas estándar', () => {
     const filter: ReportFilterDTO = {
       id_company: [1],
       id_center: [2],
-      id_course: 3,
+      id_catalog_course: 3,
       id_group: [4],
       id_role: [5],
       modality: [CourseModality.ONLINE],

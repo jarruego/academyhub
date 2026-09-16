@@ -85,7 +85,7 @@ export default function ReportsRoute() {
   const params: ReportsQueryParams = { page, limit: pageSize, sort_field: sortField, sort_order: sortOrder };
   if (selectedCompanies && selectedCompanies.length) params.id_company = selectedCompanies;
   if (selectedCenters && selectedCenters.length) params.id_center = selectedCenters;
-  if (selectedCourse !== undefined && selectedCourse !== null) params.id_course = selectedCourse;
+  if (selectedCourse !== undefined && selectedCourse !== null) params.id_catalog_course = selectedCourse;
   if (selectedGroup && selectedGroup.length) params.id_group = selectedGroup;
   if (selectedRoles && selectedRoles.length) params.id_role = selectedRoles;
   if (normalizedSearch) params.search = normalizedSearch;
@@ -116,7 +116,7 @@ export default function ReportsRoute() {
   const facetParams: ReportFacetsParams = {
     id_company: params.id_company,
     id_center: params.id_center,
-    id_course: params.id_course,
+    id_catalog_course: params.id_catalog_course,
     id_group: params.id_group,
     id_role: params.id_role,
     search: params.search,
@@ -144,7 +144,7 @@ export default function ReportsRoute() {
     // incluyan; solo desaparece si el usuario lo deselecciona manualmente.
     const roleIds = new Set(facets.roles.map((r) => r.id_role));
     setSelectedRoles((prev) => { const next = prev.filter((id) => roleIds.has(id) || id === studentRoleId); return next.length === prev.length ? prev : next; });
-    const courseIds = new Set(facets.courses.map((c) => c.id_course));
+    const courseIds = new Set(facets.courses.map((c) => c.id_catalog_course));
     setSelectedCourse((prev) => (prev != null && !courseIds.has(prev) ? undefined : prev));
     const modalitySet = new Set(facets.modalities);
     setSelectedModalities((prev) => { const next = prev.filter((v) => modalitySet.has(v)); return next.length === prev.length ? prev : next; });
@@ -567,7 +567,7 @@ export default function ReportsRoute() {
         {/* First row: Course & Groups */}
         <Space>
           <div data-tour="reports-curso">
-            <div style={{ marginBottom: 4 }}>Curso</div>
+            <div style={{ marginBottom: 4 }}>Curso de catálogo</div>
             <Select
               allowClear
               showSearch
@@ -580,7 +580,7 @@ export default function ReportsRoute() {
                   .toLowerCase();
                 return strip(option?.label).includes(strip(input));
               }}
-              placeholder="Selecciona curso"
+              placeholder="Selecciona curso de catálogo"
               style={{ minWidth: 240 }}
               // Let the dropdown width adapt to the longest option instead of
               // forcing it to match the select input width. When the user types
@@ -590,7 +590,7 @@ export default function ReportsRoute() {
               value={selectedCourse}
               loading={facetsLoading}
               onChange={(val) => { setSelectedCourse(val == null ? undefined : Number(val)); setSelectedGroup([]); setPage(1); clearSelection(); }}
-              options={(facets?.courses ?? []).map(c => ({ label: c.course_name ?? String(c.id_course), value: c.id_course }))}
+              options={(facets?.courses ?? []).map(c => ({ label: c.name ?? String(c.id_catalog_course), value: c.id_catalog_course }))}
             />
           </div>
           <div>
