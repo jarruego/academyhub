@@ -19,6 +19,9 @@ import CreateCompanyRoute from './routes/companies/create-company.route';
 import ConsultoriaClientsRoute from './routes/consultoria/consultoria-clients.route';
 import CreateConsultingClientRoute from './routes/consultoria/create-consulting-client.route';
 import ConsultingClientDetailRoute from './routes/consultoria/consulting-client-detail.route';
+import ConsultingCenterPlanRoute from './routes/consultoria/consulting-center-plan.route';
+import ConsultingEngagementRoute from './routes/consultoria/consulting-engagement.route';
+import ConsultingEngagementCenterRoute from './routes/consultoria/consulting-engagement-center.route';
 import ConsultoriaActionsRoute from './routes/consultoria/consultoria-actions.route';
 import ConsultingActionFormRoute from './routes/consultoria/consulting-action-form.route';
 import CompanyDetailRoute from './routes/companies/company-detail.route';
@@ -266,6 +269,9 @@ export default function AppRouter() {
               <Route path="/consultoria" element={<ConsultoriaClientsRoute />} />
               <Route path="/consultoria/add-client" element={<CreateConsultingClientRoute />} />
               <Route path="/consultoria/clients/:id" element={<ConsultingClientDetailRoute />} />
+              <Route path="/consultoria/clients/:id/centers/:id_center" element={<ConsultingCenterPlanRoute />} />
+              <Route path="/consultoria/clients/:id/annual-engagements/:id_annual_engagement" element={<ConsultingEngagementRoute />} />
+              <Route path="/consultoria/clients/:id/annual-engagements/:id_annual_engagement/centers/:id_center" element={<ConsultingEngagementCenterRoute />} />
               <Route path="/consultoria/actions" element={<ConsultoriaActionsRoute />} />
               <Route path="/consultoria/actions/add" element={<ConsultingActionFormRoute />} />
               <Route path="/consultoria/actions/:id_course" element={<ConsultingActionFormRoute />} />

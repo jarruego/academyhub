@@ -1,5 +1,5 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { App, Button, Form, Input, Select, Table } from "antd";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { App, Button, Form, Input, InputNumber, Select, Table, Tag } from "antd";
 import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
@@ -14,6 +14,14 @@ import { useConsultingClientCompaniesQuery } from "../../hooks/api/consulting-cl
 import { useAddConsultingClientCompanyMutation } from "../../hooks/api/consulting-client/use-add-consulting-client-company.mutation";
 import { useRemoveConsultingClientCompanyMutation } from "../../hooks/api/consulting-client/use-remove-consulting-client-company.mutation";
 import { useCompaniesQuery } from "../../hooks/api/companies/use-companies.query";
+import { useCentersByCompaniesQuery } from "../../hooks/api/centers/use-centers-by-companies.query";
+import { useConsultingActionsQuery } from "../../hooks/api/consulting-action/use-consulting-actions.query";
+import { useConsultingPlanItemsQuery } from "../../hooks/api/consulting-plan-item/use-consulting-plan-items.query";
+import { useAddConsultingPlanItemMutation } from "../../hooks/api/consulting-plan-item/use-add-consulting-plan-item.mutation";
+import { useRemoveConsultingPlanItemMutation } from "../../hooks/api/consulting-plan-item/use-remove-consulting-plan-item.mutation";
+import { useConsultingAnnualEngagementsQuery } from "../../hooks/api/consulting-annual-engagement/use-consulting-annual-engagements.query";
+import { useOpenConsultingAnnualEngagementMutation } from "../../hooks/api/consulting-annual-engagement/use-open-consulting-annual-engagement.mutation";
+import { useUpdateConsultingAnnualEngagementMutation } from "../../hooks/api/consulting-annual-engagement/use-update-consulting-annual-engagement.mutation";
 
 const CONSULTING_CLIENT_FORM = z.object({
   name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
@@ -49,6 +57,32 @@ export default function ConsultingClientDetailRoute() {
 
   const availableCompanies = (allCompaniesData ?? []).filter((c) => !linkedCompanyIds.has(c.id_company));
 
+  const companyIds = useMemo(() => (clientCompaniesData ?? []).map((c) => c.id_company), [clientCompaniesData]);
+  const { data: centersData } = useCentersByCompaniesQuery(companyIds);
+  const { data: actionsData } = useConsultingActionsQuery();
+  const { data: planItemsData, isLoading: isPlanItemsLoading } = useConsultingPlanItemsQuery(id_consulting_client);
+  const { mutateAsync: addPlanItem, isPending: isAddingPlanItem } = useAddConsultingPlanItemMutation(id_consulting_client);
+  const { mutateAsync: removePlanItem } = useRemoveConsultingPlanItemMutation(id_consulting_client);
+
+  const [planCatalogCourseId, setPlanCatalogCourseId] = useState<number | undefined>();
+
+  const basePlanItems = useMemo(() => (planItemsData ?? []).filter((item) => item.id_center === null), [planItemsData]);
+  const centerPlanItemCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const item of planItemsData ?? []) {
+      if (item.id_center !== null) counts.set(item.id_center, (counts.get(item.id_center) ?? 0) + 1);
+    }
+    return counts;
+  }, [planItemsData]);
+
+  const currentYear = new Date().getFullYear();
+  const { data: engagementsData, isLoading: isEngagementsLoading } = useConsultingAnnualEngagementsQuery(id_consulting_client);
+  const { mutateAsync: openEngagement, isPending: isOpeningEngagement } = useOpenConsultingAnnualEngagementMutation(id_consulting_client);
+  const { mutateAsync: updateEngagement } = useUpdateConsultingAnnualEngagementMutation(id_consulting_client);
+
+  const [newEngagementYear, setNewEngagementYear] = useState<number | null>(currentYear);
+  const [newEngagementCenterIds, setNewEngagementCenterIds] = useState<number[]>([]);
+
   if (isClientLoading) return <div>Cargando...</div>;
   if (!clientData) return <div>Cliente no encontrado</div>;
 
@@ -77,6 +111,51 @@ export default function ConsultingClientDetailRoute() {
         }
       },
     });
+  };
+
+  const handleAddPlanItem = async () => {
+    if (!planCatalogCourseId) return;
+    try {
+      await addPlanItem({ id_center: null, id_catalog_course: planCatalogCourseId });
+      setPlanCatalogCourseId(undefined);
+    } catch {
+      message.error('No se pudo añadir la acción al plan base. Puede que ya esté añadida.');
+    }
+  };
+
+  const handleRemovePlanItem = (id_plan_item: number, name: string) => {
+    modal.confirm({
+      title: `¿Quitar "${name}" del plan?`,
+      okText: "Quitar",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          await removePlanItem(id_plan_item);
+        } catch {
+          message.error('No se pudo quitar la acción del plan. Inténtalo de nuevo.');
+        }
+      },
+    });
+  };
+
+  const handleOpenEngagement = async () => {
+    if (!newEngagementYear) return;
+    try {
+      await openEngagement({ year: newEngagementYear, id_centers: newEngagementCenterIds.length > 0 ? newEngagementCenterIds : undefined });
+      setNewEngagementYear(currentYear + 1);
+      setNewEngagementCenterIds([]);
+    } catch {
+      message.error('No se pudo abrir la consultoría. Puede que ya exista una para ese año.');
+    }
+  };
+
+  const handleToggleEngagement = async (id_annual_engagement: number, status: 'OPEN' | 'CLOSED') => {
+    try {
+      await updateEngagement({ id_annual_engagement, status });
+    } catch {
+      message.error('No se pudo actualizar la consultoría. Inténtalo de nuevo.');
+    }
   };
 
   const submitName: SubmitHandler<z.infer<typeof CONSULTING_CLIENT_FORM>> = async (info) => {
@@ -155,6 +234,138 @@ export default function ConsultingClientDetailRoute() {
                       aria-label={`Quitar ${record.company_name}`}
                     />
                   </AuthzHide>
+                ),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+    {
+      key: "plan",
+      label: "Plan",
+      children: (
+        <div>
+          <h3 style={{ marginTop: 0 }}>Plan base</h3>
+          <p style={{ color: 'var(--ink-faint, #8a968d)', marginTop: -4, marginBottom: 16 }}>
+            Compartido por todos los centros del cliente. Solo se pueden añadir acciones ya etiquetadas en <Link to="/consultoria/actions">Acciones formativas</Link>.
+          </p>
+          <AuthzHide roles={[Role.ADMIN, Role.CONSULTOR]}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              <Select
+                showSearch
+                placeholder="Buscar acción formativa por nombre..."
+                style={{ minWidth: 360 }}
+                value={planCatalogCourseId}
+                onChange={setPlanCatalogCourseId}
+                filterOption={(input, option) => (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())}
+                options={(actionsData ?? []).map((a) => ({ value: a.id_catalog_course, label: a.name }))}
+              />
+              <Button type="primary" onClick={handleAddPlanItem} disabled={!planCatalogCourseId} loading={isAddingPlanItem}>
+                Añadir al plan base
+              </Button>
+            </div>
+          </AuthzHide>
+          <Table
+            rowKey="id_plan_item"
+            loading={isPlanItemsLoading}
+            dataSource={basePlanItems}
+            pagination={false}
+            columns={[
+              { title: 'Acción', dataIndex: 'name' },
+              { title: 'Origen', dataIndex: 'origin', render: (origin) => origin === 'EXTERNAL' ? 'Externo' : 'Propio' },
+              { title: 'Categoría', dataIndex: 'category_name' },
+              { title: 'Fecha', dataIndex: 'planning_date_name' },
+              {
+                title: '',
+                key: 'actions',
+                width: 80,
+                render: (_, record) => (
+                  <AuthzHide roles={[Role.ADMIN, Role.CONSULTOR]}>
+                    <Button
+                      danger
+                      type="text"
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleRemovePlanItem(record.id_plan_item, record.name)}
+                      aria-label={`Quitar ${record.name}`}
+                    />
+                  </AuthzHide>
+                ),
+              },
+            ]}
+          />
+
+          <h3 style={{ marginTop: 32 }}>Centros</h3>
+          <p style={{ color: 'var(--ink-faint, #8a968d)', marginTop: -4, marginBottom: 16 }}>
+            Cada centro parte del plan base de arriba. Entra en un centro para añadirle acciones propias, por encima del base.
+          </p>
+          <Table
+            rowKey="id_center"
+            dataSource={centersData}
+            pagination={false}
+            columns={[
+              { title: 'Centro', dataIndex: 'center_name' },
+              { title: 'Acciones propias', key: 'count', render: (_, record) => centerPlanItemCounts.get(record.id_center) ?? 0 },
+              {
+                title: '',
+                key: 'link',
+                width: 160,
+                render: (_, record) => (
+                  <Link to={`/consultoria/clients/${id_consulting_client}/centers/${record.id_center}`}>Ver plan del centro</Link>
+                ),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
+    {
+      key: "consultoria",
+      label: "Consultoría",
+      children: (
+        <div>
+          <p style={{ color: 'var(--ink-faint, #8a968d)', marginTop: -4, marginBottom: 16 }}>
+            Una consultoría por año. Al abrirla se incluyen todos los centros del cliente, salvo que elijas unos concretos. Desde ella se evalúan las acciones y se lleva el cuadro de formación, centro a centro.
+          </p>
+          <AuthzHide roles={[Role.ADMIN, Role.CONSULTOR]}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              <InputNumber value={newEngagementYear} onChange={setNewEngagementYear} min={2000} placeholder="Año" style={{ width: 100 }} />
+              <Select
+                mode="multiple"
+                placeholder="Centros (vacío = todos)"
+                style={{ minWidth: 320 }}
+                value={newEngagementCenterIds}
+                onChange={setNewEngagementCenterIds}
+                options={(centersData ?? []).map((c) => ({ value: c.id_center, label: c.center_name }))}
+              />
+              <Button type="primary" onClick={handleOpenEngagement} disabled={!newEngagementYear} loading={isOpeningEngagement}>
+                Abrir consultoría
+              </Button>
+            </div>
+          </AuthzHide>
+          <Table
+            rowKey="id_annual_engagement"
+            loading={isEngagementsLoading}
+            dataSource={engagementsData}
+            pagination={false}
+            columns={[
+              { title: 'Año', dataIndex: 'year' },
+              { title: 'Estado', dataIndex: 'status', render: (status: 'OPEN' | 'CLOSED') => status === 'OPEN' ? <Tag color="green">Abierta</Tag> : <Tag color="default">Cerrada</Tag> },
+              { title: 'Abierta el', dataIndex: 'opened_at', render: (v: string) => new Date(v).toLocaleDateString() },
+              { title: 'Cerrada el', dataIndex: 'closed_at', render: (v: string | null) => v ? new Date(v).toLocaleDateString() : '—' },
+              {
+                title: '',
+                key: 'actions',
+                width: 220,
+                render: (_, record) => (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Link to={`/consultoria/clients/${id_consulting_client}/annual-engagements/${record.id_annual_engagement}`}>Entrar</Link>
+                    <AuthzHide roles={[Role.ADMIN, Role.CONSULTOR]}>
+                      {record.status === 'OPEN'
+                        ? <Button size="small" onClick={() => handleToggleEngagement(record.id_annual_engagement, 'CLOSED')}>Cerrar</Button>
+                        : <Button size="small" onClick={() => handleToggleEngagement(record.id_annual_engagement, 'OPEN')}>Reabrir</Button>}
+                    </AuthzHide>
+                  </div>
                 ),
               },
             ]}

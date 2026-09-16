@@ -31,6 +31,11 @@ import { consultingClientTable, consultingClientCompanyTable } from "./schema/ta
 import { courseCategoryTable } from "./schema/tables/course_category.table";
 import { consultingPlanningDateTable } from "./schema/tables/consulting_planning_date.table";
 import { consultingActionDetailTable, consultingActionOrigin } from "./schema/tables/consulting_action_detail.table";
+import { consultingPlanItemTable } from "./schema/tables/consulting_plan_item.table";
+import { consultingAnnualEngagementTable, consultingEngagementCenterTable, consultingEngagementStatus } from "./schema/tables/consulting_annual_engagement.table";
+import { consultingActionEvaluationTable } from "./schema/tables/consulting_action_evaluation.table";
+import { consultingRosterAdjustmentTable, consultingRosterAdjustmentType } from "./schema/tables/consulting_roster_adjustment.table";
+import { consultingActionAttendeeTable } from "./schema/tables/consulting_action_attendee.table";
 import { preinscriptionRegistrationSource } from "./schema/tables/user_preinscription.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
@@ -80,6 +85,12 @@ export const consulting_client_companies = consultingClientCompanyTable;
 export const course_categories = courseCategoryTable;
 export const consulting_planning_dates = consultingPlanningDateTable;
 export const consulting_action_details = consultingActionDetailTable;
+export const consulting_plan_items = consultingPlanItemTable;
+export const consulting_annual_engagements = consultingAnnualEngagementTable;
+export const consulting_engagement_centers = consultingEngagementCenterTable;
+export const consulting_action_evaluations = consultingActionEvaluationTable;
+export const consulting_roster_adjustments = consultingRosterAdjustmentTable;
+export const consulting_action_attendees = consultingActionAttendeeTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;
@@ -99,6 +110,8 @@ export const preinscription_registration_source = preinscriptionRegistrationSour
 export const interest_status = interestStatus;
 export const interest_source = interestSource;
 export const consulting_action_origin_enum = consultingActionOrigin;
+export const consulting_engagement_status_enum = consultingEngagementStatus;
+export const consulting_roster_adjustment_type_enum = consultingRosterAdjustmentType;
 // export const enrollment_status = enrollmentStatus;
 
 // Re-export types for convenience

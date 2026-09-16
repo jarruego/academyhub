@@ -52,7 +52,7 @@ const adminFullRestFlag = (): Record<Role, PermissionMatrixAccess> =>
 const adminConsultor = (): Record<Role, PermissionMatrixAccess> =>
   ({ ...all('no'), [ADMIN]: 'yes', [CONSULTOR]: 'yes' });
 
-export const PERMISSIONS_MATRIX_UPDATED_AT = '2026-09-15';
+export const PERMISSIONS_MATRIX_UPDATED_AT = '2026-09-16';
 
 export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
   {
@@ -199,6 +199,10 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
       { label: 'Acciones formativas: listar/ver/etiquetar un curso existente', access: adminConsultor(), note: 'Los datos del curso (objetivos/horas/modalidad/dirigido a) siguen ADMIN-only vía la ficha de catálogo' },
       { label: 'Fechas de planificación: listar', access: adminConsultor() },
       { label: 'Fechas de planificación: crear/editar', access: adminOnly(), note: 'Mismo criterio que categorías de curso' },
+      { label: 'Plan de formación: listar/añadir/quitar (base y por centro)', access: adminConsultor(), note: 'Solo admite acciones ya etiquetadas' },
+      { label: 'Consultoría anual: listar/abrir/cerrar/reabrir, añadir-quitar centros participantes', access: adminConsultor(), note: 'Una por cliente y año (no por centro), solo gestión manual por ahora' },
+      { label: 'Evaluación de acciones: listar/crear/editar/borrar, dentro de una consultoría+centro', access: adminConsultor(), note: 'Solo acciones ya presentes en el plan del centro; la fecha debe caer en el año de esa consultoría' },
+      { label: 'Cuadro de formación: roster, cruce trabajador×acción, asistentes manuales, dentro de una consultoría+centro', access: adminConsultor(), note: 'El cruce con matrícula real es solo lectura; lo manual solo para acciones sin ninguna edición real' },
     ],
   },
 ];

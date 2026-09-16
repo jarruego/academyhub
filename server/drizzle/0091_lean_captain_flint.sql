@@ -1,0 +1,1 @@
+ALTER TABLE "academyhub"."consulting_action_attendees" ADD COLUMN "attended_at" date DEFAULT now() NOT NULL;
