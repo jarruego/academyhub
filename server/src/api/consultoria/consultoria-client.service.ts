@@ -5,6 +5,7 @@ import {
 } from "src/database/repository/consultoria/consulting-client.repository";
 import { ConsultingPlanItemRepository } from "src/database/repository/consultoria/consulting-plan-item.repository";
 import { ConsultingActionDetailRepository } from "src/database/repository/consultoria/consulting-action-detail.repository";
+import { ConsultingActionEvaluationRepository } from "src/database/repository/consultoria/consulting-action-evaluation.repository";
 import { ConsultingAnnualEngagementRepository } from "src/database/repository/consultoria/consulting-annual-engagement.repository";
 import { ConsultingEngagementCenterRepository } from "src/database/repository/consultoria/consulting-engagement-center.repository";
 import { CenterRepository } from "src/database/repository/center/center.repository";
@@ -13,6 +14,7 @@ import { CreateConsultingClientDto } from "./dto/create-consulting-client.dto";
 import { UpdateConsultingClientDto } from "./dto/update-consulting-client.dto";
 import { AddConsultingClientCompanyDto } from "./dto/add-consulting-client-company.dto";
 import { CreateConsultingPlanItemDto } from "./dto/create-consulting-plan-item.dto";
+import { AddConsultingPlanItemToAllCentersDto } from "./dto/add-consulting-plan-item-to-all-centers.dto";
 import { OpenConsultingAnnualEngagementDto } from "./dto/open-consulting-annual-engagement.dto";
 import { UpdateConsultingAnnualEngagementDto } from "./dto/update-consulting-annual-engagement.dto";
 import { AddConsultingEngagementCenterDto } from "./dto/add-consulting-engagement-center.dto";
@@ -24,6 +26,7 @@ export class ConsultingClientService {
     private readonly consultingClientCompanyRepository: ConsultingClientCompanyRepository,
     private readonly consultingPlanItemRepository: ConsultingPlanItemRepository,
     private readonly consultingActionDetailRepository: ConsultingActionDetailRepository,
+    private readonly consultingActionEvaluationRepository: ConsultingActionEvaluationRepository,
     private readonly consultingAnnualEngagementRepository: ConsultingAnnualEngagementRepository,
     private readonly consultingEngagementCenterRepository: ConsultingEngagementCenterRepository,
     private readonly centerRepository: CenterRepository,
@@ -99,8 +102,64 @@ export class ConsultingClientService {
     return this.consultingPlanItemRepository.addItem({ id_consulting_client, id_center, id_catalog_course: dto.id_catalog_course, added_by });
   }
 
-  async removePlanItem(id_consulting_client: number, id_plan_item: number) {
+  /**
+   * Alternativa a añadir al plan base (compartido, `id_center` NULL):
+   * añade una copia propia a cada centro del cliente por separado — deja de
+   * ser una plantilla compartida, cada centro tiene su propio ítem desde el
+   * principio. Centros que ya tuvieran su propia copia se saltan (sin
+   * error). Ver docs/consultoria.md.
+   */
+  async addPlanItemToAllCenters(id_consulting_client: number, dto: AddConsultingPlanItemToAllCentersDto, added_by?: number) {
     await this.findById(id_consulting_client);
+    const action = await this.consultingActionDetailRepository.findByCatalogCourseId(dto.id_catalog_course);
+    if (!action) throw new BadRequestException("Este curso todavía no está etiquetado como acción formativa — etiquétalo antes en Acciones formativas");
+
+    const centers = await this.getClientCenters(id_consulting_client);
+    const created = [];
+    for (const center of centers) {
+      const existing = await this.consultingPlanItemRepository.findLink(id_consulting_client, center.id_center, dto.id_catalog_course);
+      if (existing) continue;
+      created.push(await this.consultingPlanItemRepository.addItem({ id_consulting_client, id_center: center.id_center, id_catalog_course: dto.id_catalog_course, added_by }));
+    }
+    return created;
+  }
+
+  /**
+   * Si la acción es del plan base, afecta a todos los centros del cliente —
+   * el aviso de alcance ("esto lo quita de TODOS los centros") lo da el
+   * frontend antes de llamar aquí. Lo que si se bloquea siempre, base o
+   * propia: no se puede quitar una acción que algún centro afectado ya
+   * evaluó — perdería su histórico, salvo que `keepForCenters` esté
+   * activo: en ese caso, en vez de bloquear, se reparte una copia propia a
+   * cada centro que todavía no la tenga (sin tocar los que ya evaluaron) y
+   * solo se borra la fila del plan base — nadie pierde nada, así que no
+   * hace falta comprobar evaluaciones. Ver docs/consultoria.md.
+   */
+  async removePlanItem(id_consulting_client: number, id_plan_item: number, keepForCenters = false, added_by?: number) {
+    await this.findById(id_consulting_client);
+    const item = await this.consultingPlanItemRepository.findById(id_plan_item);
+    if (!item || item.id_consulting_client !== id_consulting_client) throw new NotFoundException("Acción del plan no encontrada");
+
+    if (item.id_center === null && keepForCenters) {
+      const centers = await this.getClientCenters(id_consulting_client);
+      for (const center of centers) {
+        const existing = await this.consultingPlanItemRepository.findLink(id_consulting_client, center.id_center, item.id_catalog_course);
+        if (existing) continue;
+        await this.consultingPlanItemRepository.addItem({ id_consulting_client, id_center: center.id_center, id_catalog_course: item.id_catalog_course, added_by });
+      }
+      return this.consultingPlanItemRepository.removeItem(id_plan_item);
+    }
+
+    const centersToCheck = item.id_center !== null
+      ? [item.id_center]
+      : (await this.getClientCenters(id_consulting_client)).map((c) => c.id_center);
+
+    const evaluations = await this.consultingActionEvaluationRepository.findByCatalogCourseAndCenters(item.id_catalog_course, centersToCheck);
+    if (evaluations.length > 0) {
+      const where = [...new Set(evaluations.map((e) => `${e.center_name} (${e.year})`))].join(', ');
+      throw new ConflictException(`No se puede quitar "${item.name}" del plan: ya la ha evaluado ${where} — se perdería el histórico de evaluación.`);
+    }
+
     return this.consultingPlanItemRepository.removeItem(id_plan_item);
   }
 

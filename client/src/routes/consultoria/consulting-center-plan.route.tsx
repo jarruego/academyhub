@@ -11,6 +11,9 @@ import { useConsultingPlanItemsQuery } from "../../hooks/api/consulting-plan-ite
 import { useAddConsultingPlanItemMutation } from "../../hooks/api/consulting-plan-item/use-add-consulting-plan-item.mutation";
 import { useRemoveConsultingPlanItemMutation } from "../../hooks/api/consulting-plan-item/use-remove-consulting-plan-item.mutation";
 
+const errorMessage = (error: unknown, fallback: string) =>
+  (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
+
 // Plan de un centro concreto: base heredado (solo lectura, se edita desde la
 // ficha del cliente) + acciones propias por encima. Continuo, sin año — la
 // consultoría anual (evaluación de acciones, cuadro) vive aparte, a nivel de
@@ -35,6 +38,14 @@ export default function ConsultingCenterPlanRoute() {
     [planItemsData, id_center]
   );
 
+  // No ofrecer para añadir lo que ya está en el plan efectivo del centro
+  // (base o propia) — ya se ve en las tablas de arriba, y el backend lo
+  // rechazaría igual por duplicado.
+  const availableActions = useMemo(() => {
+    const covered = new Set([...basePlanItems, ...ownPlanItems].map((item) => item.id_catalog_course));
+    return (actionsData ?? []).filter((a) => !covered.has(a.id_catalog_course));
+  }, [actionsData, basePlanItems, ownPlanItems]);
+
   const handleAdd = async () => {
     if (!planCatalogCourseId) return;
     try {
@@ -53,9 +64,9 @@ export default function ConsultingCenterPlanRoute() {
       cancelText: "Cancelar",
       onOk: async () => {
         try {
-          await removePlanItem(id_plan_item);
-        } catch {
-          message.error('No se pudo quitar la acción del plan. Inténtalo de nuevo.');
+          await removePlanItem({ id_plan_item });
+        } catch (error) {
+          message.error(errorMessage(error, 'No se pudo quitar la acción del plan. Inténtalo de nuevo.'));
         }
       },
     });
@@ -99,7 +110,7 @@ export default function ConsultingCenterPlanRoute() {
             value={planCatalogCourseId}
             onChange={setPlanCatalogCourseId}
             filterOption={(input, option) => (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())}
-            options={(actionsData ?? []).map((a) => ({ value: a.id_catalog_course, label: a.name }))}
+            options={availableActions.map((a) => ({ value: a.id_catalog_course, label: a.name }))}
           />
           <Button type="primary" onClick={handleAdd} disabled={!planCatalogCourseId} loading={isAdding}>
             Añadir a este centro

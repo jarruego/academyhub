@@ -47,6 +47,11 @@ export class ConsultingPlanItemRepository extends Repository {
       .orderBy(catalogCourseTable.name);
   }
 
+  async findById(id_plan_item: number, options?: QueryOptions) {
+    const rows = await this.baseQuery(options).where(eq(consultingPlanItemTable.id_plan_item, id_plan_item));
+    return rows[0];
+  }
+
   async findLink(id_consulting_client: number, id_center: number | null, id_catalog_course: number, options?: QueryOptions) {
     const rows = await this.query(options)
       .select()

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "src/database/database.module";
+import { OrganizationModule } from "src/api/organization/organization.module";
 import { ConsultingClientController } from "./consultoria-client.controller";
 import { ConsultingClientService } from "./consultoria-client.service";
 import { ConsultingPlanningDateController } from "./consultoria-planning-date.controller";
@@ -27,7 +28,7 @@ import { CenterRepository } from "src/database/repository/center/center.reposito
 import { CourseRepository } from "src/database/repository/course/course.repository";
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, OrganizationModule],
   controllers: [
     ConsultingClientController,
     ConsultingPlanningDateController,

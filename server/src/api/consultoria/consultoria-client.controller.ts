@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, ParseIntPipe, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, ParseIntPipe, Post, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { RoleGuard } from "src/guards/role.guard";
 import { Role } from "src/guards/role.enum";
@@ -8,6 +8,7 @@ import { CreateConsultingClientDto } from "./dto/create-consulting-client.dto";
 import { UpdateConsultingClientDto } from "./dto/update-consulting-client.dto";
 import { AddConsultingClientCompanyDto } from "./dto/add-consulting-client-company.dto";
 import { CreateConsultingPlanItemDto } from "./dto/create-consulting-plan-item.dto";
+import { AddConsultingPlanItemToAllCentersDto } from "./dto/add-consulting-plan-item-to-all-centers.dto";
 import { OpenConsultingAnnualEngagementDto } from "./dto/open-consulting-annual-engagement.dto";
 import { UpdateConsultingAnnualEngagementDto } from "./dto/update-consulting-annual-engagement.dto";
 import { AddConsultingEngagementCenterDto } from "./dto/add-consulting-engagement-center.dto";
@@ -79,10 +80,25 @@ export class ConsultingClientController {
     return this.consultingClientService.addPlanItem(id, dto, req.user?.id);
   }
 
+  @Post(":id/plan-items/all-centers")
+  @ApiOperation({ summary: "Añadir una acción a cada centro del cliente individualmente (no al plan base compartido)" })
+  async addPlanItemToAllCenters(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: AddConsultingPlanItemToAllCentersDto,
+    @Req() req: { user: JwtPayload },
+  ) {
+    return this.consultingClientService.addPlanItemToAllCenters(id, dto, req.user?.id);
+  }
+
   @Delete(":id/plan-items/:id_plan_item")
-  @ApiOperation({ summary: "Quitar una acción formativa del plan" })
-  async removePlanItem(@Param("id", ParseIntPipe) id: number, @Param("id_plan_item", ParseIntPipe) id_plan_item: number) {
-    await this.consultingClientService.removePlanItem(id, id_plan_item);
+  @ApiOperation({ summary: "Quitar una acción formativa del plan. `keep_for_centers=true` (solo plan base): reparte una copia propia a cada centro antes de borrar la fila base, en vez de bloquear/borrar del todo" })
+  async removePlanItem(
+    @Param("id", ParseIntPipe) id: number,
+    @Param("id_plan_item", ParseIntPipe) id_plan_item: number,
+    @Query("keep_for_centers") keepForCenters: string | undefined,
+    @Req() req: { user: JwtPayload },
+  ) {
+    await this.consultingClientService.removePlanItem(id, id_plan_item, keepForCenters === 'true', req.user?.id);
     return { success: true };
   }
 

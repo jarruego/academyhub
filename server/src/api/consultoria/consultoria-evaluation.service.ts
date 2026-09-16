@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ConsultingActionEvaluationRepository } from "src/database/repository/consultoria/consulting-action-evaluation.repository";
 import { ConsultingPlanItemRepository } from "src/database/repository/consultoria/consulting-plan-item.repository";
+import { ConsultingActionDetailRepository } from "src/database/repository/consultoria/consulting-action-detail.repository";
+import { OrganizationService } from "src/api/organization/organization.service";
+import { ConsultingActionOrigin } from "src/types/consulting/consulting-action-origin.enum";
 import { ConsultingClientService } from "./consultoria-client.service";
 import { CreateConsultingActionEvaluationDto } from "./dto/create-consulting-action-evaluation.dto";
 import { UpdateConsultingActionEvaluationDto } from "./dto/update-consulting-action-evaluation.dto";
@@ -10,6 +13,8 @@ export class ConsultingEvaluationService {
   constructor(
     private readonly consultingActionEvaluationRepository: ConsultingActionEvaluationRepository,
     private readonly consultingPlanItemRepository: ConsultingPlanItemRepository,
+    private readonly consultingActionDetailRepository: ConsultingActionDetailRepository,
+    private readonly organizationService: OrganizationService,
     private readonly consultingClientService: ConsultingClientService,
   ) {}
 
@@ -23,6 +28,20 @@ export class ConsultingEvaluationService {
     if (new Date(evaluation_date).getFullYear() !== year) {
       throw new BadRequestException(`La fecha debe caer en ${year} — el año de esta consultoría`);
     }
+  }
+
+  /**
+   * Si la acción es propia (`OWN` — de Mecohisa, dentro de la app), quien
+   * imparte siempre es Mecohisa: se fuerza al nombre/razón social de la
+   * organización, sin dejarlo a mano ni admitir que se sobrescriba. Si es
+   * externa (`EXTERNAL` — añadida por el centro), se respeta lo que venga
+   * del formulario tal cual. Ver docs/consultoria.md.
+   */
+  private async resolveImparteText(id_catalog_course: number, providedImparteText: string | undefined) {
+    const action = await this.consultingActionDetailRepository.findByCatalogCourseId(id_catalog_course);
+    if (action?.origin !== ConsultingActionOrigin.OWN) return providedImparteText;
+    const settings = await this.organizationService.getTypedSettings();
+    return settings.company.razon_social || settings.site_name || providedImparteText;
   }
 
   /** Evaluaciones de acciones: viven dentro de una consultoría + centro concretos. */
@@ -39,6 +58,8 @@ export class ConsultingEvaluationService {
     const inPlan = await this.consultingPlanItemRepository.existsForCenter(id_consulting_client, id_center, dto.id_catalog_course);
     if (!inPlan) throw new BadRequestException("Esta acción no está en el plan de este centro (ni en el base) — añádela primero en la pestaña Plan");
 
+    const imparte_text = await this.resolveImparteText(dto.id_catalog_course, dto.imparte_text);
+
     return this.consultingActionEvaluationRepository.create({
       id_catalog_course: dto.id_catalog_course,
       id_center,
@@ -46,7 +67,7 @@ export class ConsultingEvaluationService {
       evaluation_date: new Date(dto.evaluation_date),
       evaluation_text: dto.evaluation_text,
       percentage: dto.percentage,
-      imparte_text: dto.imparte_text,
+      imparte_text,
       evaluated_by,
     });
   }
@@ -68,11 +89,16 @@ export class ConsultingEvaluationService {
     });
     if (dto.evaluation_date) this.assertDateInEngagementYear(dto.evaluation_date, engagement.year);
 
+    // El origen no cambia tras crear la evaluación (id_catalog_course es fijo) — si
+    // es propia, se sigue forzando el nombre de la organización aunque no venga
+    // imparte_text en este PATCH, por si aún no se hubiera aplicado antes.
+    const imparte_text = await this.resolveImparteText(evaluation.id_catalog_course, dto.imparte_text);
+
     return this.consultingActionEvaluationRepository.update(id_action_evaluation, {
       ...(dto.evaluation_date ? { evaluation_date: new Date(dto.evaluation_date) } : {}),
       ...(dto.evaluation_text !== undefined ? { evaluation_text: dto.evaluation_text } : {}),
       ...(dto.percentage !== undefined ? { percentage: dto.percentage } : {}),
-      ...(dto.imparte_text !== undefined ? { imparte_text: dto.imparte_text } : {}),
+      ...(imparte_text !== undefined ? { imparte_text } : {}),
     });
   }
 

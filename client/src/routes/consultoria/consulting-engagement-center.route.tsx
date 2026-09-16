@@ -1,7 +1,7 @@
 import { useParams, Link } from "react-router-dom";
 import { App, Button, DatePicker, Input, InputNumber, Select, Table, Tag } from "antd";
 import { DeleteOutlined } from "@ant-design/icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import { RouteTabs } from "../../components/common/RouteTabs";
 import { AuthzHide } from "../../components/permissions/authz-hide";
@@ -9,6 +9,7 @@ import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useConsultingClientQuery } from "../../hooks/api/consulting-client/use-consulting-client.query";
 import { useCenterQuery } from "../../hooks/api/centers/use-center.query";
 import { useConsultingPlanItemsQuery } from "../../hooks/api/consulting-plan-item/use-consulting-plan-items.query";
+import { useOrganizationSettingsQuery } from "../../hooks/api/organization/use-organization-settings.query";
 import { useConsultingActionEvaluationsQuery } from "../../hooks/api/consulting-action-evaluation/use-consulting-action-evaluations.query";
 import { useCreateConsultingActionEvaluationMutation } from "../../hooks/api/consulting-action-evaluation/use-create-consulting-action-evaluation.mutation";
 import { useUpdateConsultingActionEvaluationMutation } from "../../hooks/api/consulting-action-evaluation/use-update-consulting-action-evaluation.mutation";
@@ -33,13 +34,15 @@ export default function ConsultingEngagementCenterRoute() {
   const { data: clientData } = useConsultingClientQuery(id_consulting_client);
   const { data: centerData } = useCenterQuery(id_center || "");
   const { data: planItemsData } = useConsultingPlanItemsQuery(id_consulting_client);
+  const { data: orgSettings } = useOrganizationSettingsQuery();
+  const orgName = orgSettings?.settings?.company?.razon_social || orgSettings?.settings?.site_name || '';
 
   const effectivePlanActions = useMemo(() => {
-    const map = new Map<number, string>();
+    const map = new Map<number, { name: string; origin?: string | null }>();
     for (const item of planItemsData ?? []) {
-      if (item.id_center === null || item.id_center === Number(id_center)) map.set(item.id_catalog_course, item.name);
+      if (item.id_center === null || item.id_center === Number(id_center)) map.set(item.id_catalog_course, { name: item.name, origin: item.origin });
     }
-    return Array.from(map, ([id_catalog_course, name]) => ({ id_catalog_course, name }));
+    return Array.from(map, ([id_catalog_course, { name, origin }]) => ({ id_catalog_course, name, origin }));
   }, [planItemsData, id_center]);
 
   // --- Evaluación de acciones ---
@@ -54,6 +57,17 @@ export default function ConsultingEngagementCenterRoute() {
   const [evalPercentage, setEvalPercentage] = useState<number | null>(null);
   const [evalText, setEvalText] = useState('');
   const [evalImparte, setEvalImparte] = useState('');
+
+  const selectedActionOrigin = effectivePlanActions.find((a) => a.id_catalog_course === evalCatalogCourseId)?.origin;
+  const isOwnAction = selectedActionOrigin === 'OWN';
+
+  // Acción propia (de Mecohisa, dentro de la app) → quien imparte siempre es
+  // la organización, no se elige a mano. El backend lo fuerza igual aunque
+  // esto fallara, pero así el campo refleja la realidad sin que el usuario
+  // tenga que escribirlo. Ver docs/consultoria.md.
+  useEffect(() => {
+    if (isOwnAction && orgName) setEvalImparte(orgName);
+  }, [isOwnAction, orgName]);
 
   const resetEvaluationForm = () => {
     setEditingEvaluationId(undefined);
@@ -224,7 +238,14 @@ export default function ConsultingEngagementCenterRoute() {
               />
               <DatePicker value={evalDate} onChange={setEvalDate} placeholder="Fecha" />
               <InputNumber value={evalPercentage} onChange={(v) => setEvalPercentage(v)} min={0} max={100} placeholder="%" style={{ width: 90 }} />
-              <Input value={evalImparte} onChange={(e) => setEvalImparte(e.target.value)} placeholder="Imparte (empresa/centro)" style={{ width: 220 }} />
+              <Input
+                value={evalImparte}
+                onChange={(e) => setEvalImparte(e.target.value)}
+                placeholder="Imparte (empresa/centro)"
+                style={{ width: 220 }}
+                disabled={isOwnAction}
+                title={isOwnAction ? "Acción propia — siempre la imparte la organización" : undefined}
+              />
             </div>
             <Input.TextArea
               value={evalText}

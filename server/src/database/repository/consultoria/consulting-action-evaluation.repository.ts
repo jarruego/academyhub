@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { Repository, QueryOptions } from "../repository";
 import {
   consultingActionEvaluationTable,
@@ -7,6 +7,8 @@ import {
   ConsultingActionEvaluationUpdateModel,
 } from "src/database/schema/tables/consulting_action_evaluation.table";
 import { catalogCourseTable } from "src/database/schema/tables/course.table";
+import { centerTable } from "src/database/schema/tables/center.table";
+import { consultingAnnualEngagementTable } from "src/database/schema/tables/consulting_annual_engagement.table";
 
 const JOINED_COLUMNS = {
   id_action_evaluation: consultingActionEvaluationTable.id_action_evaluation,
@@ -36,6 +38,28 @@ export class ConsultingActionEvaluationRepository extends Repository {
     return this.baseQuery(options)
       .where(and(eq(consultingActionEvaluationTable.id_center, id_center), eq(consultingActionEvaluationTable.id_annual_engagement, id_annual_engagement)))
       .orderBy(consultingActionEvaluationTable.evaluation_date);
+  }
+
+  /**
+   * ¿Ya se ha evaluado esta acción en alguno de estos centros? Usado para
+   * bloquear el borrado de un ítem del plan (base o propio) que ya tiene
+   * histórico de evaluación — ver docs/consultoria.md.
+   */
+  async findByCatalogCourseAndCenters(id_catalog_course: number, id_centers: number[], options?: QueryOptions) {
+    if (id_centers.length === 0) return [];
+    return this.query(options)
+      .select({
+        id_center: consultingActionEvaluationTable.id_center,
+        center_name: centerTable.center_name,
+        year: consultingAnnualEngagementTable.year,
+      })
+      .from(consultingActionEvaluationTable)
+      .innerJoin(centerTable, eq(consultingActionEvaluationTable.id_center, centerTable.id_center))
+      .innerJoin(consultingAnnualEngagementTable, eq(consultingActionEvaluationTable.id_annual_engagement, consultingAnnualEngagementTable.id_annual_engagement))
+      .where(and(
+        eq(consultingActionEvaluationTable.id_catalog_course, id_catalog_course),
+        inArray(consultingActionEvaluationTable.id_center, id_centers),
+      ));
   }
 
   async findById(id_action_evaluation: number, options?: QueryOptions) {

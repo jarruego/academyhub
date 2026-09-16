@@ -220,6 +220,31 @@ nada — no hay precedente en este proyecto para dos piezas de este diseño
 marcan explícitamente como infraestructura nueva.
 
 ### Decisiones técnicas cerradas
+- **El plan base no es todo-o-nada — 2026-09-16.** Al ser una plantilla
+  compartida, tocarlo (añadir o quitar) afecta a todos los centros del
+  cliente de golpe; un usuario pidió poder decidir el alcance en el momento:
+  añadir "al base" (compartido) o "a cada centro" (copias individuales,
+  `POST /plan-items/all-centers`); quitar "del base, manteniendo en cada
+  centro" (reparte copias antes de borrar la fila base — nunca bloqueado) o
+  "de todos los centros" (borrado real). El bloqueo por evaluación ya
+  existente (ver más abajo) solo aplica a este segundo caso, nunca al
+  primero, porque ahí nadie pierde el histórico.
+- **Los selectores de "añadir al plan" no ofrecen lo ya cubierto — 2026-09-16.**
+  El de "Acciones propias de este centro" (en la ficha del centro) excluye
+  lo que ya está en el plan efectivo de ese centro (base o propio); el de
+  "Plan base"/"a cada centro" (en la ficha del cliente) excluye lo que ya
+  está en el base. Antes se podía seleccionar un duplicado y el backend lo
+  rechazaba con un error — ahora ni sale en la lista.
+- **"Imparte" se autorrellena con la organización cuando la acción es
+  propia — 2026-09-16.** Si el `origin` de la acción (`consulting_action_details`)
+  es `OWN` (de Mecohisa, dentro de la app — no añadida por el centro), quien
+  imparte siempre es la organización: el campo se fuerza en el servicio
+  (`ConsultingEvaluationService.resolveImparteText`, inyecta `OrganizationService`
+  — `settings.company.razon_social || settings.site_name`) tanto al crear
+  como al editar, ignorando lo que venga en el DTO. En el formulario el
+  campo se ve ya relleno y deshabilitado para estas acciones — no hace
+  falta escribirlo. Para acciones `EXTERNAL` (añadidas por el centro) sigue
+  siendo texto libre, sin cambios.
 - **La consultoría anual es del cliente, no del centro — corregido
   2026-09-15, segunda vuelta el mismo día.** Primer intento:
   `consulting_annual_audits` una fila por centro+año, sin nada que agrupara
@@ -442,8 +467,24 @@ en las convenciones reales del código. **En construcción desde 2026-09-15**:
   centros con enlace, y `/consultoria/clients/:id/centers/:id_center` para
   entrar a un centro y decidir sus acciones propias por encima del base
   (que ahí se ve, de solo lectura, como referencia). Sin validación
-  bloqueante (decisión cerrada) más allá de exigir que la acción ya esté
+  bloqueante al **añadir** más allá de exigir que la acción ya esté
   etiquetada y que el centro pertenezca a una empresa vinculada al cliente.
+  **Añadido 2026-09-16** (decisión explícita del usuario, ver Decisiones
+  técnicas cerradas): al tocar el plan base, elegir entre compartido/individual:
+  - Añadir: "al plan base" (compartido, `id_center` NULL, como hasta ahora)
+    o "a cada centro" (`POST .../plan-items/all-centers` — copia propia por
+    centro, `id_center` de cada uno; un centro que se vincule después no la
+    recibe, hay que añadírsela a mano).
+  - Quitar un ítem del plan base: "quitar del base, mantener en cada centro"
+    (reparte una copia propia a cada centro que no la tuviera ya, y solo
+    borra la fila base — nunca bloqueado, nadie pierde nada) o "quitar de
+    todos los centros" (borrado real, sí bloqueado si algún centro ya la
+    evaluó).
+  - **Bloqueo real al quitar del todo** (no solo aviso): si algún centro
+    afectado (todos, si es del base; solo ese, si es propia) ya evaluó la
+    acción, el backend rechaza el borrado con un mensaje que dice qué
+    centro(s) y en qué año — se perdería el histórico de evaluación. Aplica
+    igual a una acción propia de un centro.
   Clonable de un año a otro: pendiente (no hay urgencia — el plan es
   continuo, sin versión por ejercicio, hasta que la consultoría anual lo necesite).
 - ✅ Consultoría anual (`consulting_annual_engagements` +

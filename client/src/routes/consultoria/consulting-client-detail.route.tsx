@@ -1,5 +1,5 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { App, Button, Form, Input, InputNumber, Select, Table, Tag } from "antd";
+import { App, Button, Form, Input, InputNumber, Modal, Select, Table, Tag } from "antd";
 import { DeleteOutlined, SaveOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
@@ -18,10 +18,14 @@ import { useCentersByCompaniesQuery } from "../../hooks/api/centers/use-centers-
 import { useConsultingActionsQuery } from "../../hooks/api/consulting-action/use-consulting-actions.query";
 import { useConsultingPlanItemsQuery } from "../../hooks/api/consulting-plan-item/use-consulting-plan-items.query";
 import { useAddConsultingPlanItemMutation } from "../../hooks/api/consulting-plan-item/use-add-consulting-plan-item.mutation";
+import { useAddConsultingPlanItemToAllCentersMutation } from "../../hooks/api/consulting-plan-item/use-add-consulting-plan-item-to-all-centers.mutation";
 import { useRemoveConsultingPlanItemMutation } from "../../hooks/api/consulting-plan-item/use-remove-consulting-plan-item.mutation";
 import { useConsultingAnnualEngagementsQuery } from "../../hooks/api/consulting-annual-engagement/use-consulting-annual-engagements.query";
 import { useOpenConsultingAnnualEngagementMutation } from "../../hooks/api/consulting-annual-engagement/use-open-consulting-annual-engagement.mutation";
 import { useUpdateConsultingAnnualEngagementMutation } from "../../hooks/api/consulting-annual-engagement/use-update-consulting-annual-engagement.mutation";
+
+const errorMessage = (error: unknown, fallback: string) =>
+  (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 
 const CONSULTING_CLIENT_FORM = z.object({
   name: z.string({ required_error: "El nombre es obligatorio" }).min(1, "El nombre no puede estar vacío"),
@@ -62,11 +66,18 @@ export default function ConsultingClientDetailRoute() {
   const { data: actionsData } = useConsultingActionsQuery();
   const { data: planItemsData, isLoading: isPlanItemsLoading } = useConsultingPlanItemsQuery(id_consulting_client);
   const { mutateAsync: addPlanItem, isPending: isAddingPlanItem } = useAddConsultingPlanItemMutation(id_consulting_client);
-  const { mutateAsync: removePlanItem } = useRemoveConsultingPlanItemMutation(id_consulting_client);
+  const { mutateAsync: addPlanItemToAllCenters, isPending: isAddingToAllCenters } = useAddConsultingPlanItemToAllCentersMutation(id_consulting_client);
+  const { mutateAsync: removePlanItem, isPending: isRemovingPlanItem } = useRemoveConsultingPlanItemMutation(id_consulting_client);
 
   const [planCatalogCourseId, setPlanCatalogCourseId] = useState<number | undefined>();
+  const [removePlanItemTarget, setRemovePlanItemTarget] = useState<{ id_plan_item: number; name: string } | null>(null);
 
   const basePlanItems = useMemo(() => (planItemsData ?? []).filter((item) => item.id_center === null), [planItemsData]);
+  // No ofrecer para añadir al base lo que ya está en él.
+  const availableBaseActions = useMemo(() => {
+    const covered = new Set(basePlanItems.map((item) => item.id_catalog_course));
+    return (actionsData ?? []).filter((a) => !covered.has(a.id_catalog_course));
+  }, [actionsData, basePlanItems]);
   const centerPlanItemCounts = useMemo(() => {
     const counts = new Map<number, number>();
     for (const item of planItemsData ?? []) {
@@ -113,30 +124,62 @@ export default function ConsultingClientDetailRoute() {
     });
   };
 
-  const handleAddPlanItem = async () => {
+  const handleAddToBase = () => {
     if (!planCatalogCourseId) return;
-    try {
-      await addPlanItem({ id_center: null, id_catalog_course: planCatalogCourseId });
-      setPlanCatalogCourseId(undefined);
-    } catch {
-      message.error('No se pudo añadir la acción al plan base. Puede que ya esté añadida.');
-    }
-  };
-
-  const handleRemovePlanItem = (id_plan_item: number, name: string) => {
+    const actionName = actionsData?.find((a) => a.id_catalog_course === planCatalogCourseId)?.name ?? 'esta acción';
     modal.confirm({
-      title: `¿Quitar "${name}" del plan?`,
-      okText: "Quitar",
-      okType: "danger",
+      title: `¿Añadir "${actionName}" al plan base?`,
+      content: "Queda compartida: se añade automáticamente al plan de TODOS los centros de este cliente, también a los que se vinculen después.",
+      okText: "Añadir al base",
       cancelText: "Cancelar",
       onOk: async () => {
         try {
-          await removePlanItem(id_plan_item);
-        } catch {
-          message.error('No se pudo quitar la acción del plan. Inténtalo de nuevo.');
+          await addPlanItem({ id_center: null, id_catalog_course: planCatalogCourseId });
+          setPlanCatalogCourseId(undefined);
+        } catch (error) {
+          message.error(errorMessage(error, 'No se pudo añadir la acción al plan base. Puede que ya esté añadida.'));
         }
       },
     });
+  };
+
+  const handleAddToAllCentersIndividually = () => {
+    if (!planCatalogCourseId) return;
+    const actionName = actionsData?.find((a) => a.id_catalog_course === planCatalogCourseId)?.name ?? 'esta acción';
+    modal.confirm({
+      title: `¿Añadir "${actionName}" a cada centro por separado?`,
+      content: "No queda en el plan base: se crea una copia propia para cada centro actual del cliente. Un centro que se vincule después no la recibe — habría que añadírsela a mano.",
+      okText: "Añadir a cada centro",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          await addPlanItemToAllCenters(planCatalogCourseId);
+          setPlanCatalogCourseId(undefined);
+        } catch (error) {
+          message.error(errorMessage(error, 'No se pudo añadir la acción a los centros.'));
+        }
+      },
+    });
+  };
+
+  const handleRemoveFromAllCenters = async () => {
+    if (!removePlanItemTarget) return;
+    try {
+      await removePlanItem({ id_plan_item: removePlanItemTarget.id_plan_item });
+      setRemovePlanItemTarget(null);
+    } catch (error) {
+      message.error(errorMessage(error, 'No se pudo quitar la acción del plan. Inténtalo de nuevo.'));
+    }
+  };
+
+  const handleRemoveFromBaseKeepInCenters = async () => {
+    if (!removePlanItemTarget) return;
+    try {
+      await removePlanItem({ id_plan_item: removePlanItemTarget.id_plan_item, keepForCenters: true });
+      setRemovePlanItemTarget(null);
+    } catch (error) {
+      message.error(errorMessage(error, 'No se pudo quitar la acción del plan base.'));
+    }
   };
 
   const handleOpenEngagement = async () => {
@@ -259,10 +302,13 @@ export default function ConsultingClientDetailRoute() {
                 value={planCatalogCourseId}
                 onChange={setPlanCatalogCourseId}
                 filterOption={(input, option) => (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())}
-                options={(actionsData ?? []).map((a) => ({ value: a.id_catalog_course, label: a.name }))}
+                options={availableBaseActions.map((a) => ({ value: a.id_catalog_course, label: a.name }))}
               />
-              <Button type="primary" onClick={handleAddPlanItem} disabled={!planCatalogCourseId} loading={isAddingPlanItem}>
+              <Button type="primary" onClick={handleAddToBase} disabled={!planCatalogCourseId} loading={isAddingPlanItem}>
                 Añadir al plan base
+              </Button>
+              <Button onClick={handleAddToAllCentersIndividually} disabled={!planCatalogCourseId} loading={isAddingToAllCenters}>
+                Añadir a cada centro (copia individual)
               </Button>
             </div>
           </AuthzHide>
@@ -286,7 +332,7 @@ export default function ConsultingClientDetailRoute() {
                       danger
                       type="text"
                       icon={<DeleteOutlined />}
-                      onClick={() => handleRemovePlanItem(record.id_plan_item, record.name)}
+                      onClick={() => setRemovePlanItemTarget({ id_plan_item: record.id_plan_item, name: record.name })}
                       aria-label={`Quitar ${record.name}`}
                     />
                   </AuthzHide>
@@ -294,6 +340,27 @@ export default function ConsultingClientDetailRoute() {
               },
             ]}
           />
+          <Modal
+            open={!!removePlanItemTarget}
+            title={`¿Quitar "${removePlanItemTarget?.name}" del plan base?`}
+            onCancel={() => setRemovePlanItemTarget(null)}
+            footer={[
+              <Button key="cancel" onClick={() => setRemovePlanItemTarget(null)}>Cancelar</Button>,
+              <Button key="keep" loading={isRemovingPlanItem} onClick={handleRemoveFromBaseKeepInCenters}>
+                Quitar del base, mantener en cada centro
+              </Button>,
+              <Button key="all" danger type="primary" loading={isRemovingPlanItem} onClick={handleRemoveFromAllCenters}>
+                Quitar de todos los centros
+              </Button>,
+            ]}
+          >
+            <p>
+              <strong>Quitar del base, mantener en cada centro:</strong> deja de ser compartida — cada centro que la tenía por el plan base pasa a tener su propia copia, sin perder nada.
+            </p>
+            <p>
+              <strong>Quitar de todos los centros:</strong> desaparece del todo. Se bloquea si algún centro ya la evaluó.
+            </p>
+          </Modal>
 
           <h3 style={{ marginTop: 32 }}>Centros</h3>
           <p style={{ color: 'var(--ink-faint, #8a968d)', marginTop: -4, marginBottom: 16 }}>
