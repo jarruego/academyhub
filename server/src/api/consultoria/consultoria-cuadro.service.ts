@@ -52,7 +52,7 @@ export class ConsultingCuadroService {
   /** Cruce trabajador × acción del año de esta consultoría: real (matrícula, edición) si existe, si no manual. */
   async getCuadro(id_consulting_client: number, id_annual_engagement: number, id_center: number) {
     const engagement = await this.consultingClientService.getValidatedEngagementCenter(id_consulting_client, id_annual_engagement, id_center);
-    const planItems = await this.consultingPlanItemRepository.findByClientId(id_consulting_client);
+    const planItems = await this.consultingPlanItemRepository.findByEngagementId(id_annual_engagement);
     const actionsMap = new Map<number, string>();
     for (const item of planItems) {
       if (item.id_center === null || item.id_center === id_center) actionsMap.set(item.id_catalog_course, item.name);
@@ -84,7 +84,7 @@ export class ConsultingCuadroService {
       throw new BadRequestException(`La fecha debe caer en ${engagement.year} — el año de esta consultoría`);
     }
 
-    const inPlan = await this.consultingPlanItemRepository.existsForCenter(id_consulting_client, id_center, dto.id_catalog_course);
+    const inPlan = await this.consultingPlanItemRepository.existsForCenter(id_annual_engagement, id_center, dto.id_catalog_course);
     if (!inPlan) throw new BadRequestException("Esta acción no está en el plan de este centro (ni en el base) — añádela primero en la pestaña Plan");
 
     const canRegister = await this.canRegisterAttendees(dto.id_catalog_course);

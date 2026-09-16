@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
-import { App, Button, DatePicker, Input, InputNumber, Select, Table, Tag } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import { App, Button, DatePicker, Input, InputNumber, Modal, Segmented, Select, Table, Tag } from "antd";
+import { DeleteOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import { RouteTabs } from "../../components/common/RouteTabs";
@@ -9,6 +9,9 @@ import { Role } from "../../hooks/api/auth/use-login.mutation";
 import { useConsultingClientQuery } from "../../hooks/api/consulting-client/use-consulting-client.query";
 import { useCenterQuery } from "../../hooks/api/centers/use-center.query";
 import { useConsultingPlanItemsQuery } from "../../hooks/api/consulting-plan-item/use-consulting-plan-items.query";
+import { useAddConsultingPlanItemMutation } from "../../hooks/api/consulting-plan-item/use-add-consulting-plan-item.mutation";
+import { useRemoveConsultingPlanItemMutation } from "../../hooks/api/consulting-plan-item/use-remove-consulting-plan-item.mutation";
+import { useConsultingActionsQuery } from "../../hooks/api/consulting-action/use-consulting-actions.query";
 import { useOrganizationSettingsQuery } from "../../hooks/api/organization/use-organization-settings.query";
 import { useConsultingActionEvaluationsQuery } from "../../hooks/api/consulting-action-evaluation/use-consulting-action-evaluations.query";
 import { useCreateConsultingActionEvaluationMutation } from "../../hooks/api/consulting-action-evaluation/use-create-consulting-action-evaluation.mutation";
@@ -22,6 +25,8 @@ import { useRemoveConsultingRosterAdjustmentMutation } from "../../hooks/api/con
 import { useConsultingCuadroQuery } from "../../hooks/api/consulting-cuadro/use-consulting-cuadro.query";
 import { useAddConsultingActionAttendeeMutation } from "../../hooks/api/consulting-cuadro/use-add-consulting-action-attendee.mutation";
 import { useRemoveConsultingActionAttendeeMutation } from "../../hooks/api/consulting-cuadro/use-remove-consulting-action-attendee.mutation";
+import { useConsultingCompetencyRosterQuery } from "../../hooks/api/consulting-competency-evaluation/use-consulting-competency-roster.query";
+import { useSetConsultingCompetencyEvaluationMutation } from "../../hooks/api/consulting-competency-evaluation/use-set-consulting-competency-evaluation.mutation";
 
 // Todo lo de un centro dentro de una consultoría anual concreta vive aquí —
 // Evaluación de acciones y Cuadro de formación siempre atados a
@@ -33,7 +38,7 @@ export default function ConsultingEngagementCenterRoute() {
 
   const { data: clientData } = useConsultingClientQuery(id_consulting_client);
   const { data: centerData } = useCenterQuery(id_center || "");
-  const { data: planItemsData } = useConsultingPlanItemsQuery(id_consulting_client);
+  const { data: planItemsData, isLoading: isPlanItemsLoading } = useConsultingPlanItemsQuery(id_consulting_client, id_annual_engagement || "");
   const { data: orgSettings } = useOrganizationSettingsQuery();
   const orgName = orgSettings?.settings?.company?.razon_social || orgSettings?.settings?.site_name || '';
 
@@ -44,6 +49,51 @@ export default function ConsultingEngagementCenterRoute() {
     }
     return Array.from(map, ([id_catalog_course, { name, origin }]) => ({ id_catalog_course, name, origin }));
   }, [planItemsData, id_center]);
+
+  // --- Plan de este centro (base heredado + acciones propias) ---
+  const { data: actionsData } = useConsultingActionsQuery();
+  const { mutateAsync: addPlanItem, isPending: isAddingPlanItem } = useAddConsultingPlanItemMutation(id_consulting_client, id_annual_engagement || "");
+  const { mutateAsync: removePlanItem } = useRemoveConsultingPlanItemMutation(id_consulting_client, id_annual_engagement || "");
+
+  const [planCatalogCourseId, setPlanCatalogCourseId] = useState<number | undefined>();
+
+  const basePlanItems = useMemo(() => (planItemsData ?? []).filter((item) => item.id_center === null), [planItemsData]);
+  const ownPlanItems = useMemo(() => (planItemsData ?? []).filter((item) => item.id_center === Number(id_center)), [planItemsData, id_center]);
+  // No ofrecer para añadir lo que el centro ya tiene, sea por el base o propio.
+  const availableOwnActions = useMemo(() => {
+    const covered = new Set(effectivePlanActions.map((a) => a.id_catalog_course));
+    return (actionsData ?? []).filter((a) => !covered.has(a.id_catalog_course));
+  }, [actionsData, effectivePlanActions]);
+
+  const handleAddOwnPlanItem = async () => {
+    if (!planCatalogCourseId) return;
+    try {
+      await addPlanItem({ id_center: Number(id_center), id_catalog_course: planCatalogCourseId });
+      setPlanCatalogCourseId(undefined);
+    } catch {
+      message.error('No se pudo añadir la acción al plan de este centro. Puede que ya esté añadida.');
+    }
+  };
+
+  const handleRemoveOwnPlanItem = (id_plan_item: number, name: string) => {
+    modal.confirm({
+      title: `¿Quitar "${name}" del plan propio de este centro?`,
+      okText: "Quitar",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          await removePlanItem({ id_plan_item });
+        } catch (error) {
+          modal.error({
+            title: "No se pudo quitar la acción",
+            content: (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'No se pudo quitar la acción del plan. Inténtalo de nuevo.',
+            okText: "Entendido",
+          });
+        }
+      },
+    });
+  };
 
   // --- Evaluación de acciones ---
   const { data: evaluationsData, isLoading: isEvaluationsLoading } = useConsultingActionEvaluationsQuery(id_consulting_client, id_annual_engagement || "", id_center || "");
@@ -213,9 +263,98 @@ export default function ConsultingEngagementCenterRoute() {
     });
   };
 
-  const year = rosterData?.year ?? cuadroData?.year;
+  // --- Evaluación de competencias ---
+  const { data: competencyRosterData, isLoading: isCompetencyRosterLoading } = useConsultingCompetencyRosterQuery(id_consulting_client, id_annual_engagement || "", id_center || "");
+  const { mutateAsync: setCompetencyValue } = useSetConsultingCompetencyEvaluationMutation(id_consulting_client, id_annual_engagement || "", id_center || "");
+  const [evaluatingUserId, setEvaluatingUserId] = useState<number | undefined>();
+
+  const evaluatingIndex = (competencyRosterData?.members ?? []).findIndex((m) => m.id_user === evaluatingUserId);
+  const evaluatingMember = evaluatingIndex >= 0 ? competencyRosterData?.members[evaluatingIndex] : undefined;
+
+  const handleSetCompetencyValue = async (id_user: number, id_competency: number, value: boolean | null) => {
+    try {
+      await setCompetencyValue({ id_user, id_competency, value });
+    } catch {
+      message.error('No se pudo guardar. Inténtalo de nuevo.');
+    }
+  };
+
+  const year = rosterData?.year ?? cuadroData?.year ?? competencyRosterData?.year;
 
   const items = [
+    {
+      key: "plan",
+      label: "Plan",
+      children: (
+        <div>
+          <h3 style={{ marginTop: 0 }}>Plan base (heredado)</h3>
+          <p style={{ color: 'var(--ink-faint, #8a968d)', marginTop: -4, marginBottom: 16 }}>
+            Compartido por los centros de esta consultoría — se gestiona desde la pestaña "Plan" de la consultoría, no desde aquí.
+          </p>
+          <Table
+            rowKey="id_plan_item"
+            loading={isPlanItemsLoading}
+            dataSource={basePlanItems}
+            pagination={false}
+            columns={[
+              { title: 'Acción', dataIndex: 'name' },
+              { title: 'Origen', dataIndex: 'origin', render: (origin) => origin === 'EXTERNAL' ? 'Externo' : 'Propio' },
+              { title: 'Categoría', dataIndex: 'category_name' },
+              { title: 'Fecha', dataIndex: 'planning_date_name' },
+            ]}
+          />
+
+          <h3 style={{ marginTop: 32 }}>Acciones propias de este centro</h3>
+          <p style={{ color: 'var(--ink-faint, #8a968d)', marginTop: -4, marginBottom: 16 }}>
+            Añadidas solo para este centro, por encima del plan base. Solo se pueden añadir acciones ya etiquetadas en <Link to="/consultoria/actions">Acciones formativas</Link>.
+          </p>
+          <AuthzHide roles={[Role.ADMIN, Role.CONSULTOR]}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              <Select
+                showSearch
+                placeholder="Buscar acción formativa por nombre..."
+                style={{ minWidth: 360 }}
+                value={planCatalogCourseId}
+                onChange={setPlanCatalogCourseId}
+                filterOption={(input, option) => (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())}
+                options={availableOwnActions.map((a) => ({ value: a.id_catalog_course, label: a.name }))}
+              />
+              <Button type="primary" onClick={handleAddOwnPlanItem} disabled={!planCatalogCourseId} loading={isAddingPlanItem}>
+                Añadir acción propia
+              </Button>
+            </div>
+          </AuthzHide>
+          <Table
+            rowKey="id_plan_item"
+            loading={isPlanItemsLoading}
+            dataSource={ownPlanItems}
+            pagination={false}
+            columns={[
+              { title: 'Acción', dataIndex: 'name' },
+              { title: 'Origen', dataIndex: 'origin', render: (origin) => origin === 'EXTERNAL' ? 'Externo' : 'Propio' },
+              { title: 'Categoría', dataIndex: 'category_name' },
+              { title: 'Fecha', dataIndex: 'planning_date_name' },
+              {
+                title: '',
+                key: 'actions',
+                width: 80,
+                render: (_, record) => (
+                  <AuthzHide roles={[Role.ADMIN, Role.CONSULTOR]}>
+                    <Button
+                      danger
+                      type="text"
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleRemoveOwnPlanItem(record.id_plan_item, record.name)}
+                      aria-label={`Quitar ${record.name}`}
+                    />
+                  </AuthzHide>
+                ),
+              },
+            ]}
+          />
+        </div>
+      ),
+    },
     {
       key: "evaluacion",
       label: "Evaluación de acciones",
@@ -442,6 +581,87 @@ export default function ConsultingEngagementCenterRoute() {
               },
             ]}
           />
+        </div>
+      ),
+    },
+    {
+      key: "competencias",
+      label: "Competencias",
+      children: (
+        <div>
+          <p style={{ color: 'var(--ink-faint, #8a968d)', marginTop: -4, marginBottom: 16 }}>
+            25 competencias por trabajador. El valor de partida se autorrellena según el puesto (configurable en <Link to="/consultoria/competencies">Competencias</Link>) — editable trabajador a trabajador desde "Evaluar".
+          </p>
+          <Table
+            rowKey="id_user"
+            loading={isCompetencyRosterLoading}
+            dataSource={competencyRosterData?.members}
+            pagination={false}
+            columns={[
+              { title: 'Nombre', key: 'name', render: (_, r) => `${r.name} ${r.first_surname ?? ''} ${r.second_surname ?? ''}`.trim() },
+              { title: 'DNI', dataIndex: 'dni' },
+              {
+                title: 'Puesto',
+                key: 'job_position',
+                render: (_, r) => r.job_position
+                  ? (r.id_job_position ? r.job_position : <span>{r.job_position} <Tag color="orange">sin mapear</Tag></span>)
+                  : <span style={{ color: 'var(--ink-faint, #8a968d)' }}>—</span>,
+              },
+              {
+                title: 'Resumen',
+                key: 'summary',
+                render: (_, r) => {
+                  const applicable = r.values.filter((v) => v.value !== null).length;
+                  const needsImprovement = r.values.filter((v) => v.value === false).length;
+                  return needsImprovement > 0
+                    ? <Tag color="red">{needsImprovement} necesita(n) mejorar</Tag>
+                    : <Tag color="green">{applicable}/{r.values.length} sin necesidad de mejora</Tag>;
+                },
+              },
+              {
+                title: '',
+                key: 'actions',
+                width: 100,
+                render: (_, r) => (
+                  <AuthzHide roles={[Role.ADMIN, Role.CONSULTOR]}>
+                    <Button size="small" onClick={() => setEvaluatingUserId(r.id_user)}>Evaluar</Button>
+                  </AuthzHide>
+                ),
+              },
+            ]}
+          />
+
+          <Modal
+            open={!!evaluatingMember}
+            title={evaluatingMember ? `${evaluatingMember.name} ${evaluatingMember.first_surname ?? ''} ${evaluatingMember.second_surname ?? ''}`.trim() : ''}
+            onCancel={() => setEvaluatingUserId(undefined)}
+            footer={[
+              <Button key="prev" icon={<LeftOutlined />} disabled={evaluatingIndex <= 0} onClick={() => setEvaluatingUserId(competencyRosterData?.members[evaluatingIndex - 1]?.id_user)}>Anterior</Button>,
+              <Button key="next" icon={<RightOutlined />} iconPosition="end" disabled={evaluatingIndex < 0 || evaluatingIndex >= (competencyRosterData?.members.length ?? 0) - 1} onClick={() => setEvaluatingUserId(competencyRosterData?.members[evaluatingIndex + 1]?.id_user)}>Siguiente</Button>,
+              <Button key="close" type="primary" onClick={() => setEvaluatingUserId(undefined)}>Cerrar</Button>,
+            ]}
+            width={640}
+          >
+            {evaluatingMember && !evaluatingMember.id_job_position && (
+              <p style={{ color: '#d4380d' }}>
+                Puesto "{evaluatingMember.job_position ?? 'sin especificar'}" sin mapear al catálogo — no hay autorelleno. Se puede mapear en <Link to="/consultoria/job-position-aliases">Puestos sin mapear</Link>.
+              </p>
+            )}
+            {evaluatingMember?.values.map((v) => (
+              <div key={v.id_competency} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--border-faint, #eee)' }}>
+                <span>{competencyRosterData?.competencies.find((c) => c.id_competency === v.id_competency)?.name}</span>
+                <Segmented
+                  value={v.value === true ? 'ok' : v.value === false ? 'improve' : 'na'}
+                  onChange={(val) => handleSetCompetencyValue(evaluatingMember.id_user, v.id_competency, val === 'ok' ? true : val === 'improve' ? false : null)}
+                  options={[
+                    { label: 'No necesita mejorar', value: 'ok' },
+                    { label: 'Necesita mejorar', value: 'improve' },
+                    { label: 'No aplica', value: 'na' },
+                  ]}
+                />
+              </div>
+            ))}
+          </Modal>
         </div>
       ),
     },

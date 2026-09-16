@@ -14,6 +14,7 @@ import { consultingPlanningDateTable } from "src/database/schema/tables/consulti
 const JOINED_COLUMNS = {
   id_plan_item: consultingPlanItemTable.id_plan_item,
   id_consulting_client: consultingPlanItemTable.id_consulting_client,
+  id_annual_engagement: consultingPlanItemTable.id_annual_engagement,
   id_center: consultingPlanItemTable.id_center,
   center_name: centerTable.center_name,
   id_catalog_course: consultingPlanItemTable.id_catalog_course,
@@ -40,10 +41,10 @@ export class ConsultingPlanItemRepository extends Repository {
       .leftJoin(consultingPlanningDateTable, eq(consultingActionDetailTable.id_planning_date, consultingPlanningDateTable.id_planning_date));
   }
 
-  // Plan completo de un cliente: base (id_center NULL) + lo propio de cada centro.
-  async findByClientId(id_consulting_client: number, options?: QueryOptions) {
+  // Plan completo de una consultoría: base (id_center NULL) + lo propio de cada centro.
+  async findByEngagementId(id_annual_engagement: number, options?: QueryOptions) {
     return this.baseQuery(options)
-      .where(eq(consultingPlanItemTable.id_consulting_client, id_consulting_client))
+      .where(eq(consultingPlanItemTable.id_annual_engagement, id_annual_engagement))
       .orderBy(catalogCourseTable.name);
   }
 
@@ -52,26 +53,26 @@ export class ConsultingPlanItemRepository extends Repository {
     return rows[0];
   }
 
-  async findLink(id_consulting_client: number, id_center: number | null, id_catalog_course: number, options?: QueryOptions) {
+  async findLink(id_annual_engagement: number, id_center: number | null, id_catalog_course: number, options?: QueryOptions) {
     const rows = await this.query(options)
       .select()
       .from(consultingPlanItemTable)
       .where(and(
-        eq(consultingPlanItemTable.id_consulting_client, id_consulting_client),
+        eq(consultingPlanItemTable.id_annual_engagement, id_annual_engagement),
         id_center === null ? isNull(consultingPlanItemTable.id_center) : eq(consultingPlanItemTable.id_center, id_center),
         eq(consultingPlanItemTable.id_catalog_course, id_catalog_course),
       ));
     return rows[0];
   }
 
-  // ¿Esta acción está en el plan efectivo de este centro (base o propia)?
-  // Usado para validar antes de crear una evaluación de acción.
-  async existsForCenter(id_consulting_client: number, id_center: number, id_catalog_course: number, options?: QueryOptions) {
+  // ¿Esta acción está en el plan efectivo de este centro (base o propia), en esta consultoría?
+  // Usado para validar antes de crear una evaluación de acción o un asistente manual.
+  async existsForCenter(id_annual_engagement: number, id_center: number, id_catalog_course: number, options?: QueryOptions) {
     const rows = await this.query(options)
       .select()
       .from(consultingPlanItemTable)
       .where(and(
-        eq(consultingPlanItemTable.id_consulting_client, id_consulting_client),
+        eq(consultingPlanItemTable.id_annual_engagement, id_annual_engagement),
         eq(consultingPlanItemTable.id_catalog_course, id_catalog_course),
         or(isNull(consultingPlanItemTable.id_center), eq(consultingPlanItemTable.id_center, id_center)),
       ));
@@ -85,5 +86,32 @@ export class ConsultingPlanItemRepository extends Repository {
 
   async removeItem(id_plan_item: number, options?: QueryOptions) {
     await this.query(options).delete(consultingPlanItemTable).where(eq(consultingPlanItemTable.id_plan_item, id_plan_item));
+  }
+
+  /**
+   * Al abrir una consultoría nueva, copia el plan (base + propio de cada
+   * centro que siga participando) de la consultoría anterior como punto de
+   * partida editable — nunca arranca vacío si hay un año previo. Ver
+   * docs/consultoria.md.
+   */
+  async clonePlan(fromEngagementId: number, toEngagementId: number, toParticipatingCenterIds: number[], options?: QueryOptions) {
+    const sourceItems = await this.query(options)
+      .select()
+      .from(consultingPlanItemTable)
+      .where(eq(consultingPlanItemTable.id_annual_engagement, fromEngagementId));
+
+    const centersSet = new Set(toParticipatingCenterIds);
+    const toInsert: ConsultingPlanItemInsertModel[] = sourceItems
+      .filter((item) => item.id_center === null || centersSet.has(item.id_center))
+      .map((item) => ({
+        id_consulting_client: item.id_consulting_client,
+        id_annual_engagement: toEngagementId,
+        id_center: item.id_center,
+        id_catalog_course: item.id_catalog_course,
+        added_by: item.added_by,
+      }));
+
+    if (toInsert.length === 0) return [];
+    return this.query(options).insert(consultingPlanItemTable).values(toInsert).returning();
   }
 }

@@ -19,11 +19,12 @@ import CreateCompanyRoute from './routes/companies/create-company.route';
 import ConsultoriaClientsRoute from './routes/consultoria/consultoria-clients.route';
 import CreateConsultingClientRoute from './routes/consultoria/create-consulting-client.route';
 import ConsultingClientDetailRoute from './routes/consultoria/consulting-client-detail.route';
-import ConsultingCenterPlanRoute from './routes/consultoria/consulting-center-plan.route';
 import ConsultingEngagementRoute from './routes/consultoria/consulting-engagement.route';
 import ConsultingEngagementCenterRoute from './routes/consultoria/consulting-engagement-center.route';
 import ConsultoriaActionsRoute from './routes/consultoria/consultoria-actions.route';
 import ConsultingActionFormRoute from './routes/consultoria/consulting-action-form.route';
+import ConsultingCompetencyTemplateRoute from './routes/consultoria/consulting-competency-template.route';
+import ConsultingJobPositionRoute from './routes/consultoria/consulting-job-position.route';
 import CompanyDetailRoute from './routes/companies/company-detail.route';
 import CreateCenterRoute from './routes/centers/create-center.route';
 import EditCenterRoute from './routes/centers/center-detail.route';
@@ -99,7 +100,7 @@ interface SidebarProps {
 // la selección la llevaba el propio `Menu` de forma interna (uncontrolled) y
 // solo reaccionaba al click, así que se perdía al recargar o navegar por URL.
 const MENU_LEAF_KEYS = [
-  '/', '/users', '/courses', '/groups', '/course-requests', '/centers', '/consultoria', '/consultoria/actions', '/reports', '/organization',
+  '/', '/users', '/courses', '/groups', '/course-requests', '/centers', '/consultoria', '/consultoria/actions', '/consultoria/competencies', '/consultoria/job-positions', '/reports', '/organization',
   '/tools/importaciones', '/tools/gestion-acceso', '/tools/correo', '/tools/sms', '/tools/herramientas',
 ];
 
@@ -163,6 +164,10 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
           children: [
             { key: '/consultoria', icon: <TeamOutlined />, className: 'app-sider-child-item', label: <Link to="/consultoria" onClick={onClose}>Clientes</Link> },
             { key: '/consultoria/actions', icon: <BookOutlined />, className: 'app-sider-child-item', label: <Link to="/consultoria/actions" onClick={onClose}>Acciones formativas</Link> },
+            { key: '/consultoria/competencies', icon: <SolutionOutlined />, className: 'app-sider-child-item', label: <Link to="/consultoria/competencies" onClick={onClose}>Competencias</Link> },
+            ...(role?.toLowerCase() === Role.ADMIN
+              ? [{ key: '/consultoria/job-positions', icon: <SafetyCertificateOutlined />, className: 'app-sider-child-item', label: <Link to="/consultoria/job-positions" onClick={onClose}>Puestos de trabajo</Link> }]
+              : []),
           ],
         }]
       : []),
@@ -269,12 +274,13 @@ export default function AppRouter() {
               <Route path="/consultoria" element={<ConsultoriaClientsRoute />} />
               <Route path="/consultoria/add-client" element={<CreateConsultingClientRoute />} />
               <Route path="/consultoria/clients/:id" element={<ConsultingClientDetailRoute />} />
-              <Route path="/consultoria/clients/:id/centers/:id_center" element={<ConsultingCenterPlanRoute />} />
               <Route path="/consultoria/clients/:id/annual-engagements/:id_annual_engagement" element={<ConsultingEngagementRoute />} />
               <Route path="/consultoria/clients/:id/annual-engagements/:id_annual_engagement/centers/:id_center" element={<ConsultingEngagementCenterRoute />} />
               <Route path="/consultoria/actions" element={<ConsultoriaActionsRoute />} />
               <Route path="/consultoria/actions/add" element={<ConsultingActionFormRoute />} />
               <Route path="/consultoria/actions/:id_course" element={<ConsultingActionFormRoute />} />
+              <Route path="/consultoria/competencies" element={<ConsultingCompetencyTemplateRoute />} />
+              <Route path="/consultoria/job-positions" element={<ConsultingJobPositionRoute />} />
               <Route path="/organization" element={<OrganizationSettingsPage />} />
               <Route path="/centers" element={<CentersRoute />} />
               <Route path="/course-requests" element={<CourseRequestsRoute />} />

@@ -11,6 +11,22 @@ import { ConsultingEvaluationController } from "./consultoria-evaluation.control
 import { ConsultingEvaluationService } from "./consultoria-evaluation.service";
 import { ConsultingCuadroController } from "./consultoria-cuadro.controller";
 import { ConsultingCuadroService } from "./consultoria-cuadro.service";
+import { ConsultingPlanController } from "./consultoria-plan.controller";
+import { ConsultingPlanService } from "./consultoria-plan.service";
+import { ConsultingCompetencyController } from "./consultoria-competency.controller";
+import { ConsultingCompetencyService } from "./consultoria-competency.service";
+import { ConsultingJobPositionController } from "./consultoria-job-position.controller";
+import { ConsultingJobPositionService } from "./consultoria-job-position.service";
+import { ConsultingJobPositionGroupController } from "./consultoria-job-position-group.controller";
+import { ConsultingJobPositionGroupService } from "./consultoria-job-position-group.service";
+import { ConsultingJobPositionAliasController } from "./consultoria-job-position-alias.controller";
+import { ConsultingJobPositionAliasService } from "./consultoria-job-position-alias.service";
+import { ConsultingCompetencyTemplateController } from "./consultoria-competency-template.controller";
+import { ConsultingCompetencyTemplateService } from "./consultoria-competency-template.service";
+import { ConsultingCompetencyEvaluationController } from "./consultoria-competency-evaluation.controller";
+import { ConsultingCompetencyEvaluationService } from "./consultoria-competency-evaluation.service";
+import { ConsultingCatalogSeedController } from "./consultoria-catalog-seed.controller";
+import { ConsultingCatalogSeedService } from "./consultoria-catalog-seed.service";
 import {
   ConsultingClientRepository,
   ConsultingClientCompanyRepository,
@@ -24,6 +40,12 @@ import { ConsultingActionEvaluationRepository } from "src/database/repository/co
 import { ConsultingRosterAdjustmentRepository } from "src/database/repository/consultoria/consulting-roster-adjustment.repository";
 import { ConsultingActionAttendeeRepository } from "src/database/repository/consultoria/consulting-action-attendee.repository";
 import { ConsultingCuadroRepository } from "src/database/repository/consultoria/consulting-cuadro.repository";
+import { ConsultingCompetencyRepository } from "src/database/repository/consultoria/consulting-competency.repository";
+import { ConsultingJobPositionRepository } from "src/database/repository/consultoria/consulting-job-position.repository";
+import { ConsultingJobPositionGroupRepository } from "src/database/repository/consultoria/consulting-job-position-group.repository";
+import { ConsultingJobPositionAliasRepository } from "src/database/repository/consultoria/consulting-job-position-alias.repository";
+import { ConsultingPositionCompetencyTemplateRepository } from "src/database/repository/consultoria/consulting-position-competency-template.repository";
+import { ConsultingCompetencyEvaluationRepository } from "src/database/repository/consultoria/consulting-competency-evaluation.repository";
 import { CenterRepository } from "src/database/repository/center/center.repository";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 
@@ -35,6 +57,14 @@ import { CourseRepository } from "src/database/repository/course/course.reposito
     ConsultingActionController,
     ConsultingEvaluationController,
     ConsultingCuadroController,
+    ConsultingPlanController,
+    ConsultingCompetencyController,
+    ConsultingJobPositionController,
+    ConsultingJobPositionGroupController,
+    ConsultingJobPositionAliasController,
+    ConsultingCompetencyTemplateController,
+    ConsultingCompetencyEvaluationController,
+    ConsultingCatalogSeedController,
   ],
   providers: [
     ConsultingClientService,
@@ -53,6 +83,20 @@ import { CourseRepository } from "src/database/repository/course/course.reposito
     ConsultingRosterAdjustmentRepository,
     ConsultingActionAttendeeRepository,
     ConsultingCuadroRepository,
+    ConsultingPlanService,
+    ConsultingCompetencyService,
+    ConsultingCompetencyRepository,
+    ConsultingJobPositionService,
+    ConsultingJobPositionRepository,
+    ConsultingJobPositionGroupService,
+    ConsultingJobPositionGroupRepository,
+    ConsultingJobPositionAliasService,
+    ConsultingJobPositionAliasRepository,
+    ConsultingCompetencyTemplateService,
+    ConsultingPositionCompetencyTemplateRepository,
+    ConsultingCompetencyEvaluationService,
+    ConsultingCompetencyEvaluationRepository,
+    ConsultingCatalogSeedService,
     CenterRepository,
     CourseRepository,
   ],
@@ -73,6 +117,19 @@ import { CourseRepository } from "src/database/repository/course/course.reposito
     ConsultingRosterAdjustmentRepository,
     ConsultingActionAttendeeRepository,
     ConsultingCuadroRepository,
+    ConsultingPlanService,
+    ConsultingCompetencyService,
+    ConsultingCompetencyRepository,
+    ConsultingJobPositionService,
+    ConsultingJobPositionRepository,
+    ConsultingJobPositionGroupService,
+    ConsultingJobPositionGroupRepository,
+    ConsultingJobPositionAliasService,
+    ConsultingJobPositionAliasRepository,
+    ConsultingCompetencyTemplateService,
+    ConsultingPositionCompetencyTemplateRepository,
+    ConsultingCompetencyEvaluationService,
+    ConsultingCompetencyEvaluationRepository,
   ],
 })
 export class ConsultoriaModule {}

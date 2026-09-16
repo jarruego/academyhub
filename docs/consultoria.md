@@ -45,17 +45,22 @@ ya y qué falta antes de tocar nada.
     `fecha` — **lista fija de valores**, no texto libre ni fecha real (p. ej.
     *A demanda*, *Según calendario central*, *Alta trabajador*, *En
     elaboración*, ampliable).
-- **Plan de formación**: dos capas. La decisión última del plan es siempre
-  del centro — Mecohisa no "planifica" por él, aunque en la práctica sea
-  quien lo arranca. **Plan base**: el catálogo de Mecohisa pasa, en la
-  práctica, a ser el plan de formación del centro (no una planificación
-  aparte que se le añade) — es lo que permite que un centro tenga un plan
-  que cumpla la norma aunque no habría construido uno por su cuenta; un
-  único plan compartido por todos los centros del cliente, sin duplicar.
-  **Formación propia de cada centro**: por encima del plan base, cada centro
-  añade la suya (más catálogo, o externa) — y **ADMIN/CONSULTOR pueden darla
-  de alta en nombre de un centro**, no tiene que hacerlo siempre el propio
-  centro. Admite altas fuera de la campaña inicial, no es un bloque cerrado.
+- **Plan de formación**: dos capas, y **propio de cada consultoría anual**
+  (2026-09-16 — antes era continuo, ver Decisiones técnicas cerradas). La
+  decisión última del plan es siempre del centro — Mecohisa no "planifica"
+  por él, aunque en la práctica sea quien lo arranca. **Plan base**: el
+  catálogo de Mecohisa pasa, en la práctica, a ser el plan de formación del
+  centro (no una planificación aparte que se le añade) — es lo que permite
+  que un centro tenga un plan que cumpla la norma aunque no habría
+  construido uno por su cuenta; un único plan compartido por los centros que
+  participan en esa consultoría, sin duplicar. Al abrir una consultoría
+  nueva, su plan (base + por centro) se clona automáticamente del ejercicio
+  anterior del mismo cliente como punto de partida editable — si no hay
+  ejercicio anterior, arranca vacío. **Formación propia de cada centro**:
+  por encima del plan base, cada centro añade la suya (más catálogo, o
+  externa) — y **ADMIN/CONSULTOR pueden darla de alta en nombre de un
+  centro**, no tiene que hacerlo siempre el propio centro. Admite altas
+  fuera de la campaña inicial, no es un bloque cerrado.
 - **Consultoría anual** (nuevo, contenedor — **nunca "auditoría"**: Mecohisa
   hace consultoría; la auditoría, si la hay, la reciben los centros/clientes
   de un tercero — ISO, SGE21...). **Una por cliente y ejercicio**, no por
@@ -121,8 +126,13 @@ ya y qué falta antes de tocar nada.
   de ese mismo ejercicio (quien causó baja antes no entra); más el añadido
   manual por búsqueda descrito arriba. Plantillas por puesto de trabajo (28
   puestos) autorellenan la evaluación, editable; configurador administrado
-  por ADMIN y CONSULTOR. Pantalla de evaluación (paso a paso / vista global /
-  otra): sin decidir.
+  por ADMIN y CONSULTOR. **Pantalla de evaluación — cerrado 2026-09-16
+  (combinación de las dos opciones, a petición del usuario):** tabla
+  "vista global" por centro (roster, con resumen por trabajador) + al pulsar
+  "Evaluar" se abre un modal **paso a paso** con las 25 competencias de ese
+  trabajador (guardado inmediato por competencia, sin botón "Guardar"
+  aparte) y navegación Anterior/Siguiente para recorrer todo el roster sin
+  cerrar el modal.
 - **Acceso externo de centros**: token opaco aleatorio (no JWT), hasheado en
   BD, resuelto en servidor al centro; único token por centro; revocable y
   regenerable al instante desde la ficha del centro. Atado al estado de la
@@ -185,10 +195,11 @@ todavía.
   del ejercicio (quien causó baja antes no entra); ampliable a mano buscando
   por nombre/DNI/teléfono/email entre todos los trabajadores del sistema,
   con aviso si no constan de este centro.
-- Plan base compartido por todos los centros del cliente, no duplicado.
-  Selección de cursos hacia el plan: buscador con autocompletado sobre el
-  catálogo, reutilizando el selector de curso que ya existe en otros flujos.
-  Clonable de un año a otro como punto de partida editable.
+- Plan base compartido por los centros que participan en cada consultoría
+  anual, no duplicado. Selección de cursos hacia el plan: buscador con
+  autocompletado sobre el catálogo, reutilizando el selector de curso que ya
+  existe en otros flujos. Clonado automáticamente de un ejercicio a otro
+  como punto de partida editable (no una acción manual).
 - Altas de acciones formativas de un centro: **sin validación bloqueante**;
   entran directas al plan/cuadro, con una bandeja de revisión opcional para
   ADMIN/CONSULTOR.
@@ -274,8 +285,9 @@ marcan explícitamente como infraestructura nueva.
   dos ids. `ConsultingClientService.getValidatedEngagementCenter(id_consulting_client,
   id_annual_engagement, id_center)` centraliza la comprobación (cliente →
   consultoría → centro participante), reutilizada por
-  `ConsultingEvaluationService` y `ConsultingCuadroService`. El **Plan**
-  queda fuera de esta regla — sigue siendo continuo, sin año.
+  `ConsultingEvaluationService`, `ConsultingCuadroService` y (2026-09-16)
+  `ConsultingPlanService` — el **Plan** dejó de ser la excepción: también
+  vive dentro de una consultoría concreta, ver la decisión de más abajo.
 - **Roster y asistentes atados a `id_annual_engagement`, no a un `year`
   suelto**: `consulting_roster_adjustments` y `consulting_action_attendees`
   referencian la consultoría (FK), único por centro+trabajador+consultoría
@@ -316,11 +328,35 @@ marcan explícitamente como infraestructura nueva.
   caso `<50%` del planteamiento funcional — se apoya en el mismo
   `evaluation_text` (obligatorio en ese caso), sin inventar un campo nuevo
   que el planteamiento funcional no llegó a cerrar.
-- **Plan continuo, no versionado por ejercicio**: una sola lista de acciones
-  por cliente (`consulting_plan_items`) que crece con el tiempo, sin columna
-  de año. "Clonable" es una acción de servicio (`cloneItemsTo`), no un
-  concepto del modelo — copia la lista de un cliente a otro (o la resetea)
-  como punto de partida editable.
+- **Plan propio de cada consultoría anual, no continuo — corregido
+  2026-09-16.** Decisión inicial (ya revertida): una sola lista de acciones
+  por cliente (`consulting_plan_items`), sin columna de año, compartida por
+  todos los ejercicios. Un usuario hizo notar que el plan puede variar de un
+  ejercicio a otro, tanto a nivel de plan base del cliente como de cada
+  centro — no tiene sentido que abrir la consultoría de 2027 herede en vivo
+  cualquier cambio hecho después en el plan de 2026. Se añadió
+  `id_annual_engagement` (NOT NULL, FK) a `consulting_plan_items`; el plan
+  queda scoped exactamente igual que Evaluación de acciones y Cuadro
+  (`.../annual-engagements/:id_annual_engagement/plan-items...`), con su
+  propio `ConsultingPlanController`/`ConsultingPlanService` (antes vivía
+  dentro de `ConsultingClientController`/`.service`, se extrajo siguiendo el
+  mismo patrón que Evaluación/Cuadro). Al abrir una consultoría nueva,
+  `ConsultingClientService.openAnnualEngagement` clona el plan del
+  ejercicio anterior más reciente del mismo cliente
+  (`ConsultingPlanItemRepository.clonePlan`) — copia el plan base entero y
+  solo los ítems propios de los centros que participan en la consultoría
+  nueva (no los de un centro que se haya quedado fuera); si no hay ejercicio
+  anterior, arranca vacío. La UI se movió con el dato: la pestaña "Plan" ya
+  no está en la ficha del cliente ni existe la pantalla standalone del
+  centro (`consulting-center-plan.route.tsx`, eliminada) — ahora vive dentro
+  de la consultoría (`consulting-engagement.route.tsx`, pestaña "Plan" =
+  plan base) y dentro del centro-dentro-de-consultoría
+  (`consulting-engagement-center.route.tsx`, pestaña "Plan" = base heredado
+  de solo lectura + acciones propias), junto a Evaluación y Cuadro. "Todos
+  los centros" para el añadir/quitar en bloque del plan base pasó de "todos
+  los centros del cliente" (`getClientCenters`) a "los centros que
+  participan en esta consultoría" (`consulting_engagement_centers`), más
+  correcto ahora que hay un plan por ejercicio.
 - **Categoría y Fecha de la acción = tabla catálogo editable por ADMIN**,
   no un enum de Postgres — primera vez en este código que una lista de
   valores se gestiona desde una pantalla en vez de una migración.
@@ -383,20 +419,22 @@ marcan explícitamente como infraestructura nueva.
 | `consulting_planning_dates` | **Ya implementada.** Catálogo editable ADMIN-only: `id_planning_date`, `name` (*A demanda*, *Según calendario central*...), `active`, `display_order`. |
 | `consulting_annual_engagements` | **Ya implementada** (2026-09-15, reemplaza `consulting_annual_audits` — ver Decisiones técnicas cerradas). El contenedor real: `id_annual_engagement`, `id_consulting_client`, `year`, `status` (`OPEN`/`CLOSED`), `opened_at`, `closed_at` (null si está abierta), `created_by` (nullable). Único por (`id_consulting_client`, `year`) — una consultoría por cliente y ejercicio. |
 | `consulting_engagement_centers` | **Ya implementada** (2026-09-15). Qué centros participan en una consultoría — pertenencia simple, sin estado ni fechas propias: `id_engagement_center`, `id_annual_engagement`, `id_center`. Único por par. Poblada con todos los centros del cliente al abrir la consultoría, salvo que se indiquen unos concretos. |
-| `consulting_plan_items` | **Ya implementada** (2026-09-15). `id_plan_item`, `id_consulting_client`, `id_center` (nullable — NULL = plan base compartido), `id_catalog_course` (el plan lista acciones formativas, que son de catálogo — solo admite cursos ya presentes en `consulting_action_details`, validado en el servicio), `added_by` (nullable — null si lo añadió el token de acceso externo del centro), `added_at`. |
+| `consulting_plan_items` | **Ya implementada** (2026-09-15, `id_annual_engagement` añadido 2026-09-16 — ver Decisiones técnicas cerradas). `id_plan_item`, `id_consulting_client`, `id_annual_engagement` (NOT NULL, FK — de qué consultoría es este ítem, nunca continuo entre ejercicios), `id_center` (nullable — NULL = plan base compartido por los centros de esa consultoría), `id_catalog_course` (el plan lista acciones formativas, que son de catálogo — solo admite cursos ya presentes en `consulting_action_details`, validado en el servicio), `added_by` (nullable — null si lo añadió el token de acceso externo del centro), `added_at`. |
 | `consulting_action_evaluations` | **Ya implementada** (2026-09-15). `id_action_evaluation`, `id_catalog_course`, `id_center`, `id_annual_engagement` (explícito — la consultoría dentro de la que se hizo, nunca inferida; la fecha debe caer en su año), `evaluation_date`, `evaluation_text` (obligatorio en el servicio si `percentage < 50`), `percentage` (0-100, nullable), `imparte_text`, `evaluated_by` (nullable), `createdAt`/`updatedAt`. |
 | `consulting_roster_adjustments` | **Ya implementada** (2026-09-15). Ajuste manual del cuadro/competencias: `id_roster_adjustment`, `id_center`, `id_user`, `id_annual_engagement` (FK — de qué consultoría es este ajuste), `adjustment_type` (`ADD`/`REMOVE`), `created_by` (nullable), `createdAt`/`updatedAt`. Único por (`id_center`, `id_user`, `id_annual_engagement`). Roster efectivo del año de una consultoría = `user_center` real activo ese año ∪ `ADD` de esa consultoría − `REMOVE` de esa consultoría. |
 | `consulting_action_attendees` | **Ya implementada** (2026-09-15). Registro manual de asistente, solo para acciones **sin ninguna edición real**: `id_action_attendee`, `id_catalog_course`, `id_center`, `id_annual_engagement` (FK), `id_user`, `attended_at` (date, debe caer en el año de esa consultoría), `created_by` (nullable), `createdAt`/`updatedAt`. Único por (`id_catalog_course`, `id_center`, `id_annual_engagement`, `id_user`). |
-| `consulting_competencies` | Catálogo de 25: `id`, `name`, `display_order`. |
-| `consulting_job_positions` | Catálogo de 28: `id`, `name`, `group_label`, `display_order`. |
-| `consulting_job_position_aliases` | `job_position` (texto, tal cual aparece en `user`) → `id_job_position`. Mantenida por ADMIN. |
-| `consulting_position_competency_templates` | Configurador: `id_job_position`, `id_competency`, `default_value` (1/0/NULL), único por par. |
-| `consulting_competency_evaluations` | `id`, `id_user`, `id_center`, `id_competency`, `id_annual_engagement`, `value` (1/0/NULL), `evaluated_at`, `evaluated_by` (nullable). |
+| `consulting_competencies` | **Ya implementada** (2026-09-16). Catálogo de las 25 competencias, sin dato real todavía (ADMIN las da de alta, mismo patrón que categorías/fechas): `id_competency`, `name`, `display_order`. Sin `active` ni timestamps — a diferencia de categorías/fechas, es un catálogo fijo que no necesita soft-disable. |
+| `consulting_job_positions` | **Ya implementada** (2026-09-16). Catálogo de los 28 puestos: `id_job_position`, `name`, `id_job_position_group` (FK a `consulting_job_position_groups`, nullable — agrupación visual en el selector; era texto libre `group_label` hasta la segunda mitad del día, ver Decisiones técnicas cerradas), `display_order`. |
+| `consulting_job_position_groups` | **Ya implementada** (2026-09-16, corrigiendo `group_label` texto libre). Grupos de puestos de trabajo, entidad propia: `id_job_position_group`, `name` (único), `display_order`. Sin más efecto en la app que agrupar visualmente el catálogo de puestos. |
+| `consulting_job_position_aliases` | **Ya implementada** (2026-09-16). `id_job_position_alias`, `job_position` (texto, tal cual aparece en `user.job_position`, único), `id_job_position` (FK). Mantenida solo por ADMIN — pantalla "Puestos de trabajo" (pestaña "Pendientes de relacionar") lista los valores de `job_position` reales sin alias todavía. |
+| `consulting_position_competency_templates` | **Ya implementada** (2026-09-16). Configurador: `id_position_competency_template`, `id_job_position` (FK), `id_competency` (FK), `default_value` (boolean nullable: true=no necesita mejorar, false=necesita mejorar, NULL=no aplica a ese puesto), único por (`id_job_position`, `id_competency`). |
+| `consulting_competency_evaluations` | **Ya implementada** (2026-09-16). `id_competency_evaluation`, `id_user` (FK), `id_center` (FK), `id_competency` (FK), `id_annual_engagement` (FK, explícito), `value` (boolean nullable, misma escala que la plantilla), `evaluated_at`, `evaluated_by` (nullable). Único por (`id_user`, `id_center`, `id_competency`, `id_annual_engagement`). Solo se persiste una fila al editar esa celda — el valor "efectivo" mostrado antes de editar es el de la plantilla del puesto, calculado en el servicio, no copiado a BD hasta que se toca. |
 | `consulting_center_tokens` | `id_center` (único), `token_hash`, `created_at`, `last_used_at`, `revoked_at`. |
 
 Notas:
 - `id_annual_engagement` en evaluaciones es explícito (no derivado en cada query) para que los 4 dashboards no tengan que recalcular a qué ejercicio pertenece cada fila — igual que ya hace `consulting_action_evaluations`.
-- **`user.job_position` ya existe** (texto libre) — se usa como señal para el autorelleno de la plantilla por puesto, resuelto vía `consulting_job_position_aliases` (no comparando texto directamente contra `consulting_job_positions.name`, poco fiable). Si el valor de `job_position` no tiene alias todavía, se autorellena vacío y se avisa, sin bloquear — queda listado para que ADMIN lo mapee.
+- **`user.job_position` ya existe** (texto libre) — se usa como señal para el autorelleno de la plantilla por puesto, resuelto vía `consulting_job_position_aliases` (no comparando texto directamente contra `consulting_job_positions.name`, poco fiable). Si el valor de `job_position` no tiene alias todavía, no hay autorelleno (celdas en blanco) y se avisa en el modal de evaluación de ese trabajador, sin bloquear — el valor queda listado en "Puestos de trabajo" (pestaña "Pendientes de relacionar") para que ADMIN lo relacione.
+- **`ConsultingCompetencyEvaluationService.getRosterWithCompetencies`** resuelve el "efectivo" de cada celda en memoria (sin N+1): evaluación ya guardada, si la hay; si no, el `default_value` de la plantilla de su puesto; si no, en blanco — expuesto en la respuesta como `source` (`evaluated`/`template`/`blank`) para que el frontend distinga lo ya tocado a mano de lo que sigue siendo sugerencia.
 - Consecuencia de "usuario técnico por centro": añadir `auth_users.is_service_account` (boolean, default `false`) para poder filtrarlos por defecto de `/auth-users` y de cualquier listado de usuarios — a validar con `docs/security.md`/`docs/permissions-matrix.md` al implementarlo.
 
 ### Guards y acceso externo
@@ -411,25 +449,56 @@ Notas:
 
 `server/src/api/consultoria/` — un controlador por área (cliente, acción/catálogo, plan, consultoría anual, evaluación de acciones, cuadro/roster, competencias, dashboards, y uno aparte para el acceso externo del centro), servicios junto a cada controlador, DTOs en `dto/`. Repositorios en `server/src/database/repository/consultoria/`. Registrado en `imports` de `server/src/api/api.module.ts` (no en `app.module.ts`).
 
-**Ya implementados** (2026-09-15): plan, consultoría anual y sus centros participantes viven en `ConsultingClientController`/`ConsultingClientService` (crecen ahí porque todos parten de "el cliente" — `getClientCenters`/`assertCenterBelongsToClient`/`getValidatedEngagement`/`getValidatedEngagementCenter`, públicos para que los reutilicen otros servicios): `GET/POST /clients/:id/annual-engagements`, `PATCH .../annual-engagements/:id_annual_engagement` (cerrar/reabrir), `GET/POST/DELETE .../annual-engagements/:id_annual_engagement/centers[/:id_center]`. Evaluación de acciones y Cuadro de formación viven **dentro de una consultoría + un centro concretos** (dos correcciones el mismo día, ver Decisiones técnicas cerradas): `ConsultingEvaluationController`/`.service` y `ConsultingCuadroController`/`.service` en `api/consultoria/clients/:id/annual-engagements/:id_annual_engagement/centers/:id_center/{evaluations,roster,cuadro,attendees}`, ambos apoyados en `ConsultingClientService.getValidatedEngagementCenter` (cliente → consultoría → centro participante, sin inferir nada). Cuadro además inyecta `CourseRepository` (núcleo) para saber si un curso de catálogo tiene alguna edición real.
+**Ya implementados** (2026-09-15): consultoría anual y sus centros participantes viven en `ConsultingClientController`/`ConsultingClientService` (crecen ahí porque todos parten de "el cliente" — `getClientCenters`/`assertCenterBelongsToClient`/`getValidatedEngagement`/`getValidatedEngagementCenter`, públicos para que los reutilicen otros servicios): `GET/POST /clients/:id/annual-engagements`, `PATCH .../annual-engagements/:id_annual_engagement` (cerrar/reabrir), `GET/POST/DELETE .../annual-engagements/:id_annual_engagement/centers[/:id_center]`. Evaluación de acciones y Cuadro de formación viven **dentro de una consultoría + un centro concretos** (dos correcciones el mismo día, ver Decisiones técnicas cerradas): `ConsultingEvaluationController`/`.service` y `ConsultingCuadroController`/`.service` en `api/consultoria/clients/:id/annual-engagements/:id_annual_engagement/centers/:id_center/{evaluations,roster,cuadro,attendees}`, ambos apoyados en `ConsultingClientService.getValidatedEngagementCenter` (cliente → consultoría → centro participante, sin inferir nada). Cuadro además inyecta `CourseRepository` (núcleo) para saber si un curso de catálogo tiene alguna edición real. El **Plan** se extrajo a `ConsultingPlanController`/`ConsultingPlanService` (2026-09-16, ver Decisiones técnicas cerradas — dejó de vivir en `ConsultingClientService`) en `api/consultoria/clients/:id/annual-engagements/:id_annual_engagement/plan-items[/all-centers][/:id_plan_item]`, apoyado igual en `getValidatedEngagement`/`getValidatedEngagementCenter`.
+
+**Evaluación de competencias, construida 2026-09-16**: seis controladores nuevos (cinco al principio, más `ConsultingJobPositionGroupController` en la segunda mitad del día), siguiendo el mismo reparto por área. Catálogos `ConsultingCompetencyController` (`api/consultoria/competencies`), `ConsultingJobPositionController` (`api/consultoria/job-positions`) y `ConsultingJobPositionGroupController` (`api/consultoria/job-position-groups`, ver Decisiones técnicas cerradas), lectura `[ADMIN, CONSULTOR]`/escritura `[ADMIN]`, mismo patrón que `ConsultingPlanningDateController`. `ConsultingJobPositionAliasController` (`api/consultoria/job-position-aliases[/unmapped][/:id]`), `[ADMIN]` a nivel de controlador — primer controlador de Consultoría íntegramente ADMIN-only. `ConsultingCompetencyTemplateController` (`api/consultoria/job-positions/:id_job_position/competency-template[/:id_competency]`), `[ADMIN, CONSULTOR]`, junta el catálogo de competencias con la plantilla del puesto en el servicio (`ConsultingCompetencyTemplateService.findForJobPosition`). `ConsultingCompetencyEvaluationController` (`.../clients/:id/annual-engagements/:id_annual_engagement/centers/:id_center/competencies[/:id_user/:id_competency]`), `[ADMIN, CONSULTOR]`, inyecta `ConsultingCuadroService` para reutilizar `getRoster` (mismo roster que Cuadro, sin duplicar la lógica de `user_center` ∪ ajustes) y resuelve el valor efectivo de cada celda en memoria — ver Modelo de datos.
 
 Apertura/cierre automático de la consultoría anual: descartado por ahora (ver Decisiones técnicas cerradas de "Modelo conceptual") — solo gestión manual.
 
 ### Frontend
 
-- Grupo nuevo en el sidebar, "Consultoría" (`client/src/router.tsx`) — grupo sin página propia (solo etiqueta, no `<Link>`), con "Clientes" y "Acciones formativas" como hijos reales; visibilidad `role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.CONSULTOR`.
-- **Ya implementadas**: `/consultoria` (listado de clientes) → `/consultoria/clients/:id` (ficha, pestañas Cliente/Empresas/Plan/**Consultoría**); `/consultoria/actions` (listado de acciones formativas ya etiquetadas) → `/consultoria/actions/add` y `/consultoria/actions/:id_catalog_course` (buscar/editar un curso de catálogo — datos del curso en solo lectura con enlace a su ficha, Origen/Categoría/Fecha editables; "+ Añadir" en los desplegables de Categoría/Fecha para ADMIN cuando el catálogo está vacío).
-  - Pestaña **Plan** de la ficha del cliente: solo el **plan base** (buscador sobre las acciones ya etiquetadas + tabla, quitar por fila) — no mezcla ahí las acciones de cada centro. Debajo, tabla "Centros" (los del cliente, vía sus empresas vinculadas) con el nº de acciones propias de cada uno y un enlace "Ver plan del centro".
-  - Pestaña **Consultoría** de la ficha del cliente (**2026-09-16**, corrigiendo el modelo por-centro del día anterior): tabla de consultorías por año (Estado, Abierta el, Cerrada el, Cerrar/Reabrir, "Entrar") + formulario para abrir una nueva (año + selector multi de centros, vacío = todos los del cliente).
-  - `/consultoria/clients/:id/centers/:id_center` — pantalla del centro (`consulting-center-plan.route.tsx`), **sin pestañas ya** (solo Plan: base heredado de solo lectura + acciones propias por encima) — la Auditoría/Consultoría se movió al cliente.
-  - `/consultoria/clients/:id/annual-engagements/:id_annual_engagement` — pantalla de **una consultoría concreta** (`consulting-engagement.route.tsx`): centros que participan (añadir/quitar, sin tocar el contenedor) con un enlace **"Entrar"** por fila.
-  - `/consultoria/clients/:id/annual-engagements/:id_annual_engagement/centers/:id_center` — pantalla de **un centro dentro de una consultoría concreta** (`consulting-engagement-center.route.tsx`), con `RouteTabs` (pestañas Evaluación de acciones / Cuadro), todo atado a esos dos ids, nunca inferido:
+- Grupo nuevo en el sidebar, "Consultoría" (`client/src/router.tsx`) — grupo sin página propia (solo etiqueta, no `<Link>`), con "Clientes", "Acciones formativas", "Competencias" y (solo ADMIN) "Puestos de trabajo" como hijos reales; visibilidad del grupo `role?.toLowerCase() === Role.ADMIN || role?.toLowerCase() === Role.CONSULTOR`.
+- **Ya implementadas**: `/consultoria` (listado de clientes) → `/consultoria/clients/:id` (ficha, pestañas Cliente/Empresas/**Consultoría** — la pestaña Plan se quitó de aquí el 2026-09-16, ver más abajo); `/consultoria/actions` (listado de acciones formativas ya etiquetadas) → `/consultoria/actions/add` y `/consultoria/actions/:id_catalog_course` (buscar/editar un curso de catálogo — datos del curso en solo lectura con enlace a su ficha, Origen/Categoría/Fecha editables; "+ Añadir" en los desplegables de Categoría/Fecha para ADMIN cuando el catálogo está vacío).
+  - Pestaña **Consultoría** de la ficha del cliente (**2026-09-16**, corrigiendo el modelo por-centro del día anterior): tabla de consultorías por año (Estado, Abierta el, Cerrada el, Cerrar/Reabrir, "Entrar") + formulario para abrir una nueva (año + selector multi de centros, vacío = todos los del cliente; se clona el plan del ejercicio anterior).
+  - `/consultoria/clients/:id/annual-engagements/:id_annual_engagement` — pantalla de **una consultoría concreta** (`consulting-engagement.route.tsx`), con `RouteTabs` (pestañas **Centros** / **Plan**, **2026-09-16** — antes solo mostraba centros, sin pestañas):
+    - **Centros**: los que participan (añadir/quitar, sin tocar el contenedor) con un enlace **"Entrar"** por fila.
+    - **Plan**: el **plan base** de esta consultoría (buscador sobre las acciones ya etiquetadas + tabla, quitar por fila) — añadir "al plan base" (compartido) o "a cada centro" (copias individuales, ver Decisiones técnicas cerradas); quitar "del base, manteniendo en cada centro" o "de todos los centros" (bloqueado si algún centro ya evaluó la acción, aviso vía `modal.error` con tiempo para leerlo, no un toast).
+  - `/consultoria/clients/:id/annual-engagements/:id_annual_engagement/centers/:id_center` — pantalla de **un centro dentro de una consultoría concreta** (`consulting-engagement-center.route.tsx`), con `RouteTabs` (pestañas **Plan** / Evaluación de acciones / Cuadro, **2026-09-16** añadió Plan — antes vivía en la pantalla standalone `consulting-center-plan.route.tsx`, eliminada), todo atado a esos dos ids, nunca inferido:
+    - **Plan**: plan base heredado (solo lectura, referencia — se gestiona desde la pestaña Plan de la consultoría) + acciones propias de este centro (buscador que excluye lo ya cubierto por base o propio, tabla con quitar por fila, bloqueado igual si el centro ya evaluó esa acción).
     - **Evaluación de acciones**: formulario (acción del plan efectivo del centro — base + propia —, fecha, %, texto, imparte) + tabla con editar/borrar. El servicio exige que la fecha caiga en el año de esta consultoría y texto obligatorio si `% < 50`.
     - **Cuadro**: sección "Roster del centro" (buscador sobre `GET /user/lookup`, añadir/quitar, tabla de ajustes manuales con "Deshacer", todo de esta consultoría) + sección "Cruce trabajador × acción" (tabla con origen Real/Manual; formulario para registrar un asistente a mano, con error explícito si la acción elegida sí tiene matrícula real o si la fecha no cae en el año de la consultoría).
-- Rutas internas pendientes: la pantalla de centro-dentro-de-consultoría ganará pestaña de competencias a medida que se construya.
+    - **Competencias** (**2026-09-16**): vista global — tabla del roster (reutiliza el mismo roster que Cuadro) con Nombre/DNI/Puesto (con aviso "sin mapear" si `job_position` no tiene alias) y un resumen por trabajador (nº que necesitan mejorar, o nº sin necesidad de mejora sobre el total aplicable). Botón "Evaluar" abre un modal paso a paso con las 25 competencias de ese trabajador (`Segmented` de 3 estados, guardado inmediato por competencia, sin botón "Guardar" aparte) y navegación Anterior/Siguiente para recorrer todo el roster sin cerrar el modal — combina las dos opciones que se plantearon, a petición del usuario.
+- `/consultoria/competencies` — **Configurador de competencias por puesto** (**2026-09-16**, `[ADMIN, CONSULTOR]`), `RouteTabs` con dos pestañas: "Plantillas por puesto" (selector de puesto de trabajo, de solo lectura — el alta/edición/borrado de puestos vive en "Puestos de trabajo", ver más abajo — → tabla de las competencias con un selector de 3 estados por fila, el valor por defecto de ese puesto) y "Competencias" (catálogo de competencias: tabla con renombrar/borrar por fila + "+ Añadir competencia" al final, `[ADMIN]`). **Reestructurado 2026-09-16** (pedido del usuario): al principio competencias y puestos se gestionaban los dos desde esta pantalla, mezclados con la vista de plantilla de un puesto concreto — se separaron: competencias se quedó aquí (siguen siendo del Configurador, tienen sentido junto a la plantilla), puestos se movió entero a su propia pantalla.
+- `/consultoria/job-positions` — **Puestos de trabajo** (**2026-09-16**, `[ADMIN, CONSULTOR]` para leer, `[ADMIN]` para escribir), `RouteTabs` con tres pestañas: "Listado" (tabla de los puestos con Añadir/Editar/Borrar — antes vivía repartido dentro del Configurador de competencias, se centralizó aquí para no gestionar el mismo catálogo desde dos sitios; renombrada de "Catálogo" a "Listado" el mismo día, ver nota de Grupos abajo), "Pendientes de relacionar" (valores reales de `user.job_position` sin alias todavía, selector del puesto al que corresponden + botón "Relacionar" — antes era el contenido principal, sin pestañas, de la pantalla "Puestos sin mapear") y "Ya relacionados" (alias existentes, con el puesto como desplegable editable — cambiarlo autoguarda). El banner temporal "Automapear puestos de trabajo" vive en la pestaña "Pendientes de relacionar". Los grupos de puestos se gestionan desde un botón "Gestionar grupos" en la pestaña "Listado", que abre un `Modal` (no una pestaña propia ni pantalla completa — no son muchos grupos, ver nota abajo).
+  - **Grupo del puesto — dos vueltas el mismo día (2026-09-16).** Primero se
+    dejó como texto libre (`group_label`) con un `Select` de valores ya
+    usados + "+ Usar" para escribir uno nuevo (mismo patrón "+ Añadir" que
+    Categoría/Fecha/Competencias/Puestos), para evitar duplicados por typo
+    sin construir una tabla nueva. El usuario preguntó explícitamente si los
+    grupos "se pueden gestionar" (listarlos, renombrarlos, borrarlos como
+    tal) — la respuesta con solo texto libre era que no, así que se
+    construyó la tabla de verdad: `consulting_job_position_groups`
+    (`ConsultingJobPositionGroupController`, `api/consultoria/job-position-groups`,
+    mismo patrón `[ADMIN, CONSULTOR]`/`[ADMIN]` que Competencias/Puestos) y
+    `consulting_job_positions.group_label` (texto) pasó a
+    `id_job_position_group` (FK) — migración con backfill: los 5 valores de
+    texto ya en uso (`Dirección`, `Asistencial / Terapias`, `Cuidados`,
+    `Servicios`, `Administración y otros`) se insertaron como filas reales
+    antes de tirar la columna vieja, sin perder el dato de ningún puesto.
+    Pestaña nueva "Grupos" en `/consultoria/job-positions` (tabla con
+    Añadir/Editar/Borrar), y el `Select` de grupo en el formulario de puesto
+    ahora crea un grupo real (vía mutación) en vez de solo rellenar texto.
+    **Tercera vuelta, mismo día**: el usuario pidió simplificar — "Catálogo"
+    pasa a llamarse "Listado" y la pestaña "Grupos" se elimina; los grupos se
+    gestionan desde un botón "Gestionar grupos" en la pestaña "Listado" que
+    abre un `Modal` (tabla de grupos con Añadir/Editar/Borrar, igual que la
+    pestaña que sustituye) en vez de una pestaña propia, porque no son muchos
+    grupos y no hace falta pantalla completa. El modal de alta/edición de un
+    grupo se abre anidado encima del modal de gestión (antd apila el z-index
+    solo). Pestañas finales: 3 (Listado/Pendientes de relacionar/Ya
+    relacionados).
 - Ruta externa del centro: `/consultoria-centro/:token`, layout propio sin sidebar.
 - Empresas/Centros no tienen hoy ninguna pantalla de agrupación (son recursos planos bajo "Empresas") — Cliente no se cuelga de esas pantallas, tiene las suyas propias, referenciando empresas/centros por id.
-- Pantalla ADMIN "Puestos sin mapear": lista los valores de `job_position` sin alias todavía, con selector del puesto del catálogo al que corresponden.
 
 ### Al implementar (recordatorios de CLAUDE.md)
 - Cada `RoleGuard`/`@Public()` nuevo → actualizar `docs/permissions-matrix.md` **y** `permissions-matrix.content.ts` a la vez.
@@ -460,33 +529,43 @@ en las convenciones reales del código. **En construcción desde 2026-09-15**:
   del propio curso de catálogo, sin duplicar. Camino "dar de alta una acción
   nueva" (catálogo+satélite en una transacción, para externas/Marisa):
   pendiente.
-- ✅ Plan base y por centro (`consulting_plan_items`): añadir/quitar acciones
-  ya etiquetadas al plan base (compartido) o al de un centro concreto del
-  cliente. Flujo en dos pantallas, no una sola con selector de ámbito:
-  pestaña "Plan" de la ficha del cliente para el plan base + lista de
-  centros con enlace, y `/consultoria/clients/:id/centers/:id_center` para
-  entrar a un centro y decidir sus acciones propias por encima del base
-  (que ahí se ve, de solo lectura, como referencia). Sin validación
-  bloqueante al **añadir** más allá de exigir que la acción ya esté
-  etiquetada y que el centro pertenezca a una empresa vinculada al cliente.
+- ✅ Plan base y por centro (`consulting_plan_items`), **propio de cada
+  consultoría anual** (2026-09-16, ver Decisiones técnicas cerradas — antes
+  era continuo, sin año): añadir/quitar acciones ya etiquetadas al plan base
+  de la consultoría (compartido por los centros que participan) o al plan
+  propio de uno de esos centros. Flujo en dos pantallas, no una sola con
+  selector de ámbito: pestaña "Plan" de la consultoría
+  (`consulting-engagement.route.tsx`) para el plan base, y pestaña "Plan" de
+  cada centro dentro de esa consultoría
+  (`consulting-engagement-center.route.tsx`) para sus acciones propias por
+  encima del base (que ahí se ve, de solo lectura, como referencia). Sin
+  validación bloqueante al **añadir** más allá de exigir que la acción ya
+  esté etiquetada y que el centro participe en la consultoría. Al **abrir**
+  una consultoría nueva, su plan se clona automáticamente del ejercicio
+  anterior más reciente del mismo cliente
+  (`ConsultingPlanItemRepository.clonePlan`, invocado desde
+  `ConsultingClientService.openAnnualEngagement`) — plan base completo +
+  solo los ítems propios de los centros que participan en la consultoría
+  nueva; sin ejercicio anterior, arranca vacío.
   **Añadido 2026-09-16** (decisión explícita del usuario, ver Decisiones
   técnicas cerradas): al tocar el plan base, elegir entre compartido/individual:
   - Añadir: "al plan base" (compartido, `id_center` NULL, como hasta ahora)
     o "a cada centro" (`POST .../plan-items/all-centers` — copia propia por
-    centro, `id_center` de cada uno; un centro que se vincule después no la
-    recibe, hay que añadírsela a mano).
+    cada centro **que participa en esta consultoría**, `id_center` de cada
+    uno; un centro que se añada después no la recibe, hay que añadírsela a
+    mano).
   - Quitar un ítem del plan base: "quitar del base, mantener en cada centro"
-    (reparte una copia propia a cada centro que no la tuviera ya, y solo
-    borra la fila base — nunca bloqueado, nadie pierde nada) o "quitar de
-    todos los centros" (borrado real, sí bloqueado si algún centro ya la
-    evaluó).
+    (reparte una copia propia a cada centro participante que no la tuviera
+    ya, y solo borra la fila base — nunca bloqueado, nadie pierde nada) o
+    "quitar de todos los centros" (borrado real, sí bloqueado si algún
+    centro ya la evaluó).
   - **Bloqueo real al quitar del todo** (no solo aviso): si algún centro
-    afectado (todos, si es del base; solo ese, si es propia) ya evaluó la
-    acción, el backend rechaza el borrado con un mensaje que dice qué
-    centro(s) y en qué año — se perdería el histórico de evaluación. Aplica
-    igual a una acción propia de un centro.
-  Clonable de un año a otro: pendiente (no hay urgencia — el plan es
-  continuo, sin versión por ejercicio, hasta que la consultoría anual lo necesite).
+    afectado (todos los participantes, si es del base; solo ese, si es
+    propia) ya evaluó la acción, el backend rechaza el borrado con un
+    mensaje que dice qué centro(s) y en qué año — se perdería el histórico
+    de evaluación. Aplica igual a una acción propia de un centro. El aviso
+    se muestra en un `modal.error` (no un toast que desaparece solo), con
+    tiempo de sobra para leerlo.
 - ✅ Consultoría anual (`consulting_annual_engagements` +
   `consulting_engagement_centers`) — **solo gestión manual** (decisión
   explícita): abrir (año + centros, por defecto todos los del cliente),
@@ -526,7 +605,101 @@ en las convenciones reales del código. **En construcción desde 2026-09-15**:
   Marisa). La frontera es "¿tiene edición?", no "¿es propio o externo?" —
   ver Decisiones técnicas cerradas. Búsqueda de trabajadores reutiliza
   `GET /user/lookup`, sin backend nuevo.
-- Resto del roadmap sin empezar (competencias, acceso externo).
+- ✅ Evaluación de competencias (2026-09-16) — 5 tablas nuevas
+  (`consulting_competencies`, `consulting_job_positions`,
+  `consulting_job_position_aliases`, `consulting_position_competency_templates`,
+  `consulting_competency_evaluations`) y 5 controladores. Catálogos de
+  competencias/puestos **sin datos reales todavía** (nacen vacíos, como
+  categorías/fechas en su día — ADMIN los da de alta desde el propio
+  Configurador cuando consultoría facilite las 25/28 listas reales; no se
+  ha sembrado nada en producción, solo en desarrollo para probar el
+  flujo). Configurador puesto↔competencia (`/consultoria/competencies`,
+  `[ADMIN, CONSULTOR]`) fija el valor de partida de cada competencia por
+  puesto. Alias de puesto (`/consultoria/job-positions`, pestaña "Pendientes
+  de relacionar", `[ADMIN]`) resuelve `user.job_position` (texto libre)
+  contra el catálogo. Evaluación
+  real en la pestaña "Competencias" de centro-dentro-de-consultoría:
+  reutiliza el roster de Cuadro, vista global (tabla + resumen) más un
+  modal paso a paso por trabajador con navegación Anterior/Siguiente —
+  combinación de las dos opciones de pantalla que se habían planteado, a
+  petición del usuario. El valor de una celda no evaluada a mano se
+  calcula en el momento desde la plantilla del puesto (nunca se persiste
+  hasta que se edita). **Catálogo de competencias en pestaña propia**
+  (2026-09-16, corrección de UX pedida por el usuario): al principio crear/
+  renombrar/borrar una competencia vivía dentro de la vista de un puesto
+  concreto (confuso — una competencia es global, compartida por todas las
+  plantillas), se separó en una pestaña "Competencias" propia dentro de
+  `/consultoria/competencies` (`RouteTabs`: "Plantillas por puesto" /
+  "Competencias"). Como tocar una competencia afecta a la plantilla de
+  **todos** los puestos de golpe, esas tres acciones piden reconfirmar la
+  contraseña del usuario antes de ejecutarse (`ConfirmPasswordModal` +
+  `POST /auth/verify-password`, ya existente en la app — mismo mecanismo
+  que la importación de Preinscritos INAEM — sin guard ni endpoint nuevo).
+  Renombrar/borrar un **puesto** de trabajo no lo pide (no afecta a otros
+  puestos), sigue con confirmación simple junto al selector.
+- **[Temporal] Autorrelleno de catálogo y automapeo de puestos — pedido
+  explícito del usuario 2026-09-16**, para no escribir a mano ni en
+  desarrollo ni en producción las 25 competencias / 28 puestos ni su
+  plantilla, ni mapear a mano los ~250 valores reales de `user.job_position`.
+  Datos en `server/src/api/consultoria/consultoria-catalog-seed.data.ts`:
+  `DRAFT_COMPETENCIES` (25), `DRAFT_JOB_POSITIONS` (28) y
+  `POSITION_COMPETENCY_TEMPLATE` (qué competencias aplican a cada puesto)
+  son **reales**, sacados del `cuadro competencias.xlsx` que dio el usuario
+  2026-09-16 (ya no un borrador ni una lista heurística) — el Excel marca
+  "aplica" con un 1 por celda, sin juicio de valor; al importarlo esa celda
+  se traduce como `default_value: true` ("no necesita mejorar" de partida),
+  convención mía razonable, no algo que diga el Excel. `JOB_POSITION_MAPPING_RULES`
+  (qué palabra clave de `user.job_position` corresponde a qué puesto real)
+  sigue siendo mío, sin verificar — y desde que los puestos pasaron a ser
+  los 28 reales del Excel (más específicos que mi agrupación heurística
+  anterior — p. ej. ya no existen "Portero/a", "Jardinero/a", "Vigilante"
+  como puestos, y sí se distingue "Rble. de Enfermería" de "Enfermero/a"),
+  las reglas se reescribieron para esa taxonomía nueva; valores como
+  "AUX ENFER" se enrutan a Gerocultor/a antes que a Enfermero/a (auxiliar ≠
+  enfermero/a titulado), y "TASOC" a Monitores/as, no a Trabajo Social —
+  el propio Excel los separa. **Segunda pasada 2026-09-16** (pedida por el
+  usuario — "aplica un poco de investigación y sentido común"): revisados a
+  mano los ~130 valores que quedaban sin mapear tras la primera pasada.
+  Bajó a 212 alias creados (antes 131) y 52 sin mapear (antes 132) — la
+  mayoría de los abreviados eran solo eso, abreviados de más (p. ej.
+  `OF.ADMINIS`→Administración, `TERAPUT.OC`→Terapeuta Ocupacional,
+  `TRAB.SOC`→Trabajo Social, truncados por debajo de lo que cazaban los
+  fragmentos anteriores). Lo que sigue sin mapear son categorías realmente
+  genéricas sin puesto específico al que asignarlas (`TIT. SUPER` =
+  "Titulado Superior", sin decir de qué), la familia "Ayudante de Oficios
+  Varios" (ese puesto no existe en la lista real de 28), o valores que
+  parecen error de captura (`9901082501`, `Sin catego`, `RETRIBUC.`,
+  `Desde NLWG`) — mejor dejarlos así que inventar un mapeo.
+  **Tercera pasada 2026-09-16, corregida por el usuario en la cuarta**: en
+  la tercera intenté distinguir "Ayudante de Oficina" (→ Administración) de
+  "Ayudante de Oficios Varios" dentro de la familia "AY(TE/D)... OF...",
+  dejando solo `AY.OFICIOS` sin mapear por deletrear la palabra completa. El
+  usuario corrigió: en esta empresa **toda** esa familia es realmente
+  "Ayudante de Oficios Varios" — y se vincula con **Gerocultor/a**, no con
+  Administración (ese puesto no existe suelto en la lista de 28, y la
+  empresa los trata como parte del equipo de Gerocultor/a). Regla de
+  desambiguación del usuario: dentro de los valores que empiezan por
+  "AY(TE/D/UDANTE)", solo van a Administración los que llevan la palabra
+  "ADM" en algún sitio (p. ej. un futuro "AYTE.ADM") — el resto, incluido
+  `AY.OFICIOS`, a Gerocultor/a. 227 alias en total, 37 sin mapear.
+  `ConsultingCatalogSeedController`
+  (`api/consultoria/catalog-seed/fill` y `/automap-job-positions`),
+  `[ADMIN]`, botones "Autorrellenar catálogo" (pestaña Competencias) y
+  "Automapear puestos de trabajo" (Puestos de trabajo → Pendientes de
+  relacionar); mismo automapeo
+  disponible como script standalone (`server/seed-consulting-job-catalog.ts`,
+  `npx ts-node -r tsconfig-paths/register seed-consulting-job-catalog.ts`),
+  comparten datos para no desincronizarse. `fillCatalog` es idempotente en
+  las tres capas (competencia/puesto ya existente por nombre, o celda de
+  plantilla ya guardada, no se tocan). Automapeo de alias conservador: solo
+  crea uno cuando una palabra clave encaja, lo demás queda en "Puestos sin
+  mapear" para revisar a mano — y ahí, en la tabla "Ya mapeados", el puesto
+  asignado es ahora un desplegable editable (no solo un botón de quitar):
+  cambiarlo reutiliza el mismo `upsert` (autoguardado, refresca las dos
+  tablas al momento). **Marcado explícitamente como temporal** —
+  borrar controlador/servicio/datos/botones/script cuando el usuario avise
+  de que ya no hace falta.
+- Resto del roadmap sin empezar (acceso externo para centros).
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)
 1. Cierre de decisiones con consultoría.

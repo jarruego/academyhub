@@ -36,6 +36,12 @@ import { consultingAnnualEngagementTable, consultingEngagementCenterTable, consu
 import { consultingActionEvaluationTable } from "./schema/tables/consulting_action_evaluation.table";
 import { consultingRosterAdjustmentTable, consultingRosterAdjustmentType } from "./schema/tables/consulting_roster_adjustment.table";
 import { consultingActionAttendeeTable } from "./schema/tables/consulting_action_attendee.table";
+import { consultingCompetencyTable } from "./schema/tables/consulting_competency.table";
+import { consultingJobPositionTable } from "./schema/tables/consulting_job_position.table";
+import { consultingJobPositionGroupTable } from "./schema/tables/consulting_job_position_group.table";
+import { consultingJobPositionAliasTable } from "./schema/tables/consulting_job_position_alias.table";
+import { consultingPositionCompetencyTemplateTable } from "./schema/tables/consulting_position_competency_template.table";
+import { consultingCompetencyEvaluationTable } from "./schema/tables/consulting_competency_evaluation.table";
 import { preinscriptionRegistrationSource } from "./schema/tables/user_preinscription.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
@@ -91,6 +97,12 @@ export const consulting_engagement_centers = consultingEngagementCenterTable;
 export const consulting_action_evaluations = consultingActionEvaluationTable;
 export const consulting_roster_adjustments = consultingRosterAdjustmentTable;
 export const consulting_action_attendees = consultingActionAttendeeTable;
+export const consulting_competencies = consultingCompetencyTable;
+export const consulting_job_positions = consultingJobPositionTable;
+export const consulting_job_position_groups = consultingJobPositionGroupTable;
+export const consulting_job_position_aliases = consultingJobPositionAliasTable;
+export const consulting_position_competency_templates = consultingPositionCompetencyTemplateTable;
+export const consulting_competency_evaluations = consultingCompetencyEvaluationTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;

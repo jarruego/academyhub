@@ -55,7 +55,7 @@ export class ConsultingEvaluationService {
     this.assertPercentageRule(dto);
     this.assertDateInEngagementYear(dto.evaluation_date, engagement.year);
 
-    const inPlan = await this.consultingPlanItemRepository.existsForCenter(id_consulting_client, id_center, dto.id_catalog_course);
+    const inPlan = await this.consultingPlanItemRepository.existsForCenter(id_annual_engagement, id_center, dto.id_catalog_course);
     if (!inPlan) throw new BadRequestException("Esta acción no está en el plan de este centro (ni en el base) — añádela primero en la pestaña Plan");
 
     const imparte_text = await this.resolveImparteText(dto.id_catalog_course, dto.imparte_text);
