@@ -52,7 +52,7 @@ const adminFullRestFlag = (): Record<Role, PermissionMatrixAccess> =>
 const adminConsultor = (): Record<Role, PermissionMatrixAccess> =>
   ({ ...all('no'), [ADMIN]: 'yes', [CONSULTOR]: 'yes' });
 
-export const PERMISSIONS_MATRIX_UPDATED_AT = '2026-09-16';
+export const PERMISSIONS_MATRIX_UPDATED_AT = '2026-09-17';
 
 export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
   {
@@ -211,6 +211,8 @@ export const PERMISSIONS_MATRIX_SECTIONS: PermissionMatrixSection[] = [
       { label: 'Alias de puesto de trabajo (mapear job_position al catálogo)', access: adminOnly(), note: 'user.job_position es texto libre poco fiable — solo ADMIN decide el mapeo' },
       { label: 'Configurador de competencias por puesto: ver/fijar valor por defecto', access: adminConsultor() },
       { label: 'Evaluación de competencias: ver roster con las 25 competencias / fijar un valor, dentro de una consultoría+centro', access: adminConsultor(), note: 'Autorrelleno desde la plantilla del puesto (vía alias); editable por trabajador' },
+      { label: 'Token de acceso externo de un centro: ver estado (con el token en claro)/regenerar/revocar', access: adminOnly(), note: 'Desde la pestaña "Consultoría" de la ficha del centro (/centers/:id/edit) — la pestaña ni se muestra si el centro no tiene token. Único y exclusivamente para centros dentro de una consultoría abierta (se genera solo si falta y participa en una, salvo que ya se hubiera revocado) — se guarda cifrado de forma reversible, igual que la contraseña SMTP, para poder verlo/copiarlo siempre' },
+      { label: 'Acceso externo del centro: consultorías propias / plan efectivo / roster / evaluar acciones / evaluar competencias / registrar asistentes propios', access: all('no'), note: 'No es un rol interno — acceso por token opaco del centro (ConsultingTokenGuard), no por sesión. id_center viene siempre del token; solo lectura si la consultoría está cerrada. Sin roster ajustable ni búsqueda de todos los usuarios del sistema — el trabajador se elige de su propio roster' },
     ],
   },
 ];

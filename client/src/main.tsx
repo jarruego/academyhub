@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { ConfigProvider } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Router from './router';
+import ConsultingCentroRouter from './router-consulting-centro';
 import AuthProvider from './providers/auth/auth.provider';
 import { App as AntdApp } from "antd";
 import { buildTheme } from './theme/tokens';
@@ -18,13 +19,22 @@ const queryClient = new QueryClient();
  */
 function ThemedApp() {
   const { mode, density } = useUiPreferences();
+  // Acceso externo del centro (token en la URL, sin login normal) — se
+  // decide antes de montar AuthProvider, que bloquea todo lo demás detrás
+  // de la pantalla de login independientemente de la ruta. Ver
+  // docs/consultoria.md, "Guards y acceso externo".
+  const isConsultingCentroRoute = window.location.pathname.startsWith('/consultoria-centro/');
 
   return (
     <ConfigProvider theme={buildTheme(mode, density)}>
       <AntdApp>
-        <AuthProvider>
-          <Router />
-        </AuthProvider>
+        {isConsultingCentroRoute ? (
+          <ConsultingCentroRouter />
+        ) : (
+          <AuthProvider>
+            <Router />
+          </AuthProvider>
+        )}
       </AntdApp>
     </ConfigProvider>
   );

@@ -42,6 +42,7 @@ import { consultingJobPositionGroupTable } from "./schema/tables/consulting_job_
 import { consultingJobPositionAliasTable } from "./schema/tables/consulting_job_position_alias.table";
 import { consultingPositionCompetencyTemplateTable } from "./schema/tables/consulting_position_competency_template.table";
 import { consultingCompetencyEvaluationTable } from "./schema/tables/consulting_competency_evaluation.table";
+import { consultingCenterTokenTable } from "./schema/tables/consulting_center_token.table";
 import { preinscriptionRegistrationSource } from "./schema/tables/user_preinscription.table";
 // import { enrollmentStatus } from "./schema/tables/user_course.table";
 import { documentType, gender } from "./schema/tables/user.table";
@@ -103,6 +104,7 @@ export const consulting_job_position_groups = consultingJobPositionGroupTable;
 export const consulting_job_position_aliases = consultingJobPositionAliasTable;
 export const consulting_position_competency_templates = consultingPositionCompetencyTemplateTable;
 export const consulting_competency_evaluations = consultingCompetencyEvaluationTable;
+export const consulting_center_tokens = consultingCenterTokenTable;
 
 // Enum Data Types
 export const courseModailitySchema = courseModality;

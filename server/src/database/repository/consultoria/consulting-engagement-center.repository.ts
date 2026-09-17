@@ -1,11 +1,29 @@
 import { Injectable } from "@nestjs/common";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Repository, QueryOptions } from "../repository";
-import { consultingEngagementCenterTable } from "src/database/schema/tables/consulting_annual_engagement.table";
+import { consultingAnnualEngagementTable, consultingEngagementCenterTable } from "src/database/schema/tables/consulting_annual_engagement.table";
+import { consultingClientTable } from "src/database/schema/tables/consulting_client.table";
 import { centerTable } from "src/database/schema/tables/center.table";
 
 @Injectable()
 export class ConsultingEngagementCenterRepository extends Repository {
+  /** Consultorías en las que participa un centro — usado por el acceso externo (token) para listar "sus" años. */
+  async findByCenterId(id_center: number, options?: QueryOptions) {
+    return this.query(options)
+      .select({
+        id_annual_engagement: consultingAnnualEngagementTable.id_annual_engagement,
+        id_consulting_client: consultingAnnualEngagementTable.id_consulting_client,
+        client_name: consultingClientTable.name,
+        year: consultingAnnualEngagementTable.year,
+        status: consultingAnnualEngagementTable.status,
+      })
+      .from(consultingEngagementCenterTable)
+      .innerJoin(consultingAnnualEngagementTable, eq(consultingEngagementCenterTable.id_annual_engagement, consultingAnnualEngagementTable.id_annual_engagement))
+      .innerJoin(consultingClientTable, eq(consultingAnnualEngagementTable.id_consulting_client, consultingClientTable.id_consulting_client))
+      .where(eq(consultingEngagementCenterTable.id_center, id_center))
+      .orderBy(desc(consultingAnnualEngagementTable.year));
+  }
+
   async findByEngagementId(id_annual_engagement: number, options?: QueryOptions) {
     return this.query(options)
       .select({

@@ -21,6 +21,8 @@ import { useRole } from "../../utils/permissions/use-role";
 import { User } from "../../shared/types/user/user";
 import { BajaTag } from "../../components/common/tags";
 import CenterTrainingTab from "../../components/centers/CenterTrainingTab";
+import ConsultingCenterAccessTab from "../../components/centers/ConsultingCenterAccessTab";
+import { useConsultingCenterTokenStatusQuery } from "../../hooks/api/consulting-center-token/use-consulting-center-token-status.query";
 
 const CENTER_FORM_SCHEMA = z.object({
   id_center: z.number(),
@@ -46,6 +48,11 @@ export default function EditCenterRoute() {
   const canEdit = role === Role.ADMIN;
   const { data: centerData, isLoading: isCenterLoading } = useCenterQuery(id_center || "");
   const { data: companyData, isLoading: isCompanyLoading } = useCompanyQuery(centerData?.id_company ? String(centerData.id_company) : "");
+  // Pestaña "Consultoría" — solo se muestra si el centro ya tiene token (o
+  // le corresponde uno: participa en alguna consultoría abierta, ver
+  // ConsultingCenterTokenService.getStatus). El resto de centros no tiene
+  // nada que ver con Consultoría y no debe ver ni el token ni la pestaña.
+  const { data: consultingTokenStatus } = useConsultingCenterTokenStatusQuery(canEdit && centerData ? Number(centerData.id_center) : NaN);
   const { mutateAsync: updateCenter } = useUpdateCenterMutation(id_center || "");
   const { mutateAsync: deleteCenter } = useDeleteCenterMutation(id_center || "");
   const { handleSubmit, control, reset, formState: { errors } } = useForm<z.infer<typeof CENTER_FORM_SCHEMA>>({
@@ -306,6 +313,15 @@ export default function EditCenterRoute() {
             key: "formacion",
             label: "Formación en el centro",
             children: centerData ? <CenterTrainingTab centerId={centerData.id_center} /> : null,
+          }] : []),
+          // Acceso externo de Consultoría — ADMIN-only, y solo si el centro
+          // tiene (o le corresponde) token: participa en alguna consultoría
+          // abierta. El resto de centros no tiene nada que ver con
+          // Consultoría y no debe ver ni la pestaña (ver docs/consultoria.md).
+          ...(canEdit && centerData && consultingTokenStatus?.exists ? [{
+            key: "consultoria",
+            label: "Consultoría",
+            children: <ConsultingCenterAccessTab centerId={centerData.id_center} />,
           }] : []),
         ]}
       />

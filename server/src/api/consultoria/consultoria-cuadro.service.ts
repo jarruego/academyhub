@@ -52,10 +52,10 @@ export class ConsultingCuadroService {
   /** Cruce trabajador × acción del año de esta consultoría: real (matrícula, edición) si existe, si no manual. */
   async getCuadro(id_consulting_client: number, id_annual_engagement: number, id_center: number) {
     const engagement = await this.consultingClientService.getValidatedEngagementCenter(id_consulting_client, id_annual_engagement, id_center);
-    const planItems = await this.consultingPlanItemRepository.findByEngagementId(id_annual_engagement);
+    const planItems = await this.consultingPlanItemRepository.findEffectiveForCenter(id_annual_engagement, id_center);
     const actionsMap = new Map<number, string>();
     for (const item of planItems) {
-      if (item.id_center === null || item.id_center === id_center) actionsMap.set(item.id_catalog_course, item.name);
+      actionsMap.set(item.id_catalog_course, item.name);
     }
 
     const rows: Array<Record<string, unknown>> = [];

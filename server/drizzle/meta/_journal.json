@@ -680,6 +680,20 @@
       "when": 1789559575761,
       "tag": "0096_curvy_snowbird",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1789637962971,
+      "tag": "0097_lumpy_havok",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1789643527442,
+      "tag": "0098_yielding_lake",
+      "breakpoints": true
     }
   ]
 }

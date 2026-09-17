@@ -380,12 +380,18 @@ marcan explícitamente como infraestructura nueva.
   vivir en el catálogo; no volver a cometer ese error si se añade algo más
   aquí — pensar primero si el campo es del curso (catálogo) o de la
   convocatoria (edición).
-- **Acceso externo del centro = usuario técnico sin login** en `auth_users`
-  por centro. El guard nuevo resuelve el token y rellena `request['user']`
-  igual que `AuthGuard` — así el `audit_log`/`AuditInterceptor` existentes
-  capturan sus cambios sin tocar nada. Contrapartida: hace falta poder
-  distinguirlos de usuarios reales en las pantallas de Gestión de usuarios
-  (ver más abajo).
+- **Acceso externo del centro — sin `auth_user` real (corregido 2026-09-17,
+  revierte la idea de "usuario técnico" de este mismo apartado).** Se planteó
+  al principio una fila propia en `auth_users` por centro (`is_service_account`)
+  para que `request['user']` señalara a un usuario real. Al implementarlo se
+  vio innecesario: los `*_by` de negocio (`created_by`/`evaluated_by`...) ya
+  estaban pensados como nullable específicamente para "lo creó el token del
+  centro" (no un miembro de Mecohisa) — no iban a usar el id de ese usuario
+  técnico de todos modos. `ConsultingTokenGuard` rellena `request['user']`
+  con una identidad sintética (`{ id: null, username: 'centro:<id_center>' }`)
+  solo para que el `AuditInterceptor` existente registre algo — sin fila
+  nueva, sin contraseña inventada, sin nada que distinguir en Gestión de
+  usuarios.
 - **Token del centro en el mismo sitio que el JWT**: `Authorization: Bearer
   <token>`, no una cabecera nueva — el cliente ya tiene un hook
   (`use-authenticated-axios.util.ts`) montado sobre esa cabecera; el acceso
@@ -429,21 +435,28 @@ marcan explícitamente como infraestructura nueva.
 | `consulting_job_position_aliases` | **Ya implementada** (2026-09-16). `id_job_position_alias`, `job_position` (texto, tal cual aparece en `user.job_position`, único), `id_job_position` (FK). Mantenida solo por ADMIN — pantalla "Puestos de trabajo" (pestaña "Pendientes de relacionar") lista los valores de `job_position` reales sin alias todavía. |
 | `consulting_position_competency_templates` | **Ya implementada** (2026-09-16). Configurador: `id_position_competency_template`, `id_job_position` (FK), `id_competency` (FK), `default_value` (boolean nullable: true=no necesita mejorar, false=necesita mejorar, NULL=no aplica a ese puesto), único por (`id_job_position`, `id_competency`). |
 | `consulting_competency_evaluations` | **Ya implementada** (2026-09-16). `id_competency_evaluation`, `id_user` (FK), `id_center` (FK), `id_competency` (FK), `id_annual_engagement` (FK, explícito), `value` (boolean nullable, misma escala que la plantilla), `evaluated_at`, `evaluated_by` (nullable). Único por (`id_user`, `id_center`, `id_competency`, `id_annual_engagement`). Solo se persiste una fila al editar esa celda — el valor "efectivo" mostrado antes de editar es el de la plantilla del puesto, calculado en el servicio, no copiado a BD hasta que se toca. |
-| `consulting_center_tokens` | `id_center` (único), `token_hash`, `created_at`, `last_used_at`, `revoked_at`. |
+| `consulting_center_tokens` | **Ya implementada** (2026-09-17, `token_encrypted` añadido el mismo día — ver nota abajo). `id_center` (único, PK), `token_hash` (SHA-256, autenticación), `token_encrypted` (AES-256-GCM reversible, nullable — para poder volver a mostrarlo), `created_at`, `last_used_at`, `revoked_at`. Sin FK a `auth_users` — no hay usuario técnico detrás, ver "Guards y acceso externo". |
 
 Notas:
 - `id_annual_engagement` en evaluaciones es explícito (no derivado en cada query) para que los 4 dashboards no tengan que recalcular a qué ejercicio pertenece cada fila — igual que ya hace `consulting_action_evaluations`.
 - **`user.job_position` ya existe** (texto libre) — se usa como señal para el autorelleno de la plantilla por puesto, resuelto vía `consulting_job_position_aliases` (no comparando texto directamente contra `consulting_job_positions.name`, poco fiable). Si el valor de `job_position` no tiene alias todavía, no hay autorelleno (celdas en blanco) y se avisa en el modal de evaluación de ese trabajador, sin bloquear — el valor queda listado en "Puestos de trabajo" (pestaña "Pendientes de relacionar") para que ADMIN lo relacione.
 - **`ConsultingCompetencyEvaluationService.getRosterWithCompetencies`** resuelve el "efectivo" de cada celda en memoria (sin N+1): evaluación ya guardada, si la hay; si no, el `default_value` de la plantilla de su puesto; si no, en blanco — expuesto en la respuesta como `source` (`evaluated`/`template`/`blank`) para que el frontend distinga lo ya tocado a mano de lo que sigue siendo sugerencia.
-- Consecuencia de "usuario técnico por centro": añadir `auth_users.is_service_account` (boolean, default `false`) para poder filtrarlos por defecto de `/auth-users` y de cualquier listado de usuarios — a validar con `docs/security.md`/`docs/permissions-matrix.md` al implementarlo.
-
 ### Guards y acceso externo
 
-**No hay precedente de acceso público por token en este código** (se comprobó — el único `@Public()` existente es login y descarga de ficheros; el "token" de `docs/mail-moodle.md` es un token de servidor→Moodle, no de visitante→servidor). Es infraestructura nueva:
+**No hay precedente de acceso público por token en este código** (se comprobó — el único `@Public()` existente es login y descarga de ficheros; el "token" de `docs/mail-moodle.md` es un token de servidor→Moodle, no de visitante→servidor). Es infraestructura nueva — **implementada 2026-09-17** sin usuario técnico (ver "Decisiones técnicas cerradas" arriba, corrige el planteamiento inicial de esta sección):
 
-- `ConsultingTokenGuard` (nuevo, junto a `AuthGuard`): lee el token de `Authorization: Bearer <token>` (no de la URL de cada llamada a la API — el enlace humano sí lo lleva en la URL, pero el cliente lo reenvía por esa cabecera, igual que el JWT normal, vía una variante de `use-authenticated-axios.util.ts`), lo hashea, lo resuelve contra `consulting_center_tokens`, comprueba `revoked_at IS NULL`, y rellena `request['user']` con el usuario técnico del centro — igual que hace `AuthGuard` con un login normal. Comprueba también el estado de la consultoría anual en la que participa el centro: si está `CLOSED`, solo permite lectura.
-- Enlace humano: `https://<app>/consultoria-centro/:token` — ruta de cliente sin el layout/sidebar normal, que guarda el token y lo usa en cabecera para sus llamadas a `api/consultoria/centro/...`.
+- `ConsultingTokenGuard` (`src/guards/auth/consulting-token.guard.ts`, junto a `AuthGuard`): lee el token de `Authorization: Bearer <token>` (no de la URL de cada llamada a la API — el enlace humano sí lo lleva en la URL, pero el cliente lo reenvía por esa cabecera vía `use-consulting-centro-axios.util.ts`), lo hashea (SHA-256, determinista — `opaque-token.util.ts`), lo resuelve contra `consulting_center_tokens`, comprueba `revoked_at IS NULL`, actualiza `last_used_at` y rellena `request['user']` con una identidad sintética (`{ id: null, username: 'centro:<id_center>' }` — sin usuario técnico real, ver más arriba) solo para que el `AuditInterceptor` registre algo. El propio controlador (`ConsultingCentroService`) comprueba el estado de la consultoría en la que participa el centro por cada llamada de escritura: si está `CLOSED`, la rechaza (`ForbiddenException`) — no es el guard quien decide esto, porque depende de qué `id_annual_engagement` se esté tocando en cada endpoint, y ese dato solo lo tiene el controlador, no el guard.
+- Enlace humano: `https://<app>/consultoria-centro/:token` — ruta de cliente sin el layout/sidebar normal (`ConsultingCentroShell`), montada en `main.tsx` con su propio router (`router-consulting-centro.tsx`) **antes** de `AuthProvider`, que si no bloquea cualquier URL detrás del login sin mirar la ruta.
+- **Sesión ligada al navegador, no al token en sí (2026-09-17, pedido explícito del usuario).** El token identifica inequívocamente al centro y da permisos especiales — el usuario no quería que esa entrada "se quedara siempre abierta" más allá de cerrar el navegador. Como el guard es un bearer stateless (sin cookie ni JWT con expiración), la única forma de que "cerrar el navegador" signifique algo es no dejar el token en ningún sitio que sobreviva a eso. Por eso `/consultoria-centro/:token` (`ConsultingCentroEntryRoute`) es el **único** sitio donde el token vive en la URL: en cuanto se visita, se guarda en `sessionStorage` (nunca `localStorage` — eso sí sobreviviría a cerrar el navegador) y se redirige a `/consultoria-centro/app[...]`, rutas internas que ya no lo llevan en la URL ni en el historial. `ConsultingCentroShell` lee el token de `sessionStorage`; si no está (navegador cerrado y reabierto, u "Salir" en la cabecera, que lo limpia a mano) muestra "Sesión no disponible" y hay que volver a usar el enlace original — el token en sí sigue siendo válido (no es de un solo uso, ADMIN puede seguir viéndolo/copiándolo desde la ficha del centro), solo se pierde la comodidad de no tener que volver a pegarlo.
 - Endpoints internos (ADMIN/CONSULTOR): `@UseGuards(RoleGuard([Role.ADMIN, Role.CONSULTOR]))` a nivel de controlador, mismo patrón que `course-request.controller.ts`. `CONSULTOR` hoy tiene los mismos privilegios que `VIEWER` (comentario en `role.enum.ts`) — Consultoría es el primer módulo que le da permisos reales.
+- **Aislamiento verificado 2026-09-17** (pedido explícito del usuario: "que solo puedan leer y editar... lo que necesitan"). Capas de contención, de fuera a dentro:
+  1. `ConsultingTokenGuard` solo está montado en `ConsultingCentroController` — es el único `@Public()` de la app aparte de login y ficheros (comprobado con `grep`), así que un token de centro nunca llega a ningún otro guard. Enviarlo contra cualquier ruta interna (`RoleGuard`-protegida o no) lo recibe primero el `AuthGuard` global, que intenta verificarlo como JWT y falla siempre — probado en vivo contra `GET /api/consultoria/clients`, la propia gestión ADMIN del token (`GET /api/consultoria/centers/:id/token`) y una ruta cualquiera: 401 en los tres casos, igual que sin token o con uno inventado.
+  2. `id_center` sale siempre de la fila resuelta por el hash (`request['id_center']`), nunca de un parámetro/cuerpo de la petición — no hay ningún campo que un centro pueda rellenar para operar como otro.
+  3. Cada endpoint de `ConsultingCentroController` valida participación (`ConsultingEngagementCenterRepository.isParticipant`) antes de nada — probado en vivo: un centro de **otro cliente** (AFAMP) recibe `[]` en "mis consultorías" y 404 al pedir el plan de la consultoría de VITALIA.
+  4. Las evaluaciones comprueban además propiedad (`evaluation.id_center !== id_center` → 404) — probado en vivo entre dos centros del **mismo** cliente y la **misma** consultoría (ALCOLEA/ALCORCON): un centro no ve la evaluación del otro al listar, y editarla/borrarla por id devuelve "Evaluación no encontrada en esta consultoría", nunca el dato de quién es.
+  5. `listActions` dejó de traer a memoria el plan de **todos** los centros de la consultoría para filtrar después (nunca se devolvía en la respuesta, pero violaba mínimo privilegio también a nivel de consulta) — ahora `ConsultingPlanItemRepository.findEffectiveForCenter` filtra ya en el `WHERE` (base ∪ propio de ese centro), igual que ya hacían el resto de consultas scoped a centro.
+  6. Escritura bloqueada si la consultoría está `CLOSED` (`assertWritable`, en el servicio — el guard no lo sabe, depende del `id_annual_engagement` de cada llamada).
+  Sin capacidad de listado masivo ni de navegar a otro centro/cliente desde ningún endpoint — el alcance sigue siendo el cerrado en el planteamiento funcional (§ Modelo conceptual): evaluar sus acciones (competencias y asistentes, pendientes).
 
 ### Módulo (NestJS), siguiendo el patrón de `course-request`
 
@@ -497,7 +510,7 @@ Apertura/cierre automático de la consultoría anual: descartado por ahora (ver 
     grupo se abre anidado encima del modal de gestión (antd apila el z-index
     solo). Pestañas finales: 3 (Listado/Pendientes de relacionar/Ya
     relacionados).
-- Ruta externa del centro: `/consultoria-centro/:token`, layout propio sin sidebar.
+- Ruta externa del centro (**implementada 2026-09-17**): `/consultoria-centro/:token` (`ConsultingCentroEntryRoute` — único sitio con el token en la URL, lo pasa a `sessionStorage` y redirige) → `/consultoria-centro/app` (`ConsultingCentroEngagementsRoute` — lista sus consultorías, con enlace "Entrar") → `/consultoria-centro/app/:id_annual_engagement` (`ConsultingCentroEvaluationsRoute` — evaluar sus acciones, mismo formulario+tabla que la pestaña interna "Evaluación de acciones", sin las acciones de ADMIN/CONSULTOR que no aplican aquí). Layout propio sin sidebar (`ConsultingCentroShell`, con botón "Salir" que limpia la sesión a mano), montado en `main.tsx` con su propio router (`router-consulting-centro.tsx`) por delante de `AuthProvider`. La sesión vive en `sessionStorage` (se pierde al cerrar el navegador — ver "Guards y acceso externo"), nunca en la URL de las rutas `/app...`.
 - Empresas/Centros no tienen hoy ninguna pantalla de agrupación (son recursos planos bajo "Empresas") — Cliente no se cuelga de esas pantallas, tiene las suyas propias, referenciando empresas/centros por id.
 
 ### Al implementar (recordatorios de CLAUDE.md)
@@ -699,7 +712,104 @@ en las convenciones reales del código. **En construcción desde 2026-09-15**:
   tablas al momento). **Marcado explícitamente como temporal** —
   borrar controlador/servicio/datos/botones/script cuando el usuario avise
   de que ya no hace falta.
-- Resto del roadmap sin empezar (acceso externo para centros).
+- ✅ Acceso externo del centro por token (fase 10 del roadmap, completa,
+  2026-09-17) — infraestructura + las tres capacidades del alcance cerrado
+  (evaluar sus acciones, evaluar competencias, registrar asistentes de sus
+  propias acciones). Nuevo `ConsultingTokenGuard` (token opaco
+  aleatorio, hasheado con SHA-256 — no scrypt/salt por fila como
+  `password-hashing.util.ts`, porque aquí el hash tiene que ser determinista
+  para buscar por igualdad en BD; con 256 bits de entropía un hash rápido ya
+  es indistinguible de fuerza bruta — ver `opaque-token.util.ts`), montado
+  solo en `ConsultingCentroController` (`@Public()` + `@UseGuards(...)`,
+  `api/consultoria/centro/*`) — nunca en las rutas internas, sin ambigüedad
+  con el JWT normal. `consulting_center_tokens` (`id_center` único,
+  `token_hash`, `created_at`, `last_used_at`, `revoked_at`) — un único token
+  por centro, regenerarlo sustituye el hash anterior (invalida el enlace
+  viejo al momento). Gestión ADMIN-only (`ConsultingCenterTokenController`,
+  `api/consultoria/centers/:id_center/token`) desde la pestaña "Consultoría"
+  **de la ficha del centro** (`/centers/:id/edit`, pantalla núcleo, no de
+  Consultoría — ahí es donde consultoría pidió poder revocarlo/regenerarlo).
+  **Token único y exclusivamente para centros dentro de una consultoría
+  abierta, salvo que se haya revocado — corregido 2026-09-17 el mismo día**
+  (primero se implementó "todo centro tiene token por defecto", pedido
+  explícito del usuario; el propio usuario aclaró después que era demasiado
+  amplio: la mayoría de centros de la app no tienen nada que ver con
+  Consultoría, así que el token — y la pestaña entera — debe limitarse a
+  los que participan en alguna consultoría anual `OPEN`).
+  `ConsultingCenterTokenService.getStatus`/`.issue` comprueban participación
+  en una consultoría `OPEN` (`ConsultingEngagementCenterRepository.findByCenterId`)
+  antes de generar nada — tanto en el alta automática (primera consulta de
+  la pestaña) como en el alta manual ("Regenerar"); ninguno de los dos
+  genera un token para un centro fuera de una consultoría abierta
+  (`BadRequestException`, probado contra la API). Nunca si ya existe una
+  fila, revocada o no, así que revocar sigue siendo definitivo hasta que
+  ADMIN pulse "Regenerar" a mano; sin botón "Generar" en el frontend, ya no
+  hace falta (solo "Regenerar"/"Revocar"). La pestaña "Consultoría" de
+  `center-detail.route.tsx` **ni se muestra** para un centro sin token
+  (`consultingTokenStatus?.exists` decide si se incluye en `RouteTabs`) — no
+  solo el token, la pestaña entera queda fuera para el resto de centros.
+  Cubre los centros nuevos solos, sin enganchar este módulo a la creación
+  de centros (núcleo) — y para los que ya existían al construir esto, un
+  backfill puntual (`seed-consulting-center-tokens.ts`, idempotente, solo
+  los que participan en una consultoría `OPEN` y no tenían fila) les generó
+  el suyo de una vez; los 14 tokens que se habían creado de más en la
+  primera pasada (centros fuera de cualquier consultoría abierta) se
+  borraron a mano — no queda ninguna fila para ellos, ni falta.
+  **Dos vueltas el mismo día sobre "cuándo se puede ver el token":**
+  primero, siguiendo el patrón de un API key (GitHub/Stripe), solo se
+  devolvía en claro una vez al generarlo, sin guardarlo en ningún sitio
+  recuperable (solo el hash) — el usuario preguntó por qué no dejarlo
+  siempre disponible para copiar, ya que solo ADMIN entra a esa pantalla.
+  Se corrigió a un intermedio (mantenerlo en memoria de React durante la
+  visita, perdiéndolo al recargar), y el usuario pidió ir más allá:
+  siempre disponible, sin depender de la sesión del navegador. Se añadió
+  `token_encrypted` (AES-256-GCM vía `APP_MASTER_KEY`, reversible — mismo
+  mecanismo que la contraseña SMTP de organización) junto al `token_hash`
+  que sigue usando el guard para autenticar; `getStatus` ahora también
+  descifra y devuelve el token, así que la pestaña lo muestra siempre, sin
+  modal ni aviso de "una sola vez". Contrapartida asumida a propósito: quien
+  tenga acceso a la BD *y* a `APP_MASTER_KEY` puede recuperar todos los
+  tokens de golpe (mismo riesgo que ya se acepta hoy para la contraseña
+  SMTP) — a cambio de no tener que regenerar el enlace de un centro cada
+  vez que ADMIN necesita volver a compartirlo. En pantalla el enlace se
+  muestra oculto por defecto (`Input.Password`, mismo componente que un
+  campo de contraseña — puntos + icono de ojo para revelarlo si se quiere)
+  con un botón "Copiar" aparte que funciona sin necesidad de revelarlo
+  antes — pedido explícito del usuario tras la corrección anterior: que sea
+  copiable siempre no significa que tenga que estar a la vista por defecto.
+  Enlace humano
+  `/consultoria-centro/:token`: layout propio sin sidebar ni login normal —
+  montado en `main.tsx` **antes** de `AuthProvider` (que si no, bloquea
+  cualquier ruta detrás de la pantalla de login sin mirar la URL), con su
+  propio router (`router-consulting-centro.tsx`), su propio contexto de
+  autenticación (`consulting-centro.context.tsx`, el token vive en la URL,
+  no en `localStorage`) y su propia variante del hook de axios autenticado
+  (`use-consulting-centro-axios.util.ts`). Alcance cerrado **completo desde
+  2026-09-17**: listar "sus" consultorías (centro ∈
+  `consulting_engagement_centers`), evaluar sus acciones, evaluar
+  competencias y registrar asistentes de sus propias acciones — las tres
+  últimas todas con el mismo patrón (`ConsultingCentroService` delegando en
+  el servicio interno que ya usan ADMIN/CONSULTOR — `ConsultingEvaluationService`,
+  `ConsultingCompetencyEvaluationService`, `ConsultingCuadroService` — sin
+  duplicar reglas de validación, solo resolviendo la consultoría a partir
+  del centro del token y bloqueando la escritura si está `CLOSED`).
+  Pantallas del centro (`ConsultingCentroEngagementRoute`, 3 pestañas:
+  Evaluación de acciones / Competencias / Asistentes) deliberadamente
+  simples — reutilizan la misma lógica que las pantallas internas de
+  ADMIN/CONSULTOR sin intentar hacerlas más amigables todavía; si en el
+  futuro conviene una versión distinta para los centros, se revisará
+  cuando todo esté funcionando y en uso real, no antes.
+  **Sin roster ajustable ni búsqueda de todos los usuarios del sistema**
+  para el centro: para elegir a quién evaluar o registrar como asistente
+  usa su propio roster (`GET .../roster`, ya scoped a `id_center` — mismos
+  datos que ya ve en Competencias), nunca `GET /user/lookup` (todo el
+  sistema, solo ADMIN/CONSULTOR) — decisión deliberada de mínimo privilegio
+  (ver "Aislamiento verificado" arriba), no una limitación técnica: cubre el
+  caso normal (registrar a los suyos) sin abrir una búsqueda de toda la
+  plantilla de la app a un token externo. `getCuadro` tenía el mismo
+  sobre-consumo que `listActions` (traía a memoria el plan de todos los
+  centros antes de filtrar) — corregido a la vez, usando
+  `findEffectiveForCenter` también aquí.
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)
 1. Cierre de decisiones con consultoría.
@@ -711,7 +821,7 @@ en las convenciones reales del código. **En construcción desde 2026-09-15**:
 7. Evaluación de acciones formativas.
 8. Cuadro de formación por centro (cruce automático).
 9. Evaluación de competencias + configurador de plantillas por puesto.
-10. Acceso externo seguro para centros.
+10. Acceso externo seguro para centros — **completo 2026-09-17** (infraestructura + evaluación de acciones + evaluación de competencias + registro de asistentes de sus propias acciones, ver "Estado").
 11. *(Fase siguiente, fuera de esta fase 1)* Panel de altas/bajas de
     participantes.
 

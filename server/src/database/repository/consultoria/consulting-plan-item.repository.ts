@@ -48,6 +48,21 @@ export class ConsultingPlanItemRepository extends Repository {
       .orderBy(catalogCourseTable.name);
   }
 
+  // Plan efectivo de UN solo centro (base ∪ propio) — usado por el acceso
+  // externo del centro (token): a diferencia de findByEngagementId (que
+  // trae el plan de TODOS los centros, para las pantallas internas
+  // ADMIN/CONSULTOR que necesitan verlo entero), esto nunca trae a memoria
+  // filas de otros centros. Mínimo privilegio también a nivel de consulta,
+  // no solo en la respuesta HTTP. Ver docs/consultoria.md.
+  async findEffectiveForCenter(id_annual_engagement: number, id_center: number, options?: QueryOptions) {
+    return this.baseQuery(options)
+      .where(and(
+        eq(consultingPlanItemTable.id_annual_engagement, id_annual_engagement),
+        or(isNull(consultingPlanItemTable.id_center), eq(consultingPlanItemTable.id_center, id_center)),
+      ))
+      .orderBy(catalogCourseTable.name);
+  }
+
   async findById(id_plan_item: number, options?: QueryOptions) {
     const rows = await this.baseQuery(options).where(eq(consultingPlanItemTable.id_plan_item, id_plan_item));
     return rows[0];

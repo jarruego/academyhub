@@ -1,0 +1,1 @@
+ALTER TABLE "academyhub"."consulting_center_tokens" ADD COLUMN "token_encrypted" text;

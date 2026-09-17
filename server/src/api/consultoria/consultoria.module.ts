@@ -27,6 +27,11 @@ import { ConsultingCompetencyEvaluationController } from "./consultoria-competen
 import { ConsultingCompetencyEvaluationService } from "./consultoria-competency-evaluation.service";
 import { ConsultingCatalogSeedController } from "./consultoria-catalog-seed.controller";
 import { ConsultingCatalogSeedService } from "./consultoria-catalog-seed.service";
+import { ConsultingCenterTokenController } from "./consultoria-center-token.controller";
+import { ConsultingCenterTokenService } from "./consultoria-center-token.service";
+import { ConsultingCentroController } from "./consultoria-centro.controller";
+import { ConsultingCentroService } from "./consultoria-centro.service";
+import { ConsultingTokenGuard } from "src/guards/auth/consulting-token.guard";
 import {
   ConsultingClientRepository,
   ConsultingClientCompanyRepository,
@@ -46,6 +51,7 @@ import { ConsultingJobPositionGroupRepository } from "src/database/repository/co
 import { ConsultingJobPositionAliasRepository } from "src/database/repository/consultoria/consulting-job-position-alias.repository";
 import { ConsultingPositionCompetencyTemplateRepository } from "src/database/repository/consultoria/consulting-position-competency-template.repository";
 import { ConsultingCompetencyEvaluationRepository } from "src/database/repository/consultoria/consulting-competency-evaluation.repository";
+import { ConsultingCenterTokenRepository } from "src/database/repository/consultoria/consulting-center-token.repository";
 import { CenterRepository } from "src/database/repository/center/center.repository";
 import { CourseRepository } from "src/database/repository/course/course.repository";
 
@@ -65,6 +71,8 @@ import { CourseRepository } from "src/database/repository/course/course.reposito
     ConsultingCompetencyTemplateController,
     ConsultingCompetencyEvaluationController,
     ConsultingCatalogSeedController,
+    ConsultingCenterTokenController,
+    ConsultingCentroController,
   ],
   providers: [
     ConsultingClientService,
@@ -97,6 +105,10 @@ import { CourseRepository } from "src/database/repository/course/course.reposito
     ConsultingCompetencyEvaluationService,
     ConsultingCompetencyEvaluationRepository,
     ConsultingCatalogSeedService,
+    ConsultingCenterTokenService,
+    ConsultingCenterTokenRepository,
+    ConsultingCentroService,
+    ConsultingTokenGuard,
     CenterRepository,
     CourseRepository,
   ],
