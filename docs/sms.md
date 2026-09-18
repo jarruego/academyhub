@@ -22,9 +22,11 @@ Cliente HTTP fino: `server/src/api/sms/mailrelay-sms.client.ts` (axios, mismo pa
 
 ## Variables de plantilla
 
-Mismo catálogo que el correo (`client/src/constants/mail/mail-template-variables.ts` → `MAIL_TEMPLATE_VARIABLES`, reutilizado tal cual): `{NOMBRE_CURSO} {FECHA_INICIO} {FECHA_FIN} {USUARIO_MOODLE} {CLAVE_MOODLE}`.
+Mismo catálogo base que el correo (`client/src/constants/mail/mail-template-variables.ts` → `MAIL_TEMPLATE_VARIABLES`): `{NOMBRE_CURSO} {FECHA_INICIO} {FECHA_FIN} {USUARIO_MOODLE} {CLAVE_MOODLE}`. SMS añade una variable propia, **`{NOMBRE_CURSO_CORTO}`** (nombre corto del *curso de catálogo*, `catalog_courses.short_name` — ver `docs/course-catalog.md`), expuesta a través de `SMS_TEMPLATE_VARIABLES` (mismo fichero de constantes) — deliberadamente **no** en `MAIL_TEMPLATE_VARIABLES`/`REPORT_MAIL_TEMPLATE_VARIABLES`, así que no aparece en los editores de plantillas de correo. La usan los botones de inserción de `Create/EditSmsTemplateModal` y el propio `SendSmsToGroupModal` (mensaje editado del envío a grupo).
 
-`SmsService.buildTemplateVariables`/`applyVariables` (`server/src/api/sms/sms.service.ts`) son una **copia deliberada** de los métodos privados equivalentes de `MailService` — no hay helper compartido, mismo criterio ya documentado para `MailService.resolveToken`. Si se cambia el set de variables en un lado, replicar manualmente en el otro.
+`SmsService.buildTemplateVariables`/`applyVariables` (`server/src/api/sms/sms.service.ts`) son una **copia deliberada** de los métodos privados equivalentes de `MailService` — no hay helper compartido, mismo criterio ya documentado para `MailService.resolveToken`. Si se cambia el set de variables en un lado, replicar manualmente en el otro (`{NOMBRE_CURSO_CORTO}` es la excepción intencional: solo SMS).
+
+`courseShortName` viaja igual que `courseName` (resuelto en el cliente, no en el servidor, a partir de un id de curso): en el envío desde la pantalla de grupo, `group-detail.route.tsx` lo toma de `courseData.catalog_course_short_name` (join `catalog_courses` añadido a `CourseRepository.findById`) y lo propaga por `GroupUsersManager` → `SendSmsToGroupModal` → `SendSmsOptions`/`SendSmsFromTemplateOptions`/`PreviewSmsLengthOptions`.
 
 ## Endpoints y guards
 

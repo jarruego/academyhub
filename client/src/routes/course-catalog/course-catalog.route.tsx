@@ -85,6 +85,7 @@ export default function CourseCatalogRoute() {
         </>
       ),
     },
+    { title: "Nombre corto", dataIndex: "short_name" },
     { title: "Código", dataIndex: "internal_code", render: value => value || "-" },
     { title: "Especialidad SEPE", dataIndex: "sepe_specialty_code", render: value => value || "-" },
     { title: "Familia profesional", dataIndex: "professional_family", render: value => value || "-" },

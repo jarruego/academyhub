@@ -18,3 +18,11 @@ export const REPORT_MAIL_TEMPLATE_VARIABLES = [
   { key: '{FECHA_INICIO}', label: 'Fecha de inicio' },
   { key: '{FECHA_FIN}', label: 'Fecha de fin' },
 ];
+
+// Variables disponibles solo en plantillas de SMS (no en correo): el nombre
+// corto del curso de catálogo, útil ahí porque cada carácter cuenta para el
+// límite de 1 SMS — ver SmsService.buildTemplateVariables.
+export const SMS_TEMPLATE_VARIABLES = [
+  ...MAIL_TEMPLATE_VARIABLES,
+  { key: '{NOMBRE_CURSO_CORTO}', label: 'Nombre corto del curso' },
+];

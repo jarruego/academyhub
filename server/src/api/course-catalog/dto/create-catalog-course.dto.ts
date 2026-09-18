@@ -9,6 +9,13 @@ export class CreateCatalogCourseDto {
   @IsNotEmpty()
   name: string;
 
+  // Nombre corto del curso de catálogo (p.ej. para SMS) — distinto de
+  // `internal_code` (código, no nombre). Ver docs/sms.md.
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  short_name: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

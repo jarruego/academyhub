@@ -5,6 +5,8 @@ export type CatalogCourse = {
   id_catalog_course: number;
   name: string;
   normalized_name: string;
+  // Nombre corto del curso de catálogo (p.ej. para SMS) — distinto de `internal_code`.
+  short_name: string;
   internal_code?: string | null;
   description?: string | null;
   objectives?: string | null;

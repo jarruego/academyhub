@@ -6,6 +6,8 @@ export type Course = {
     id_course: number;
     id_catalog_course: number;
     catalog_course_name?: string;
+    // Nombre corto del curso de catálogo — para {NOMBRE_CURSO_CORTO} en SMS (ver docs/sms.md).
+    catalog_course_short_name?: string;
     course_name: string;
     moodle_id?: number | null;
     short_name: string;

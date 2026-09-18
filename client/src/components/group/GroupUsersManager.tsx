@@ -36,6 +36,8 @@ interface Props {
   // Nombre de cada grupo por id, para la columna "Grupo" que aparece cuando hay 2+ seleccionados.
   groupNamesById?: Record<number, string>;
   courseName?: string;
+  // Nombre corto del curso de catálogo — para {NOMBRE_CURSO_CORTO} en SMS (ver docs/sms.md).
+  courseShortName?: string;
   courseModality?: string | null;
   courseClient?: string | null;
   courseFunding?: string | null;
@@ -95,7 +97,7 @@ function dedupeByUserId<T extends { id_user: number }>(rows: T[]): T[] {
   return result;
 }
 
-const GroupUsersManager: React.FC<Props> = ({ groupIds, groupNamesById = {}, courseName, courseModality, courseClient, courseFunding, catalogCourseId, groupStart, groupEnd, highlightUserId }) => {
+const GroupUsersManager: React.FC<Props> = ({ groupIds, groupNamesById = {}, courseName, courseShortName, courseModality, courseClient, courseFunding, catalogCourseId, groupStart, groupEnd, highlightUserId }) => {
   const { message: messageApi, modal, notification: notificationApi } = App.useApp();
   const { token } = theme.useToken();
 
@@ -942,6 +944,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupIds, groupNamesById = {}, cou
         open={isSendSmsOpen}
         users={dedupeByUserId(selectedRows).map((u) => ({ id_user: u.id_user, phone: u.phone }))}
         courseName={courseName}
+        courseShortName={courseShortName}
         groupStart={groupStart}
         groupEnd={groupEnd}
         onOk={() => setIsSendSmsOpen(false)}

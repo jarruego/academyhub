@@ -16,7 +16,7 @@ import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course
 
 const CREATE_COURSE_FORM = z.object({
   id_catalog_course: z.coerce.number().int().positive("Selecciona un curso del catálogo"),
-  course_name: z.string({ required_error: "El nombre del curso es obligatorio" }).min(2, "El nombre es demasiado corto"),
+  course_name: z.string({ required_error: "El nombre de la edición es obligatorio" }).min(2, "El nombre es demasiado corto"),
   short_name: z.string({ required_error: "El nombre corto es obligatorio" }).min(2, "El nombre corto es demasiado corto"),
   start_date: z.date().nullable().optional(),
   end_date: z.date().nullable().optional(),
@@ -105,7 +105,7 @@ export default function CreateCourseRoute() {
         <Row gutter={[16, 0]}>
           <Col xs={24} md={16}>
             <Form.Item
-              label="Nombre del curso"
+              label="Nombre de la edición del curso"
               name="course_name"
               required={true}
               help={errors.course_name?.message}

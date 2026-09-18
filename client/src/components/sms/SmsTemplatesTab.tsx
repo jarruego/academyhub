@@ -45,6 +45,7 @@ export default function SmsTemplatesTab() {
           <b>Variables disponibles:</b>
           <ul>
             <li><code>{'{NOMBRE_CURSO}'}</code> — Nombre del curso</li>
+            <li><code>{'{NOMBRE_CURSO_CORTO}'}</code> — Nombre corto del curso (curso de catálogo)</li>
             <li><code>{'{FECHA_INICIO}'}</code> — Fecha de inicio del curso</li>
             <li><code>{'{FECHA_FIN}'}</code> — Fecha de fin del curso</li>
             <li><code>{'{USUARIO_MOODLE}'}</code> — Usuario de Moodle</li>

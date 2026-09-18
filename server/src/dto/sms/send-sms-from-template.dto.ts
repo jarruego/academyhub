@@ -14,6 +14,10 @@ export class SendSmsFromTemplateDto {
 
   @IsOptional()
   @IsString()
+  courseShortName?: string;
+
+  @IsOptional()
+  @IsString()
   courseStart?: string;
 
   @IsOptional()

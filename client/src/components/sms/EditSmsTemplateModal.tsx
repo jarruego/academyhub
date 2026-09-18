@@ -5,7 +5,7 @@ import z from 'zod';
 import { Modal, Input, Form, Space, Tooltip, Button, Typography } from 'antd';
 import type { TextAreaRef } from 'antd/es/input/TextArea';
 import { useUpdateSmsTemplateMutation } from '../../hooks/api/sms/use-sms-templates';
-import { MAIL_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-variables';
+import { SMS_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-variables';
 import { estimateSmsLength, withUnsubscribeFooter, SMS_MAX_PARTS } from '../../utils/sms/sms-length.util';
 
 const SmsTemplateSchema = z.object({
@@ -90,7 +90,7 @@ export default function EditSmsTemplateModal({ open, template, onOk, onCancel }:
         </Form.Item>
         <Form.Item label="Mensaje" validateStatus={errors.message ? 'error' : ''} help={errors.message?.message}>
           <Space style={{ marginBottom: 8, flexWrap: 'wrap' }}>
-            {MAIL_TEMPLATE_VARIABLES.map((v) => (
+            {SMS_TEMPLATE_VARIABLES.map((v) => (
               <Tooltip title={v.label} key={v.key}>
                 <Button
                   size="small"

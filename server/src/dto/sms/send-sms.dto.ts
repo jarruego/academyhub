@@ -31,6 +31,10 @@ export class SendSmsDto {
 
   @IsOptional()
   @IsString()
+  courseShortName?: string;
+
+  @IsOptional()
+  @IsString()
   courseStart?: string;
 
   @IsOptional()

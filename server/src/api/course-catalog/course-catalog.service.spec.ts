@@ -29,13 +29,13 @@ describe("CourseCatalogService", () => {
   it("convierte cadenas vacías opcionales a null al crear", async () => {
     const { repository, service } = build();
     repository.create.mockImplementation((data: unknown) => data);
-    await service.create({ name: " Manipulador ", internal_code: "" });
+    await service.create({ name: " Manipulador ", short_name: "MANIP", internal_code: "" });
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ name: "Manipulador", internal_code: null }));
   });
 
   it("traduce colisiones de nombre/código a un conflicto de dominio", async () => {
     const { repository, service } = build();
     repository.create.mockRejectedValue({ code: "23505" });
-    await expect(service.create({ name: "Duplicado" })).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.create({ name: "Duplicado", short_name: "DUPLI" })).rejects.toBeInstanceOf(ConflictException);
   });
 });

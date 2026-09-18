@@ -11,7 +11,7 @@ export class CourseRepository extends Repository {
 
   async findById(id: number, options?: QueryOptions) {
     const rows = await this.query(options)
-      .select({ ...getTableColumns(courseTable), catalog_course_name: catalogCourseTable.name })
+      .select({ ...getTableColumns(courseTable), catalog_course_name: catalogCourseTable.name, catalog_course_short_name: catalogCourseTable.short_name })
       .from(courseTable)
       .innerJoin(catalogCourseTable, eq(courseTable.id_catalog_course, catalogCourseTable.id_catalog_course))
       .where(eq(courseTable.id_course, id));
@@ -61,7 +61,7 @@ export class CourseRepository extends Repository {
         }
 
         return await this.query(options)
-          .select({ ...getTableColumns(courseTable), catalog_course_name: catalogCourseTable.name })
+          .select({ ...getTableColumns(courseTable), catalog_course_name: catalogCourseTable.name, catalog_course_short_name: catalogCourseTable.short_name })
           .from(courseTable)
           .innerJoin(catalogCourseTable, eq(courseTable.id_catalog_course, catalogCourseTable.id_catalog_course))
           .where(and(...where));
@@ -78,7 +78,7 @@ export class CourseRepository extends Repository {
 
   async findByMoodleId(moodleId: number, options?: QueryOptions) {
     const rows = await this.query(options)
-      .select({ ...getTableColumns(courseTable), catalog_course_name: catalogCourseTable.name })
+      .select({ ...getTableColumns(courseTable), catalog_course_name: catalogCourseTable.name, catalog_course_short_name: catalogCourseTable.short_name })
       .from(courseTable)
       .innerJoin(catalogCourseTable, eq(courseTable.id_catalog_course, catalogCourseTable.id_catalog_course))
       .where(eq(courseTable.moodle_id, moodleId));

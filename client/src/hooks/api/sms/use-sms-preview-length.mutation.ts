@@ -9,6 +9,7 @@ export interface SmsPreviewLengthRequest {
   message?: string;
   userId?: number;
   courseName?: string;
+  courseShortName?: string;
   courseStart?: string;
   courseEnd?: string;
 }

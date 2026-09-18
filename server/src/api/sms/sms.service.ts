@@ -29,6 +29,7 @@ export interface SendSmsOptions {
   applyVariables?: boolean;
   userId?: number;
   courseName?: string;
+  courseShortName?: string;
   courseStart?: string;
   courseEnd?: string;
 }
@@ -38,6 +39,7 @@ export interface SendSmsFromTemplateOptions {
   templateId: number;
   userId?: number;
   courseName?: string;
+  courseShortName?: string;
   courseStart?: string;
   courseEnd?: string;
   senderName?: string;
@@ -51,6 +53,7 @@ export interface PreviewSmsLengthOptions {
   message?: string;
   userId?: number;
   courseName?: string;
+  courseShortName?: string;
   courseStart?: string;
   courseEnd?: string;
 }
@@ -85,9 +88,11 @@ export class SmsService {
     courseName?: string,
     courseStart?: string,
     courseEnd?: string,
+    courseShortName?: string,
   ): Promise<Record<string, string>> {
     const variables: Record<string, string> = {
       '{NOMBRE_CURSO}': courseName ?? '',
+      '{NOMBRE_CURSO_CORTO}': courseShortName ?? '',
       '{FECHA_INICIO}': courseStart ?? '',
       '{FECHA_FIN}': courseEnd ?? '',
       '{USUARIO_MOODLE}': '',
@@ -207,6 +212,7 @@ export class SmsService {
       options.courseName,
       options.courseStart,
       options.courseEnd,
+      options.courseShortName,
     );
     return this.applyVariables(options.message, variables);
   }
@@ -259,6 +265,7 @@ export class SmsService {
       options.courseName,
       options.courseStart,
       options.courseEnd,
+      options.courseShortName,
     );
 
     const message = this.applyVariables(template.message, variables);
@@ -296,6 +303,7 @@ export class SmsService {
       options.courseName,
       options.courseStart,
       options.courseEnd,
+      options.courseShortName,
     );
 
     const finalMessage = this.ensureUnsubscribeUrl(this.applyVariables(rawMessage, variables));

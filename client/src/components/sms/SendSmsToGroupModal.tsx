@@ -6,7 +6,7 @@ import { useSmsSettingsQuery } from '../../hooks/api/sms/use-sms-settings';
 import { useSendSmsMutation } from '../../hooks/api/sms/use-send-sms.mutation';
 import { useSendCustomSmsMutation } from '../../hooks/api/sms/use-send-custom-sms.mutation';
 import { useSmsPreviewLengthMutation, type SmsPreviewLengthResponse } from '../../hooks/api/sms/use-sms-preview-length.mutation';
-import { MAIL_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-variables';
+import { SMS_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-variables';
 import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 
@@ -29,13 +29,14 @@ interface SendSmsToGroupModalProps {
   open: boolean;
   users: GroupUserRef[];
   courseName?: string;
+  courseShortName?: string;
   groupStart?: string | Date | null;
   groupEnd?: string | Date | null;
   onOk?: () => void;
   onCancel: () => void;
 }
 
-export default function SendSmsToGroupModal({ open, users, courseName, groupStart, groupEnd, onOk, onCancel }: SendSmsToGroupModalProps) {
+export default function SendSmsToGroupModal({ open, users, courseName, courseShortName, groupStart, groupEnd, onOk, onCancel }: SendSmsToGroupModalProps) {
   const { data: templates, isLoading: templatesLoading } = useSmsTemplatesQuery();
   const { data: smsSettings } = useSmsSettingsQuery();
   const { mutateAsync: sendSms, isPending } = useSendSmsMutation();
@@ -128,6 +129,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
           message: editedMessage,
           userId: sampleUser?.id_user,
           courseName: courseName ?? '',
+          courseShortName: courseShortName ?? '',
           courseStart: startLabel,
           courseEnd: endLabel,
         })
@@ -146,7 +148,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, selectedTemplate, editedMessage, sampleUser?.id_user, courseName, startLabel, endLabel]);
+  }, [open, selectedTemplate, editedMessage, sampleUser?.id_user, courseName, courseShortName, startLabel, endLabel]);
 
   const resetState = () => {
     setSelectedTemplate(undefined);
@@ -196,6 +198,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
         senderName: senderName.trim(),
         applyVariables: true,
         courseName: courseName ?? '',
+        courseShortName: courseShortName ?? '',
         courseStart: startLabel,
         courseEnd: endLabel,
       });
@@ -243,6 +246,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
             applyVariables: true,
             userId: user.id_user,
             courseName: courseName ?? '',
+            courseShortName: courseShortName ?? '',
             courseStart: startLabel,
             courseEnd: endLabel,
           });
@@ -251,6 +255,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
             userId: user.id_user,
             templateId: selectedTemplate as number,
             courseName: courseName ?? '',
+            courseShortName: courseShortName ?? '',
             courseStart: startLabel,
             courseEnd: endLabel,
             toPhone: user.phone,
@@ -352,7 +357,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
           </Form.Item>
 
           <Form.Item label="Curso">
-            <Typography.Text>{courseName || 'Sin curso'}</Typography.Text>
+            <Typography.Text>{courseName || 'Sin curso'}{courseShortName ? ` (${courseShortName})` : ''}</Typography.Text>
           </Form.Item>
 
           <Form.Item label="Fechas del grupo">
@@ -373,7 +378,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
               ) : undefined}
             >
               <Space style={{ marginBottom: 8, flexWrap: 'wrap' }}>
-                {MAIL_TEMPLATE_VARIABLES.map((v) => (
+                {SMS_TEMPLATE_VARIABLES.map((v) => (
                   <Tooltip title={v.label} key={v.key}>
                     <Button
                       size="small"
@@ -435,7 +440,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, groupStar
             />
           </Form.Item>
           <Typography.Text type="secondary">
-            Se enviará el mensaje de arriba a este teléfono, sustituyendo {'{NOMBRE_CURSO}'}/{'{FECHA_INICIO}'}/{'{FECHA_FIN}'} — {'{USUARIO_MOODLE}'}/{'{CLAVE_MOODLE}'} quedarán vacías (no hay un alumno real asociado a la prueba).
+            Se enviará el mensaje de arriba a este teléfono, sustituyendo {'{NOMBRE_CURSO}'}/{'{NOMBRE_CURSO_CORTO}'}/{'{FECHA_INICIO}'}/{'{FECHA_FIN}'} — {'{USUARIO_MOODLE}'}/{'{CLAVE_MOODLE}'} quedarán vacías (no hay un alumno real asociado a la prueba).
           </Typography.Text>
         </Form>
       </Modal>

@@ -6,6 +6,7 @@ export interface SendSmsFromTemplateRequest {
   userId?: number;
   templateId: number;
   courseName?: string;
+  courseShortName?: string;
   courseStart?: string;
   courseEnd?: string;
   toPhone: string;

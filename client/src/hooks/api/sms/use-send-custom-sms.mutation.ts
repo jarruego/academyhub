@@ -9,6 +9,7 @@ export interface SendCustomSmsRequest {
   applyVariables?: boolean;
   userId?: number;
   courseName?: string;
+  courseShortName?: string;
   courseStart?: string;
   courseEnd?: string;
 }

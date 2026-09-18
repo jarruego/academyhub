@@ -8,6 +8,7 @@ import { CatalogCourseInput } from "../../shared/types/course-catalog/course-cat
 
 const schema = z.object({
   name: z.string().trim().min(2, "La denominación es obligatoria"),
+  short_name: z.string().trim().min(1, "El nombre corto es obligatorio"),
   internal_code: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   objectives: z.string().optional().nullable(),
@@ -34,6 +35,7 @@ export function CatalogCourseForm({ initial, readOnly = false, saving = false, o
     resolver: zodResolver(schema),
     values: {
       name: initial?.name ?? "",
+      short_name: initial?.short_name ?? "",
       internal_code: initial?.internal_code ?? "",
       description: initial?.description ?? "",
       objectives: initial?.objectives ?? "",
@@ -56,8 +58,9 @@ export function CatalogCourseForm({ initial, readOnly = false, saving = false, o
   );
   return <Form layout="vertical" onFinish={handleSubmit((values) => onSubmit(values as CatalogCourseInput))}>
     <Row gutter={[16, 0]}>
-      <Col xs={24} md={16}><Form.Item label="Denominación" required validateStatus={errors.name ? "error" : undefined} help={errors.name?.message}>{input("name")}</Form.Item></Col>
-      <Col xs={24} sm={12} md={8}><Form.Item label="Código interno">{input("internal_code")}</Form.Item></Col>
+      <Col xs={24} md={12}><Form.Item label="Denominación" required validateStatus={errors.name ? "error" : undefined} help={errors.name?.message}>{input("name")}</Form.Item></Col>
+      <Col xs={24} sm={12} md={6}><Form.Item label="Nombre corto" required validateStatus={errors.short_name ? "error" : undefined} help={errors.short_name?.message}>{input("short_name")}</Form.Item></Col>
+      <Col xs={24} sm={12} md={6}><Form.Item label="Código interno">{input("internal_code")}</Form.Item></Col>
     </Row>
     <Row gutter={[16, 0]}>
       <Col xs={24} md={12}><Form.Item label="Descripción">{input("description", true)}</Form.Item></Col>
