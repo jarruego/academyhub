@@ -14,6 +14,17 @@ export const useCourseCandidatesQuery = (courseId: number, enabled = true) => {
   });
 };
 
+export type CourseCandidateCount = { id_course: number; count: number };
+
+/** Nº de candidaturas por edición, para todas las ediciones que tengan al menos una (dashboard Home). */
+export const useCourseCandidateCountsQuery = () => {
+  const request = useAuthenticatedAxios<CourseCandidateCount[]>();
+  return useQuery({
+    queryKey: ["course-candidates", "counts"] as const,
+    queryFn: async () => (await request({ method: "GET", url: `${getApiHost()}/course-candidates/counts` })).data,
+  });
+};
+
 type CreateCandidateInput =
   | { id_user: number; source?: "MANUAL" | "EXCEL_OPERATIVO"; new_user?: undefined }
   | { id_user?: undefined; source?: "MANUAL"; new_user: { name: string; first_surname?: string; second_surname?: string; dni?: string; phone?: string; email?: string } };

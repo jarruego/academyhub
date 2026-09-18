@@ -16,6 +16,12 @@ export class CourseCandidateController {
     return this.service.findByCourse(idCourse);
   }
 
+  // Nº de candidaturas por edición (dashboard Home: botón "Candidatos" solo si hay alguna).
+  @Get("counts")
+  countAllGrouped() {
+    return this.service.countAllGrouped();
+  }
+
   // create/delete/updateMany: el guard de clase ya deja pasar a cualquier rol
   // autenticado; quien no sea ADMIN/MANAGER/TUTOR solo puede gestionar
   // candidaturas si tiene el permiso puntual `can_manage_candidates`

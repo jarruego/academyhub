@@ -11,6 +11,7 @@ describe("CourseCandidateService", () => {
     update: jest.fn(),
     delete: jest.fn(),
     upsert: jest.fn(),
+    countAllGrouped: jest.fn(),
     transaction: jest.fn((callback: (transaction: unknown) => unknown) => callback({})),
   } as any;
   const preinscriptions = { findByUserCourse: jest.fn(), deleteByUserCourse: jest.fn() } as any;
@@ -118,6 +119,12 @@ describe("CourseCandidateService", () => {
       notes: expect.stringContaining("candidatura eliminada"),
     }), expect.anything());
     expect(repository.delete).toHaveBeenCalledWith(7, expect.anything());
+  });
+
+  it("countAllGrouped delega en el repositorio", async () => {
+    repository.countAllGrouped.mockResolvedValue([{ id_course: 13, count: 4 }]);
+    const result = await service.countAllGrouped();
+    expect(result).toEqual([{ id_course: 13, count: 4 }]);
   });
 
   describe("sincronización del interés al cambiar el proceso (fase 3)", () => {

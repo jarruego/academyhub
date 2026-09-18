@@ -74,6 +74,15 @@ export class CourseCandidateRepository extends Repository {
     return Number(row?.value ?? 0);
   }
 
+  /** Nº de candidaturas por edición, para todas las ediciones que tengan al menos una (dashboard Home). */
+  async countAllGrouped(options?: QueryOptions) {
+    const rows = await this.query(options)
+      .select({ id_course: courseCandidateTable.id_course, value: count() })
+      .from(courseCandidateTable)
+      .groupBy(courseCandidateTable.id_course);
+    return rows.map((row) => ({ id_course: row.id_course, count: Number(row.value) }));
+  }
+
   async delete(idCandidate: number, options?: QueryOptions) {
     const [row] = await this.query(options).delete(courseCandidateTable)
       .where(eq(courseCandidateTable.id_candidate, idCandidate)).returning();

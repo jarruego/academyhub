@@ -26,6 +26,10 @@ export class CourseCandidateService {
     return this.repository.findByCourse(idCourse);
   }
 
+  countAllGrouped() {
+    return this.repository.countAllGrouped();
+  }
+
   async create(dto: CreateCourseCandidateDto, actorId?: number) {
     let id_user = dto.id_user;
     if (!id_user) {
