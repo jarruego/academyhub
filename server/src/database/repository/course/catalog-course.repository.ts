@@ -15,6 +15,7 @@ export class CatalogCourseRepository extends Repository {
     const where = search
       ? or(
           ilike(catalogCourseTable.name, `%${search}%`),
+          ilike(catalogCourseTable.short_name, `%${search}%`),
           ilike(catalogCourseTable.internal_code, `%${search}%`),
           ilike(catalogCourseTable.sepe_specialty_code, `%${search}%`),
         )
@@ -24,6 +25,7 @@ export class CatalogCourseRepository extends Repository {
         id_catalog_course: catalogCourseTable.id_catalog_course,
         name: catalogCourseTable.name,
         normalized_name: catalogCourseTable.normalized_name,
+        short_name: catalogCourseTable.short_name,
         internal_code: catalogCourseTable.internal_code,
         description: catalogCourseTable.description,
         objectives: catalogCourseTable.objectives,
@@ -91,7 +93,10 @@ export class CatalogCourseRepository extends Repository {
     if (existing) return existing;
     const [row] = await this.query(options)
       .insert(catalogCourseTable)
-      .values({ name: name.trim(), normalized_name: normalizedName })
+      // short_name arranca igual que el nombre completo (placeholder editable
+      // desde la ficha del catálogo) — este alta es automática (edición sin
+      // curso de catálogo explícito), no hay un nombre corto real que inferir.
+      .values({ name: name.trim(), normalized_name: normalizedName, short_name: name.trim() })
       .onConflictDoNothing({ target: catalogCourseTable.normalized_name })
       .returning();
     return row ?? this.findByNormalizedName(normalizedName, options);
