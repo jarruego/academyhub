@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
-import { Result, Table, Tag } from "antd";
+import { Table, Tag } from "antd";
 import { useConsultingCentroEngagementsQuery } from "../../hooks/api/consulting-centro/use-consulting-centro-engagements.query";
+import ConsultingCentroNoAccess from "./consulting-centro-no-access";
 
 export default function ConsultingCentroEngagementsRoute() {
   const { data, isLoading, isError } = useConsultingCentroEngagementsQuery();
 
   if (isError) {
-    return <Result status="403" title="Enlace no válido" subTitle="Este enlace no funciona — puede haber sido revocado o regenerado. Pide uno nuevo." />;
+    return <ConsultingCentroNoAccess standalone={false} />;
   }
 
   return (

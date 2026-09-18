@@ -1,7 +1,8 @@
-import { Layout, Result, Button, Typography } from "antd";
+import { Layout, Button, Typography } from "antd";
 import { LogoutOutlined } from "@ant-design/icons";
 import { CONSULTING_CENTRO_CONTEXT } from "../../providers/consulting-centro/consulting-centro.context";
 import { loadConsultingCentroToken, clearConsultingCentroToken } from "../../providers/consulting-centro/consulting-centro-session.util";
+import ConsultingCentroNoAccess from "./consulting-centro-no-access";
 
 const { Content, Header } = Layout;
 
@@ -15,13 +16,7 @@ export default function ConsultingCentroShell({ children }: { children: React.Re
   const token = loadConsultingCentroToken();
 
   if (!token) {
-    return (
-      <Result
-        status="warning"
-        title="Sesión no disponible"
-        subTitle="Por seguridad, este acceso se pierde al cerrar el navegador — pide de nuevo tu enlace de acceso para entrar."
-      />
-    );
+    return <ConsultingCentroNoAccess />;
   }
 
   return (
@@ -35,7 +30,11 @@ export default function ConsultingCentroShell({ children }: { children: React.Re
             type="text"
             icon={<LogoutOutlined />}
             style={{ color: '#fff' }}
-            onClick={() => { clearConsultingCentroToken(); window.location.href = '/'; }}
+            // A /consultoria-centro/app, no a "/": limpio ya el token, así que
+            // esa misma pantalla muestra el aviso de "Sesión no disponible" de
+            // arriba — nunca el login normal, que "/" sin ninguna sesión sí
+            // mostraría (ver docs/consultoria.md, "Decisiones pendientes").
+            onClick={() => { clearConsultingCentroToken(); window.location.href = '/consultoria-centro/app'; }}
           >
             Salir
           </Button>

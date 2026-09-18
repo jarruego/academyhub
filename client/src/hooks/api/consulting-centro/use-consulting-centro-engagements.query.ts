@@ -8,6 +8,10 @@ export const useConsultingCentroEngagementsQuery = () => {
 
     return useQuery({
         queryKey: ['consulting-centro-engagements'],
+        // Sin reintentos: un 401 aquí (token revocado/inválido) es
+        // definitivo — decide si se muestra "Enlace no válido"
+        // (ConsultingCentroEngagementsRoute), reintentar solo lo retrasa.
+        retry: false,
         queryFn: async () => (await request({
             method: 'GET',
             url: `${getApiHost()}/api/consultoria/centro/engagements`,

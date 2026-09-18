@@ -1,9 +1,10 @@
 import { useParams, Link } from "react-router-dom";
-import { Result, Tabs } from "antd";
+import { Tabs } from "antd";
 import { useConsultingCentroEvaluationsQuery } from "../../hooks/api/consulting-centro/use-consulting-centro-evaluations.query";
 import ConsultingCentroEvaluationsTab from "./consulting-centro-evaluations-tab";
 import ConsultingCentroCompetenciesTab from "./consulting-centro-competencies-tab";
 import ConsultingCentroAttendeesTab from "./consulting-centro-attendees-tab";
+import ConsultingCentroNoAccess from "./consulting-centro-no-access";
 
 // Consultoría concreta de este centro — alcance cerrado del acceso externo
 // por token (ver docs/consultoria.md): evaluar sus acciones, evaluar
@@ -18,7 +19,7 @@ export default function ConsultingCentroEngagementRoute() {
   const { isError } = useConsultingCentroEvaluationsQuery(engagementId);
 
   if (isError) {
-    return <Result status="403" title="Sin acceso" subTitle="Este enlace no funciona, o este centro no participa en esta consultoría." />;
+    return <ConsultingCentroNoAccess standalone={false} />;
   }
 
   return (
