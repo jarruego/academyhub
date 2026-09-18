@@ -3,17 +3,18 @@ import { Group } from "../shared/types/group/group";
 import { isGroupActive } from "./group-active.util";
 
 /**
- * Filas del dashboard de Home (cursos activos o con fechas futuras). Deriva,
- * por edición, si está en curso ahora mismo o si arranca en el futuro
- * (mismo criterio de "activo" que el resto de la app — `isGroupActive` — más
- * el caso "todavía no ha empezado"), y el grupo de referencia para mostrar
- * fecha: el de fin más próximo si está en curso, o el de inicio más próximo
- * si es futuro. Las ediciones sin grupo activo ni futuro no aparecen.
+ * Filas del dashboard de Home: todas las ediciones cuyo grupo de fecha de fin
+ * más tardía cae en el año en curso o en un año futuro (mismo criterio de
+ * referencia que el listado de Ediciones — "Fecha Fin Grupo" — para que ambos
+ * coincidan). Ordenadas por esa fecha, descendente (más recientes/futuras
+ * arriba, más antiguas abajo). Las ediciones sin ningún grupo con `end_date`
+ * no tienen forma de ubicarse en el tiempo y se excluyen.
  */
+export type DashboardCourseStatus = "activo" | "proximo" | "finalizado";
+
 export interface DashboardCourseRow extends Course {
-  is_active: boolean;
-  relevant_start: Date | null;
-  relevant_end: Date | null;
+  status: DashboardCourseStatus;
+  reference_date: Date;
   candidate_count: number;
 }
 
@@ -36,43 +37,37 @@ export function buildDashboardCourses(
     else groupsByCourse.set(group.id_course, [group]);
   }
 
+  const currentYear = now.getFullYear();
   const rows: DashboardCourseRow[] = [];
 
   for (const course of courses) {
     const courseGroups = groupsByCourse.get(course.id_course) ?? [];
-    const activeGroups = courseGroups.filter((g) => isGroupActive(g, now));
-    const futureGroups = courseGroups.filter((g) => {
-      if (isGroupActive(g, now)) return false;
-      const start = toTime(g.start_date);
-      return start != null && start > now.getTime();
-    });
-    if (activeGroups.length === 0 && futureGroups.length === 0) continue;
 
-    const isActive = activeGroups.length > 0;
-    const relevantGroup = isActive
-      ? activeGroups.reduce((soonest, candidate) => {
-          const soonestEnd = toTime(soonest.end_date);
-          const candidateEnd = toTime(candidate.end_date);
-          if (soonestEnd == null) return candidate;
-          if (candidateEnd == null) return soonest;
-          return candidateEnd < soonestEnd ? candidate : soonest;
-        })
-      : futureGroups.reduce((soonest, candidate) =>
-          (toTime(candidate.start_date) ?? Infinity) < (toTime(soonest.start_date) ?? Infinity) ? candidate : soonest,
-        );
+    let latestEndTime: number | null = null;
+    for (const group of courseGroups) {
+      const end = toTime(group.end_date);
+      if (end != null && (latestEndTime == null || end > latestEndTime)) latestEndTime = end;
+    }
+    if (latestEndTime == null) continue;
+    const referenceDate = new Date(latestEndTime);
+    if (referenceDate.getFullYear() < currentYear) continue;
+
+    const isActive = courseGroups.some((g) => isGroupActive(g, now));
+    const isFuture =
+      !isActive &&
+      courseGroups.some((g) => {
+        const start = toTime(g.start_date);
+        return start != null && start > now.getTime();
+      });
+    const status: DashboardCourseStatus = isActive ? "activo" : isFuture ? "proximo" : "finalizado";
 
     rows.push({
       ...course,
-      is_active: isActive,
-      relevant_start: relevantGroup.start_date ? new Date(relevantGroup.start_date) : null,
-      relevant_end: relevantGroup.end_date ? new Date(relevantGroup.end_date) : null,
+      status,
+      reference_date: referenceDate,
       candidate_count: candidateCountByCourse[course.id_course] ?? 0,
     });
   }
 
-  return rows.sort((a, b) => {
-    if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
-    if (a.is_active) return (a.relevant_end?.getTime() ?? Infinity) - (b.relevant_end?.getTime() ?? Infinity);
-    return (a.relevant_start?.getTime() ?? Infinity) - (b.relevant_start?.getTime() ?? Infinity);
-  });
+  return rows.sort((a, b) => b.reference_date.getTime() - a.reference_date.getTime());
 }

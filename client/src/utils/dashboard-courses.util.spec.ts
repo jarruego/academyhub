@@ -23,46 +23,55 @@ const group = (id_course: number, extra: Partial<Group> = {}): Group => ({
 });
 
 describe("buildDashboardCourses", () => {
-  it("descarta ediciones sin ningún grupo activo ni futuro", () => {
+  it("descarta ediciones sin ningún grupo con end_date", () => {
     const courses = [course(1)];
-    const groups = [group(1, { start_date: day("2020-01-01"), end_date: day("2020-01-31") })];
+    const groups = [group(1, { start_date: day("2026-06-01"), end_date: null })];
     expect(buildDashboardCourses(courses, groups, {}, NOW)).toEqual([]);
   });
 
-  it("incluye una edición con grupo activo, marcada como en curso con el fin del grupo activo", () => {
+  it("descarta ediciones cuyo grupo con fin más tardío es de un año anterior", () => {
+    const courses = [course(1)];
+    const groups = [group(1, { start_date: day("2025-01-01"), end_date: day("2025-01-31") })];
+    expect(buildDashboardCourses(courses, groups, {}, NOW)).toEqual([]);
+  });
+
+  it("incluye una edición del año en curso, marcada 'activo' si tiene un grupo activo", () => {
     const courses = [course(1)];
     const groups = [group(1, { start_date: day("2026-06-01"), end_date: day("2026-06-30") })];
     const [row] = buildDashboardCourses(courses, groups, {}, NOW);
-    expect(row.is_active).toBe(true);
-    expect(row.relevant_end).toEqual(day("2026-06-30"));
+    expect(row.status).toBe("activo");
+    expect(row.reference_date).toEqual(day("2026-06-30"));
   });
 
-  it("incluye una edición sin grupo activo pero con un grupo futuro, marcada como próxima", () => {
+  it("marca 'proximo' una edición futura sin grupo activo", () => {
     const courses = [course(1)];
     const groups = [group(1, { start_date: day("2026-07-01"), end_date: day("2026-07-31") })];
     const [row] = buildDashboardCourses(courses, groups, {}, NOW);
-    expect(row.is_active).toBe(false);
-    expect(row.relevant_start).toEqual(day("2026-07-01"));
+    expect(row.status).toBe("proximo");
   });
 
-  it("con varios grupos activos, usa el de fin más próximo como referencia", () => {
+  it("marca 'finalizado' una edición del año en curso ya terminada", () => {
     const courses = [course(1)];
-    const groups = [
-      group(1, { id_group: 11, start_date: day("2026-06-01"), end_date: day("2026-06-30") }),
-      group(1, { id_group: 12, start_date: day("2026-05-01"), end_date: day("2026-06-20") }),
-    ];
+    const groups = [group(1, { start_date: day("2026-01-01"), end_date: day("2026-01-31") })];
     const [row] = buildDashboardCourses(courses, groups, {}, NOW);
-    expect(row.relevant_end).toEqual(day("2026-06-20"));
+    expect(row.status).toBe("finalizado");
   });
 
-  it("con varios grupos futuros, usa el de inicio más próximo como referencia", () => {
+  it("incluye una edición de un año futuro", () => {
+    const courses = [course(1)];
+    const groups = [group(1, { start_date: day("2027-01-01"), end_date: day("2027-01-31") })];
+    const [row] = buildDashboardCourses(courses, groups, {}, NOW);
+    expect(row.status).toBe("proximo");
+  });
+
+  it("usa el fin de grupo más tardío como fecha de referencia", () => {
     const courses = [course(1)];
     const groups = [
-      group(1, { id_group: 11, start_date: day("2026-08-01"), end_date: day("2026-08-31") }),
-      group(1, { id_group: 12, start_date: day("2026-07-01"), end_date: day("2026-07-31") }),
+      group(1, { id_group: 11, start_date: day("2026-05-01"), end_date: day("2026-06-20") }),
+      group(1, { id_group: 12, start_date: day("2026-06-01"), end_date: day("2026-08-31") }),
     ];
     const [row] = buildDashboardCourses(courses, groups, {}, NOW);
-    expect(row.relevant_start).toEqual(day("2026-07-01"));
+    expect(row.reference_date).toEqual(day("2026-08-31"));
   });
 
   it("adjunta el nº de candidaturas por curso, 0 si no hay entrada", () => {
@@ -76,15 +85,12 @@ describe("buildDashboardCourses", () => {
     expect(rows.find((r) => r.id_course === 2)?.candidate_count).toBe(0);
   });
 
-  it("ordena: activas antes que próximas; dentro de activas por fin más próximo; dentro de próximas por inicio más próximo", () => {
+  it("ordena por fecha de referencia descendente (más recientes/futuras arriba)", () => {
     const courses = [course(1), course(2), course(3)];
     const groups = [
-      // curso 1: próxima, empieza en agosto
-      group(1, { start_date: day("2026-08-01"), end_date: day("2026-08-31") }),
-      // curso 2: activa, termina el 25/06
-      group(2, { start_date: day("2026-06-01"), end_date: day("2026-06-25") }),
-      // curso 3: próxima, empieza en julio (antes que curso 1)
-      group(3, { start_date: day("2026-07-01"), end_date: day("2026-07-31") }),
+      group(1, { start_date: day("2026-01-01"), end_date: day("2026-01-31") }), // finalizado, más antiguo
+      group(2, { start_date: day("2027-01-01"), end_date: day("2027-01-31") }), // futuro, el más lejano
+      group(3, { start_date: day("2026-06-01"), end_date: day("2026-06-25") }), // activo
     ];
     const rows = buildDashboardCourses(courses, groups, {}, NOW);
     expect(rows.map((r) => r.id_course)).toEqual([2, 3, 1]);
