@@ -295,3 +295,60 @@ describe('SmsService.sendSmsFromTemplate', () => {
     );
   });
 });
+
+describe('SmsService.previewBatch', () => {
+  it('marca solo a los alumnos sin cuenta de Moodle cuando el mensaje usa {CLAVE_MOODLE}, con una sola consulta para todos', async () => {
+    const findByUserIds = jest.fn().mockResolvedValue([
+      { id_user: 1, is_main_user: true, moodle_username: 'jperez', moodle_password: 'clave1' },
+    ]);
+    const svc = makeService({ moodleUserRepository: { findByUserId: jest.fn(), findByUserIds } });
+
+    const result = await svc.previewBatch({
+      userIds: [1, 2, 3],
+      message: 'Clave: {CLAVE_MOODLE}',
+    });
+
+    expect(findByUserIds).toHaveBeenCalledTimes(1);
+    expect(findByUserIds).toHaveBeenCalledWith([1, 2, 3]);
+    expect(result).toEqual([
+      expect.objectContaining({ userId: 1, missingVariables: [] }),
+      expect.objectContaining({ userId: 2, missingVariables: ['{CLAVE_MOODLE}'] }),
+      expect.objectContaining({ userId: 3, missingVariables: ['{CLAVE_MOODLE}'] }),
+    ]);
+  });
+
+  it('marca a todos si el mensaje usa {NOMBRE_CURSO} y no hay courseName (afecta a todo el grupo, no a un alumno concreto)', async () => {
+    const findByUserIds = jest.fn().mockResolvedValue([]);
+    const svc = makeService({ moodleUserRepository: { findByUserId: jest.fn(), findByUserIds } });
+
+    const result = await svc.previewBatch({
+      userIds: [1, 2],
+      message: 'Curso: {NOMBRE_CURSO}',
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({ userId: 1, missingVariables: ['{NOMBRE_CURSO}'] }),
+      expect.objectContaining({ userId: 2, missingVariables: ['{NOMBRE_CURSO}'] }),
+    ]);
+  });
+
+  it('marca exceedsLimit cuando el SMS resuelto de un alumno concreto supera el límite (nombre de usuario largo, p.ej.)', async () => {
+    const findByUserIds = jest.fn().mockResolvedValue([
+      { id_user: 1, is_main_user: true, moodle_username: 'a'.repeat(150), moodle_password: 'x' },
+    ]);
+    const svc = makeService({ moodleUserRepository: { findByUserId: jest.fn(), findByUserIds } });
+
+    const result = await svc.previewBatch({ userIds: [1], message: 'Usuario: {USUARIO_MOODLE}' });
+
+    expect(result[0]).toMatchObject({ userId: 1, exceedsLimit: true });
+  });
+
+  it('deduplica userIds repetidos', async () => {
+    const findByUserIds = jest.fn().mockResolvedValue([]);
+    const svc = makeService({ moodleUserRepository: { findByUserId: jest.fn(), findByUserIds } });
+
+    const result = await svc.previewBatch({ userIds: [1, 1, 2], message: 'Hola' });
+
+    expect(result.map((r) => r.userId)).toEqual([1, 2]);
+  });
+});

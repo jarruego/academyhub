@@ -6,7 +6,7 @@ import {
   moodleUserTable, 
   MoodleUserUpdateModel 
 } from "src/database/schema/tables/moodle_user.table";
-import { eq, ilike, and } from "drizzle-orm";
+import { eq, ilike, and, inArray } from "drizzle-orm";
 import { DbCondition } from "src/database/types/db-expression";
 import { InsertResult } from 'src/database/types/insert-result';
 
@@ -79,6 +79,19 @@ export class MoodleUserRepository extends Repository {
       .from(moodleUserTable)
       .where(eq(moodleUserTable.id_user, userId));
     return rows;
+  }
+
+  /**
+   * Igual que `findByUserId` pero para varios usuarios en una sola consulta
+   * (comprobación previa de SMS para todos los destinatarios — ver
+   * SmsService.previewBatch — evita N consultas para N destinatarios).
+   */
+  async findByUserIds(userIds: number[], options?: QueryOptions) {
+    if (userIds.length === 0) return [];
+    return await this.query(options)
+      .select()
+      .from(moodleUserTable)
+      .where(inArray(moodleUserTable.id_user, userIds));
   }
 
   /**

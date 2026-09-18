@@ -58,6 +58,24 @@ export interface PreviewSmsLengthOptions {
   courseEnd?: string;
 }
 
+export interface PreviewSmsBatchOptions {
+  userIds: number[];
+  templateId?: number;
+  message?: string;
+  courseName?: string;
+  courseShortName?: string;
+  courseStart?: string;
+  courseEnd?: string;
+}
+
+export interface SmsBatchPreviewResult {
+  userId: number;
+  missingVariables: string[];
+  length: number;
+  parts: number;
+  exceedsLimit: boolean;
+}
+
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
@@ -88,6 +106,37 @@ export class SmsService {
   }
 
   /**
+   * Arma el record de variables tipo {NOMBRE_CURSO} a partir de las cuentas
+   * de Moodle ya resueltas de un alumno (posiblemente ninguna) — parte pura
+   * de `buildTemplateVariables`, separada para poder reutilizarla en
+   * `previewBatch` sin repetir una consulta de Moodle por alumno.
+   */
+  private buildVariablesFromMoodleUsers(
+    courseName: string | undefined,
+    courseStart: string | undefined,
+    courseEnd: string | undefined,
+    courseShortName: string | undefined,
+    moodleUsers: Array<{ is_main_user: boolean; moodle_username: string | null; moodle_password: string | null }>,
+  ): Record<string, string> {
+    const variables: Record<string, string> = {
+      '{NOMBRE_CURSO}': courseName ?? '',
+      '{NOMBRE_CURSO_CORTO}': courseShortName ?? '',
+      '{FECHA_INICIO}': courseStart ?? '',
+      '{FECHA_FIN}': courseEnd ?? '',
+      '{USUARIO_MOODLE}': '',
+      '{CLAVE_MOODLE}': '',
+    };
+
+    const main = moodleUsers.find((mu) => mu.is_main_user) ?? moodleUsers[0];
+    if (main) {
+      variables['{USUARIO_MOODLE}'] = main.moodle_username ?? '';
+      variables['{CLAVE_MOODLE}'] = main.moodle_password ?? '';
+    }
+
+    return variables;
+  }
+
+  /**
    * Arma el record de variables tipo {NOMBRE_CURSO} disponibles para
    * plantillas SMS. Duplicado de MailService.buildTemplateVariables/
    * applyVariables a propósito: no hay helper compartido (mismo criterio ya
@@ -100,25 +149,8 @@ export class SmsService {
     courseEnd?: string,
     courseShortName?: string,
   ): Promise<Record<string, string>> {
-    const variables: Record<string, string> = {
-      '{NOMBRE_CURSO}': courseName ?? '',
-      '{NOMBRE_CURSO_CORTO}': courseShortName ?? '',
-      '{FECHA_INICIO}': courseStart ?? '',
-      '{FECHA_FIN}': courseEnd ?? '',
-      '{USUARIO_MOODLE}': '',
-      '{CLAVE_MOODLE}': '',
-    };
-
-    if (userId) {
-      const moodleUsers = await this.moodleUserRepository.findByUserId(userId);
-      const main = moodleUsers.find((mu) => mu.is_main_user) ?? moodleUsers[0];
-      if (main) {
-        variables['{USUARIO_MOODLE}'] = main.moodle_username ?? '';
-        variables['{CLAVE_MOODLE}'] = main.moodle_password ?? '';
-      }
-    }
-
-    return variables;
+    const moodleUsers = userId ? await this.moodleUserRepository.findByUserId(userId) : [];
+    return this.buildVariablesFromMoodleUsers(courseName, courseStart, courseEnd, courseShortName, moodleUsers);
   }
 
   private applyVariables(input: string, variables: Record<string, string>): string {
@@ -313,6 +345,17 @@ export class SmsService {
     });
   }
 
+  /** Resuelve el texto sin sustituir a partir de `templateId` o `message` — usado por `previewLength`/`previewBatch`. */
+  private async resolveRawMessage(options: { templateId?: number; message?: string }): Promise<string> {
+    if (options.message !== undefined) return options.message;
+    if (options.templateId) {
+      const template = await this.smsTemplatesService.findById(options.templateId);
+      if (!template) throw new BadRequestException('Plantilla SMS no encontrada');
+      return template.message;
+    }
+    throw new BadRequestException('Falta templateId o message');
+  }
+
   /**
    * Calcula la longitud/partes del SMS ya resuelto (variables + pie de baja)
    * para un alumno y curso concretos, y además una vista previa del texto —
@@ -325,16 +368,7 @@ export class SmsService {
    * sin más contexto que "estoy comprobando el SMS".
    */
   async previewLength(options: PreviewSmsLengthOptions): Promise<SmsLengthInfo & { limitParts: number; preview: string; missingVariables: string[] }> {
-    let rawMessage: string;
-    if (options.message !== undefined) {
-      rawMessage = options.message;
-    } else if (options.templateId) {
-      const template = await this.smsTemplatesService.findById(options.templateId);
-      if (!template) throw new BadRequestException('Plantilla SMS no encontrada');
-      rawMessage = template.message;
-    } else {
-      throw new BadRequestException('Falta templateId o message');
-    }
+    const rawMessage = await this.resolveRawMessage(options);
 
     const variables = await this.buildTemplateVariables(
       options.userId,
@@ -357,6 +391,42 @@ export class SmsService {
     const missingVariables = this.findMissingVariables(rawMessage, variables, !!options.userId);
 
     return { ...estimateSmsLength(finalMessage), limitParts: this.MAX_SMS_PARTS, preview, missingVariables };
+  }
+
+  /**
+   * Comprobación previa completa: para cada destinatario de una lista (no
+   * solo el primero, a diferencia de `previewLength`), si su SMS ya resuelto
+   * tendría alguna variable sin valor o superaría el límite de longitud —
+   * sin enviar nada. Pensado para que `SendSmsToGroupModal` avise de antemano
+   * de quién tiene un problema (nombre + motivo) antes de lanzar el envío
+   * masivo, en vez de descubrirlo por el recuento de "Fallidos" al terminar.
+   * Una sola consulta de cuentas de Moodle para todos los `userIds`, no una
+   * por destinatario.
+   */
+  async previewBatch(options: PreviewSmsBatchOptions): Promise<SmsBatchPreviewResult[]> {
+    const rawMessage = await this.resolveRawMessage(options);
+    const userIds = Array.from(new Set(options.userIds));
+    const allMoodleUsers = userIds.length ? await this.moodleUserRepository.findByUserIds(userIds) : [];
+    const moodleUsersByUser = new Map<number, typeof allMoodleUsers>();
+    for (const mu of allMoodleUsers) {
+      const list = moodleUsersByUser.get(mu.id_user) ?? [];
+      list.push(mu);
+      moodleUsersByUser.set(mu.id_user, list);
+    }
+
+    return userIds.map((userId) => {
+      const variables = this.buildVariablesFromMoodleUsers(
+        options.courseName,
+        options.courseStart,
+        options.courseEnd,
+        options.courseShortName,
+        moodleUsersByUser.get(userId) ?? [],
+      );
+      const missingVariables = this.findMissingVariables(rawMessage, variables, true);
+      const finalMessage = this.ensureUnsubscribeUrl(this.applyVariables(rawMessage, variables));
+      const info = estimateSmsLength(finalMessage);
+      return { userId, missingVariables, length: info.length, parts: info.parts, exceedsLimit: info.parts > this.MAX_SMS_PARTS };
+    });
   }
 
   /** Refresca el estado real de entrega en Mailrelay para una fila del registro (botón manual). */

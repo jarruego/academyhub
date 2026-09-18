@@ -6,6 +6,7 @@ import { useSmsSettingsQuery } from '../../hooks/api/sms/use-sms-settings';
 import { useSendSmsMutation } from '../../hooks/api/sms/use-send-sms.mutation';
 import { useSendCustomSmsMutation } from '../../hooks/api/sms/use-send-custom-sms.mutation';
 import { useSmsPreviewLengthMutation, type SmsPreviewLengthResponse } from '../../hooks/api/sms/use-sms-preview-length.mutation';
+import { useSmsPreviewBatchMutation } from '../../hooks/api/sms/use-sms-preview-batch.mutation';
 import { SMS_TEMPLATE_VARIABLES } from '../../constants/mail/mail-template-variables';
 import { useState, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
@@ -23,6 +24,8 @@ const getErrorMessage = (err: unknown, fallback: string): string => {
 interface GroupUserRef {
   id_user: number;
   phone?: string | null;
+  name?: string | null;
+  first_surname?: string | null;
 }
 
 interface SendSmsToGroupModalProps {
@@ -42,7 +45,8 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
   const { mutateAsync: sendSms, isPending } = useSendSmsMutation();
   const { mutateAsync: sendCustomSms, isPending: isCustomPending } = useSendCustomSmsMutation();
   const previewLengthMutation = useSmsPreviewLengthMutation();
-  const { message: messageApi } = App.useApp();
+  const previewBatchMutation = useSmsPreviewBatchMutation();
+  const { message: messageApi, modal } = App.useApp();
 
   const [selectedTemplate, setSelectedTemplate] = useState<number | undefined>();
   const [senderName, setSenderName] = useState('');
@@ -58,7 +62,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
   const [isSending, setIsSending] = useState(false);
   const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0 });
   const [showResultModal, setShowResultModal] = useState(false);
-  const [finalResults, setFinalResults] = useState<{ sent: number; skipped: number; failed: number } | null>(null);
+  const [finalResults, setFinalResults] = useState<{ sent: number; skipped: number; skippedInvalid: number; failed: number } | null>(null);
 
   // Estados para el envío de prueba
   const [testModalOpen, setTestModalOpen] = useState(false);
@@ -126,6 +130,36 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
   const missingUserVariables = missingVariables.filter((v) => !COURSE_LEVEL_VARIABLES.includes(v));
   const blocksSend = missingCourseVariables.length > 0 || missingUserVariables.length > 0;
   const blocksTest = missingCourseVariables.length > 0;
+
+  const [isPreflightChecking, setIsPreflightChecking] = useState(false);
+
+  const userLabel = (u: GroupUserRef) => `${u.name ?? ''} ${u.first_surname ?? ''}`.trim() || `ID ${u.id_user}`;
+
+  // Comprobación previa completa (todos los destinatarios con teléfono, no
+  // solo el primero como el aviso de arriba): sin enviar nada, dice qué
+  // alumnos tendrían un SMS con variables sin sustituir o demasiado largo,
+  // para poder omitirlos a propósito en vez de descubrirlo por el recuento
+  // de "Fallidos" al terminar.
+  const runFullPreflightCheck = async (): Promise<Map<number, string[]>> => {
+    const usersWithPhone = users.filter((u) => !!u.phone);
+    if (usersWithPhone.length === 0) return new Map();
+    const results = await previewBatchMutation.mutateAsync({
+      userIds: usersWithPhone.map((u) => u.id_user),
+      message: editedMessage,
+      courseName: courseName ?? '',
+      courseShortName: courseShortName ?? '',
+      courseStart: startLabel,
+      courseEnd: endLabel,
+    });
+    const problems = new Map<number, string[]>();
+    for (const r of results) {
+      const reasons: string[] = [];
+      if (r.missingVariables.length > 0) reasons.push(`${r.missingVariables.join(', ')} sin valor`);
+      if (r.exceedsLimit) reasons.push(`SMS demasiado largo (${r.length} caracteres, ${r.parts} parte${r.parts === 1 ? '' : 's'})`);
+      if (reasons.length > 0) problems.set(r.userId, reasons);
+    }
+    return problems;
+  };
 
   useEffect(() => {
     if (!open || !selectedTemplate || !editedMessage.trim()) {
@@ -199,6 +233,44 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
       );
       return;
     }
+
+    setIsPreflightChecking(true);
+    let problems: Map<number, string[]>;
+    try {
+      problems = await runFullPreflightCheck();
+    } catch (err) {
+      messageApi.error(getErrorMessage(err, 'No se pudo comprobar los destinatarios'), 8);
+      setIsPreflightChecking(false);
+      return;
+    }
+    setIsPreflightChecking(false);
+
+    if (problems.size > 0) {
+      const usersWithPhone = users.filter((u) => !!u.phone);
+      const affected = usersWithPhone.filter((u) => problems.has(u.id_user));
+      modal.confirm({
+        title: `${problems.size} destinatario${problems.size === 1 ? '' : 's'} con problemas`,
+        width: 540,
+        content: (
+          <div>
+            <p>No se les puede enviar el SMS tal como está — se quedarían sin sustituir o superarían el límite de longitud:</p>
+            <ul style={{ maxHeight: 240, overflowY: 'auto', paddingLeft: 20, margin: 0 }}>
+              {affected.map((u) => (
+                <li key={u.id_user}>{userLabel(u)}: {problems.get(u.id_user)!.join('; ')}</li>
+              ))}
+            </ul>
+            <p style={{ marginTop: 12, marginBottom: 0 }}>
+              ¿Enviar solo al resto ({usersWithPhone.length - problems.size} de {usersWithPhone.length}) y omitir a estos?
+            </p>
+          </div>
+        ),
+        okText: 'Enviar solo al resto',
+        cancelText: 'Cancelar',
+        onOk: () => handleSend(problems),
+      });
+      return;
+    }
+
     await handleSend();
   };
 
@@ -238,7 +310,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
     }
   };
 
-  const handleSend = async () => {
+  const handleSend = async (excludeWithReasons?: Map<number, string[]>) => {
     if (!users || users.length === 0) {
       messageApi.warning('No hay usuarios seleccionados');
       return;
@@ -247,6 +319,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
 
     let sent = 0;
     let skipped = 0;
+    let skippedInvalid = 0;
     let failed = 0;
 
     setIsSending(true);
@@ -258,6 +331,10 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
 
       if (!user.phone) {
         skipped += 1;
+        continue;
+      }
+      if (excludeWithReasons?.has(user.id_user)) {
+        skippedInvalid += 1;
         continue;
       }
       try {
@@ -295,7 +372,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
     }
 
     setIsSending(false);
-    setFinalResults({ sent, skipped, failed });
+    setFinalResults({ sent, skipped, skippedInvalid, failed });
     setShowResultModal(true);
   };
 
@@ -340,6 +417,12 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
               <Typography.Text>⊘ Omitidos (sin teléfono):</Typography.Text>
               <Typography.Text strong>{finalResults.skipped}</Typography.Text>
             </div>
+            {finalResults.skippedInvalid > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                <Typography.Text>⊘ Omitidos (variables sin valor o SMS muy largo):</Typography.Text>
+                <Typography.Text strong>{finalResults.skippedInvalid}</Typography.Text>
+              </div>
+            )}
             {finalResults.failed > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
                 <Typography.Text>✕ Fallidos:</Typography.Text>
@@ -359,7 +442,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
         footer={[
           <Button key="cancel" onClick={onCancel}>Cancelar</Button>,
           <Button key="test" onClick={() => setTestModalOpen(true)}>Enviar prueba</Button>,
-          <Button key="submit" type="primary" loading={isPending || isCustomPending} disabled={exceedsLengthLimit || blocksSend} onClick={handleSendClick}>Enviar</Button>,
+          <Button key="submit" type="primary" loading={isPending || isCustomPending || isPreflightChecking} disabled={exceedsLengthLimit || blocksSend} onClick={handleSendClick}>Enviar</Button>,
         ]}
       >
         <Form layout="vertical">

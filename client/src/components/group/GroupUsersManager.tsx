@@ -942,7 +942,7 @@ const GroupUsersManager: React.FC<Props> = ({ groupIds, groupNamesById = {}, cou
 
       <SendSmsToGroupModal
         open={isSendSmsOpen}
-        users={dedupeByUserId(selectedRows).map((u) => ({ id_user: u.id_user, phone: u.phone }))}
+        users={dedupeByUserId(selectedRows).map((u) => ({ id_user: u.id_user, phone: u.phone, name: u.name, first_surname: u.first_surname }))}
         courseName={courseName}
         courseShortName={courseShortName}
         groupStart={groupStart}

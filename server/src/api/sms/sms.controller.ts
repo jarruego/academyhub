@@ -6,6 +6,7 @@ import { SendSmsDto } from '../../dto/sms/send-sms.dto';
 import { SendSmsFromTemplateDto } from '../../dto/sms/send-sms-from-template.dto';
 import { SmsSettingsDto } from '../../dto/sms/sms-settings.dto';
 import { SmsPreviewLengthDto } from '../../dto/sms/sms-preview-length.dto';
+import { SmsPreviewBatchDto } from '../../dto/sms/sms-preview-batch.dto';
 
 @Controller('sms')
 export class SmsController {
@@ -50,6 +51,18 @@ export class SmsController {
   @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
   async previewLength(@Body() body: SmsPreviewLengthDto) {
     return this.smsService.previewLength(body);
+  }
+
+  /**
+   * Comprobación previa para TODOS los destinatarios de un envío masivo (no
+   * solo el primero, a diferencia de `preview-length`) — para avisar de
+   * antemano de quién tiene un problema (variable sin valor o SMS demasiado
+   * largo) sin enviar nada.
+   */
+  @Post('preview-batch')
+  @UseGuards(RoleGuard([Role.ADMIN, Role.MANAGER]))
+  async previewBatch(@Body() body: SmsPreviewBatchDto) {
+    return this.smsService.previewBatch(body);
   }
 
   @Post('send-from-template')
