@@ -145,6 +145,63 @@ describe('SmsService — registro en sms_log', () => {
       expect.objectContaining({ message: 'Tu curso {NOMBRE_CURSO} empieza pronto.\nBaja SMS: {{ unsubscribe_url }}' }),
     );
   });
+
+  it('bloquea el envío si el mensaje usa {NOMBRE_CURSO} y no hay courseName (no llega a Mailrelay)', async () => {
+    const svc = makeService();
+    const client = (svc as any).mailrelaySmsClient;
+
+    await expect(svc.sendSms({
+      to: '600000000',
+      message: 'Tu curso {NOMBRE_CURSO} empieza pronto.',
+      applyVariables: true,
+    })).rejects.toThrow(/NOMBRE_CURSO.*no hay valor/);
+
+    expect(client.sendSms).not.toHaveBeenCalled();
+  });
+
+  it('bloquea el envío si hay un alumno real (userId) sin cuenta de Moodle y el mensaje usa {CLAVE_MOODLE}', async () => {
+    const svc = makeService();
+    const client = (svc as any).mailrelaySmsClient;
+
+    await expect(svc.sendSms({
+      to: '600000000',
+      message: 'Clave: {CLAVE_MOODLE}',
+      applyVariables: true,
+      userId: 99,
+    })).rejects.toThrow(/CLAVE_MOODLE.*no hay valor/);
+
+    expect(client.sendSms).not.toHaveBeenCalled();
+  });
+
+  it('NO bloquea {USUARIO_MOODLE}/{CLAVE_MOODLE} vacíos en el envío de prueba (sin userId) — es el comportamiento esperado', async () => {
+    const svc = makeService();
+    const client = (svc as any).mailrelaySmsClient;
+    jest.spyOn(svc as any, 'recordSmsLog').mockResolvedValue(undefined);
+
+    await svc.sendSms({
+      to: '600000000',
+      message: 'Usuario: {USUARIO_MOODLE} Clave: {CLAVE_MOODLE}',
+      applyVariables: true,
+    });
+
+    expect(client.sendSms).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: 'Usuario:  Clave: \nBaja SMS: {{ unsubscribe_url }}' }),
+    );
+  });
+});
+
+describe('SmsService.sendSmsFromTemplate — validación de variables', () => {
+  it('bloquea el envío desde plantilla si usa {FECHA_INICIO} y no hay courseStart', async () => {
+    const svc = makeService();
+    const client = (svc as any).mailrelaySmsClient;
+    const templatesService = { findById: jest.fn().mockResolvedValue({ id: 9, name: 'Con fecha', message: 'Empieza el {FECHA_INICIO}.' }) };
+    (svc as any).smsTemplatesService = templatesService;
+
+    await expect(svc.sendSmsFromTemplate({ to: '600000000', templateId: 9 })).rejects.toThrow(/FECHA_INICIO.*no hay valor/);
+
+    expect(client.sendSms).not.toHaveBeenCalled();
+  });
 });
 
 describe('SmsService.previewLength', () => {

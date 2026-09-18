@@ -23,6 +23,10 @@ export interface SmsPreviewLengthResponse {
   // previa — {USUARIO_MOODLE}/{CLAVE_MOODLE} llegan enmascarados desde el
   // backend cuando tienen valor real (nunca se expone la clave real aquí).
   preview: string;
+  // Variables que el mensaje usa pero no tienen valor con el que sustituirlas
+  // (p.ej. {NOMBRE_CURSO} sin curso, o {CLAVE_MOODLE} sin alumno vinculado a
+  // Moodle) — si no está vacío, el envío se bloqueará en el backend.
+  missingVariables: string[];
 }
 
 export function useSmsPreviewLengthMutation() {

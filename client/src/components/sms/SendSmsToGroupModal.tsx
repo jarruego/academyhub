@@ -115,6 +115,18 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
   const [lengthPreviewLoading, setLengthPreviewLoading] = useState(false);
   const exceedsLengthLimit = !!lengthPreview && lengthPreview.parts > lengthPreview.limitParts;
 
+  // Variables sin valor con el que sustituirlas (el backend las bloquearía
+  // igualmente al enviar — esto es solo para avisar antes y desactivar el
+  // botón). Las de curso/fechas aplican también al envío de prueba; las de
+  // alumno (usuario/clave Moodle) solo tienen sentido cuando hay un alumno
+  // real, así que no bloquean la prueba (ahí quedan vacías a propósito).
+  const COURSE_LEVEL_VARIABLES = ['{NOMBRE_CURSO}', '{NOMBRE_CURSO_CORTO}', '{FECHA_INICIO}', '{FECHA_FIN}'];
+  const missingVariables = lengthPreview?.missingVariables ?? [];
+  const missingCourseVariables = missingVariables.filter((v) => COURSE_LEVEL_VARIABLES.includes(v));
+  const missingUserVariables = missingVariables.filter((v) => !COURSE_LEVEL_VARIABLES.includes(v));
+  const blocksSend = missingCourseVariables.length > 0 || missingUserVariables.length > 0;
+  const blocksTest = missingCourseVariables.length > 0;
+
   useEffect(() => {
     if (!open || !selectedTemplate || !editedMessage.trim()) {
       setLengthPreview(null);
@@ -180,6 +192,13 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
       );
       return;
     }
+    if (blocksSend) {
+      messageApi.error(
+        `El mensaje usa ${missingVariables.join(', ')} pero no hay valor con el que sustituirlas. Revisa el curso o los alumnos antes de enviar.`,
+        8,
+      );
+      return;
+    }
     await handleSend();
   };
 
@@ -189,6 +208,13 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
       return;
     }
     if (!validateBeforeSend()) return;
+    if (blocksTest) {
+      messageApi.error(
+        `El mensaje usa ${missingCourseVariables.join(', ')} pero no hay valor con el que sustituirlas. Revisa el curso antes de enviar.`,
+        8,
+      );
+      return;
+    }
 
     setIsTestSending(true);
     try {
@@ -333,7 +359,7 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
         footer={[
           <Button key="cancel" onClick={onCancel}>Cancelar</Button>,
           <Button key="test" onClick={() => setTestModalOpen(true)}>Enviar prueba</Button>,
-          <Button key="submit" type="primary" loading={isPending || isCustomPending} disabled={exceedsLengthLimit} onClick={handleSendClick}>Enviar</Button>,
+          <Button key="submit" type="primary" loading={isPending || isCustomPending} disabled={exceedsLengthLimit || blocksSend} onClick={handleSendClick}>Enviar</Button>,
         ]}
       >
         <Form layout="vertical">
@@ -428,6 +454,14 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
                   type="error"
                   showIcon
                   message={`Supera el límite de ${lengthPreview.limitParts} SMS (${lengthPreview.encoding === 'GSM-7' ? 160 : 70} caracteres). Edita el mensaje de arriba para acortarlo.`}
+                />
+              )}
+              {missingVariables.length > 0 && (
+                <Alert
+                  style={{ marginTop: 8 }}
+                  type="warning"
+                  showIcon
+                  message={`${missingVariables.join(', ')} no tiene${missingVariables.length === 1 ? '' : 'n'} valor con el que sustituirse (según el primer alumno con teléfono) — el envío se bloqueará hasta corregirlo.`}
                 />
               )}
             </Form.Item>

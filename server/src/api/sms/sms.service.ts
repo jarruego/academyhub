@@ -67,6 +67,16 @@ export class SmsService {
   // explícita del usuario 2026-09-11 — no enviar SMS multi-parte.
   private readonly MAX_SMS_PARTS = 1;
 
+  // Variables que siempre deben tener valor si aparecen en el mensaje: vienen
+  // del grupo/curso, no de un alumno concreto, así que no hay caso legítimo
+  // en el que deban quedar vacías (a diferencia de USUARIO_MOODLE/CLAVE_MOODLE
+  // en el envío de prueba, donde no hay un alumno real — ver más abajo).
+  private readonly ALWAYS_REQUIRED_VARIABLES = ['{NOMBRE_CURSO}', '{NOMBRE_CURSO_CORTO}', '{FECHA_INICIO}', '{FECHA_FIN}'];
+  // Solo exigibles cuando el envío sí tiene un alumno real (userId): en el
+  // envío de prueba (sin userId) quedan vacías a propósito, documentado en
+  // docs/sms.md — no se bloquean ahí.
+  private readonly USER_REQUIRED_VARIABLES = ['{USUARIO_MOODLE}', '{CLAVE_MOODLE}'];
+
   constructor(
     private readonly smsSettingsService: SmsSettingsService,
     private readonly smsTemplatesService: SmsTemplatesService,
@@ -113,6 +123,27 @@ export class SmsService {
 
   private applyVariables(input: string, variables: Record<string, string>): string {
     return Object.entries(variables).reduce((acc, [key, value]) => acc.replaceAll(key, value ?? ''), input);
+  }
+
+  /**
+   * Variables que el mensaje usa (aparecen literalmente en `rawMessage`) pero
+   * no tienen valor con el que sustituirlas — para bloquear el envío antes de
+   * mandar un SMS con huecos en blanco. `hasUser` decide si además exige
+   * USUARIO_MOODLE/CLAVE_MOODLE (solo tiene sentido cuando hay un alumno real).
+   */
+  private findMissingVariables(rawMessage: string, variables: Record<string, string>, hasUser: boolean): string[] {
+    const required = hasUser ? [...this.ALWAYS_REQUIRED_VARIABLES, ...this.USER_REQUIRED_VARIABLES] : this.ALWAYS_REQUIRED_VARIABLES;
+    return required.filter((key) => rawMessage.includes(key) && !variables[key]);
+  }
+
+  /** Lanza si el mensaje usa alguna variable sin valor — ver `findMissingVariables`. */
+  private assertVariablesHaveValue(rawMessage: string, variables: Record<string, string>, hasUser: boolean): void {
+    const missing = this.findMissingVariables(rawMessage, variables, hasUser);
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `El mensaje usa ${missing.join(', ')} pero no hay valor para sustituir${hasUser ? ' (revisa el curso o el alumno)' : ' (revisa el curso)'} — no se ha enviado nada.`,
+      );
+    }
   }
 
   private async resolveCredentials(): Promise<MailrelaySmsCredentials> {
@@ -214,6 +245,7 @@ export class SmsService {
       options.courseEnd,
       options.courseShortName,
     );
+    this.assertVariablesHaveValue(options.message, variables, !!options.userId);
     return this.applyVariables(options.message, variables);
   }
 
@@ -268,6 +300,7 @@ export class SmsService {
       options.courseShortName,
     );
 
+    this.assertVariablesHaveValue(template.message, variables, !!options.userId);
     const message = this.applyVariables(template.message, variables);
 
     await this.sendSms({
@@ -291,7 +324,7 @@ export class SmsService {
    * quedar expuesta en una respuesta de API que un admin puede ver en pantalla
    * sin más contexto que "estoy comprobando el SMS".
    */
-  async previewLength(options: PreviewSmsLengthOptions): Promise<SmsLengthInfo & { limitParts: number; preview: string }> {
+  async previewLength(options: PreviewSmsLengthOptions): Promise<SmsLengthInfo & { limitParts: number; preview: string; missingVariables: string[] }> {
     let rawMessage: string;
     if (options.message !== undefined) {
       rawMessage = options.message;
@@ -318,7 +351,12 @@ export class SmsService {
     if (maskedVariables['{CLAVE_MOODLE}']) maskedVariables['{CLAVE_MOODLE}'] = '••••••';
     const preview = this.ensureUnsubscribeUrl(this.applyVariables(rawMessage, maskedVariables));
 
-    return { ...estimateSmsLength(finalMessage), limitParts: this.MAX_SMS_PARTS, preview };
+    // Aviso, no bloqueo (a diferencia de sendSms/sendSmsFromTemplate): aquí solo
+    // se informa para que el aviso aparezca ya en la vista previa, antes de
+    // intentar enviar.
+    const missingVariables = this.findMissingVariables(rawMessage, variables, !!options.userId);
+
+    return { ...estimateSmsLength(finalMessage), limitParts: this.MAX_SMS_PARTS, preview, missingVariables };
   }
 
   /** Refresca el estado real de entrega en Mailrelay para una fila del registro (botón manual). */
