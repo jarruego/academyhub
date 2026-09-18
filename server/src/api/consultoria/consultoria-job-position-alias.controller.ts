@@ -5,13 +5,14 @@ import { Role } from "src/guards/role.enum";
 import { ConsultingJobPositionAliasService } from "./consultoria-job-position-alias.service";
 import { UpsertConsultingJobPositionAliasDto } from "./dto/upsert-consulting-job-position-alias.dto";
 
-// Mapea el texto libre de `user.job_position` al puesto del catálogo de 28 —
-// mantenido solo por ADMIN (`user.job_position` es poco fiable, ver
-// docs/consultoria.md).
+// Mapea el texto libre de `user.job_position` al puesto del catálogo de 28
+// (`user.job_position` es poco fiable, ver docs/consultoria.md). CONSULTOR
+// puede mapear/remapear igual que ADMIN — lo hace también desde la propia
+// modal de evaluación de competencias (mismo nivel de acceso que evaluar).
 @ApiTags("Consultoría — Alias de puesto de trabajo")
 @ApiBearerAuth()
 @Controller("api/consultoria/job-position-aliases")
-@UseGuards(RoleGuard([Role.ADMIN]))
+@UseGuards(RoleGuard([Role.ADMIN, Role.CONSULTOR]))
 export class ConsultingJobPositionAliasController {
   constructor(private readonly consultingJobPositionAliasService: ConsultingJobPositionAliasService) {}
 

@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
-import { App, Button, DatePicker, Input, InputNumber, Modal, Segmented, Select, Table, Tag } from "antd";
-import { DeleteOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { App, Button, DatePicker, Input, InputNumber, Select, Table, Tag } from "antd";
+import { DeleteOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import { RouteTabs } from "../../components/common/RouteTabs";
@@ -27,6 +27,9 @@ import { useAddConsultingActionAttendeeMutation } from "../../hooks/api/consulti
 import { useRemoveConsultingActionAttendeeMutation } from "../../hooks/api/consulting-cuadro/use-remove-consulting-action-attendee.mutation";
 import { useConsultingCompetencyRosterQuery } from "../../hooks/api/consulting-competency-evaluation/use-consulting-competency-roster.query";
 import { useSetConsultingCompetencyEvaluationMutation } from "../../hooks/api/consulting-competency-evaluation/use-set-consulting-competency-evaluation.mutation";
+import { useConsultingJobPositionsQuery } from "../../hooks/api/consulting-job-position/use-consulting-job-positions.query";
+import { useUpsertConsultingJobPositionAliasMutation } from "../../hooks/api/consulting-job-position/use-upsert-consulting-job-position-alias.mutation";
+import { CompetencyEvaluationModal } from "../../components/consultoria/CompetencyEvaluationModal";
 
 // Todo lo de un centro dentro de una consultoría anual concreta vive aquí —
 // Evaluación de acciones y Cuadro de formación siempre atados a
@@ -266,16 +269,27 @@ export default function ConsultingEngagementCenterRoute() {
   // --- Evaluación de competencias ---
   const { data: competencyRosterData, isLoading: isCompetencyRosterLoading } = useConsultingCompetencyRosterQuery(id_consulting_client, id_annual_engagement || "", id_center || "");
   const { mutateAsync: setCompetencyValue } = useSetConsultingCompetencyEvaluationMutation(id_consulting_client, id_annual_engagement || "", id_center || "");
+  const { data: jobPositionsData } = useConsultingJobPositionsQuery();
+  const { mutateAsync: upsertJobPositionAlias } = useUpsertConsultingJobPositionAliasMutation();
   const [evaluatingUserId, setEvaluatingUserId] = useState<number | undefined>();
 
   const evaluatingIndex = (competencyRosterData?.members ?? []).findIndex((m) => m.id_user === evaluatingUserId);
   const evaluatingMember = evaluatingIndex >= 0 ? competencyRosterData?.members[evaluatingIndex] : undefined;
+  const jobPositionOptions = (jobPositionsData ?? []).map((p) => ({ value: p.id_job_position, label: p.group_name ? `${p.name} (${p.group_name})` : p.name }));
 
   const handleSetCompetencyValue = async (id_user: number, id_competency: number, value: boolean | null) => {
     try {
       await setCompetencyValue({ id_user, id_competency, value });
     } catch {
       message.error('No se pudo guardar. Inténtalo de nuevo.');
+    }
+  };
+
+  const handleChangeCompetencyJobPosition = async (job_position: string, id_job_position: number) => {
+    try {
+      await upsertJobPositionAlias({ job_position, id_job_position });
+    } catch {
+      message.error('No se pudo cambiar el puesto. Inténtalo de nuevo.');
     }
   };
 
@@ -631,37 +645,18 @@ export default function ConsultingEngagementCenterRoute() {
             ]}
           />
 
-          <Modal
-            open={!!evaluatingMember}
-            title={evaluatingMember ? `${evaluatingMember.name} ${evaluatingMember.first_surname ?? ''} ${evaluatingMember.second_surname ?? ''}`.trim() : ''}
-            onCancel={() => setEvaluatingUserId(undefined)}
-            footer={[
-              <Button key="prev" icon={<LeftOutlined />} disabled={evaluatingIndex <= 0} onClick={() => setEvaluatingUserId(competencyRosterData?.members[evaluatingIndex - 1]?.id_user)}>Anterior</Button>,
-              <Button key="next" icon={<RightOutlined />} iconPosition="end" disabled={evaluatingIndex < 0 || evaluatingIndex >= (competencyRosterData?.members.length ?? 0) - 1} onClick={() => setEvaluatingUserId(competencyRosterData?.members[evaluatingIndex + 1]?.id_user)}>Siguiente</Button>,
-              <Button key="close" type="primary" onClick={() => setEvaluatingUserId(undefined)}>Cerrar</Button>,
-            ]}
-            width={640}
-          >
-            {evaluatingMember && !evaluatingMember.id_job_position && (
-              <p style={{ color: '#d4380d' }}>
-                Puesto "{evaluatingMember.job_position ?? 'sin especificar'}" sin mapear al catálogo — no hay autorelleno. Se puede mapear en <Link to="/consultoria/job-position-aliases">Puestos sin mapear</Link>.
-              </p>
-            )}
-            {evaluatingMember?.values.map((v) => (
-              <div key={v.id_competency} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--border-faint, #eee)' }}>
-                <span>{competencyRosterData?.competencies.find((c) => c.id_competency === v.id_competency)?.name}</span>
-                <Segmented
-                  value={v.value === true ? 'ok' : v.value === false ? 'improve' : 'na'}
-                  onChange={(val) => handleSetCompetencyValue(evaluatingMember.id_user, v.id_competency, val === 'ok' ? true : val === 'improve' ? false : null)}
-                  options={[
-                    { label: 'No necesita mejorar', value: 'ok' },
-                    { label: 'Necesita mejorar', value: 'improve' },
-                    { label: 'No aplica', value: 'na' },
-                  ]}
-                />
-              </div>
-            ))}
-          </Modal>
+          <CompetencyEvaluationModal
+            member={evaluatingMember}
+            competencies={competencyRosterData?.competencies ?? []}
+            jobPositionOptions={jobPositionOptions}
+            onClose={() => setEvaluatingUserId(undefined)}
+            onChangeValue={handleSetCompetencyValue}
+            onChangeJobPosition={handleChangeCompetencyJobPosition}
+            hasPrev={evaluatingIndex > 0}
+            hasNext={evaluatingIndex >= 0 && evaluatingIndex < (competencyRosterData?.members.length ?? 0) - 1}
+            onPrev={() => setEvaluatingUserId(competencyRosterData?.members[evaluatingIndex - 1]?.id_user)}
+            onNext={() => setEvaluatingUserId(competencyRosterData?.members[evaluatingIndex + 1]?.id_user)}
+          />
         </div>
       ),
     },

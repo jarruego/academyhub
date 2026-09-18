@@ -5,11 +5,14 @@ import { ConsultingPlanItemRepository } from "src/database/repository/consultori
 import { ConsultingEvaluationService } from "./consultoria-evaluation.service";
 import { ConsultingCuadroService } from "./consultoria-cuadro.service";
 import { ConsultingCompetencyEvaluationService } from "./consultoria-competency-evaluation.service";
+import { ConsultingJobPositionService } from "./consultoria-job-position.service";
+import { ConsultingJobPositionAliasService } from "./consultoria-job-position-alias.service";
 import { ConsultingEngagementStatus } from "src/types/consulting/consulting-engagement-status.enum";
 import { CreateConsultingActionEvaluationDto } from "./dto/create-consulting-action-evaluation.dto";
 import { UpdateConsultingActionEvaluationDto } from "./dto/update-consulting-action-evaluation.dto";
 import { SetConsultingCompetencyEvaluationDto } from "./dto/set-consulting-competency-evaluation.dto";
 import { CreateConsultingActionAttendeeDto } from "./dto/create-consulting-action-attendee.dto";
+import { UpsertConsultingJobPositionAliasDto } from "./dto/upsert-consulting-job-position-alias.dto";
 
 /**
  * Acceso externo de un centro a su consultoría (token — ver
@@ -37,6 +40,8 @@ export class ConsultingCentroService {
     private readonly consultingEvaluationService: ConsultingEvaluationService,
     private readonly consultingCuadroService: ConsultingCuadroService,
     private readonly consultingCompetencyEvaluationService: ConsultingCompetencyEvaluationService,
+    private readonly consultingJobPositionService: ConsultingJobPositionService,
+    private readonly consultingJobPositionAliasService: ConsultingJobPositionAliasService,
   ) {}
 
   /** Consultorías en las que participa este centro — para que elija el año. */
@@ -108,6 +113,29 @@ export class ConsultingCentroService {
     this.assertWritable(engagement);
     // evaluated_by queda NULL: lo hace el propio centro, no un miembro de Mecohisa.
     return this.consultingCompetencyEvaluationService.setValue(engagement.id_consulting_client, id_annual_engagement, id_center, id_user, id_competency, dto, undefined);
+  }
+
+  /** Catálogo de puestos de trabajo, para elegir el mapeo desde la propia evaluación de competencias. */
+  async getJobPositions(id_center: number, id_annual_engagement: number) {
+    await this.getValidatedEngagement(id_center, id_annual_engagement);
+    return this.consultingJobPositionService.findAll();
+  }
+
+  /**
+   * Mapea (o remapea) un valor de `job_position` al catálogo, desde la
+   * evaluación de competencias del propio centro. OJO: `consulting_job_
+   * position_aliases` es GLOBAL, no por centro (mismo valor de texto puede
+   * venir de trabajadores de otros centros) — decisión consciente: un centro
+   * con su enlace puede cambiar cómo se resuelve ese valor para TODOS los
+   * centros de la consultoría, no solo el suyo (ver
+   * consulting_job_position_alias.table.ts). Se valida igual que
+   * `setCompetency` (participa en la consultoría, consultoría abierta) para
+   * no dejarlo mapear si la consultoría ya está cerrada.
+   */
+  async upsertJobPositionAlias(id_center: number, id_annual_engagement: number, dto: UpsertConsultingJobPositionAliasDto) {
+    const engagement = await this.getValidatedEngagement(id_center, id_annual_engagement);
+    this.assertWritable(engagement);
+    return this.consultingJobPositionAliasService.upsert(dto);
   }
 
   /** Cuadro de este centro (cruce trabajador × acción, real + manual) — para ver y registrar asistentes de sus propias acciones. */

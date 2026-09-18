@@ -449,6 +449,12 @@ Notas:
 - Enlace humano: `https://<app>/consultoria-centro/:token` — ruta de cliente sin el layout/sidebar normal (`ConsultingCentroShell`), montada en `main.tsx` con su propio router (`router-consulting-centro.tsx`) **antes** de `AuthProvider`, que si no bloquea cualquier URL detrás del login sin mirar la ruta.
 - **Sesión ligada al navegador, no al token en sí (2026-09-17, pedido explícito del usuario).** El token identifica inequívocamente al centro y da permisos especiales — el usuario no quería que esa entrada "se quedara siempre abierta" más allá de cerrar el navegador. Como el guard es un bearer stateless (sin cookie ni JWT con expiración), la única forma de que "cerrar el navegador" signifique algo es no dejar el token en ningún sitio que sobreviva a eso. Por eso `/consultoria-centro/:token` (`ConsultingCentroEntryRoute`) es el **único** sitio donde el token vive en la URL: en cuanto se visita, se guarda en `sessionStorage` (nunca `localStorage` — eso sí sobreviviría a cerrar el navegador) y se redirige a `/consultoria-centro/app[...]`, rutas internas que ya no lo llevan en la URL ni en el historial. `ConsultingCentroShell` lee el token de `sessionStorage`; si no está (navegador cerrado y reabierto, u "Salir" en la cabecera, que lo limpia a mano) muestra "Sesión no disponible" y hay que volver a usar el enlace original — el token en sí sigue siendo válido (no es de un solo uso, ADMIN puede seguir viéndolo/copiándolo desde la ficha del centro), solo se pierde la comodidad de no tener que volver a pegarlo.
 - Endpoints internos (ADMIN/CONSULTOR): `@UseGuards(RoleGuard([Role.ADMIN, Role.CONSULTOR]))` a nivel de controlador, mismo patrón que `course-request.controller.ts`. `CONSULTOR` hoy tiene los mismos privilegios que `VIEWER` (comentario en `role.enum.ts`) — Consultoría es el primer módulo que le da permisos reales.
+- **Nunca la pantalla de login para un centro sin acceso a algo (2026-09-17, pedido explícito del usuario) — mitigado, no cerrado del todo, ver "Decisiones pendientes" más abajo.** Un centro entra por enlace, no por usuario/contraseña — el login normal no tiene sentido para él y no debe verlo nunca, ni siquiera por accidente. **Un único aviso, siempre el mismo, para cualquier motivo** (corrección del propio usuario sobre el primer intento: no distinguir "página no encontrada" de "sin acceso" de "fuera de tu alcance" con textos distintos según el caso — un solo mensaje conocido, "Sesión no disponible", con un botón "Volver a mi portada" que enlaza a `/consultoria-centro/app`): `ConsultingCentroNoAccess`, sin props de texto (antes las tenía, se quitaron a propósito para que sea imposible que dos sitios digan algo distinto), solo `standalone` (`false` cuando ya se muestra dentro de `ConsultingCentroShell`, que pone su propia cabecera). Usado en los cinco sitios donde antes había mensajes distintos, incluida la propia `ConsultingCentroShell` (antes tenía su Result inline con este mismo texto — ahora delega en el componente único, una sola fuente de verdad):
+  1. Ruta que no existe dentro de su mini-app (`router-consulting-centro.tsx`, `<Route path="*">`) — antes no había catch-all y no coincidir con ninguna ruta dejaba la pantalla en blanco.
+  2. Una consultoría que no es la suya (`ConsultingCentroEngagementRoute`, ya existía) — con reintentos por defecto de React Query (3, con *backoff*) tardaba ~7s en pasar de "cargando" a este aviso; se puso `retry: false` en las queries que deciden estos avisos (`useConsultingCentroEvaluationsQuery`/`useConsultingCentroEngagementsQuery`) — un 404/401 aquí es definitivo, reintentar no cambia el resultado, solo retrasa el aviso.
+  3. El token es inválido o fue revocado (`ConsultingCentroEngagementsRoute`, al listar "sus" consultorías) — antes decía "Enlace no válido", ahora el mismo aviso único.
+  4. **El caso real que pidió el usuario**: el centro (sin sesión normal, solo el token) navega a una URL de la app normal fuera de `/consultoria-centro/*` — a mano, por el historial del navegador, o un enlace viejo (ej. `/tools/correo`). Antes `main.tsx` montaba `AuthProvider` igual que a cualquier visitante sin sesión, mostrando el login. Ahora, si hay un token de centro en `sessionStorage` y **no** hay una sesión normal real (`localStorage.userInfo`), se muestra este mismo aviso en vez de montar `AuthProvider` — un login real siempre manda por delante, nunca se le tapa la app normal a un usuario de verdad por un token de centro suelto.
+  5. El propio botón "Salir" (repro concreto que el usuario tenía a mano al probar): limpiaba el token y navegaba a `/` — sin sesión de ningún tipo ya en ese momento, caía en el login normal (el caso 4 no lo detecta porque el token ya no está en `sessionStorage`, se acaba de borrar). Corregido navegando a `/consultoria-centro/app` en vez de `/`: como el token ya está limpio, esa misma pantalla muestra el aviso único de arriba (vía `ConsultingCentroShell`), nunca el login.
 - **Aislamiento verificado 2026-09-17** (pedido explícito del usuario: "que solo puedan leer y editar... lo que necesitan"). Capas de contención, de fuera a dentro:
   1. `ConsultingTokenGuard` solo está montado en `ConsultingCentroController` — es el único `@Public()` de la app aparte de login y ficheros (comprobado con `grep`), así que un token de centro nunca llega a ningún otro guard. Enviarlo contra cualquier ruta interna (`RoleGuard`-protegida o no) lo recibe primero el `AuthGuard` global, que intenta verificarlo como JWT y falla siempre — probado en vivo contra `GET /api/consultoria/clients`, la propia gestión ADMIN del token (`GET /api/consultoria/centers/:id/token`) y una ruta cualquiera: 401 en los tres casos, igual que sin token o con uno inventado.
   2. `id_center` sale siempre de la fila resuelta por el hash (`request['id_center']`), nunca de un parámetro/cuerpo de la petición — no hay ningún campo que un centro pueda rellenar para operar como otro.
@@ -457,6 +463,13 @@ Notas:
   5. `listActions` dejó de traer a memoria el plan de **todos** los centros de la consultoría para filtrar después (nunca se devolvía en la respuesta, pero violaba mínimo privilegio también a nivel de consulta) — ahora `ConsultingPlanItemRepository.findEffectiveForCenter` filtra ya en el `WHERE` (base ∪ propio de ese centro), igual que ya hacían el resto de consultas scoped a centro.
   6. Escritura bloqueada si la consultoría está `CLOSED` (`assertWritable`, en el servicio — el guard no lo sabe, depende del `id_annual_engagement` de cada llamada).
   Sin capacidad de listado masivo ni de navegar a otro centro/cliente desde ningún endpoint — el alcance sigue siendo el cerrado en el planteamiento funcional (§ Modelo conceptual): evaluar sus acciones (competencias y asistentes, pendientes).
+  **Única excepción deliberada (2026-09-18)**: mapear el puesto de un
+  trabajador desde la evaluación de competencias (`PUT .../job-position-
+  aliases`) escribe en `consulting_job_position_aliases`, que es **global**
+  — no está scoped a `id_center` como el resto de esta lista. Un centro con
+  su token puede así cambiar cómo se resuelve un valor de puesto que
+  también usen otros centros. Pedido explícito del usuario, con el riesgo
+  entendido — ver la entrada de "Estado" de esa fecha.
 
 ### Módulo (NestJS), siguiendo el patrón de `course-request`
 
@@ -523,9 +536,27 @@ Negocio: consultoría dio el **visto bueno final** (§ Modelo conceptual y
 Decisiones cerradas). Solo quedan los 3 detalles de diseño de los
 dashboards auditables (arriba) — no bloquean nada.
 
-Técnico: sin puntos abiertos — las dos dudas de arquitectura (menú del
-sidebar, cabecera del token) se resolvieron revisando el código real, y se
-sumó el diseño de alias de puesto de trabajo (arriba).
+Técnico: un punto abierto — **el centro podría llegar a ver la pantalla de
+login normal en algún caso todavía no identificado** (2026-09-17). Se
+cubrieron varios casos concretos (ver "Nunca la pantalla de login..."
+arriba: ruta inexistente dentro de su mini-app, consultoría ajena, navegar
+fuera de `/consultoria-centro/*` sin sesión normal, y el propio botón
+"Salir", que era el repro exacto que el usuario tenía a mano). Parchear
+caso a caso en el cliente (detectar "hay token de centro pero no sesión
+normal" en JavaScript, antes de montar `AuthProvider`) sigue siendo
+inherentemente frágil para lo que no se ha visto todavía: caché, atrás/
+adelante del navegador, Service Worker... — casos hipotéticos, no
+reproducidos, pero la técnica de detección en sí no los puede descartar
+todos. **Decisión: los casos concretos que fueron apareciendo se arreglan
+sobre la marcha (como el de "Salir"); la garantía completa se deja
+pendiente a propósito, sin inventar más parches por adelantado para casos
+que no se han visto.** El usuario apunta a la solución de fondo: un
+subdominio propio para el acceso de centros (p. ej.
+`centros.academyhub...`), de forma que el login normal ni siquiera exista
+en ese origen — no algo que decida el JavaScript en tiempo de ejecución,
+sino algo que la propia infraestructura (routing/despliegue) garantice.
+Sin diseñar todavía (dominio, despliegue del mismo build en dos hosts o
+build separado, etc.) — para cuando se revise, no antes.
 
 ## Estado
 Planteamiento funcional **cerrado, con visto bueno de consultoría**.
@@ -810,6 +841,39 @@ en las convenciones reales del código. **En construcción desde 2026-09-15**:
   sobre-consumo que `listActions` (traía a memoria el plan de todos los
   centros antes de filtrar) — corregido a la vez, usando
   `findEffectiveForCenter` también aquí.
+- ✅ Modal de evaluación de competencias rediseñada + mapeo de puesto editable
+  in situ (2026-09-18). Componente único compartido
+  `client/src/components/consultoria/CompetencyEvaluationModal.tsx`, usado
+  tanto por la vista interna (ADMIN/CONSULTOR) como por la del centro
+  (token) — antes cada una tenía su propia copia del JSX del modal.
+  Cambios visuales: modal al 80% del ancho de pantalla (`width="80%"`, con
+  `maxWidth: 1100` para no desbocarse en monitores muy anchos); las ~25
+  competencias en dos columnas (`.competency-evaluation-grid`,
+  `index.css` — cae a una columna por debajo de 640px); el `Segmented` de
+  texto de cada competencia pasa a 3 cuadrados de color (verde/rojo/gris,
+  `CompetencyValueToggle`) con `title`/`aria-label` describiendo el
+  significado, más reconocible de un vistazo que leer las tres etiquetas.
+  **Mapeo de puesto ahora editable desde la propia modal**, en las DOS
+  vistas — antes de hoy era de solo lectura ahí (la interna enlazaba a
+  "Puestos sin mapear", la externa ni eso: "no editable aquí quién mapea qué
+  puesto, eso sigue siendo cosa de ADMIN"). Al lado del nombre del
+  trabajador: un `Select` (buscador) con el puesto mapeado ya elegido —
+  mapeado o no, siempre se puede cambiar — y el valor tal cual llega en
+  `user.job_position` entre paréntesis, en rojo mientras no haya mapeo.
+  Decisión consciente pedida explícitamente por el usuario, con el riesgo
+  entendido: `consulting_job_position_aliases` es **global**, no por centro
+  (único índice sobre el propio texto de `job_position`, sin `id_center`) —
+  que un centro cambie el mapeo desde su enlace externo afecta a cómo se
+  resuelve ese mismo valor para **todos** los centros de la consultoría, no
+  solo el suyo. Para la vista interna, `ConsultingJobPositionAliasController`
+  amplía su `RoleGuard` de `[ADMIN]` a `[ADMIN, CONSULTOR]` (mismo nivel que
+  ya tenía "Evaluar"). Para la externa, dos endpoints nuevos en
+  `ConsultingCentroController`/`ConsultingCentroService` —
+  `GET/PUT api/consultoria/centro/engagements/:id/job-positions(-aliases)`
+  — que delegan en los mismos `ConsultingJobPositionService`/
+  `ConsultingJobPositionAliasService` que ya usa ADMIN (sin duplicar reglas),
+  validando igual que `setCompetency` (el centro participa en la consultoría,
+  consultoría abierta) antes de tocar el alias global.
 
 ## Plan por fases (borrador, sujeto a las decisiones pendientes)
 1. Cierre de decisiones con consultoría.

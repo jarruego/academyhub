@@ -8,6 +8,7 @@ import { CreateConsultingActionEvaluationDto } from "./dto/create-consulting-act
 import { UpdateConsultingActionEvaluationDto } from "./dto/update-consulting-action-evaluation.dto";
 import { SetConsultingCompetencyEvaluationDto } from "./dto/set-consulting-competency-evaluation.dto";
 import { CreateConsultingActionAttendeeDto } from "./dto/create-consulting-action-attendee.dto";
+import { UpsertConsultingJobPositionAliasDto } from "./dto/upsert-consulting-job-position-alias.dto";
 
 // Acceso externo de un centro a su propia consultoría, por token (nunca por
 // JWT) — enlace humano `/consultoria-centro/:token` en el cliente. `@Public()`
@@ -96,6 +97,22 @@ export class ConsultingCentroController {
     @Body() dto: SetConsultingCompetencyEvaluationDto,
   ) {
     return this.consultingCentroService.setCompetency(this.idCenter(req), id_annual_engagement, id_user, id_competency, dto);
+  }
+
+  @Get("engagements/:id_annual_engagement/job-positions")
+  @ApiOperation({ summary: "Catálogo de puestos de trabajo, para mapear el puesto de un trabajador desde la evaluación de competencias" })
+  async getJobPositions(@Req() req: Request, @Param("id_annual_engagement", ParseIntPipe) id_annual_engagement: number) {
+    return this.consultingCentroService.getJobPositions(this.idCenter(req), id_annual_engagement);
+  }
+
+  @Put("engagements/:id_annual_engagement/job-position-aliases")
+  @ApiOperation({ summary: "Mapear (o remapear) el puesto de un trabajador de este centro al catálogo — atención: el mapeo es global, afecta a todos los centros que compartan ese mismo valor de puesto" })
+  async upsertJobPositionAlias(
+    @Req() req: Request,
+    @Param("id_annual_engagement", ParseIntPipe) id_annual_engagement: number,
+    @Body() dto: UpsertConsultingJobPositionAliasDto,
+  ) {
+    return this.consultingCentroService.upsertJobPositionAlias(this.idCenter(req), id_annual_engagement, dto);
   }
 
   @Get("engagements/:id_annual_engagement/cuadro")

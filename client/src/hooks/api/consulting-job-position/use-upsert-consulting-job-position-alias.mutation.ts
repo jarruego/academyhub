@@ -15,6 +15,10 @@ export const useUpsertConsultingJobPositionAliasMutation = () => {
         })).data,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['consulting-job-position-aliases'] });
+            // Cambiar el mapeo también puede afectar al autorelleno/mapeo mostrado
+            // en la evaluación de competencias (roster admin) — invalidar por
+            // prefijo cubre cualquier client/engagement/center abierto.
+            queryClient.invalidateQueries({ queryKey: ['consulting-competency-roster'] });
         },
     });
 };

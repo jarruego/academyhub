@@ -227,3 +227,17 @@ ul, ol {
 .requirements-switch:not(.ant-switch-checked) {
     background: #ff4d4f !important;
 }
+
+/* Evaluación de competencias (interna y externa por token): las ~25
+   competencias en dos columnas para que quepan sin scroll con la modal
+   ensanchada — se cae a una sola columna en pantallas estrechas (móvil). */
+.competency-evaluation-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 24px;
+}
+@media (max-width: 640px) {
+    .competency-evaluation-grid {
+        grid-template-columns: 1fr;
+    }
+}
