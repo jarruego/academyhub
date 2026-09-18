@@ -17,7 +17,6 @@ import { useCourseCatalogQuery } from "../../hooks/api/course-catalog/use-course
 const CREATE_COURSE_FORM = z.object({
   id_catalog_course: z.coerce.number().int().positive("Selecciona un curso del catálogo"),
   course_name: z.string({ required_error: "El nombre de la edición es obligatorio" }).min(2, "El nombre es demasiado corto"),
-  short_name: z.string({ required_error: "El nombre corto es obligatorio" }).min(2, "El nombre corto es demasiado corto"),
   start_date: z.date().nullable().optional(),
   end_date: z.date().nullable().optional(),
   modality: z.nativeEnum(CourseModality, { required_error: "La modalidad es obligatoria" }),
@@ -103,7 +102,7 @@ export default function CreateCourseRoute() {
           </Col>
         </Row>
         <Row gutter={[16, 0]}>
-          <Col xs={24} md={16}>
+          <Col xs={24} md={24}>
             <Form.Item
               label="Nombre de la edición del curso"
               name="course_name"
@@ -112,17 +111,6 @@ export default function CreateCourseRoute() {
               validateStatus={errors.course_name ? "error" : undefined}
             >
               <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" />} />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={8}>
-            <Form.Item
-              label="Nombre corto"
-              name="short_name"
-              required={true}
-              help={errors.short_name?.message}
-              validateStatus={errors.short_name ? "error" : undefined}
-            >
-              <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" />} />
             </Form.Item>
           </Col>
         </Row>

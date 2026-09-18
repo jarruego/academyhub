@@ -113,7 +113,7 @@ export function MoodleUsersSection({ userId }: MoodleUsersSectionProps) {
             {courses.map((uc: UserCourseWithCourse) => {
               const pct = Number(uc.completion_percentage ?? 0);
               const color = pct >= 75 ? 'green' : 'default';
-              const label = uc.course.course_name ?? uc.course.short_name;
+              const label = uc.course.course_name;
               return (
                 <Tag key={`${record.id_moodle_user}-${uc.course.id_course}`} color={color}>{label}</Tag>
               );

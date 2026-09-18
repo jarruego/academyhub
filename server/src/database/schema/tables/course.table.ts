@@ -15,11 +15,11 @@ export const catalogCourseTable = academyhubSchema.table('catalog_courses', {
   name: text().notNull(),
   normalized_name: text().notNull(),
   // Nombre corto del curso de catálogo (p.ej. para SMS, donde cuenta cada
-  // carácter) — antes solo existía a nivel de edición (`courses.short_name`,
-  // que sigue existiendo y en uso: búsquedas, duplicador de foros, export
-  // CSV de SMS, columna de tabla...). Este es el equivalente estable a nivel
-  // de catálogo, distinto de `internal_code` (código, no nombre). Usado por
-  // la plantilla de SMS como {NOMBRE_CURSO_CORTO} — ver docs/sms.md.
+  // carácter) — antes existía a nivel de edición (`courses.short_name`,
+  // eliminado: todos sus usos reales —búsqueda, duplicador de foros, export
+  // CSV de SMS— pasaron a este campo estable de catálogo). Distinto de
+  // `internal_code` (código, no nombre). Usado por la plantilla de SMS como
+  // {NOMBRE_CURSO_CORTO} — ver docs/sms.md.
   short_name: text().notNull(),
   internal_code: text(),
   description: text(),
@@ -56,7 +56,6 @@ export const courseTable = academyhubSchema.table('courses', {
   id_catalog_course: integer().notNull().references(() => catalogCourseTable.id_catalog_course),
   moodle_id: integer(),
   course_name: text().notNull(),
-  short_name: text().notNull(),
   start_date: timestamp({withTimezone: true}),
   end_date: timestamp({withTimezone: true}),
   modality: courseModality().notNull(),

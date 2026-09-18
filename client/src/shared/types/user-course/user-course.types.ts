@@ -12,7 +12,6 @@ export interface CourseSelectModel {
   id_course: number;
   moodle_id: number | null;
   course_name: string;
-  short_name: string;
   start_date: string | null;
   end_date: string | null;
   modality: string;

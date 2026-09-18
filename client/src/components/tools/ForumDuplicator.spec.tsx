@@ -5,7 +5,7 @@ import { App } from 'antd';
 import ForumDuplicator from './ForumDuplicator';
 
 vi.mock('../../hooks/api/courses/use-courses.query', () => ({
-  useCoursesQuery: () => ({ data: [{ id_course: 1, course_name: 'Curso X', short_name: 'CX', moodle_id: 99 }], isLoading: false }),
+  useCoursesQuery: () => ({ data: [{ id_course: 1, course_name: 'Curso X', catalog_course_short_name: 'CX', moodle_id: 99 }], isLoading: false }),
 }));
 vi.mock('../../hooks/api/forum/use-course-forums.query', () => ({
   useCourseForumsQuery: () => ({ data: [], isLoading: false }),

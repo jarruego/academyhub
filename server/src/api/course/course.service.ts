@@ -222,7 +222,6 @@ export class CourseService {
     return await (options?.transaction ?? this.databaseService.db).transaction(async transaction => {
       const data = {
         course_name: moodleCourse.fullname,
-        short_name: moodleCourse.shortname,
         moodle_id: moodleCourse.id,
         start_date: new Date(moodleCourse.startdate * 1000),
         end_date: (moodleCourse.enddate && moodleCourse.enddate > 0) ? new Date(moodleCourse.enddate * 1000) : null,

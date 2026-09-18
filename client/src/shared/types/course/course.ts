@@ -10,7 +10,6 @@ export type Course = {
     catalog_course_short_name?: string;
     course_name: string;
     moodle_id?: number | null;
-    short_name: string;
     start_date?: Date | null;
     end_date?: Date | null;
     modality: CourseModality;

@@ -35,7 +35,6 @@ const COURSE_DETAIL_FORM_SCHEMA = z.object({
   id_course: z.number(),
   id_catalog_course: z.coerce.number().int().positive("Selecciona un curso del catálogo"),
   course_name: z.string({ required_error: "El nombre de la edición es obligatorio" }).min(2, "El nombre es demasiado corto"),
-  short_name: z.string({ required_error: "El nombre corto es obligatorio" }).min(2, "El nombre corto es demasiado corto"),
   start_date: z.date().nullable().optional().nullish(),
   end_date: z.date().nullable().optional().nullish(),
   modality: z.nativeEnum(CourseModality, { required_error: "La modalidad es obligatoria" }),
@@ -143,7 +142,6 @@ export default function CourseDetailRoute() {
       id_course: id_course ? Number(id_course) : 0,
       id_catalog_course: 0,
       course_name: '',
-      short_name: '',
       start_date: null,
       end_date: null,
       modality: defaultModality,
@@ -215,8 +213,8 @@ export default function CourseDetailRoute() {
 
   useEffect(() => {
     const previousTitle = document.title;
-    if (courseData && courseData.short_name) {
-      document.title = String(courseData.short_name);
+    if (courseData && (courseData.catalog_course_short_name || courseData.course_name)) {
+      document.title = String(courseData.catalog_course_short_name || courseData.course_name);
     } else {
       document.title = `Curso ${id_course}`;
     }
@@ -418,7 +416,7 @@ export default function CourseDetailRoute() {
 
             {/* Nombre del curso + fechas (a la derecha de los nombres) */}
             <Row gutter={[16, 0]}>
-              <Col xs={24} sm={12} md={8}>
+              <Col xs={24} sm={12} md={14}>
                 <Form.Item
                   label="Nombre de la edición del curso"
                   name="course_name"
@@ -427,17 +425,6 @@ export default function CourseDetailRoute() {
                   validateStatus={errors.course_name ? "error" : undefined}
                 >
                   <Controller name="course_name" control={control} render={({ field }) => <Input {...field} id="course_name" autoComplete="off" data-testid="course-name" value={field.value ?? ''} readOnly={!canEdit} />} />
-                </Form.Item>
-              </Col>
-              <Col xs={24} sm={12} md={6}>
-                <Form.Item
-                  label="Nombre corto"
-                  name="short_name"
-                  required
-                  help={errors.short_name?.message}
-                  validateStatus={errors.short_name ? "error" : undefined}
-                >
-                  <Controller name="short_name" control={control} render={({ field }) => <Input {...field} id="short_name" autoComplete="off" data-testid="short-name" value={field.value ?? ''} readOnly={!canEdit} />} />
                 </Form.Item>
               </Col>
               <Col xs={12} sm={6} md={4}>

@@ -156,11 +156,6 @@ export const UserCoursesSection: React.FC<UserCoursesSectionProps> = ({ userId }
       },
     },
     {
-      title: 'Nombre Corto',
-      dataIndex: ['course', 'short_name'],
-      key: 'short_name',
-    },
-    {
       title: 'Modalidad',
       dataIndex: ['course', 'modality'],
       key: 'modality',

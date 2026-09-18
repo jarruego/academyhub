@@ -21,11 +21,6 @@ export class CreateCourseDTO {
   @IsString()
   course_name: string;
 
-  @ApiProperty()
-  @IsNotEmpty()
-  @IsString()
-  short_name: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsDate()

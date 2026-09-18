@@ -11,7 +11,6 @@ const courseData = {
   id_course: 1,
   id_catalog_course: 1,
   course_name: "Curso Demo",
-  short_name: "CD",
   modality: "Online",
   start_date: null,
   end_date: null,
@@ -86,7 +85,6 @@ describe("<CourseDetailRoute />", () => {
 
   it("debería mostrar los datos del curso", async () => {
     expect((await screen.findByTestId("course-name")).getAttribute("value")).toBe("Curso Demo");
-    expect((await screen.findByTestId("short-name")).getAttribute("value")).toBe("CD");
     // Comprobar que el Select de modalidad muestra el texto correcto
     const modalitySelect = await screen.findByTestId("modality");
     // El valor seleccionado se muestra en un div.ant-select-selector
@@ -103,11 +101,6 @@ describe("<CourseDetailRoute />", () => {
     const nombre = await screen.findByTestId("course-name");
     await userEvent.clear(nombre);
     await userEvent.type(nombre, "Curso Editado");
-    await userEvent.tab(); // Fuerza blur
-    // Asegura que los campos requeridos tienen valor
-    const shortName = await screen.findByTestId("short-name");
-    await userEvent.clear(shortName);
-    await userEvent.type(shortName, "CD");
     await userEvent.tab(); // Fuerza blur
     // Horas y precio/hora
     const hours = screen.getByLabelText(/horas/i);
@@ -136,9 +129,6 @@ describe("<CourseDetailRoute />", () => {
     const nombre = await screen.findByTestId("course-name");
     await userEvent.clear(nombre);
     await userEvent.type(nombre, "Curso Editado");
-    const shortName = await screen.findByTestId("short-name");
-    await userEvent.clear(shortName);
-    await userEvent.type(shortName, "CD");
     const hours = screen.getByLabelText(/horas/i);
     await userEvent.clear(hours);
     await userEvent.type(hours, "10");
@@ -150,7 +140,6 @@ describe("<CourseDetailRoute />", () => {
       await updateCourse.mutateAsync({
         ...courseData,
         course_name: "Curso Editado",
-        short_name: "CD",
         hours: 10,
         price_per_hour: 20,
       });

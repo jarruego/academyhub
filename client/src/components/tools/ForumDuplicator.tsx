@@ -58,7 +58,7 @@ export default function ForumDuplicator() {
   const courseOptions = useMemo(
     () => (coursesQuery.data ?? [])
       .filter((c) => c.moodle_id != null)
-      .map((c) => ({ value: c.id_course, label: `${c.course_name} (${c.short_name})` })),
+      .map((c) => ({ value: c.id_course, label: `${c.course_name} (${c.catalog_course_short_name ?? ''})` })),
     [coursesQuery.data],
   );
 

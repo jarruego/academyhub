@@ -262,7 +262,6 @@ export class InaemImportService {
             .values({
               id_catalog_course: catalogCourse.id_catalog_course,
               course_name: courseName,
-              short_name: fileNumber,
               file_number: fileNumber,
               client: CourseClient.INAEM,
               funding: CourseFunding.PUBLICA,
@@ -475,7 +474,6 @@ export class InaemImportService {
       .values({
         id_catalog_course: catalogCourse.id_catalog_course,
         course_name: fileNumber,
-        short_name: fileNumber,
         file_number: fileNumber,
         client: CourseClient.INAEM,
         funding: CourseFunding.PUBLICA,

@@ -1784,7 +1784,6 @@ export class MoodleService {
         const run = async (transaction: Transaction) => {
             const data: Partial<CourseInsertModel> = {
                 course_name: moodleCourse.fullname,
-                short_name: moodleCourse.shortname,
                 moodle_id: moodleCourse.id,
                 start_date: new Date(moodleCourse.startdate * 1000),
                 end_date: (moodleCourse.enddate && moodleCourse.enddate > 0) ? new Date(moodleCourse.enddate * 1000) : null,

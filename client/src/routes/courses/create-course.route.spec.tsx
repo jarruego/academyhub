@@ -38,11 +38,9 @@ describe("<CreateCourseRoute/>", () => {
     describe("when submitting valid data", () => {
         it("should call the mutation to create the course", async () => {
             const courseName = await screen.findByTestId("course-name");
-            const shortName = await screen.findByTestId("short-name");
             const modalityLabel = await screen.findByLabelText(/modalidad/i);
             const catalogLabel = await screen.findByLabelText(/curso de cat/i);
             await userEvent.type(courseName, "Curso Test");
-            await userEvent.type(shortName, "CT");
             await userEvent.click(catalogLabel);
             await userEvent.click(await screen.findByTitle("Curso base"));
             // Modalidad: simular el evento de cambio con el valor real del enum

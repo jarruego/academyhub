@@ -38,7 +38,6 @@ export class CourseRepository extends Repository {
   const where: DbCondition[] = [];
 
         if (filter.course_name) where.push(ilike(courseTable.course_name, `%${filter.course_name}%`));
-        if (filter.short_name) where.push(ilike(courseTable.short_name, `%${filter.short_name}%`));
         if (filter.start_date) where.push(eq(courseTable.start_date, filter.start_date));
         if (filter.end_date) where.push(eq(courseTable.end_date, filter.end_date));
         // if (filter.price_per_hour) where.push(eq(courseTable.price_per_hour, filter.price_per_hour));
@@ -48,12 +47,11 @@ export class CourseRepository extends Repository {
         if (filter.client) where.push(eq(courseTable.client, filter.client));
         if (filter.funding) where.push(eq(courseTable.funding, filter.funding));
         if (filter.id_catalog_course) where.push(eq(courseTable.id_catalog_course, filter.id_catalog_course));
-        // Búsqueda libre sobre nombre / nombre corto / nº de expediente.
+        // Búsqueda libre sobre nombre / nº de expediente.
         if (filter.search) {
           const term = `%${filter.search}%`;
           const searchCond = or(
             ilike(courseTable.course_name, term),
-            ilike(courseTable.short_name, term),
             ilike(courseTable.file_number, term),
             ilike(catalogCourseTable.name, term),
           );

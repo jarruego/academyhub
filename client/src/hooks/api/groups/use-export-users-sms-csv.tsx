@@ -62,7 +62,7 @@ export const useExportUsersToSmsCsv = () => {
         const id = String(courseIdOrShortName);
         // backend course endpoint is singular `/course/{id}` (see useCourseQuery)
         const resp = await courseRequest({ method: 'GET', url: `${getApiHost()}/course/${id}` });
-        courseShortName = (resp?.data as Course)?.short_name ?? undefined;
+        courseShortName = (resp?.data as Course)?.catalog_course_short_name ?? undefined;
       } catch (e) {
         // ignore and continue without short name
         courseShortName = undefined;

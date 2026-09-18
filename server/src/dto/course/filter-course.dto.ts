@@ -19,10 +19,6 @@ export class FilterCourseDTO {
   course_name?: string;
 
   @IsOptional()
-  @IsString()
-  short_name?: string;
-
-  @IsOptional()
   @IsDate()
   @Type(() => Date)
   start_date?: Date;
@@ -64,7 +60,7 @@ export class FilterCourseDTO {
   @IsIn(Object.values(CourseFunding))
   funding?: CourseFunding;
 
-  // Búsqueda libre: casa course_name / short_name / file_number.
+  // Búsqueda libre: casa course_name / file_number.
   @IsOptional()
   @IsString()
   search?: string;
