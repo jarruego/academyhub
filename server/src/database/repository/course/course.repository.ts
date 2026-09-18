@@ -47,13 +47,14 @@ export class CourseRepository extends Repository {
         if (filter.client) where.push(eq(courseTable.client, filter.client));
         if (filter.funding) where.push(eq(courseTable.funding, filter.funding));
         if (filter.id_catalog_course) where.push(eq(courseTable.id_catalog_course, filter.id_catalog_course));
-        // Búsqueda libre sobre nombre / nº de expediente.
+        // Búsqueda libre sobre nombre / nº de expediente / nombre corto del catálogo.
         if (filter.search) {
           const term = `%${filter.search}%`;
           const searchCond = or(
             ilike(courseTable.course_name, term),
             ilike(courseTable.file_number, term),
             ilike(catalogCourseTable.name, term),
+            ilike(catalogCourseTable.short_name, term),
           );
           if (searchCond) where.push(searchCond);
         }

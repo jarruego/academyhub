@@ -70,7 +70,7 @@ export default function CoursesRoute() {
 
   const filteredCourses = coursesData?.filter(course =>
     TAB_PREDICATE[activeTab](course) &&
-    matchesLoose(normalizedSearch, [course.catalog_course_name, course.course_name, course.file_number, course.moodle_id])
+    matchesLoose(normalizedSearch, [course.catalog_course_name, course.catalog_course_short_name, course.course_name, course.file_number, course.moodle_id])
   );
 
   // Map course id -> latest group end timestamp
