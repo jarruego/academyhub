@@ -407,6 +407,21 @@ export default function SendSmsToGroupModal({ open, users, courseName, courseSho
                   </Typography.Text>
                 ) : null}
               </div>
+              {lengthPreview && (
+                <div
+                  style={{
+                    marginTop: 6,
+                    padding: 8,
+                    background: '#fafafa',
+                    border: '1px solid #d9d9d9',
+                    borderRadius: 4,
+                    whiteSpace: 'pre-wrap',
+                    fontSize: 12,
+                  }}
+                >
+                  {lengthPreview.preview}
+                </div>
+              )}
               {exceedsLengthLimit && lengthPreview && (
                 <Alert
                   style={{ marginTop: 8 }}

@@ -282,11 +282,16 @@ export class SmsService {
 
   /**
    * Calcula la longitud/partes del SMS ya resuelto (variables + pie de baja)
-   * para un alumno y curso concretos, SIN enviar nada ni devolver el texto
-   * (podría contener {CLAVE_MOODLE}) — solo el recuento, para avisar antes de
-   * enviar si se supera `MAX_SMS_PARTS`.
+   * para un alumno y curso concretos, y además una vista previa del texto —
+   * para avisar antes de enviar si se supera `MAX_SMS_PARTS` y para que el
+   * usuario compruebe que las variables se están sustituyendo bien. La
+   * longitud se calcula sobre el mensaje real (con {USUARIO_MOODLE}/
+   * {CLAVE_MOODLE} reales si los hay, para que el recuento sea exacto), pero
+   * el texto de la vista previa los enmascara: la clave de Moodle nunca debe
+   * quedar expuesta en una respuesta de API que un admin puede ver en pantalla
+   * sin más contexto que "estoy comprobando el SMS".
    */
-  async previewLength(options: PreviewSmsLengthOptions): Promise<SmsLengthInfo & { limitParts: number }> {
+  async previewLength(options: PreviewSmsLengthOptions): Promise<SmsLengthInfo & { limitParts: number; preview: string }> {
     let rawMessage: string;
     if (options.message !== undefined) {
       rawMessage = options.message;
@@ -307,7 +312,13 @@ export class SmsService {
     );
 
     const finalMessage = this.ensureUnsubscribeUrl(this.applyVariables(rawMessage, variables));
-    return { ...estimateSmsLength(finalMessage), limitParts: this.MAX_SMS_PARTS };
+
+    const maskedVariables = { ...variables };
+    if (maskedVariables['{USUARIO_MOODLE}']) maskedVariables['{USUARIO_MOODLE}'] = '••••••';
+    if (maskedVariables['{CLAVE_MOODLE}']) maskedVariables['{CLAVE_MOODLE}'] = '••••••';
+    const preview = this.ensureUnsubscribeUrl(this.applyVariables(rawMessage, maskedVariables));
+
+    return { ...estimateSmsLength(finalMessage), limitParts: this.MAX_SMS_PARTS, preview };
   }
 
   /** Refresca el estado real de entrega en Mailrelay para una fila del registro (botón manual). */

@@ -148,7 +148,7 @@ describe('SmsService — registro en sms_log', () => {
 });
 
 describe('SmsService.previewLength', () => {
-  it('calcula caracteres/partes del mensaje ya resuelto (variables + pie de baja) sin enviarlo ni devolver el texto', async () => {
+  it('calcula caracteres/partes del mensaje ya resuelto (variables + pie de baja) y devuelve una vista previa con las variables sustituidas', async () => {
     const svc = makeService();
     const templatesService = { findById: jest.fn().mockResolvedValue({ id: 7, name: 'Recordatorio', message: 'Tu curso {NOMBRE_CURSO} empieza el {FECHA_INICIO}.' }) };
     (svc as any).smsTemplatesService = templatesService;
@@ -161,8 +161,26 @@ describe('SmsService.previewLength', () => {
 
     // "Tu curso Excel Avanzado empieza el 01/09/2026.\nBaja SMS: {{ unsubscribe_url }}"
     const expectedMessage = 'Tu curso Excel Avanzado empieza el 01/09/2026.\nBaja SMS: {{ unsubscribe_url }}';
-    expect(result).toMatchObject({ length: expectedMessage.length, parts: 1, encoding: 'GSM-7', limitParts: 1 });
-    expect(JSON.stringify(result)).not.toContain('Excel Avanzado');
+    expect(result).toMatchObject({ length: expectedMessage.length, parts: 1, encoding: 'GSM-7', limitParts: 1, preview: expectedMessage });
+  });
+
+  it('enmascara {USUARIO_MOODLE}/{CLAVE_MOODLE} en la vista previa aunque el alumno tenga credenciales reales (nunca expone la clave)', async () => {
+    const moodleUserRepository = { findByUserId: jest.fn().mockResolvedValue([{ is_main_user: true, moodle_username: 'jperez', moodle_password: 'sup3rSecreta' }]) };
+    const svc = makeService({ moodleUserRepository });
+    const templatesService = { findById: jest.fn() };
+    (svc as any).smsTemplatesService = templatesService;
+
+    const result = await svc.previewLength({
+      message: 'Usuario: {USUARIO_MOODLE} Clave: {CLAVE_MOODLE}',
+      userId: 42,
+    });
+
+    expect(result.preview).not.toContain('sup3rSecreta');
+    expect(result.preview).not.toContain('jperez');
+    expect(result.preview).toContain('••••••');
+    // La longitud sí se calcula sobre el mensaje real (con las credenciales reales), no sobre la vista previa enmascarada.
+    const realMessage = 'Usuario: jperez Clave: sup3rSecreta\nBaja SMS: {{ unsubscribe_url }}';
+    expect(result.length).toBe(realMessage.length);
   });
 
   it('marca parts > 1 cuando el mensaje resuelto supera 160 caracteres', async () => {

@@ -19,6 +19,10 @@ export interface SmsPreviewLengthResponse {
   parts: number;
   encoding: 'GSM-7' | 'UCS-2';
   limitParts: number;
+  // Texto ya resuelto (variables + pie de baja) para mostrar como vista
+  // previa — {USUARIO_MOODLE}/{CLAVE_MOODLE} llegan enmascarados desde el
+  // backend cuando tienen valor real (nunca se expone la clave real aquí).
+  preview: string;
 }
 
 export function useSmsPreviewLengthMutation() {
