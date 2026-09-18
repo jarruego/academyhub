@@ -741,6 +741,7 @@ export default function CourseDetailRoute() {
                   groupIds={selectedGroupIds}
                   groupNamesById={groupNamesById}
                   courseName={courseData?.course_name}
+                  courseShortName={courseData?.catalog_course_short_name}
                   courseModality={courseData?.modality}
                   courseClient={courseData?.client}
                   courseFunding={courseData?.funding}
