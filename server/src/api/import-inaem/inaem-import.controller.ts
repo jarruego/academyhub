@@ -24,6 +24,7 @@ import { RoleGuard } from "src/guards/role.guard";
 import { Role } from "src/guards/role.enum";
 import { InaemImportService } from "./inaem-import.service";
 import { JobService } from "../import-sage/job.service";
+import { ImportType } from "src/database/schema/tables/import.table";
 import { JwtPayload } from "src/auth/auth.service";
 
 const toBoolean = ({ value }: { value: unknown }) => value === true || value === "true";
@@ -152,6 +153,16 @@ export class InaemImportController {
       completedAt: job.completed_at || undefined,
       resultSummary: job.result_summary || undefined,
     };
+  }
+
+  // Sin RoleGuard propio (solo AuthGuard global): GET de solo lectura, sin datos
+  // sensibles, y debe ser visible para cualquier rol autenticado — lo consume el
+  // dashboard Home ("Última importación INAEM"), que también es visible a todos.
+  @Get("last-import")
+  @ApiOperation({ summary: "Fecha de la última importación INAEM completada" })
+  async getLastImport() {
+    const job = await this.jobService.getLastCompletedJob(ImportType.INAEM);
+    return { completedAt: job?.completed_at ?? null };
   }
 
   @Get("preinscriptions/by-user/:id")

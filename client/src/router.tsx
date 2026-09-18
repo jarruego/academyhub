@@ -109,7 +109,7 @@ const selectedLeafKey = (pathname: string) => MENU_LEAF_KEYS
   .sort((a, b) => b.length - a.length)[0];
 
 const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
-  const { logout } = useAuthInfo();
+  const { logout, authInfo } = useAuthInfo();
   const role = useRole();
   const { pathname } = useLocation();
   const { token } = theme.useToken();
@@ -196,6 +196,13 @@ const Sidebar = ({ isMobile, drawerOpen, onClose }: SidebarProps) => {
           <Button icon={<QuestionCircleOutlined />} block>Ayuda</Button>
         </Link>
         <UiPreferencesControl />
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: 'rgba(255,255,255,0.65)', fontSize: 12 }}
+          title={authInfo.user.email}
+        >
+          <UserOutlined />
+          <span>{authInfo.user.username}</span>
+        </div>
         <Button danger icon={<PoweroffOutlined />} onClick={logout} block>
           Cerrar sesión
         </Button>

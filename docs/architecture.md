@@ -5,7 +5,7 @@ Read before adding modules, tables, repositories, or scheduler tasks.
 ## Module hierarchy
 - `AppModule` — root, registers global `ThrottlerGuard` (120 req/min per IP), `AuthGuard` (JWT Bearer on all routes except `@Public()`), and `AuditInterceptor` (see `docs/security.md`). JSON body limit is 1 MB; file uploads use Multer (no limit shared).
 - `DatabaseModule` — global, provides `DATABASE_PROVIDER` token (a `DatabaseService` wrapping a Drizzle + `pg.Pool` instance)
-- `ApiModule` — aggregates all feature modules: Company, Center, Course, Group, User, AuthUser, Moodle, MoodleUser, ImportSage, ImportInaem (INAEM import — see `docs/import-inaem.md`), Reports, Organization, Files, Mail, Audit, UserRoles
+- `ApiModule` — aggregates all feature modules: Company, Center, Course, Group, User, AuthUser, Moodle, MoodleUser, ImportSage, ImportInaem (INAEM import — see `docs/import-inaem.md`), Reports, Organization, Files, Mail, Audit, UserRoles, Search (global search across users/courses/companies/centers for the Home dashboard, `GET api/search` — see `docs/client.md` "Buscador global")
 - `AuthModule` — login/logout endpoints, issues JWT; `auth_user` table is separate from the main `user` table
 - `SchedulerModule` — internal cron scheduler using `node-cron`; each task implements `ScheduledTask` interface
 

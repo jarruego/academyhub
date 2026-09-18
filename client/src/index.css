@@ -52,13 +52,31 @@ ul, ol {
     background: rgba(255, 214, 0, 0.28) !important;
 }
 
+/* El Sider (escritorio; el Drawer móvil ya es fijo por sí mismo) queda anclado
+   al viewport en vez de estirarse a la altura del Content — el Layout de antd
+   por defecto lo estira (`align-items: stretch`) a la altura de su hermano, así
+   que en una pantalla con un listado largo el Sider (y por tanto su pie:
+   Ayuda/preferencias/Cerrar sesión) se alargaba con la página entera y quedaba
+   fuera de vista sin hacer scroll hasta el final. `position: sticky` lo fija
+   sin sacarlo del flujo (a diferencia de `fixed`, no hace falta compensar el
+   margen del Content). */
+.app-sider {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+}
+
 /* Sidebar: el menú fluye arriba y el pie (preferencias + cerrar sesión) queda
    anclado abajo del todo. Ni el Sider ni el body del Drawer son flex por
-   defecto, así que hay que declararlo para que `margin-top: auto` empuje. */
+   defecto, así que hay que declararlo para que `margin-top: auto` empuje.
+   `height: 100%` en el Sider es lo que hace que ese "abajo del todo" sea el
+   fondo del viewport (ver regla `.app-sider` de arriba) y no el de la página. */
 .app-sider .ant-layout-sider-children,
 .app-sider-drawer-body {
     display: flex;
     flex-direction: column;
+    height: 100%;
 }
 
 /* El menú ocupa el hueco libre (empujando el pie abajo) y hace scroll propio si

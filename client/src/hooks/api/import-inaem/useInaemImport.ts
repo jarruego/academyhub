@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuthInfo } from "../../../providers/auth/auth.context";
 import { getApiHost } from "../../../utils/api/get-api-host.util";
+import { useAuthenticatedAxios } from "../../../utils/api/use-authenticated-axios.util";
 
 export interface InaemSummary {
   coursesCreated: number;
@@ -65,5 +66,14 @@ export const useInaemJobStatus = (
     refetchInterval: options?.refetchInterval,
     retry: 3,
     retryDelay: 1000,
+  });
+};
+
+/** Fecha de la última importación INAEM completada (dashboard Home). */
+export const useLastInaemImportQuery = () => {
+  const request = useAuthenticatedAxios<{ completedAt: string | null }>();
+  return useQuery({
+    queryKey: ["inaem-last-import"] as const,
+    queryFn: async () => (await request({ method: "GET", url: `${getApiHost()}/api/import-inaem/last-import` })).data,
   });
 };

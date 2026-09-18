@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { DatabaseService } from "src/database/database.service";
 import { DATABASE_PROVIDER } from "src/database/database.module";
-import { desc, eq, gte, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { import_jobs } from "src/database/schema";
 import { 
     ImportJobInsertModel, 
@@ -197,6 +197,20 @@ export class JobService {
             .where(
                 eq(import_jobs.status, ImportJobStatus.PROCESSING)
             );
+    }
+
+    /**
+     * Última ejecución completada de un tipo de importación (p. ej. "¿a qué
+     * fecha están actualizados los cursos públicos?" en el dashboard Home).
+     */
+    async getLastCompletedJob(type: ImportType) {
+        const [job] = await this.databaseService.db
+            .select({ completed_at: import_jobs.completed_at })
+            .from(import_jobs)
+            .where(and(eq(import_jobs.import_type, type), eq(import_jobs.status, ImportJobStatus.COMPLETED)))
+            .orderBy(desc(import_jobs.completed_at))
+            .limit(1);
+        return job ?? null;
     }
 
     /**
